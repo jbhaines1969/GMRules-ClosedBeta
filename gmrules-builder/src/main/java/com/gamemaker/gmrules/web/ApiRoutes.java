@@ -1,0 +1,3848 @@
+/*
+ FILE CONTRACT (Non-Null):
+ - Do not introduce null fields or null checks in this file.
+ - All instance fields are initialized (at declaration or in constructor) and remain non-null.
+ - Represent "empty" with empty/sentinel objects (e.g., "", empty lists, EMPTY instances), not null.
+ - If a value may be absent at an external boundary, normalize it immediately to a non-null value.
+*/
+// NONNULL_CONTRACT
+
+package com.gamemaker.gmrules.web;
+
+import com.gamemaker.gmrules.AtomicElements.Attribute;
+import com.gamemaker.gmrules.AtomicElements.AttributeType;
+import com.gamemaker.gmrules.AtomicElements.AttributeTypes;
+import com.gamemaker.gmrules.AtomicElements.EffectType;
+import com.gamemaker.gmrules.AtomicElements.EffectTypes;
+import com.gamemaker.gmrules.AtomicElements.RegistryKey;
+import com.gamemaker.gmrules.AtomicElements.SkillCategories;
+import com.gamemaker.gmrules.AtomicElements.SkillCategory;
+import com.gamemaker.gmrules.CharacterElements.CharacterClass;
+import com.gamemaker.gmrules.CharacterElements.Skill;
+import com.gamemaker.gmrules.CharacterElements.Race;
+import com.gamemaker.gmrules.ElementRegistry;
+import com.gamemaker.gmrules.ElementRegistryKey;
+import com.gamemaker.gmrules.Game;
+import com.gamemaker.gmrules.GameMechanics.ArmorClassMethod;
+import com.gamemaker.gmrules.GameMechanics.AttributeGenerationMethod;
+import com.gamemaker.gmrules.GameMechanics.HPMethod;
+import com.gamemaker.gmrules.GameMechanics.LevelingMethod;
+import com.gamemaker.gmrules.GameSaveIO;
+import com.gamemaker.gmrules.GameElements.Currency;
+import com.gamemaker.gmrules.GameElements.Equipment;
+import com.gamemaker.gmrules.GameElements.Species;
+import com.gamemaker.gmrules.GameElements.Spell;
+import com.gamemaker.gmrules.GameElements.Weapon;
+import com.gamemaker.gmrules.SupportElements.AttributeModifiers;
+import com.gamemaker.gmrules.SupportElements.Effect;
+import com.gamemaker.gmrules.SupportElements.Status;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Properties;
+
+/**
+ * Registers API routes for the web UI.
+ */
+public final class ApiRoutes {
+
+    // *** MEMBERS ***
+    private static final String STRINGS_BUNDLE = "i18n/strings";
+    private static final String ARRAY_HYBRID = "hybridStages";
+
+    // *** CONSTRUCTORS ***
+    private ApiRoutes() {
+    }
+
+    // *** METHODS ***
+    public static void register(Router router) {
+        router.add("GET", "/api/i18n", ApiRoutes::localization);
+        router.add("POST", "/api/accounts", ApiRoutes::createAccount);
+        router.add("DELETE", "/api/accounts", ApiRoutes::deleteAccount);
+        router.add("POST", "/api/login", ApiRoutes::login);
+        router.add("POST", "/api/logout", ApiRoutes::logout);
+        router.add("GET", "/api/session", ApiRoutes::sessionInfo);
+
+        router.add("GET", "/api/drafts", ApiRoutes::listDrafts);
+        router.add("POST", "/api/drafts", ApiRoutes::createDraft);
+        router.add("POST", "/api/drafts/import", ApiRoutes::importDraft);
+        router.add("POST", "/api/drafts/{id}/open", ApiRoutes::openDraft);
+        router.add("DELETE", "/api/drafts/{id}", ApiRoutes::deleteDraft);
+        router.add("GET", "/api/drafts/{id}/export", ApiRoutes::exportDraft);
+        router.add("GET", "/api/drafts/{id}/summary", ApiRoutes::summary);
+        router.add("GET", "/api/drafts/{id}/locale", ApiRoutes::getLocale);
+        router.add("POST", "/api/drafts/{id}/locale", ApiRoutes::updateLocale);
+        router.add("GET", "/api/drafts/{id}/system-names", ApiRoutes::getSystemNames);
+        router.add("POST", "/api/drafts/{id}/system-names", ApiRoutes::updateSystemName);
+
+        router.add("GET", "/api/drafts/{id}/setup", ApiRoutes::getSetup);
+        router.add("POST", "/api/drafts/{id}/setup", ApiRoutes::updateSetup);
+        router.add("GET", "/api/drafts/{id}/measurements", ApiRoutes::getMeasurements);
+        router.add("POST", "/api/drafts/{id}/measurements", ApiRoutes::updateMeasurements);
+
+        router.add("GET", "/api/drafts/{id}/dice", ApiRoutes::getDice);
+        router.add("POST", "/api/drafts/{id}/dice/standard", ApiRoutes::updateStandardDice);
+        router.add("POST", "/api/drafts/{id}/dice/custom", ApiRoutes::addCustomDiceRange);
+        router.add("DELETE", "/api/drafts/{id}/dice/custom", ApiRoutes::removeCustomDiceRange);
+
+        router.add("GET", "/api/drafts/{id}/attribute-types", ApiRoutes::getAttributeTypes);
+        router.add("POST", "/api/drafts/{id}/attribute-types", ApiRoutes::addAttributeType);
+        router.add("DELETE", "/api/drafts/{id}/attribute-types", ApiRoutes::removeAttributeType);
+        router.add("POST", "/api/drafts/{id}/attribute-types/update", ApiRoutes::updateAttributeTypeDetails);
+        router.add("GET", "/api/drafts/{id}/effect-types", ApiRoutes::getEffectTypes);
+        router.add("POST", "/api/drafts/{id}/effect-types", ApiRoutes::addEffectType);
+        router.add("DELETE", "/api/drafts/{id}/effect-types", ApiRoutes::removeEffectType);
+        router.add("POST", "/api/drafts/{id}/effect-types/update", ApiRoutes::updateEffectTypeDetails);
+        router.add("GET", "/api/drafts/{id}/skill-categories", ApiRoutes::getSkillCategories);
+        router.add("POST", "/api/drafts/{id}/skill-categories", ApiRoutes::addSkillCategory);
+
+        router.add("GET", "/api/drafts/{id}/attributes", ApiRoutes::getAttributes);
+        router.add("POST", "/api/drafts/{id}/attributes", ApiRoutes::addAttribute);
+        router.add("DELETE", "/api/drafts/{id}/attributes", ApiRoutes::removeAttribute);
+        router.add("POST", "/api/drafts/{id}/attributes/type", ApiRoutes::updateAttributeType);
+        router.add("POST", "/api/drafts/{id}/attributes/update", ApiRoutes::updateAttributeDetails);
+
+        router.add("GET", "/api/drafts/{id}/attribute-generation", ApiRoutes::getAttributeGeneration);
+        router.add("POST", "/api/drafts/{id}/attribute-generation", ApiRoutes::updateAttributeGeneration);
+        router.add("GET", "/api/drafts/{id}/chargen/attribute-generation", ApiRoutes::getCharGenAttributeGeneration);
+
+        router.add("GET", "/api/drafts/{id}/standard-array", ApiRoutes::getStandardArrays);
+        router.add("POST", "/api/drafts/{id}/standard-array/standard", ApiRoutes::addStandardArray);
+        router.add("DELETE", "/api/drafts/{id}/standard-array/standard", ApiRoutes::removeStandardArray);
+        router.add("POST", "/api/drafts/{id}/standard-array/elite", ApiRoutes::addEliteArray);
+        router.add("DELETE", "/api/drafts/{id}/standard-array/elite", ApiRoutes::removeEliteArray);
+        router.add("POST", "/api/drafts/{id}/standard-array/default", ApiRoutes::setDefaultArrayType);
+
+        router.add("GET", "/api/drafts/{id}/dice-rolling", ApiRoutes::getDiceRolling);
+        router.add("POST", "/api/drafts/{id}/dice-rolling/sets", ApiRoutes::updateDiceSets);
+        router.add("POST", "/api/drafts/{id}/dice-rolling/method", ApiRoutes::updateDiceMethod);
+        router.add("POST", "/api/drafts/{id}/dice-rolling/substitution", ApiRoutes::updateDiceSubstitution);
+        router.add("POST", "/api/drafts/{id}/dice-rolling/term", ApiRoutes::addDiceTerm);
+        router.add("DELETE", "/api/drafts/{id}/dice-rolling/term", ApiRoutes::removeDiceTerm);
+
+        router.add("GET", "/api/drafts/{id}/points-buy", ApiRoutes::getPointsBuy);
+        router.add("POST", "/api/drafts/{id}/points-buy", ApiRoutes::updatePointsBuy);
+        router.add("GET", "/api/drafts/{id}/hit-points", ApiRoutes::getHitPoints);
+        router.add("POST", "/api/drafts/{id}/hit-points", ApiRoutes::updateHitPoints);
+        router.add("GET", "/api/drafts/{id}/armor-class", ApiRoutes::getArmorClass);
+        router.add("POST", "/api/drafts/{id}/armor-class", ApiRoutes::updateArmorClass);
+
+        router.add("GET", "/api/drafts/{id}/currencies", ApiRoutes::getCurrencies);
+        router.add("POST", "/api/drafts/{id}/currencies", ApiRoutes::addCurrency);
+        router.add("DELETE", "/api/drafts/{id}/currencies", ApiRoutes::removeCurrency);
+        router.add("POST", "/api/drafts/{id}/currencies/denominations", ApiRoutes::addCurrencyDenomination);
+        router.add("DELETE", "/api/drafts/{id}/currencies/denominations", ApiRoutes::removeCurrencyDenomination);
+        router.add("POST", "/api/drafts/{id}/currencies/starting-money", ApiRoutes::updateStartingMoney);
+
+        router.add("GET", "/api/drafts/{id}/effects", ApiRoutes::getEffects);
+        router.add("POST", "/api/drafts/{id}/effects", ApiRoutes::addEffect);
+        router.add("DELETE", "/api/drafts/{id}/effects", ApiRoutes::removeEffect);
+        router.add("POST", "/api/drafts/{id}/effects/update", ApiRoutes::updateEffect);
+
+        router.add("GET", "/api/drafts/{id}/statuses", ApiRoutes::getStatuses);
+        router.add("POST", "/api/drafts/{id}/statuses", ApiRoutes::addStatus);
+        router.add("DELETE", "/api/drafts/{id}/statuses", ApiRoutes::removeStatus);
+        router.add("POST", "/api/drafts/{id}/statuses/update", ApiRoutes::updateStatus);
+
+        router.add("GET", "/api/drafts/{id}/equipment", ApiRoutes::getEquipment);
+        router.add("POST", "/api/drafts/{id}/equipment", ApiRoutes::addEquipment);
+        router.add("DELETE", "/api/drafts/{id}/equipment", ApiRoutes::removeEquipment);
+        router.add("POST", "/api/drafts/{id}/equipment/update", ApiRoutes::updateEquipment);
+
+        router.add("GET", "/api/drafts/{id}/weapons", ApiRoutes::getWeapons);
+        router.add("POST", "/api/drafts/{id}/weapons", ApiRoutes::addWeapon);
+        router.add("DELETE", "/api/drafts/{id}/weapons", ApiRoutes::removeWeapon);
+        router.add("POST", "/api/drafts/{id}/weapons/update", ApiRoutes::updateWeapon);
+
+        router.add("GET", "/api/drafts/{id}/classes", ApiRoutes::getClasses);
+        router.add("POST", "/api/drafts/{id}/classes", ApiRoutes::addClass);
+        router.add("DELETE", "/api/drafts/{id}/classes", ApiRoutes::removeClass);
+        router.add("POST", "/api/drafts/{id}/classes/update", ApiRoutes::updateClass);
+
+        router.add("GET", "/api/drafts/{id}/skills", ApiRoutes::getSkills);
+        router.add("POST", "/api/drafts/{id}/skills/progression", ApiRoutes::updateSkillProgression);
+        router.add("POST", "/api/drafts/{id}/skills", ApiRoutes::addSkill);
+        router.add("DELETE", "/api/drafts/{id}/skills", ApiRoutes::removeSkill);
+        router.add("POST", "/api/drafts/{id}/skills/update", ApiRoutes::updateSkill);
+
+        router.add("GET", "/api/drafts/{id}/spells", ApiRoutes::getSpells);
+        router.add("POST", "/api/drafts/{id}/spells", ApiRoutes::addSpell);
+        router.add("DELETE", "/api/drafts/{id}/spells", ApiRoutes::removeSpell);
+        router.add("POST", "/api/drafts/{id}/spells/update", ApiRoutes::updateSpell);
+
+        router.add("GET", "/api/drafts/{id}/races", ApiRoutes::getRaces);
+        router.add("POST", "/api/drafts/{id}/races", ApiRoutes::addRace);
+        router.add("DELETE", "/api/drafts/{id}/races", ApiRoutes::removeRace);
+        router.add("POST", "/api/drafts/{id}/races/update", ApiRoutes::updateRace);
+    }
+
+    private static void localization(RequestContext ctx) throws IOException {
+        String rawLanguage = firstQueryParam(ctx, "lang");
+        Locale resolvedLocale = resolveLocale(rawLanguage);
+        Locale.setDefault(resolvedLocale);
+        Map<String, String> strings = new LinkedHashMap<>();
+        strings.putAll(loadStrings(resolvedLocale));
+        String localeTag = Objects.toString(resolvedLocale.toLanguageTag(), "");
+        ctx.json(200, Map.of("locale", localeTag, "strings", strings));
+    }
+
+    private static Locale resolveLocale(String rawLanguage) {
+        String safeLanguage = Objects.toString(rawLanguage, "").trim().toLowerCase();
+        if (safeLanguage.startsWith("fr")) {
+            return Locale.FRENCH;
+        }
+        return Locale.ENGLISH;
+    }
+
+    private static Map<String, String> loadStrings(Locale locale) throws IOException {
+        Locale resolvedLocale = Objects.requireNonNullElseGet(locale, Locale::getDefault);
+        boolean useFrench = Locale.FRENCH.getLanguage().equals(resolvedLocale.getLanguage());
+        String resource = useFrench ? STRINGS_BUNDLE + "_fr.properties" : STRINGS_BUNDLE + ".properties";
+        Map<String, String> strings = new LinkedHashMap<>();
+        if (!loadProperties(resource, strings) && useFrench) {
+            loadProperties(STRINGS_BUNDLE + ".properties", strings);
+        }
+        return strings;
+    }
+
+    private static boolean loadProperties(String resource, Map<String, String> target) throws IOException {
+        try (InputStream input = ApiRoutes.class.getClassLoader().getResourceAsStream(resource)) {
+            if (input == null) {
+                return false;
+            }
+            Properties props = new Properties();
+            props.load(input);
+            for (String name : props.stringPropertyNames()) {
+                target.put(name, Objects.toString(props.getProperty(name), ""));
+            }
+            return true;
+        }
+    }
+
+    private static void createAccount(RequestContext ctx) throws IOException {
+        Map<String, Object> body = ctx.readJsonMap();
+        String username = getString(body, "username").trim();
+        String password = getString(body, "password");
+        try {
+            AccountStore.Account account = ctx.getAccountStore().createAccount(username, password);
+            SessionStore.Session session = ctx.getSessionStore().createSession(
+                account.getId(),
+                account.getUsername(),
+                account.isLegacyGuest()
+            );
+            ctx.json(200, Map.of(
+                "ok",
+                true,
+                "token",
+                session.getId(),
+                "username",
+                account.getUsername(),
+                "legacyGuest",
+                account.isLegacyGuest()
+            ));
+        } catch (IllegalArgumentException e) {
+            ctx.json(400, Map.of("error", e.getMessage()));
+        }
+    }
+
+    private static void deleteAccount(RequestContext ctx) throws IOException {
+        Map<String, Object> body = ctx.readJsonMap();
+        String username = getString(body, "username").trim();
+        String password = getString(body, "password");
+        try {
+            AccountStore.AccountDeletion deletion = ctx.getAccountStore().deleteAccount(username, password);
+            for (String draftId : deletion.getDraftIds()) {
+                ctx.getDraftStore().deleteDraft(draftId);
+            }
+            ctx.getSessionStore().invalidateUser(deletion.getAccount().getId());
+            ctx.json(200, Map.of(
+                "ok",
+                true,
+                "deletedDrafts",
+                deletion.getDraftIds().size()
+            ));
+        } catch (IllegalArgumentException e) {
+            ctx.json(401, Map.of("error", e.getMessage()));
+        }
+    }
+
+    private static void login(RequestContext ctx) throws IOException {
+        Map<String, Object> body = ctx.readJsonMap();
+        String username = getString(body, "username").trim();
+        String password = getString(body, "password");
+        if (username.isEmpty() || password.isEmpty()) {
+            ctx.json(401, Map.of("error", "Username and password are required"));
+            return;
+        }
+        java.util.Optional<AccountStore.Account> resolved = ctx.getAccountStore().authenticate(username, password);
+        if (resolved.isEmpty()) {
+            ctx.json(401, Map.of("error", "Invalid username or password"));
+            return;
+        }
+        AccountStore.Account account = resolved.get();
+        SessionStore.Session session = ctx.getSessionStore().createSession(
+            account.getId(),
+            account.getUsername(),
+            account.isLegacyGuest()
+        );
+        ctx.json(200, Map.of(
+            "ok",
+            true,
+            "token",
+            session.getId(),
+            "username",
+            account.getUsername(),
+            "legacyGuest",
+            account.isLegacyGuest()
+        ));
+    }
+
+    private static void logout(RequestContext ctx) throws IOException {
+        String sessionId = resolveToken(ctx);
+        ctx.getSessionStore().invalidate(sessionId);
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void sessionInfo(RequestContext ctx) throws IOException {
+        SessionStore.Session session = ctx.getSessionStore().getSession(resolveToken(ctx));
+        if (session == null) {
+            ctx.json(200, Map.of("authenticated", false));
+            return;
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("authenticated", true);
+        payload.put("username", session.getUsername());
+        payload.put("legacyGuest", session.isLegacyGuest());
+        payload.put("draftId", session.getDraftId());
+        payload.put("draftLocale", resolveDraftLocale(ctx, session.getDraftId()));
+        payload.put("completedStages", resolveCompletedStages(ctx, session.getDraftId()));
+        ctx.json(200, payload);
+    }
+
+    private static void listDrafts(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        if (session.isLegacyGuest()) {
+            ctx.json(200, Map.of(
+                "drafts",
+                List.of(),
+                "maxDrafts",
+                0,
+                "canCreate",
+                true,
+                "transientGuest",
+                true
+            ));
+            return;
+        }
+        List<Map<String, Object>> drafts = new ArrayList<>();
+        for (String draftId : ctx.getAccountStore().listDraftIds(session.getUserId())) {
+            try {
+                drafts.add(buildDraftEntry(ctx, draftId));
+            } catch (IOException ignored) {
+                // Missing or invalid draft files are skipped from the account list.
+            }
+        }
+        drafts.sort(Comparator.comparing(entry -> Objects.toString(entry.get("lastSaved"), ""), Comparator.reverseOrder()));
+        ctx.json(200, Map.of(
+            "drafts",
+            drafts,
+            "maxDrafts",
+            2,
+            "canCreate",
+            ctx.getAccountStore().canAddDraft(session.getUserId())
+        ));
+    }
+
+    private static void createDraft(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        if (!ensureCanCreateDraft(ctx, session)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        String locale = getString(body, "locale");
+        Game game = new Game("");
+        game.setUiLocale(locale);
+        DraftStore.Draft draft = ctx.getDraftStore().createDraft(game);
+        if (!session.isLegacyGuest()) {
+            ctx.getAccountStore().addDraft(session.getUserId(), draft.getId());
+        }
+        session.setDraftId(draft.getId());
+        ctx.json(200, Map.of(
+            "draftId",
+            draft.getId(),
+            "locale",
+            locale,
+            "completedStages",
+            game.getCompletedStages()
+        ));
+    }
+
+    private static void importDraft(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        if (!ensureCanCreateDraft(ctx, session)) {
+            return;
+        }
+        byte[] payload = ctx.readBody();
+        try {
+            DraftStore.Draft draft = ctx.getDraftStore().importDraft(payload);
+            if (!session.isLegacyGuest()) {
+                ctx.getAccountStore().addDraft(session.getUserId(), draft.getId());
+            }
+            session.setDraftId(draft.getId());
+            String locale = Objects.toString(draft.getGame().getUiLocale(), "");
+            ctx.json(200, Map.of(
+                "draftId",
+                draft.getId(),
+                "locale",
+                locale,
+                "completedStages",
+                draft.getGame().getCompletedStages()
+            ));
+        } catch (ClassNotFoundException e) {
+            ctx.json(400, Map.of("error", "Invalid game file"));
+        }
+    }
+
+    private static void openDraft(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        DraftStore.Draft draft = ctx.getDraftStore().openDraft(draftId);
+        session.setDraftId(draft.getId());
+        String locale = Objects.toString(draft.getGame().getUiLocale(), "");
+        ctx.json(200, Map.of(
+            "draftId",
+            draft.getId(),
+            "locale",
+            locale,
+            "completedStages",
+            draft.getGame().getCompletedStages()
+        ));
+    }
+
+    private static void deleteDraft(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        ctx.getDraftStore().deleteDraft(draftId);
+        if (!session.isLegacyGuest()) {
+            ctx.getAccountStore().removeDraft(session.getUserId(), draftId);
+        }
+        if (Objects.equals(session.getDraftId(), draftId)) {
+            session.setDraftId("");
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void exportDraft(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        byte[] data = ctx.getDraftStore().exportDraft(draftId);
+        String filename = ctx.getDraftStore().readDraft(draftId, game -> new GameSaveIO().buildFilename(game));
+        Map<String, String> headers = new LinkedHashMap<>();
+        headers.put("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+        ctx.bytes(200, data, "application/octet-stream", headers);
+    }
+
+    private static void summary(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        String summary = ctx.getDraftStore().readDraft(draftId, Game::getSummary);
+        ctx.json(200, Map.of("summary", summary));
+    }
+
+    private static void getLocale(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        String locale = ctx.getDraftStore().readDraft(draftId, Game::getUiLocale);
+        ctx.json(200, Map.of("locale", locale));
+    }
+
+    private static void updateLocale(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String locale = getString(body, "locale");
+        ctx.getDraftStore().updateDraft(draftId, game -> game.setUiLocale(locale));
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getSystemNames(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("systemNames", game.getSystemNames());
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void updateSystemName(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String key = getString(body, "key").trim();
+        String name = getString(body, "name").trim();
+        if (key.isEmpty()) {
+            ctx.json(400, Map.of("error", "Key is required"));
+            return;
+        }
+        ctx.getDraftStore().updateDraft(draftId, game -> game.setSystemName(key, name));
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getSetup(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "setup");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("id", Objects.toString(game.getId(), ""));
+            response.put("name", Objects.toString(game.getName(), ""));
+            response.put("description", Objects.toString(game.getDescription(), ""));
+            response.put("gameType", Objects.toString(game.getGameType(), ""));
+            response.put("gameTypes", Game.getGameTypes());
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void updateSetup(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name");
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        String description = getString(body, "description");
+        String gameType = getString(body, "gameType");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            game.setName(name);
+            game.setDescription(description);
+            game.setGameType(gameType);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getMeasurements(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "measurements");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("weightSystem", Objects.toString(game.getWeightSystem(), ""));
+            List<Map<String, Object>> timeUnits = new ArrayList<>();
+            for (Map.Entry<String, Integer> entry : game.getTimeUnits().entrySet()) {
+                Map<String, Object> unit = new LinkedHashMap<>();
+                unit.put("name", Objects.toString(entry.getKey(), ""));
+                unit.put("duration", entry.getValue());
+                timeUnits.add(unit);
+            }
+            response.put("timeUnits", timeUnits);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void updateMeasurements(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String weightSystem = getString(body, "weightSystem");
+        List<Map<String, Object>> timeUnits = getMapList(body, "timeUnits");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            game.setWeightSystem(weightSystem);
+            Map<String, Integer> units = new LinkedHashMap<>();
+            for (Map<String, Object> unit : timeUnits) {
+                String name = getString(unit, "name");
+                int duration = getInt(unit, "duration", 0);
+                if (name.isEmpty() || duration <= 0) {
+                    continue;
+                }
+                units.put(name, duration);
+            }
+            game.setTimeUnits(units);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getDice(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "dice");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("diceUsed", game.getDiceUsed());
+            List<Map<String, Object>> ranges = new ArrayList<>();
+            for (Game.DiceRange range : game.getCustomDiceRanges()) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("min", range.getMinValue());
+                entry.put("max", range.getMaxValue());
+                ranges.add(entry);
+            }
+            response.put("customRanges", ranges);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void updateStandardDice(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        int sides = getInt(body, "sides", 0);
+        boolean selected = getBoolean(body, "selected", false);
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            if (selected) {
+                game.addDiceUsed(sides);
+            } else {
+                game.removeDiceUsed(sides);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void addCustomDiceRange(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        int min = getInt(body, "min", 0);
+        int max = getInt(body, "max", 0);
+        ctx.getDraftStore().updateDraft(draftId, game -> game.addCustomDiceRange(min, max));
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void removeCustomDiceRange(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        int min = getInt(body, "min", 0);
+        int max = getInt(body, "max", 0);
+        ctx.getDraftStore().updateDraft(draftId, game -> game.removeCustomDiceRange(min, max));
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getAttributeTypes(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "attribute-types");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            AttributeTypes registry = game.getRegistry(RegistryKey.ATTRIBUTE_TYPES);
+            List<Map<String, Object>> types = new ArrayList<>();
+            for (AttributeType type : registry.getAll()) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("key", Objects.toString(type.getKey(), ""));
+                entry.put("name", Objects.toString(type.getName(), ""));
+                entry.put("description", Objects.toString(type.getDescription(), ""));
+                entry.put("displayName", Objects.toString(type.getDisplayName(), ""));
+                types.add(entry);
+            }
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("systemName", game.getSystemName("attribute-types"));
+            response.put("types", types);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addAttributeType(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        AttributeType attributeType = new AttributeType(name, name, "", true);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttributeTypes registry = game.getRegistry(RegistryKey.ATTRIBUTE_TYPES);
+            if (registry.contains(name)) {
+                return;
+            }
+            registry.register(attributeType);
+            added[0] = true;
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Attribute type already exists"));
+            return;
+        }
+        ctx.json(200, Map.of(
+            "ok", true,
+            "key", Objects.toString(attributeType.getKey(), ""),
+            "name", Objects.toString(attributeType.getName(), ""),
+            "description", Objects.toString(attributeType.getDescription(), ""),
+            "displayName", Objects.toString(attributeType.getDisplayName(), "")
+        ));
+    }
+
+    private static void removeAttributeType(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String key = getString(body, "key");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttributeTypes registry = game.getRegistry(RegistryKey.ATTRIBUTE_TYPES);
+            registry.remove(key);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateAttributeTypeDetails(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String key = getString(body, "key");
+        String name = getString(body, "name");
+        String description = getString(body, "description");
+        if (key.isEmpty()) {
+            ctx.json(400, Map.of("error", "Key is required"));
+            return;
+        }
+        if (name.trim().isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttributeTypes registry = game.getRegistry(RegistryKey.ATTRIBUTE_TYPES);
+            AttributeType type = registry.get(key);
+            if (type == null) {
+                return;
+            }
+            type.setName(name);
+            type.setDescription(description);
+            game.updateLastModified();
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getEffectTypes(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "effect-types");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            EffectTypes registry = game.getRegistry(RegistryKey.EFFECT_TYPES);
+            List<Map<String, Object>> types = new ArrayList<>();
+            for (EffectType type : registry.getAll()) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("key", normalizeEffectTypeKey(type.getName()));
+                entry.put("name", Objects.toString(type.getName(), ""));
+                entry.put("description", Objects.toString(type.getDescription(), ""));
+                entry.put("displayName", Objects.toString(type.getDisplayName(), ""));
+                types.add(entry);
+            }
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("systemName", game.getSystemName("effect-types"));
+            response.put("types", types);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addEffectType(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        EffectType type = new EffectType(name, description);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            EffectTypes registry = game.getRegistry(RegistryKey.EFFECT_TYPES);
+            if (registry.contains(name)) {
+                return;
+            }
+            registry.register(type);
+            added[0] = true;
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Effect type already exists"));
+            return;
+        }
+        ctx.json(200, Map.of(
+            "ok", true,
+            "key", normalizeEffectTypeKey(type.getName()),
+            "name", Objects.toString(type.getName(), ""),
+            "description", Objects.toString(type.getDescription(), ""),
+            "displayName", Objects.toString(type.getDisplayName(), "")
+        ));
+    }
+
+    private static void removeEffectType(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String key = getString(body, "key");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            EffectTypes registry = game.getRegistry(RegistryKey.EFFECT_TYPES);
+            EffectType type = registry.get(key);
+            if (type == null) {
+                return;
+            }
+            registry.remove(type.getName());
+            updateEffectTypeReferences(game, type.getName(), "");
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateEffectTypeDetails(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String key = getString(body, "key");
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        if (key.isEmpty()) {
+            ctx.json(400, Map.of("error", "Key is required"));
+            return;
+        }
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        boolean[] duplicate = new boolean[] { false };
+        boolean[] updated = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            EffectTypes registry = game.getRegistry(RegistryKey.EFFECT_TYPES);
+            EffectType type = registry.get(key);
+            if (type == null) {
+                return;
+            }
+            String previousName = type.getName();
+            if (!previousName.equalsIgnoreCase(name) && registry.contains(name)) {
+                duplicate[0] = true;
+                return;
+            }
+            if (!previousName.equalsIgnoreCase(name)) {
+                registry.remove(previousName);
+                type.setName(name);
+                registry.register(type);
+                updateEffectTypeReferences(game, previousName, name);
+            }
+            type.setDescription(description);
+            updated[0] = true;
+        });
+        if (duplicate[0]) {
+            ctx.json(400, Map.of("error", "Effect type already exists"));
+            return;
+        }
+        if (!updated[0]) {
+            ctx.json(404, Map.of("error", "Effect type not found"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getAttributes(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "attributes");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("systemName", game.getSystemName("attributes"));
+            List<Map<String, Object>> attributes = new ArrayList<>();
+            AttributeTypes registry = game.getRegistry(RegistryKey.ATTRIBUTE_TYPES);
+            for (Attribute attribute : getAttributes(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(attribute.getId(), ""));
+                entry.put("name", Objects.toString(attribute.getName(), ""));
+                entry.put("displayName", Objects.toString(attribute.getDisplayName(), ""));
+                entry.put("description", Objects.toString(attribute.getDescription(), ""));
+                entry.put("minValue", attribute.getMinValue());
+                entry.put("maxValue", attribute.getMaxValue());
+                String typeKey = Objects.toString(attribute.getType(), "");
+                entry.put("typeKey", typeKey);
+                AttributeType type = registry.get(typeKey);
+                entry.put("typeName", type == null ? "" : Objects.toString(type.getDisplayName(), ""));
+
+                List<Map<String, Object>> modifiers = new ArrayList<>();
+                for (Map.Entry<Float, Float> modEntry : attribute.getModifierMap().entrySet()) {
+                    Map<String, Object> mod = new LinkedHashMap<>();
+                    mod.put("score", modEntry.getKey());
+                    mod.put("modifier", modEntry.getValue());
+                    modifiers.add(mod);
+                }
+                entry.put("modifiers", modifiers);
+
+                List<Map<String, Object>> bonuses = new ArrayList<>();
+                for (Map.Entry<Integer, ArrayList<String>> bonusEntry : attribute.getAllScoreBonuses().entrySet()) {
+                    int threshold = bonusEntry.getKey();
+                    for (String effect : bonusEntry.getValue()) {
+                        Map<String, Object> bonus = new LinkedHashMap<>();
+                        bonus.put("threshold", threshold);
+                        bonus.put("effect", Objects.toString(effect, ""));
+                        bonuses.add(bonus);
+                    }
+                }
+                entry.put("scoreBonuses", bonuses);
+                attributes.add(entry);
+            }
+            response.put("attributes", attributes);
+            response.put("attributeModifiers", serializeAttributeModifiers(game.getAttributeModifiers()));
+            response.put(
+                "applyAttributeModifiersToAllAttributes",
+                game.isApplyAttributeModifiersToAllAttributes()
+            );
+            response.put("defaultAttributeMinScore", game.getDefaultAttributeMinScore());
+            response.put("defaultAttributeMaxScore", game.getDefaultAttributeMaxScore());
+
+            List<Map<String, Object>> types = new ArrayList<>();
+            for (AttributeType type : registry.getAll()) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("key", Objects.toString(type.getKey(), ""));
+                entry.put("displayName", Objects.toString(type.getDisplayName(), ""));
+                types.add(entry);
+            }
+            response.put("types", types);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void getSkillCategories(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            SkillCategories registry = game.getRegistry(RegistryKey.SKILL_CATEGORIES);
+            List<Map<String, Object>> categories = new ArrayList<>();
+            for (SkillCategory category : registry.getAll()) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("key", Objects.toString(category.getKey(), ""));
+                entry.put("name", Objects.toString(category.getName(), ""));
+                entry.put("description", Objects.toString(category.getDescription(), ""));
+                entry.put("displayName", Objects.toString(category.getDisplayName(), ""));
+                categories.add(entry);
+            }
+            return Map.of("categories", categories);
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addSkillCategory(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        String key = normalizeSkillCategoryKey(name);
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        if (key.isEmpty()) {
+            ctx.json(400, Map.of("error", "Category key is required"));
+            return;
+        }
+        SkillCategory category = new SkillCategory(key, name, description, true);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            SkillCategories registry = game.getRegistry(RegistryKey.SKILL_CATEGORIES);
+            if (registry.contains(key)) {
+                return;
+            }
+            registry.register(category);
+            added[0] = true;
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Category already exists"));
+            return;
+        }
+        ctx.json(200, Map.of(
+            "ok", true,
+            "key", Objects.toString(category.getKey(), ""),
+            "name", Objects.toString(category.getName(), ""),
+            "description", Objects.toString(category.getDescription(), ""),
+            "displayName", Objects.toString(category.getDisplayName(), "")
+        ));
+    }
+
+    private static void addAttribute(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        String typeKey = getString(body, "typeKey");
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        Attribute attribute = new Attribute(name);
+        if (!typeKey.isEmpty()) {
+            attribute.setType(typeKey);
+        }
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            if (game.addElement("attributes", attribute)) {
+                added[0] = true;
+            }
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Attribute already exists"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(attribute.getId(), "")));
+    }
+
+    private static void removeAttribute(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String attributeId = getString(body, "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            Attribute attribute = game.getElement("attributes", attributeId);
+            if (attribute != null) {
+                game.removeElement("attributes", attribute);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateAttributeType(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String attributeId = getString(body, "id");
+        String typeKey = getString(body, "typeKey");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            Attribute attribute = game.getElement("attributes", attributeId);
+            if (attribute != null) {
+                attribute.setType(typeKey);
+                game.updateLastModified();
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateAttributeDetails(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String attributeId = getString(body, "id");
+        String name = getString(body, "name");
+        String description = getString(body, "description");
+        String typeKey = getString(body, "typeKey");
+        int minValue = getInt(body, "minValue", 0);
+        int maxValue = getInt(body, "maxValue", 0);
+        List<Map<String, Object>> modifiers = getMapList(body, "modifiers");
+        List<Map<String, Object>> bonuses = getMapList(body, "scoreBonuses");
+
+        if (attributeId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Attribute id is required"));
+            return;
+        }
+        if (name.trim().isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        if (minValue > maxValue) {
+            ctx.json(400, Map.of("error", "Minimum cannot exceed maximum"));
+            return;
+        }
+
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            Attribute attribute = game.getElement("attributes", attributeId);
+            if (attribute == null) {
+                return;
+            }
+            attribute.setName(name);
+            attribute.setDescription(description);
+            attribute.setType(typeKey);
+            attribute.setMinValue(minValue);
+            attribute.setMaxValue(maxValue);
+
+            Map<Float, Float> modifierMap = new LinkedHashMap<>();
+            for (Map<String, Object> entry : modifiers) {
+                double score = getDouble(entry, "score", 0.0);
+                double modifier = getDouble(entry, "modifier", 0.0);
+                modifierMap.put((float) score, (float) modifier);
+            }
+            attribute.setModifierMap(modifierMap);
+
+            Map<Integer, ArrayList<String>> bonusMap = new LinkedHashMap<>();
+            for (Map<String, Object> entry : bonuses) {
+                int threshold = getInt(entry, "threshold", 0);
+                String effect = getString(entry, "effect").trim();
+                if (effect.isEmpty()) {
+                    continue;
+                }
+                bonusMap.computeIfAbsent(threshold, key -> new ArrayList<>()).add(effect);
+            }
+            attribute.setScoreBonuses(bonusMap);
+            game.updateLastModified();
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static List<Map<String, Object>> serializeAttributeModifiers(AttributeModifiers attributeModifiers) {
+        List<Map<String, Object>> modifiers = new ArrayList<>();
+        for (Map.Entry<Float, Float> entry : attributeModifiers.getModifierMap().entrySet()) {
+            Map<String, Object> modifierEntry = new LinkedHashMap<>();
+            modifierEntry.put("score", entry.getKey());
+            modifierEntry.put("modifier", entry.getValue());
+            modifiers.add(modifierEntry);
+        }
+        modifiers.sort(Comparator.comparingDouble(entry -> ((Number) entry.get("score")).doubleValue()));
+        return modifiers;
+    }
+
+    private static void getAttributeGeneration(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "attribute-generation");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            List<String> hybridStages = method.getArray(ARRAY_HYBRID);
+            return Map.of(
+                "generationType",
+                Objects.toString(method.getGenerationType(), ""),
+                "hybridStages",
+                hybridStages,
+                "defaultAttributeMinScore",
+                game.getDefaultAttributeMinScore(),
+                "defaultAttributeMaxScore",
+                game.getDefaultAttributeMaxScore(),
+                "applyAttributeModifiersToAllAttributes",
+                game.isApplyAttributeModifiersToAllAttributes(),
+                "attributeModifiers",
+                serializeAttributeModifiers(game.getAttributeModifiers())
+            );
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void updateAttributeGeneration(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String generationType = getString(body, "generationType");
+        boolean hasHybridStages = body.get(ARRAY_HYBRID) instanceof List<?>;
+        List<String> hybridStages = getStringList(body, ARRAY_HYBRID);
+        int defaultMinScore = getInt(body, "defaultAttributeMinScore", 0);
+        int defaultMaxScore = getInt(body, "defaultAttributeMaxScore", 0);
+        boolean useDefaultScoreRange = defaultMinScore != 0 || defaultMaxScore != 0;
+        boolean applyModifiersToAllAttributes = useDefaultScoreRange
+            && getBoolean(body, "applyAttributeModifiersToAllAttributes", false);
+        List<Map<String, Object>> modifiers = getMapList(body, "attributeModifiers");
+        if (defaultMinScore > defaultMaxScore) {
+            ctx.json(400, Map.of("error", "Minimum score cannot exceed maximum"));
+            return;
+        }
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            method.setGenerationType(generationType);
+            game.setDefaultAttributeScoreRange(defaultMinScore, defaultMaxScore);
+            game.setApplyAttributeModifiersToAllAttributes(applyModifiersToAllAttributes);
+            if (applyModifiersToAllAttributes) {
+                Map<Float, Float> modifierMap = new LinkedHashMap<>();
+                for (Map<String, Object> entry : modifiers) {
+                    double score = getDouble(entry, "score", 0.0);
+                    double modifier = getDouble(entry, "modifier", 0.0);
+                    modifierMap.put((float) score, (float) modifier);
+                }
+                game.getAttributeModifiers().setModifierMap(modifierMap);
+                for (Attribute target : game.getElementRegistry(ElementRegistryKey.ATTRIBUTES).getAll()) {
+                    target.setModifierMap(game.getAttributeModifiers().getModifierMap());
+                }
+            }
+            if (hasHybridStages) {
+                method.clearArray(ARRAY_HYBRID);
+                for (String stage : hybridStages) {
+                    method.addToArray(ARRAY_HYBRID, stage);
+                }
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getCharGenAttributeGeneration(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("generationType", Objects.toString(method.getGenerationType(), ""));
+            response.put("hybridStages", safeList(method.getArray(ARRAY_HYBRID)));
+            response.put("numberOfSets", method.getNumberOfSets());
+            response.put("setSelectionMethod", Objects.toString(method.getSetSelectionMethod(), ""));
+            response.put("assignInOrder", method.isAssignInOrder());
+            response.put("baseAttributeValue", method.getBaseAttributeValue());
+            response.put("minAttributeValue", method.getMinAttributeValue());
+            response.put("maxAttributeValue", method.getMaxAttributeValue());
+            response.put("allowDiceSubstitution", method.isAllowDiceSubstitution());
+            response.put("diceSubstitutionValue", method.getDiceSubstitutionValue());
+            response.put("maxDiceSubstitutions", method.getMaxDiceSubstitutions());
+            response.put("standardArray", safeList(method.getArray("standardArrays")));
+            response.put("eliteArray", safeList(method.getArray("eliteArrays")));
+            response.put("defaultArrayType", Objects.toString(method.getDefaultArrayType(), ""));
+            response.put("defaultAttributeMinScore", game.getDefaultAttributeMinScore());
+            response.put("defaultAttributeMaxScore", game.getDefaultAttributeMaxScore());
+            response.put(
+                "applyAttributeModifiersToAllAttributes",
+                game.isApplyAttributeModifiersToAllAttributes()
+            );
+            response.put("attributeModifiers", serializeAttributeModifiers(game.getAttributeModifiers()));
+
+            response.put("basePoints", method.getBasePoints());
+            response.put("minimumPointsToSpend", method.getMinimumPointsToSpend());
+            response.put("allowNegativeAttributes", method.isAllowNegativeAttributes());
+            Map<Integer, Integer> pointCosts = method.getPointCosts();
+            List<Map<String, Object>> costs = new ArrayList<>();
+            pointCosts.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> {
+                    Map<String, Object> costEntry = new LinkedHashMap<>();
+                    costEntry.put("value", Objects.requireNonNullElse(entry.getKey(), 0));
+                    costEntry.put("cost", Objects.requireNonNullElse(entry.getValue(), 0));
+                    costs.add(costEntry);
+                });
+            response.put("pointCosts", costs);
+
+            List<Map<String, Object>> terms = new ArrayList<>();
+            for (AttributeGenerationMethod.DiceTerm term : method.getDiceTerms()) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("count", term.getCount());
+                entry.put("sides", term.getSides());
+                entry.put("dropLowest", term.getDropLowest());
+                entry.put("dropHighest", term.getDropHighest());
+                entry.put("flatModifier", term.getFlatModifier());
+                entry.put("exploding", term.isExploding());
+                entry.put("explodeThreshold", term.getExplodeThreshold());
+                entry.put("ignoredFaces", term.getIgnoredFaces());
+                entry.put("notation", term.getNotation());
+                terms.add(entry);
+            }
+            response.put("diceTerms", terms);
+
+            List<Map<String, Object>> attributes = new ArrayList<>();
+            for (Attribute attribute : getAttributes(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(attribute.getId(), ""));
+                entry.put("name", Objects.toString(attribute.getName(), ""));
+                entry.put("displayName", Objects.toString(attribute.getDisplayName(), ""));
+                entry.put("minValue", attribute.getMinValue());
+                entry.put("maxValue", attribute.getMaxValue());
+                attributes.add(entry);
+            }
+            response.put("attributes", attributes);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void getStandardArrays(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        boolean enabled = ctx.getDraftStore().readDraft(
+            draftId,
+            game -> isStandardArrayEnabled(game.getAttributeGenerationMethod())
+        );
+        if (enabled) {
+            markStageCompleted(ctx, draftId, "standard-array");
+        }
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("standardArrayEnabled", isStandardArrayEnabled(method));
+            response.put("standardArray", safeList(method.getArray("standardArrays")));
+            response.put("eliteArray", safeList(method.getArray("eliteArrays")));
+            response.put("defaultArrayType", Objects.toString(method.getDefaultArrayType(), ""));
+
+            List<Map<String, Object>> attributes = new ArrayList<>();
+            for (Attribute attribute : getAttributes(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(attribute.getId(), ""));
+                entry.put("name", Objects.toString(attribute.getName(), ""));
+                entry.put("displayName", Objects.toString(attribute.getDisplayName(), ""));
+                attributes.add(entry);
+            }
+            response.put("attributes", attributes);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addStandardArray(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensureStandardArrayEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        String attributeId = getString(body, "attributeId");
+        int value = getInt(body, "value", 0);
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            Attribute attribute = game.getElement("attributes", attributeId);
+            if (attribute == null) {
+                return;
+            }
+            String name = Objects.toString(attribute.getName(), "").trim();
+            if (name.isEmpty()) {
+                return;
+            }
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            method.addToArray("standardArrays", name + "=" + value);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void removeStandardArray(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensureStandardArrayEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        String entry = getString(body, "entry");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            method.removeFromArray("standardArrays", entry);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void addEliteArray(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensureStandardArrayEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        String attributeId = getString(body, "attributeId");
+        int value = getInt(body, "value", 0);
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            Attribute attribute = game.getElement("attributes", attributeId);
+            if (attribute == null) {
+                return;
+            }
+            String name = Objects.toString(attribute.getName(), "").trim();
+            if (name.isEmpty()) {
+                return;
+            }
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            method.addToArray("eliteArrays", name + "=" + value);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void removeEliteArray(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensureStandardArrayEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        String entry = getString(body, "entry");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            method.removeFromArray("eliteArrays", entry);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void setDefaultArrayType(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensureStandardArrayEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        String defaultType = getString(body, "defaultArrayType");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            method.setDefaultArrayType(defaultType);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getDiceRolling(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        boolean enabled = ctx.getDraftStore().readDraft(
+            draftId,
+            game -> isDiceRollingEnabled(game.getAttributeGenerationMethod())
+        );
+        if (enabled) {
+            markStageCompleted(ctx, draftId, "dice-rolling");
+        }
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("diceRollingEnabled", isDiceRollingEnabled(method));
+            response.put("numberOfSets", method.getNumberOfSets());
+            response.put("setSelectionMethod", Objects.toString(method.getSetSelectionMethod(), ""));
+            response.put("allowDiceSubstitution", method.isAllowDiceSubstitution());
+            response.put("diceSubstitutionValue", method.getDiceSubstitutionValue());
+            response.put("maxDiceSubstitutions", method.getMaxDiceSubstitutions());
+            response.put("diceUsed", new ArrayList<>(game.getDiceUsed()));
+            List<Map<String, Object>> terms = new ArrayList<>();
+            for (AttributeGenerationMethod.DiceTerm term : method.getDiceTerms()) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("count", term.getCount());
+                entry.put("sides", term.getSides());
+                entry.put("dropLowest", term.getDropLowest());
+                entry.put("ignoredFaces", term.getIgnoredFaces());
+                entry.put("notation", term.getNotation());
+                terms.add(entry);
+            }
+            response.put("terms", terms);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void updateDiceSets(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensureDiceRollingEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        int sets = getInt(body, "numberOfSets", 0);
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            method.setNumberOfSets(sets);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateDiceMethod(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensureDiceRollingEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        String selectionMethod = getString(body, "setSelectionMethod");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            method.setSetSelectionMethod(selectionMethod.trim());
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateDiceSubstitution(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensureDiceRollingEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        boolean allowDiceSubstitution = getBoolean(body, "allowDiceSubstitution", false);
+        int diceSubstitutionValue = Math.max(0, getInt(body, "diceSubstitutionValue", 14));
+        int maxDiceSubstitutions = Math.max(0, getInt(body, "maxDiceSubstitutions", 1));
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            method.setAllowDiceSubstitution(allowDiceSubstitution);
+            method.setDiceSubstitutionValue(diceSubstitutionValue);
+            method.setMaxDiceSubstitutions(maxDiceSubstitutions);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void addDiceTerm(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensureDiceRollingEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        int count = getInt(body, "count", 0);
+        int sides = getInt(body, "sides", 0);
+        int rerollResult = getInt(body, "rerollResult", 0);
+        boolean dropLowest = getBoolean(body, "dropLowest", false);
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            AttributeGenerationMethod.DiceTerm term = new AttributeGenerationMethod.DiceTerm(count, sides);
+            if (dropLowest) {
+                term.setDropLowest(1);
+            }
+            int maxFace = Math.min(rerollResult - 1, sides);
+            if (maxFace > 0) {
+                ArrayList<Integer> ignoredFaces = new ArrayList<>();
+                for (int face = 1; face <= maxFace; face++) {
+                    ignoredFaces.add(face);
+                }
+                term.setIgnoredFaces(ignoredFaces);
+            }
+            method.addDiceTerm(term);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void removeDiceTerm(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensureDiceRollingEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        int index = getInt(body, "index", -1);
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            List<AttributeGenerationMethod.DiceTerm> terms = method.getDiceTerms();
+            if (index < 0 || index >= terms.size()) {
+                return;
+            }
+            terms.remove(index);
+            method.setDiceTerms(terms);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getPointsBuy(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        boolean enabled = ctx.getDraftStore().readDraft(
+            draftId,
+            game -> isPointBuyEnabled(game.getAttributeGenerationMethod())
+        );
+        if (enabled) {
+            markStageCompleted(ctx, draftId, "points-buy");
+        }
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("pointBuyEnabled", isPointBuyEnabled(method));
+            response.put("basePoints", method.getBasePoints());
+            response.put("minValue", method.getMinAttributeValue());
+            response.put("maxValue", method.getMaxAttributeValue());
+            response.put("maxPostRacial", method.getMaxAttributeValuePostRacial());
+            response.put("minPointsToSpend", method.getMinimumPointsToSpend());
+            response.put("allowNegative", method.isAllowNegativeAttributes());
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void updatePointsBuy(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensurePointBuyEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        int basePoints = getInt(body, "basePoints", 0);
+        int minValue = getInt(body, "minValue", 0);
+        int maxValue = getInt(body, "maxValue", 0);
+        int maxPostRacial = getInt(body, "maxPostRacial", 0);
+        int minPointsToSpend = getInt(body, "minPointsToSpend", 0);
+        boolean allowNegative = getBoolean(body, "allowNegative", false);
+
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            method.setBasePoints(basePoints);
+            method.setMinAttributeValue(minValue);
+            method.setMaxAttributeValue(maxValue);
+            method.setMaxAttributeValuePostRacial(maxPostRacial);
+            method.setMinimumPointsToSpend(minPointsToSpend);
+            method.setAllowNegativeAttributes(allowNegative);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getHitPoints(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "hit-points");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            HPMethod method = game.getHpMethod();
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("hpGainMethod", Objects.toString(method.getHpGainMethod(), ""));
+            response.put("fixedHPPerLevel", method.getFixedHPPerLevel());
+            response.put("averageRoundingMethod", Objects.toString(method.getAverageRoundingMethod(), ""));
+            response.put("appliesConstitutionModifier", method.isAppliesConstitutionModifier());
+            response.put("allowNegativeConModifier", method.isAllowNegativeConModifier());
+            response.put("minimumHPPerLevel", method.getMinimumHPPerLevel());
+            response.put("firstLevelMaxHP", method.isFirstLevelMaxHP());
+            response.put("firstLevelBonusHP", method.getFirstLevelBonusHP());
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void updateHitPoints(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String hpGainMethod = getString(body, "hpGainMethod");
+        int fixedHPPerLevel = getInt(body, "fixedHPPerLevel", 0);
+        String averageRoundingMethod = getString(body, "averageRoundingMethod");
+        boolean appliesConstitutionModifier = getBoolean(body, "appliesConstitutionModifier", false);
+        boolean allowNegativeConModifier = getBoolean(body, "allowNegativeConModifier", false);
+        int minimumHPPerLevel = getInt(body, "minimumHPPerLevel", 0);
+        boolean firstLevelMaxHP = getBoolean(body, "firstLevelMaxHP", false);
+        int firstLevelBonusHP = getInt(body, "firstLevelBonusHP", 0);
+
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            HPMethod method = game.getHpMethod();
+            method.setHpGainMethod(hpGainMethod);
+            method.setFixedHPPerLevel(fixedHPPerLevel);
+            method.setAverageRoundingMethod(averageRoundingMethod);
+            method.setAppliesConstitutionModifier(appliesConstitutionModifier);
+            method.setAllowNegativeConModifier(allowNegativeConModifier);
+            method.setMinimumHPPerLevel(minimumHPPerLevel);
+            method.setFirstLevelMaxHP(firstLevelMaxHP);
+            method.setFirstLevelBonusHP(firstLevelBonusHP);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getArmorClass(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "armor-class");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            ArmorClassMethod method = game.getArmorClassMethod();
+            response.put("baseArmorClass", Math.max(0, method.getBaseArmorClass()));
+            response.put("acAbilityAttributeId", Objects.toString(method.getAcAbilityAttributeId(), ""));
+            response.put("attributes", getAttributesForSelect(game));
+            response.put("gearBased", method.isGearBased());
+            response.put("basePlusModifier", method.isBasePlusModifier());
+            response.put("abilityBased", method.isAbilityBased());
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void updateArmorClass(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        int baseArmorClass = getInt(body, "baseArmorClass", 10);
+        String acAbilityAttributeId = getString(body, "acAbilityAttributeId").trim();
+        boolean gearBased = getBoolean(body, "gearBased", false);
+        boolean basePlusModifier = getBoolean(body, "basePlusModifier", false);
+        boolean abilityBased = !acAbilityAttributeId.isEmpty();
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ArmorClassMethod method = game.getArmorClassMethod();
+            method.setBaseArmorClass(Math.max(0, baseArmorClass));
+            method.setAcAbilityAttributeId(acAbilityAttributeId);
+            method.setGearBased(gearBased);
+            method.setBasePlusModifier(basePlusModifier);
+            method.setAbilityBased(abilityBased);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static List<Map<String, Object>> getAttributesForSelect(Game game) {
+        List<Map<String, Object>> attributes = new ArrayList<>();
+        for (Attribute attribute : game.getElementRegistry(ElementRegistryKey.ATTRIBUTES).getAll()) {
+            if (attribute == null) {
+                continue;
+            }
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("id", Objects.toString(attribute.getId(), ""));
+            entry.put("name", Objects.toString(attribute.getName(), ""));
+            entry.put("displayName", Objects.toString(attribute.getDisplayName(), ""));
+            attributes.add(entry);
+        }
+        attributes.sort(Comparator.comparing(
+            entry -> Objects.toString(entry.get("displayName"), ""),
+            String.CASE_INSENSITIVE_ORDER
+        ));
+        return attributes;
+    }
+
+    private static void getCurrencies(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "currency");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> currencies = new ArrayList<>();
+            for (Currency currency : getCurrencies(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(currency.getId(), ""));
+                entry.put("name", Objects.toString(currency.getName(), ""));
+                List<Map<String, Object>> denominations = new ArrayList<>();
+                for (Map.Entry<String, Float> denom : currency.getDenominations().entrySet()) {
+                    Map<String, Object> denomEntry = new LinkedHashMap<>();
+                    denomEntry.put("name", Objects.toString(denom.getKey(), ""));
+                    denomEntry.put("value", denom.getValue());
+                    denominations.add(denomEntry);
+                }
+                entry.put("denominations", denominations);
+                currencies.add(entry);
+            }
+            response.put("systemName", game.getSystemName("currencies"));
+            Map<String, Object> startingMoney = new LinkedHashMap<>();
+            startingMoney.put("method", game.getStartingMoneyMethod());
+            startingMoney.put("baseAmount", game.getBaseStartingMoney());
+            startingMoney.put("currencyId", game.getStartingMoneyCurrencyId());
+            response.put("startingMoney", startingMoney);
+            response.put("currencies", currencies);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addCurrency(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        String baseDenomination = getString(body, "baseDenomination").trim();
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        Currency currency = new Currency(name);
+        if (!baseDenomination.isEmpty()) {
+            currency.addDenomination(baseDenomination, 1.0f);
+        }
+        ctx.getDraftStore().updateDraft(draftId, game -> game.addElement("currencies", currency));
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(currency.getId(), "")));
+    }
+
+    private static void removeCurrency(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String currencyId = getString(body, "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            Currency currency = game.getElement("currencies", currencyId);
+            if (currency != null) {
+                game.removeElement("currencies", currency);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void addCurrencyDenomination(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String currencyId = getString(body, "currencyId");
+        String name = getString(body, "name").trim();
+        double value = getDouble(body, "value", 0.0);
+        if (currencyId.isEmpty() || name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Currency and name are required"));
+            return;
+        }
+        if (value <= 0.0) {
+            ctx.json(400, Map.of("error", "Value must be positive"));
+            return;
+        }
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            Currency currency = game.getElement("currencies", currencyId);
+            if (currency != null) {
+                currency.addDenomination(name, (float) value);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void removeCurrencyDenomination(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String currencyId = getString(body, "currencyId");
+        String name = getString(body, "name");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            Currency currency = game.getElement("currencies", currencyId);
+            if (currency != null) {
+                currency.getDenominations().remove(name);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateStartingMoney(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String method = getString(body, "method").trim();
+        int baseAmount = Math.max(0, getInt(body, "baseAmount", 0));
+        String currencyId = getString(body, "currencyId").trim();
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            game.setStartingMoneyMethod(method);
+            game.setBaseStartingMoney(baseAmount);
+            if (currencyId.isEmpty() || game.getElement("currencies", currencyId) == null) {
+                game.setStartingMoneyCurrencyId("");
+            } else {
+                game.setStartingMoneyCurrencyId(currencyId);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getEffects(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "effects");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> effects = new ArrayList<>();
+            for (Effect effect : getEffects(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(effect.getId(), ""));
+                entry.put("name", Objects.toString(effect.getName(), ""));
+                entry.put("description", Objects.toString(effect.getDescription(), ""));
+                List<String> typeKeys = effect.getEffectTypeKeys();
+                entry.put("effectTypeKeys", typeKeys == null ? List.of() : new ArrayList<>(typeKeys));
+                effects.add(entry);
+            }
+            response.put("systemName", game.getSystemName("effects"));
+            response.put("effects", effects);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addEffect(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        List<String> effectTypeKeys = getStringList(body, "effectTypeKeys");
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        Effect effect = new Effect(name, description);
+        effect.setEffectTypeKeys(effectTypeKeys);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Effect> registry = game.getElementRegistry(ElementRegistryKey.EFFECTS);
+            if (registry.hasName(name)) {
+                return;
+            }
+            if (registry.add(effect)) {
+                added[0] = true;
+            }
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Effect already exists"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(effect.getId(), "")));
+    }
+
+    private static void removeEffect(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String effectId = getString(body, "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Effect> registry = game.getElementRegistry(ElementRegistryKey.EFFECTS);
+            Effect effect = registry.getById(effectId);
+            if (effect == null) {
+                return;
+            }
+            registry.remove(effect);
+            updateEffectReferences(game, effect.getName(), "");
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateEffect(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String effectId = getString(body, "id");
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        List<String> effectTypeKeys = getStringList(body, "effectTypeKeys");
+        if (effectId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Effect id is required"));
+            return;
+        }
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        boolean[] duplicate = new boolean[] { false };
+        boolean[] updated = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Effect> registry = game.getElementRegistry(ElementRegistryKey.EFFECTS);
+            Effect effect = registry.getById(effectId);
+            if (effect == null) {
+                return;
+            }
+            String previousName = effect.getName();
+            if (!previousName.equalsIgnoreCase(name) && registry.hasName(name)) {
+                duplicate[0] = true;
+                return;
+            }
+            if (!previousName.equalsIgnoreCase(name)) {
+                registry.remove(effect);
+                effect.setName(name);
+                registry.add(effect);
+                updateEffectReferences(game, previousName, name);
+            }
+            effect.setDescription(description);
+            effect.setEffectTypeKeys(effectTypeKeys);
+            updated[0] = true;
+        });
+        if (duplicate[0]) {
+            ctx.json(400, Map.of("error", "Effect already exists"));
+            return;
+        }
+        if (!updated[0]) {
+            ctx.json(404, Map.of("error", "Effect not found"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getStatuses(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "statuses");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> statuses = new ArrayList<>();
+            for (Status status : getStatuses(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(status.getId(), ""));
+                entry.put("name", Objects.toString(status.getName(), ""));
+                entry.put("description", Objects.toString(status.getDescription(), ""));
+                List<String> typeKeys = status.getEffectTypeKeys();
+                entry.put("effectTypeKeys", typeKeys == null ? List.of() : new ArrayList<>(typeKeys));
+                statuses.add(entry);
+            }
+            response.put("systemName", game.getSystemName("statuses"));
+            response.put("statuses", statuses);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addStatus(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        List<String> effectTypeKeys = getStringList(body, "effectTypeKeys");
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        Status status = new Status(name, description);
+        status.setEffectTypeKeys(effectTypeKeys);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Status> registry = game.getElementRegistry(ElementRegistryKey.STATUSES);
+            if (registry.hasName(name)) {
+                return;
+            }
+            if (registry.add(status)) {
+                added[0] = true;
+            }
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Status already exists"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(status.getId(), "")));
+    }
+
+    private static void removeStatus(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String statusId = getString(body, "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Status> registry = game.getElementRegistry(ElementRegistryKey.STATUSES);
+            Status status = registry.getById(statusId);
+            if (status != null) {
+                registry.remove(status);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateStatus(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String statusId = getString(body, "id");
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        List<String> effectTypeKeys = getStringList(body, "effectTypeKeys");
+        if (statusId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Status id is required"));
+            return;
+        }
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        boolean[] duplicate = new boolean[] { false };
+        boolean[] updated = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Status> registry = game.getElementRegistry(ElementRegistryKey.STATUSES);
+            Status status = registry.getById(statusId);
+            if (status == null) {
+                return;
+            }
+            String previousName = status.getName();
+            if (!previousName.equalsIgnoreCase(name) && registry.hasName(name)) {
+                duplicate[0] = true;
+                return;
+            }
+            if (!previousName.equalsIgnoreCase(name)) {
+                registry.remove(status);
+                status.setName(name);
+                registry.add(status);
+            }
+            status.setDescription(description);
+            status.setEffectTypeKeys(effectTypeKeys);
+            updated[0] = true;
+        });
+        if (duplicate[0]) {
+            ctx.json(400, Map.of("error", "Status already exists"));
+            return;
+        }
+        if (!updated[0]) {
+            ctx.json(404, Map.of("error", "Status not found"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getEquipment(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "equipment");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> equipment = new ArrayList<>();
+            for (Equipment item : getEquipment(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(item.getId(), ""));
+                entry.put("name", Objects.toString(item.getName(), ""));
+                entry.put("description", Objects.toString(item.getDescription(), ""));
+                entry.put("weightValue", Math.max(0, (int) Math.round(item.getWeight())));
+                entry.put("weightUnit", Objects.toString(item.getWeightUnit(), ""));
+                equipment.add(entry);
+            }
+            response.put("systemName", game.getSystemName("equipment"));
+            response.put("weightSystem", Objects.toString(game.getWeightSystem(), ""));
+            response.put("weightUnits", getWeightUnits(game));
+            response.put("equipment", equipment);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addEquipment(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        int weightValue = getInt(body, "weightValue", 0);
+        String weightUnit = getString(body, "weightUnit").trim();
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        Equipment item = new Equipment(name, description);
+        item.setWeight(Math.max(0, weightValue));
+        item.setWeightUnit(weightUnit);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Equipment> registry = game.getElementRegistry(ElementRegistryKey.EQUIPMENT);
+            if (registry.hasName(name)) {
+                return;
+            }
+            if (registry.add(item)) {
+                added[0] = true;
+            }
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Equipment already exists"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(item.getId(), "")));
+    }
+
+    private static void removeEquipment(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String itemId = getString(body, "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Equipment> registry = game.getElementRegistry(ElementRegistryKey.EQUIPMENT);
+            Equipment item = registry.getById(itemId);
+            if (item != null) {
+                registry.remove(item);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateEquipment(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String itemId = getString(body, "id");
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        int weightValue = getInt(body, "weightValue", 0);
+        String weightUnit = getString(body, "weightUnit").trim();
+        if (itemId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Equipment id is required"));
+            return;
+        }
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        boolean[] duplicate = new boolean[] { false };
+        boolean[] updated = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Equipment> registry = game.getElementRegistry(ElementRegistryKey.EQUIPMENT);
+            Equipment item = registry.getById(itemId);
+            if (item == null) {
+                return;
+            }
+            String previousName = item.getName();
+            if (!previousName.equalsIgnoreCase(name) && registry.hasName(name)) {
+                duplicate[0] = true;
+                return;
+            }
+            if (!previousName.equalsIgnoreCase(name)) {
+                registry.remove(item);
+                item.setName(name);
+                registry.add(item);
+            }
+            item.setDescription(description);
+            item.setWeight(Math.max(0, weightValue));
+            item.setWeightUnit(weightUnit);
+            updated[0] = true;
+        });
+        if (duplicate[0]) {
+            ctx.json(400, Map.of("error", "Equipment already exists"));
+            return;
+        }
+        if (!updated[0]) {
+            ctx.json(404, Map.of("error", "Equipment not found"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getWeapons(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "weapons");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            List<Map<String, Object>> weapons = new ArrayList<>();
+            for (Weapon weapon : getWeapons(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(weapon.getId(), ""));
+                entry.put("name", Objects.toString(weapon.getName(), ""));
+                entry.put("description", Objects.toString(weapon.getDescription(), ""));
+                entry.put("damageRoll", Objects.toString(weapon.getDamageRoll(), ""));
+                entry.put("damageDiceCount", Math.max(0, weapon.getDamageDiceCount()));
+                entry.put("damageDiceSides", Math.max(0, weapon.getDamageDiceSides()));
+                entry.put("damageDiceModifier", weapon.getDamageDiceModifier());
+                entry.put("weightValue", Math.max(0, (int) Math.round(weapon.getWeight())));
+                entry.put("weightUnit", Objects.toString(weapon.getWeightUnit(), ""));
+                List<Effect> effects = weapon.getObjectArray("effects");
+                List<String> effectIds = new ArrayList<>();
+                if (effects != null) {
+                    for (Effect effect : effects) {
+                        if (effect != null) {
+                            String id = Objects.toString(effect.getId(), "").trim();
+                            if (!id.isEmpty()) {
+                                effectIds.add(id);
+                            }
+                        }
+                    }
+                }
+                entry.put("effectIds", effectIds);
+                weapons.add(entry);
+            }
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("weightSystem", Objects.toString(game.getWeightSystem(), ""));
+            response.put("weightUnits", getWeightUnits(game));
+            response.put("weapons", weapons);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addWeapon(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        int damageDiceCount = getInt(body, "damageDiceCount", 0);
+        int damageDiceSides = getInt(body, "damageDiceSides", 0);
+        int damageDiceModifier = getInt(body, "damageDiceModifier", 0);
+        String damageRoll = getString(body, "damageRoll").trim();
+        int weightValue = getInt(body, "weightValue", 0);
+        String weightUnit = getString(body, "weightUnit").trim();
+        List<String> effectIds = getStringList(body, "effectIds");
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        Weapon weapon = new Weapon(name, description);
+        if (damageDiceCount > 0 && damageDiceSides > 0) {
+            weapon.setDamageDiceCount(damageDiceCount);
+            weapon.setDamageDiceSides(damageDiceSides);
+            weapon.setDamageDiceModifier(damageDiceModifier);
+        } else {
+            weapon.setDamageRoll(damageRoll);
+        }
+        weapon.setWeight(Math.max(0, weightValue));
+        weapon.setWeightUnit(weightUnit);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Weapon> registry = game.getElementRegistry(ElementRegistryKey.WEAPONS);
+            if (registry.hasName(name)) {
+                return;
+            }
+            applyWeaponEffects(game, weapon, effectIds);
+            if (registry.add(weapon)) {
+                added[0] = true;
+            }
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Weapon already exists"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(weapon.getId(), "")));
+    }
+
+    private static void removeWeapon(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String weaponId = getString(body, "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Weapon> registry = game.getElementRegistry(ElementRegistryKey.WEAPONS);
+            Weapon weapon = registry.getById(weaponId);
+            if (weapon != null) {
+                registry.remove(weapon);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateWeapon(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String weaponId = getString(body, "id");
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        int damageDiceCount = getInt(body, "damageDiceCount", 0);
+        int damageDiceSides = getInt(body, "damageDiceSides", 0);
+        int damageDiceModifier = getInt(body, "damageDiceModifier", 0);
+        String damageRoll = getString(body, "damageRoll").trim();
+        int weightValue = getInt(body, "weightValue", 0);
+        String weightUnit = getString(body, "weightUnit").trim();
+        List<String> effectIds = getStringList(body, "effectIds");
+        if (weaponId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Weapon id is required"));
+            return;
+        }
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        boolean[] duplicate = new boolean[] { false };
+        boolean[] updated = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Weapon> registry = game.getElementRegistry(ElementRegistryKey.WEAPONS);
+            Weapon weapon = registry.getById(weaponId);
+            if (weapon == null) {
+                return;
+            }
+            String previousName = weapon.getName();
+            if (!previousName.equalsIgnoreCase(name) && registry.hasName(name)) {
+                duplicate[0] = true;
+                return;
+            }
+            if (!previousName.equalsIgnoreCase(name)) {
+                registry.remove(weapon);
+                weapon.setName(name);
+                registry.add(weapon);
+            }
+            weapon.setDescription(description);
+            if (damageDiceCount > 0 && damageDiceSides > 0) {
+                weapon.setDamageDiceCount(damageDiceCount);
+                weapon.setDamageDiceSides(damageDiceSides);
+                weapon.setDamageDiceModifier(damageDiceModifier);
+            } else {
+                weapon.setDamageRoll(damageRoll);
+            }
+            weapon.setWeight(Math.max(0, weightValue));
+            weapon.setWeightUnit(weightUnit);
+            applyWeaponEffects(game, weapon, effectIds);
+            updated[0] = true;
+        });
+        if (duplicate[0]) {
+            ctx.json(400, Map.of("error", "Weapon already exists"));
+            return;
+        }
+        if (!updated[0]) {
+            ctx.json(404, Map.of("error", "Weapon not found"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void applyWeaponEffects(Game game, Weapon weapon, List<String> effectIds) {
+        Weapon safeWeapon = Objects.requireNonNullElse(weapon, new Weapon(""));
+        safeWeapon.clearArray("effects");
+        if (effectIds == null || effectIds.isEmpty()) {
+            return;
+        }
+        ElementRegistry<Effect> registry = game.getElementRegistry(ElementRegistryKey.EFFECTS);
+        for (String effectId : effectIds) {
+            String id = Objects.toString(effectId, "").trim();
+            if (id.isEmpty()) {
+                continue;
+            }
+            Effect effect = registry.getById(id);
+            if (effect != null) {
+                safeWeapon.addToArray("effects", effect);
+            }
+        }
+    }
+
+    private static void applyClassDetails(
+        Game game,
+        CharacterClass characterClass,
+        String primaryAttribute,
+        String hitDie,
+        int startingMoney,
+        int skillPointsPerLevel,
+        boolean skillPointsSameAllLevels,
+        List<Map<String, Object>> skillPointsByLevel,
+        List<String> classSkillIds,
+        List<Map<String, Object>> requiredScores
+    ) {
+        CharacterClass safeClass = Objects.requireNonNullElse(characterClass, new CharacterClass(""));
+        safeClass.setPrimaryAttribute(primaryAttribute);
+        safeClass.setHitDie(hitDie);
+        game.setClassStartingMoney(Objects.toString(safeClass.getId(), ""), Math.max(0, startingMoney));
+        safeClass.setSkillPointsPerLevel(skillPointsPerLevel);
+        safeClass.setSkillPointsSameAllLevels(skillPointsSameAllLevels);
+        Map<Integer, Integer> pointsByLevel = new LinkedHashMap<>();
+        for (Map<String, Object> entry : skillPointsByLevel) {
+            int level = getInt(entry, "level", 0);
+            int points = getInt(entry, "points", 0);
+            if (level > 0) {
+                pointsByLevel.put(level, Math.max(0, points));
+            }
+        }
+        safeClass.setSkillPointsByLevel(pointsByLevel);
+
+        safeClass.clearArray("classSkills");
+        for (String skillId : safeList(classSkillIds)) {
+            String id = Objects.toString(skillId, "").trim();
+            if (id.isEmpty()) {
+                continue;
+            }
+            if (game.getElement("skills", id) != null) {
+                safeClass.addToArray("classSkills", id);
+            }
+        }
+
+        Map<String, Integer> requiredAttributeScores = new LinkedHashMap<>();
+        for (Map<String, Object> entry : requiredScores) {
+            String attributeId = Objects.toString(entry.get("attributeId"), "").trim();
+            int score = getInt(entry, "score", 0);
+            if (attributeId.isEmpty() || score <= 0) {
+                continue;
+            }
+            if (game.getElement("attributes", attributeId) != null) {
+                requiredAttributeScores.put(attributeId, score);
+            }
+        }
+        safeClass.setRequiredAttributeScores(requiredAttributeScores);
+    }
+
+    private static void getClasses(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "classes");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, String> skillNamesById = new LinkedHashMap<>();
+            for (Skill skill : getSkills(game)) {
+                String id = Objects.toString(skill.getId(), "").trim();
+                if (id.isEmpty()) {
+                    continue;
+                }
+                skillNamesById.put(id, Objects.toString(skill.getName(), ""));
+            }
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> classes = new ArrayList<>();
+            for (CharacterClass characterClass : getClasses(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(characterClass.getId(), ""));
+                entry.put("name", Objects.toString(characterClass.getName(), ""));
+                entry.put("description", Objects.toString(characterClass.getDescription(), ""));
+                entry.put("primaryAttribute", Objects.toString(characterClass.getPrimaryAttribute(), ""));
+                entry.put("hitDie", Objects.toString(characterClass.getHitDie(), ""));
+                entry.put("startingMoney", game.getClassStartingMoney(Objects.toString(characterClass.getId(), "")));
+                entry.put("skillPointsPerLevel", characterClass.getSkillPointsPerLevel());
+                entry.put("skillPointsSameAllLevels", characterClass.isSkillPointsSameAllLevels());
+                entry.put("maxLevel", characterClass.getMaxLevel());
+                List<Map<String, Object>> skillPointsByLevel = new ArrayList<>();
+                for (Map.Entry<Integer, Integer> pointsEntry : characterClass.getSkillPointsByLevel().entrySet()) {
+                    Map<String, Object> levelEntry = new LinkedHashMap<>();
+                    levelEntry.put("level", Objects.requireNonNullElse(pointsEntry.getKey(), 0));
+                    levelEntry.put("points", Objects.requireNonNullElse(pointsEntry.getValue(), 0));
+                    skillPointsByLevel.add(levelEntry);
+                }
+                skillPointsByLevel.sort(Comparator.comparingInt(entryMap -> getInt(entryMap, "level", 0)));
+                entry.put("skillPointsByLevel", skillPointsByLevel);
+                List<String> classSkills = characterClass.getObjectArray("classSkills");
+                List<String> classSkillIds = classSkills == null ? List.of() : new ArrayList<>(classSkills);
+                entry.put("classSkillIds", classSkillIds);
+                List<String> classSkillNames = new ArrayList<>();
+                for (String skillId : classSkillIds) {
+                    String safeId = Objects.toString(skillId, "").trim();
+                    if (safeId.isEmpty()) {
+                        continue;
+                    }
+                    classSkillNames.add(Objects.toString(skillNamesById.getOrDefault(safeId, safeId), ""));
+                }
+                entry.put("classSkillNames", classSkillNames);
+                List<Map<String, Object>> requiredScores = new ArrayList<>();
+                for (Map.Entry<String, Integer> reqEntry : characterClass.getRequiredAttributeScores().entrySet()) {
+                    Map<String, Object> req = new LinkedHashMap<>();
+                    req.put("attributeId", Objects.toString(reqEntry.getKey(), ""));
+                    req.put("score", Objects.requireNonNullElse(reqEntry.getValue(), 0));
+                    requiredScores.add(req);
+                }
+                entry.put("requiredAttributeScores", requiredScores);
+                classes.add(entry);
+            }
+            response.put("systemName", game.getSystemName("classes"));
+            response.put("diceUsed", new ArrayList<>(game.getDiceUsed()));
+            response.put("classes", classes);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addClass(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        String primaryAttribute = getString(body, "primaryAttribute").trim();
+        String hitDie = getString(body, "hitDie").trim();
+        int startingMoney = Math.max(0, getInt(body, "startingMoney", 0));
+        int skillPointsPerLevel = getInt(body, "skillPointsPerLevel", 0);
+        boolean skillPointsSameAllLevels = getBoolean(body, "skillPointsSameAllLevels", true);
+        List<Map<String, Object>> skillPointsByLevel = getMapList(body, "skillPointsByLevel");
+        List<String> classSkillIds = getStringList(body, "classSkillIds");
+        List<Map<String, Object>> requiredScores = getMapList(body, "requiredAttributeScores");
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        CharacterClass characterClass = new CharacterClass(name, description);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<CharacterClass> registry = game.getElementRegistry(ElementRegistryKey.CHARACTER_CLASSES);
+            if (registry.hasName(name)) {
+                return;
+            }
+            applyClassDetails(
+                game,
+                characterClass,
+                primaryAttribute,
+                hitDie,
+                startingMoney,
+                skillPointsPerLevel,
+                skillPointsSameAllLevels,
+                skillPointsByLevel,
+                classSkillIds,
+                requiredScores
+            );
+            if (registry.add(characterClass)) {
+                added[0] = true;
+            }
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Class already exists"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(characterClass.getId(), "")));
+    }
+
+    private static void removeClass(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String classId = getString(body, "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<CharacterClass> registry = game.getElementRegistry(ElementRegistryKey.CHARACTER_CLASSES);
+            CharacterClass characterClass = registry.getById(classId);
+            if (characterClass != null) {
+                game.setClassStartingMoney(Objects.toString(characterClass.getId(), ""), 0);
+                registry.remove(characterClass);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateClass(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String classId = getString(body, "id");
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        String primaryAttribute = getString(body, "primaryAttribute").trim();
+        String hitDie = getString(body, "hitDie").trim();
+        int startingMoney = Math.max(0, getInt(body, "startingMoney", 0));
+        int skillPointsPerLevel = getInt(body, "skillPointsPerLevel", 0);
+        boolean skillPointsSameAllLevels = getBoolean(body, "skillPointsSameAllLevels", true);
+        List<Map<String, Object>> skillPointsByLevel = getMapList(body, "skillPointsByLevel");
+        List<String> classSkillIds = getStringList(body, "classSkillIds");
+        List<Map<String, Object>> requiredScores = getMapList(body, "requiredAttributeScores");
+        if (classId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Class id is required"));
+            return;
+        }
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        boolean[] duplicate = new boolean[] { false };
+        boolean[] updated = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<CharacterClass> registry = game.getElementRegistry(ElementRegistryKey.CHARACTER_CLASSES);
+            CharacterClass characterClass = registry.getById(classId);
+            if (characterClass == null) {
+                return;
+            }
+            String previousName = characterClass.getName();
+            if (!previousName.equalsIgnoreCase(name) && registry.hasName(name)) {
+                duplicate[0] = true;
+                return;
+            }
+            if (!previousName.equalsIgnoreCase(name)) {
+                registry.remove(characterClass);
+                characterClass.setName(name);
+                registry.add(characterClass);
+            }
+            characterClass.setDescription(description);
+            applyClassDetails(
+                game,
+                characterClass,
+                primaryAttribute,
+                hitDie,
+                startingMoney,
+                skillPointsPerLevel,
+                skillPointsSameAllLevels,
+                skillPointsByLevel,
+                classSkillIds,
+                requiredScores
+            );
+            updated[0] = true;
+        });
+        if (duplicate[0]) {
+            ctx.json(400, Map.of("error", "Class already exists"));
+            return;
+        }
+        if (!updated[0]) {
+            ctx.json(404, Map.of("error", "Class not found"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getSkills(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "skills");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> skills = new ArrayList<>();
+            for (Skill skill : getSkills(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(skill.getId(), ""));
+                entry.put("name", Objects.toString(skill.getName(), ""));
+                entry.put("description", Objects.toString(skill.getDescription(), ""));
+                entry.put("category", Objects.toString(skill.getCategory(), ""));
+                entry.put("relatedAbility", Objects.toString(skill.getRelatedAbility(), ""));
+                entry.put("trainedOnly", skill.isTrainedOnly());
+                entry.put("armorCheckPenalty", skill.getArmorCheckPenalty());
+                entry.put("startingMoneyModifier", game.getTraitStartingMoneyModifier(Objects.toString(skill.getId(), "")));
+                List<String> effectNames = skill.getArray("effectNames");
+                entry.put("effectNames", effectNames == null ? List.of() : new ArrayList<>(effectNames));
+                List<String> limitedToClasses = skill.getArray("limitedToClasses");
+                entry.put("limitedToClasses", limitedToClasses == null ? List.of() : new ArrayList<>(limitedToClasses));
+                List<String> limitedToRaces = skill.getArray("limitedToRaces");
+                entry.put("limitedToRaces", limitedToRaces == null ? List.of() : new ArrayList<>(limitedToRaces));
+                skills.add(entry);
+            }
+            LevelingMethod levelingMethod = game.getLevelingMethod();
+            Map<String, Object> progression = new LinkedHashMap<>();
+            progression.put("skillPointProgression", Objects.toString(levelingMethod.getSkillPointProgression(), ""));
+            progression.put("baseSkillPointsPerLevel", levelingMethod.getBaseSkillPointsPerLevel());
+            progression.put("skillPointsModifiedByInt", levelingMethod.isSkillPointsModifiedByInt());
+            progression.put("minimumSkillPointsPerLevel", levelingMethod.getMinimumSkillPointsPerLevel());
+            progression.put("skillPointsSameAllLevels", levelingMethod.isSkillPointsSameAllLevels());
+            List<Map<String, Object>> skillPointsByLevel = new ArrayList<>();
+            for (Map.Entry<Integer, Integer> pointsEntry : levelingMethod.getSkillPointsByLevel().entrySet()) {
+                Map<String, Object> levelEntry = new LinkedHashMap<>();
+                levelEntry.put("level", Objects.requireNonNullElse(pointsEntry.getKey(), 0));
+                levelEntry.put("points", Objects.requireNonNullElse(pointsEntry.getValue(), 0));
+                skillPointsByLevel.add(levelEntry);
+            }
+            skillPointsByLevel.sort(Comparator.comparingInt(entryMap -> getInt(entryMap, "level", 0)));
+            progression.put("skillPointsByLevel", skillPointsByLevel);
+            response.put("systemName", game.getSystemName("skills"));
+            response.put("progression", progression);
+            response.put("skills", skills);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void updateSkillProgression(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String progressionType = getString(body, "skillPointProgression").trim();
+        int baseSkillPointsPerLevel = getInt(body, "baseSkillPointsPerLevel", 0);
+        boolean skillPointsModifiedByInt = getBoolean(body, "skillPointsModifiedByInt", true);
+        int minimumSkillPointsPerLevel = getInt(body, "minimumSkillPointsPerLevel", 0);
+        boolean skillPointsSameAllLevels = getBoolean(body, "skillPointsSameAllLevels", true);
+        List<Map<String, Object>> skillPointsByLevel = getMapList(body, "skillPointsByLevel");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            LevelingMethod levelingMethod = game.getLevelingMethod();
+            levelingMethod.setSkillPointProgression(progressionType);
+            levelingMethod.setBaseSkillPointsPerLevel(Math.max(0, baseSkillPointsPerLevel));
+            levelingMethod.setSkillPointsModifiedByInt(skillPointsModifiedByInt);
+            levelingMethod.setMinimumSkillPointsPerLevel(Math.max(0, minimumSkillPointsPerLevel));
+            levelingMethod.setSkillPointsSameAllLevels(skillPointsSameAllLevels);
+            Map<Integer, Integer> byLevel = new LinkedHashMap<>();
+            for (Map<String, Object> entry : skillPointsByLevel) {
+                int level = getInt(entry, "level", 0);
+                int points = getInt(entry, "points", 0);
+                if (level > 0) {
+                    byLevel.put(level, Math.max(0, points));
+                }
+            }
+            levelingMethod.setSkillPointsByLevel(byLevel);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void addSkill(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        Skill skill = description.isEmpty() ? new Skill(name) : new Skill(name, description);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Skill> registry = game.getElementRegistry(ElementRegistryKey.SKILLS);
+            if (registry.hasName(name)) {
+                return;
+            }
+            if (registry.add(skill)) {
+                added[0] = true;
+            }
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Skill already exists"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(skill.getId(), "")));
+    }
+
+    private static void removeSkill(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String skillId = getString(body, "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Skill> registry = game.getElementRegistry(ElementRegistryKey.SKILLS);
+            Skill skill = registry.getById(skillId);
+            if (skill != null) {
+                game.setTraitStartingMoneyModifier(Objects.toString(skill.getId(), ""), 0);
+                registry.remove(skill);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateSkill(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String skillId = getString(body, "id");
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        String category = getString(body, "category").trim();
+        String relatedAbility = getString(body, "relatedAbility").trim();
+        boolean trainedOnly = getBoolean(body, "trainedOnly", false);
+        int armorCheckPenalty = getInt(body, "armorCheckPenalty", 0);
+        int startingMoneyModifier = getInt(body, "startingMoneyModifier", 0);
+        List<String> effectNames = getStringList(body, "effectNames");
+        List<String> limitedToClasses = getStringList(body, "limitedToClasses");
+        List<String> limitedToRaces = getStringList(body, "limitedToRaces");
+        if (skillId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Skill id is required"));
+            return;
+        }
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        boolean[] duplicate = new boolean[] { false };
+        boolean[] updated = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Skill> registry = game.getElementRegistry(ElementRegistryKey.SKILLS);
+            Skill skill = registry.getById(skillId);
+            if (skill == null) {
+                return;
+            }
+            String previousName = skill.getName();
+            if (!previousName.equalsIgnoreCase(name) && registry.hasName(name)) {
+                duplicate[0] = true;
+                return;
+            }
+            if (!previousName.equalsIgnoreCase(name)) {
+                registry.remove(skill);
+                skill.setName(name);
+                registry.add(skill);
+            }
+            skill.setDescription(description);
+            skill.setCategory(category);
+            skill.setRelatedAbility(relatedAbility);
+            skill.setTrainedOnly(trainedOnly);
+            skill.setArmorCheckPenalty(armorCheckPenalty);
+            game.setTraitStartingMoneyModifier(Objects.toString(skill.getId(), ""), startingMoneyModifier);
+            skill.clearArray("effectNames");
+            for (String effectName : effectNames) {
+                skill.addToArray("effectNames", effectName);
+            }
+            skill.clearArray("limitedToClasses");
+            for (String classId : limitedToClasses) {
+                String id = Objects.toString(classId, "").trim();
+                if (!id.isEmpty() && game.getElementRegistry(ElementRegistryKey.CHARACTER_CLASSES).getById(id) != null) {
+                    skill.addToArray("limitedToClasses", id);
+                }
+            }
+            skill.clearArray("limitedToRaces");
+            for (String raceId : limitedToRaces) {
+                String id = Objects.toString(raceId, "").trim();
+                if (!id.isEmpty() && game.getElementRegistry(ElementRegistryKey.RACES).getById(id) != null) {
+                    skill.addToArray("limitedToRaces", id);
+                }
+            }
+            updated[0] = true;
+        });
+        if (duplicate[0]) {
+            ctx.json(400, Map.of("error", "Skill already exists"));
+            return;
+        }
+        if (!updated[0]) {
+            ctx.json(404, Map.of("error", "Skill not found"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getSpells(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "spells");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> spells = new ArrayList<>();
+            for (Spell spell : getSpells(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(spell.getId(), ""));
+                entry.put("name", Objects.toString(spell.getName(), ""));
+                entry.put("description", Objects.toString(spell.getDescription(), ""));
+                entry.put("school", Objects.toString(spell.getSchool(), ""));
+                entry.put("level", spell.getLevel());
+                entry.put("castingTime", Objects.toString(spell.getCastingTime(), ""));
+                entry.put("range", Objects.toString(spell.getRange(), ""));
+                entry.put("duration", Objects.toString(spell.getDuration(), ""));
+                entry.put("effectNames", getSpellEffectNames(spell));
+                entry.put("effect", Objects.toString(spell.getEffect(), ""));
+                entry.put("secondaryEffect", Objects.toString(spell.getSecondaryEffect(), ""));
+                spells.add(entry);
+            }
+            response.put("systemName", game.getSystemName("spells"));
+            response.put("spells", spells);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addSpell(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        Spell spell = new Spell(name);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Spell> registry = game.getElementRegistry(ElementRegistryKey.SPELLS);
+            if (registry.hasName(name)) {
+                return;
+            }
+            if (registry.add(spell)) {
+                added[0] = true;
+            }
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Spell already exists"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(spell.getId(), "")));
+    }
+
+    private static void removeSpell(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String spellId = getString(body, "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Spell> registry = game.getElementRegistry(ElementRegistryKey.SPELLS);
+            Spell spell = registry.getById(spellId);
+            if (spell != null) {
+                registry.remove(spell);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateSpell(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String spellId = getString(body, "id");
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        String school = getString(body, "school").trim();
+        int level = Math.max(0, getInt(body, "level", 0));
+        String castingTime = getString(body, "castingTime").trim();
+        String range = getString(body, "range").trim();
+        String duration = getString(body, "duration").trim();
+        String effect = getString(body, "effect").trim();
+        String secondaryEffect = getString(body, "secondaryEffect").trim();
+        List<String> effectNames = getStringList(body, "effectNames");
+        if (effectNames.isEmpty()) {
+            if (!effect.isEmpty()) {
+                effectNames.add(effect);
+            }
+            if (!secondaryEffect.isEmpty() && !effectNames.contains(secondaryEffect)) {
+                effectNames.add(secondaryEffect);
+            }
+        }
+        if (spellId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Spell id is required"));
+            return;
+        }
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        boolean[] duplicate = new boolean[] { false };
+        boolean[] updated = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Spell> registry = game.getElementRegistry(ElementRegistryKey.SPELLS);
+            Spell spell = registry.getById(spellId);
+            if (spell == null) {
+                return;
+            }
+            String previousName = spell.getName();
+            if (!previousName.equalsIgnoreCase(name) && registry.hasName(name)) {
+                duplicate[0] = true;
+                return;
+            }
+            if (!previousName.equalsIgnoreCase(name)) {
+                registry.remove(spell);
+                spell.setName(name);
+                registry.add(spell);
+            }
+            spell.setDescription(description);
+            spell.setSchool(school);
+            spell.setLevel(level);
+            spell.setCastingTime(castingTime);
+            spell.setRange(range);
+            spell.setDuration(duration);
+            spell.clearArray("effectNames");
+            for (String effectName : effectNames) {
+                spell.addToArray("effectNames", effectName);
+            }
+            spell.setEffect(effectNames.isEmpty() ? effect : effectNames.get(0));
+            spell.setSecondaryEffect(effectNames.size() > 1 ? effectNames.get(1) : "");
+            updated[0] = true;
+        });
+        if (duplicate[0]) {
+            ctx.json(400, Map.of("error", "Spell already exists"));
+            return;
+        }
+        if (!updated[0]) {
+            ctx.json(404, Map.of("error", "Spell not found"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getRaces(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "races");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, String> skillNamesById = new LinkedHashMap<>();
+            for (Skill skill : getSkills(game)) {
+                String id = Objects.toString(skill.getId(), "").trim();
+                if (id.isEmpty()) {
+                    continue;
+                }
+                skillNamesById.put(id, Objects.toString(skill.getName(), ""));
+            }
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> races = new ArrayList<>();
+            for (Race race : getRaces(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(race.getId(), ""));
+                entry.put("name", Objects.toString(race.getName(), ""));
+                entry.put("description", Objects.toString(race.getDescription(), ""));
+                entry.put("playable", race.isPlayable());
+                entry.put("parentRace", Objects.toString(race.getParentRace(), ""));
+                entry.put("society", Objects.toString(race.getSociety(), ""));
+                entry.put("culture", Objects.toString(race.getCulture(), ""));
+                entry.put("startingMoneyModifier", game.getRaceStartingMoneyModifier(Objects.toString(race.getId(), "")));
+                List<String> racialSkills = race.getArray("racialSkills");
+                List<String> racialSkillIds = racialSkills == null ? List.of() : new ArrayList<>(racialSkills);
+                entry.put("racialSkillIds", racialSkillIds);
+                List<String> racialSkillNames = new ArrayList<>();
+                for (String skillId : racialSkillIds) {
+                    String safeId = Objects.toString(skillId, "").trim();
+                    if (safeId.isEmpty()) {
+                        continue;
+                    }
+                    racialSkillNames.add(Objects.toString(skillNamesById.getOrDefault(safeId, safeId), ""));
+                }
+                entry.put("racialSkillNames", racialSkillNames);
+                List<Map<String, Object>> attributeScoreLimits = new ArrayList<>();
+                for (Species.AttributeScoreLimit limit : race.getAttributeScoreLimits()) {
+                    Map<String, Object> limitEntry = new LinkedHashMap<>();
+                    limitEntry.put("attributeId", Objects.toString(limit.getAttributeId(), ""));
+                    limitEntry.put("min", limit.getMin());
+                    limitEntry.put("max", limit.getMax());
+                    attributeScoreLimits.add(limitEntry);
+                }
+                entry.put("attributeScoreLimits", attributeScoreLimits);
+                races.add(entry);
+            }
+            response.put("systemName", game.getSystemName("races"));
+            response.put("races", races);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addRace(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        Race race = new Race(name);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Race> registry = game.getElementRegistry(ElementRegistryKey.RACES);
+            if (registry.hasName(name)) {
+                return;
+            }
+            if (registry.add(race)) {
+                added[0] = true;
+            }
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Race already exists"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(race.getId(), "")));
+    }
+
+    private static void removeRace(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String raceId = getString(body, "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Race> registry = game.getElementRegistry(ElementRegistryKey.RACES);
+            Race race = registry.getById(raceId);
+            if (race != null) {
+                game.setRaceStartingMoneyModifier(Objects.toString(race.getId(), ""), 0);
+                registry.remove(race);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateRace(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String raceId = getString(body, "id");
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        boolean playable = getBoolean(body, "playable", true);
+        String parentRace = getString(body, "parentRace").trim();
+        String society = getString(body, "society").trim();
+        String culture = getString(body, "culture").trim();
+        int startingMoneyModifier = getInt(body, "startingMoneyModifier", 0);
+        List<String> racialSkillIds = getStringList(body, "racialSkillIds");
+        List<Map<String, Object>> attributeScoreLimits = getMapList(body, "attributeScoreLimits");
+        boolean hasPlayable = body.containsKey("playable");
+        boolean hasParentRace = body.containsKey("parentRace");
+        boolean hasSociety = body.containsKey("society");
+        boolean hasCulture = body.containsKey("culture");
+        boolean hasRacialSkills = body.containsKey("racialSkillIds");
+        boolean hasAttributeScoreLimits = body.containsKey("attributeScoreLimits");
+        if (raceId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Race id is required"));
+            return;
+        }
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        if (hasAttributeScoreLimits) {
+            for (Map<String, Object> entry : attributeScoreLimits) {
+                int min = getInt(entry, "min", 0);
+                int max = getInt(entry, "max", 0);
+                if (min > max) {
+                    ctx.json(400, Map.of("error", "Minimum cannot exceed maximum"));
+                    return;
+                }
+            }
+        }
+        boolean[] duplicate = new boolean[] { false };
+        boolean[] updated = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Race> registry = game.getElementRegistry(ElementRegistryKey.RACES);
+            Race race = registry.getById(raceId);
+            if (race == null) {
+                return;
+            }
+            String previousName = race.getName();
+            if (!previousName.equalsIgnoreCase(name) && registry.hasName(name)) {
+                duplicate[0] = true;
+                return;
+            }
+            if (!previousName.equalsIgnoreCase(name)) {
+                registry.remove(race);
+                race.setName(name);
+                registry.add(race);
+            }
+            race.setDescription(description);
+            if (hasPlayable) {
+                race.setPlayable(playable);
+            }
+            if (hasParentRace) {
+                race.setParentRace(parentRace);
+            }
+            if (hasSociety) {
+                race.setSociety(society);
+            }
+            if (hasCulture) {
+                race.setCulture(culture);
+            }
+            game.setRaceStartingMoneyModifier(Objects.toString(race.getId(), ""), startingMoneyModifier);
+            if (hasRacialSkills) {
+                ElementRegistry<Skill> skillRegistry = game.getElementRegistry(ElementRegistryKey.SKILLS);
+                race.clearArray("racialSkills");
+                for (String skillId : racialSkillIds) {
+                    if (skillRegistry.getById(skillId) != null) {
+                        race.addToArray("racialSkills", skillId);
+                    }
+                }
+            }
+            if (hasAttributeScoreLimits) {
+                race.clearAttributeScoreLimits();
+                java.util.HashSet<String> seen = new java.util.HashSet<>();
+                for (Map<String, Object> entry : attributeScoreLimits) {
+                    String attributeId = getString(entry, "attributeId").trim();
+                    if (attributeId.isEmpty() || seen.contains(attributeId)) {
+                        continue;
+                    }
+                    Attribute attribute = game.getElement("attributes", attributeId);
+                    if (attribute == null) {
+                        continue;
+                    }
+                    int min = getInt(entry, "min", 0);
+                    int max = getInt(entry, "max", 0);
+                    race.addAttributeScoreLimit(attributeId, min, max);
+                    seen.add(attributeId);
+                }
+            }
+            updated[0] = true;
+        });
+        if (duplicate[0]) {
+            ctx.json(400, Map.of("error", "Race already exists"));
+            return;
+        }
+        if (!updated[0]) {
+            ctx.json(404, Map.of("error", "Race not found"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateEffectReferences(Game game, String oldName, String newName) {
+        String safeOldName = Objects.toString(oldName, "").trim();
+        String safeNewName = Objects.toString(newName, "").trim();
+        if (safeOldName.isEmpty() || safeOldName.equalsIgnoreCase(safeNewName)) {
+            return;
+        }
+        ElementRegistry<Skill> registry = game.getElementRegistry(ElementRegistryKey.SKILLS);
+        List<Skill> skills = registry.getAll();
+        for (Skill skill : skills) {
+            List<String> effectNames = skill.getArray("effectNames");
+            if (effectNames == null || effectNames.isEmpty()) {
+                continue;
+            }
+            boolean removed = false;
+            for (int index = effectNames.size() - 1; index >= 0; index--) {
+                if (safeOldName.equals(effectNames.get(index))) {
+                    effectNames.remove(index);
+                    removed = true;
+                }
+            }
+            if (removed && !safeNewName.isEmpty() && !effectNames.contains(safeNewName)) {
+                effectNames.add(safeNewName);
+            }
+        }
+
+        ElementRegistry<Spell> spellRegistry = game.getElementRegistry(ElementRegistryKey.SPELLS);
+        List<Spell> spells = spellRegistry.getAll();
+        for (Spell spell : spells) {
+            String effect = Objects.toString(spell.getEffect(), "");
+            String secondary = Objects.toString(spell.getSecondaryEffect(), "");
+            if (effect.equalsIgnoreCase(safeOldName)) {
+                spell.setEffect(safeNewName);
+            }
+            if (secondary.equalsIgnoreCase(safeOldName)) {
+                spell.setSecondaryEffect(safeNewName);
+            }
+        }
+    }
+
+    private static void updateEffectTypeReferences(Game game, String oldName, String newName) {
+        String safeOldName = Objects.toString(oldName, "").trim();
+        String safeNewName = Objects.toString(newName, "").trim();
+        if (safeOldName.isEmpty() || safeOldName.equalsIgnoreCase(safeNewName)) {
+            return;
+        }
+        ElementRegistry<Effect> registry = game.getElementRegistry(ElementRegistryKey.EFFECTS);
+        List<Effect> effects = registry.getAll();
+        for (Effect effect : effects) {
+            List<String> typeKeys = effect.getEffectTypeKeys();
+            if (typeKeys == null || typeKeys.isEmpty()) {
+                continue;
+            }
+            for (int index = typeKeys.size() - 1; index >= 0; index--) {
+                String value = Objects.toString(typeKeys.get(index), "").trim();
+                if (value.equalsIgnoreCase(safeOldName)) {
+                    if (safeNewName.isEmpty()) {
+                        typeKeys.remove(index);
+                    } else {
+                        typeKeys.set(index, safeNewName);
+                    }
+                }
+            }
+        }
+
+        ElementRegistry<Status> statusRegistry = game.getElementRegistry(ElementRegistryKey.STATUSES);
+        List<Status> statuses = statusRegistry.getAll();
+        for (Status status : statuses) {
+            List<String> typeKeys = status.getEffectTypeKeys();
+            if (typeKeys == null || typeKeys.isEmpty()) {
+                continue;
+            }
+            for (int index = typeKeys.size() - 1; index >= 0; index--) {
+                String value = Objects.toString(typeKeys.get(index), "").trim();
+                if (value.equalsIgnoreCase(safeOldName)) {
+                    if (safeNewName.isEmpty()) {
+                        typeKeys.remove(index);
+                    } else {
+                        typeKeys.set(index, safeNewName);
+                    }
+                }
+            }
+        }
+    }
+
+    private static SessionStore.Session requireSession(RequestContext ctx) throws IOException {
+        String sessionId = resolveToken(ctx);
+        SessionStore.Session session = ctx.getSessionStore().getSession(sessionId);
+        if (session == null) {
+            ctx.json(401, Map.of("error", "Unauthorized"));
+            return null;
+        }
+        return session;
+    }
+
+    private static boolean ensureCanCreateDraft(RequestContext ctx, SessionStore.Session session) throws IOException {
+        if (session.isLegacyGuest()) {
+            return true;
+        }
+        if (ctx.getAccountStore().canAddDraft(session.getUserId())) {
+            return true;
+        }
+        ctx.json(400, Map.of("error", "Each account can save up to two rulesets for this PoC."));
+        return false;
+    }
+
+    private static boolean ensureStandardArrayEnabled(RequestContext ctx, String draftId) throws IOException {
+        boolean enabled = ctx.getDraftStore().readDraft(
+            draftId,
+            game -> isStandardArrayEnabled(game.getAttributeGenerationMethod())
+        );
+        if (enabled) {
+            return true;
+        }
+        ctx.json(400, Map.of("error", "Standard Array is not selected in Attribute Generation."));
+        return false;
+    }
+
+    private static boolean ensureDiceRollingEnabled(RequestContext ctx, String draftId) throws IOException {
+        boolean enabled = ctx.getDraftStore().readDraft(
+            draftId,
+            game -> isDiceRollingEnabled(game.getAttributeGenerationMethod())
+        );
+        if (enabled) {
+            return true;
+        }
+        ctx.json(400, Map.of("error", "Dice Rolling is not selected in Attribute Generation."));
+        return false;
+    }
+
+    private static boolean ensurePointBuyEnabled(RequestContext ctx, String draftId) throws IOException {
+        boolean enabled = ctx.getDraftStore().readDraft(
+            draftId,
+            game -> isPointBuyEnabled(game.getAttributeGenerationMethod())
+        );
+        if (enabled) {
+            return true;
+        }
+        ctx.json(400, Map.of("error", "Point Buy is not selected in Attribute Generation."));
+        return false;
+    }
+
+    private static boolean isStandardArrayEnabled(AttributeGenerationMethod method) {
+        return isAttributeGenerationStageEnabled(method, "standard_array");
+    }
+
+    private static boolean isDiceRollingEnabled(AttributeGenerationMethod method) {
+        return isAttributeGenerationStageEnabled(method, "dice");
+    }
+
+    private static boolean isPointBuyEnabled(AttributeGenerationMethod method) {
+        return isAttributeGenerationStageEnabled(method, "point_buy");
+    }
+
+    private static boolean isAttributeGenerationStageEnabled(AttributeGenerationMethod method, String stageKey) {
+        AttributeGenerationMethod safeMethod = Objects.requireNonNullElseGet(
+            method,
+            () -> new AttributeGenerationMethod("")
+        );
+        String safeStage = Objects.toString(stageKey, "").trim().toLowerCase();
+        if (safeStage.isEmpty()) {
+            return false;
+        }
+        String type = Objects.toString(safeMethod.getGenerationType(), "").trim().toLowerCase();
+        if (safeStage.equals(type)) {
+            return true;
+        }
+        if (!"hybrid".equals(type)) {
+            return false;
+        }
+        List<String> stages = safeList(safeMethod.getArray(ARRAY_HYBRID));
+        if (stages.isEmpty()) {
+            return true;
+        }
+        for (String stage : stages) {
+            if (safeStage.equals(Objects.toString(stage, "").trim().toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Map<String, Object> buildDraftEntry(RequestContext ctx, String draftId) throws IOException {
+        Map<String, Object> entry = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            String name = Objects.toString(game.getName(), "").trim();
+            payload.put("id", draftId);
+            payload.put("name", name.isEmpty() ? "Untitled Ruleset" : name);
+            payload.put("description", Objects.toString(game.getDescription(), ""));
+            payload.put("locale", Objects.toString(game.getUiLocale(), ""));
+            payload.put("completedStages", game.getCompletedStages());
+            return payload;
+        });
+        Instant lastSaved = ctx.getDraftStore().getLastSaved(draftId);
+        entry.put("lastSaved", lastSaved.toString());
+        return entry;
+    }
+
+    private static String getString(Map<String, Object> body, String key) {
+        Object value = body.get(key);
+        return Objects.toString(value, "");
+    }
+
+    private static int getInt(Map<String, Object> body, String key, int fallback) {
+        Object value = body.get(key);
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        if (value instanceof String) {
+            try {
+                return Integer.parseInt(((String) value).trim());
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    private static boolean getBoolean(Map<String, Object> body, String key, boolean fallback) {
+        Object value = body.get(key);
+        if (value instanceof Boolean) {
+            return (Boolean) value;
+        }
+        if (value instanceof String) {
+            return Boolean.parseBoolean(((String) value).trim());
+        }
+        return fallback;
+    }
+
+    private static double getDouble(Map<String, Object> body, String key, double fallback) {
+        Object value = body.get(key);
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        if (value instanceof String) {
+            try {
+                return Double.parseDouble(((String) value).trim());
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    private static List<String> getStringList(Map<String, Object> body, String key) {
+        Object value = body.get(key);
+        if (!(value instanceof List<?>)) {
+            return List.of();
+        }
+        List<?> raw = (List<?>) value;
+        List<String> result = new ArrayList<>();
+        for (Object entry : raw) {
+            String item = Objects.toString(entry, "").trim();
+            if (!item.isEmpty()) {
+                result.add(item);
+            }
+        }
+        return result;
+    }
+
+    private static List<String> getSpellEffectNames(Spell spell) {
+        List<String> resolved = new ArrayList<>();
+        List<String> names = spell.getArray("effectNames");
+        if (names != null && !names.isEmpty()) {
+            for (String name : names) {
+                String safeName = Objects.toString(name, "").trim();
+                if (!safeName.isEmpty()) {
+                    resolved.add(safeName);
+                }
+            }
+            return resolved;
+        }
+        String primary = Objects.toString(spell.getEffect(), "").trim();
+        if (!primary.isEmpty()) {
+            resolved.add(primary);
+        }
+        String secondary = Objects.toString(spell.getSecondaryEffect(), "").trim();
+        if (!secondary.isEmpty() && !resolved.contains(secondary)) {
+            resolved.add(secondary);
+        }
+        return resolved;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> getMapList(Map<String, Object> body, String key) {
+        Object value = body.get(key);
+        if (!(value instanceof List)) {
+            return List.of();
+        }
+        List<?> rawList = (List<?>) value;
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object entry : rawList) {
+            if (entry instanceof Map) {
+                result.add((Map<String, Object>) entry);
+            }
+        }
+        return result;
+    }
+
+    private static List<String> safeList(List<String> values) {
+        return values == null ? List.of() : values;
+    }
+
+    private static String resolveToken(RequestContext ctx) {
+        String auth = ctx.header("Authorization");
+        if (auth.isEmpty()) {
+            return "";
+        }
+        String trimmed = auth.trim();
+        if (trimmed.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            return trimmed.substring(7).trim();
+        }
+        return trimmed;
+    }
+
+    private static String resolveDraftLocale(RequestContext ctx, String draftId) {
+        String safeId = Objects.toString(draftId, "").trim();
+        if (safeId.isEmpty()) {
+            return "";
+        }
+        try {
+            return ctx.getDraftStore().readDraft(safeId, Game::getUiLocale);
+        } catch (IOException e) {
+            return "";
+        }
+    }
+
+    private static List<String> resolveCompletedStages(RequestContext ctx, String draftId) {
+        String safeId = Objects.toString(draftId, "").trim();
+        if (safeId.isEmpty()) {
+            return List.of();
+        }
+        try {
+            return ctx.getDraftStore().readDraft(safeId, Game::getCompletedStages);
+        } catch (IOException e) {
+            return List.of();
+        }
+    }
+
+    private static void markStageCompleted(RequestContext ctx, String draftId, String stageKey) throws IOException {
+        String safeId = Objects.toString(draftId, "").trim();
+        if (safeId.isEmpty()) {
+            return;
+        }
+        boolean alreadyCompleted = ctx.getDraftStore().readDraft(safeId, game -> {
+            List<String> completed = game.getCompletedStages();
+            return completed.contains(stageKey);
+        });
+        if (alreadyCompleted) {
+            return;
+        }
+        ctx.getDraftStore().updateDraft(safeId, game -> game.markStageCompleted(stageKey));
+    }
+
+    private static String firstQueryParam(RequestContext ctx, String key) {
+        List<String> values = ctx.queryParam(key);
+        if (values.isEmpty()) {
+            return "";
+        }
+        return Objects.toString(values.get(0), "");
+    }
+
+    private static String normalizeSkillCategoryKey(String value) {
+        return Objects.toString(value, "").trim().toLowerCase();
+    }
+
+    private static String normalizeEffectTypeKey(String value) {
+        return Objects.toString(value, "").trim().toLowerCase();
+    }
+
+    private static List<String> getWeightUnits(Game game) {
+        String system = Objects.toString(game.getWeightSystem(), "").trim().toLowerCase();
+        String arrayName = system.equals("english") ? "weightUnitsEnglish" : "weightUnitsMetric";
+        List<String> units = game.getArray(arrayName);
+        return units == null ? List.of() : new ArrayList<>(units);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Attribute> getAttributes(Game game) {
+        List<Attribute> attributes = game.<Attribute>getObjectArray("attributes");
+        return attributes == null ? List.of() : attributes;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Currency> getCurrencies(Game game) {
+        List<Currency> currencies = game.<Currency>getObjectArray("currencies");
+        return currencies == null ? List.of() : currencies;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Effect> getEffects(Game game) {
+        List<Effect> effects = game.<Effect>getObjectArray("effects");
+        return effects == null ? List.of() : effects;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Status> getStatuses(Game game) {
+        List<Status> statuses = game.<Status>getObjectArray("statuses");
+        return statuses == null ? List.of() : statuses;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Equipment> getEquipment(Game game) {
+        List<Equipment> equipment = game.<Equipment>getObjectArray("equipment");
+        return equipment == null ? List.of() : equipment;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Weapon> getWeapons(Game game) {
+        List<Weapon> weapons = game.<Weapon>getObjectArray("weapons");
+        return weapons == null ? List.of() : weapons;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<CharacterClass> getClasses(Game game) {
+        List<CharacterClass> classes = game.<CharacterClass>getObjectArray("characterClasses");
+        return classes == null ? List.of() : classes;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Skill> getSkills(Game game) {
+        List<Skill> skills = game.<Skill>getObjectArray("skills");
+        return skills == null ? List.of() : skills;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Spell> getSpells(Game game) {
+        List<Spell> spells = game.<Spell>getObjectArray("spells");
+        return spells == null ? List.of() : spells;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Race> getRaces(Game game) {
+        List<Race> races = game.<Race>getObjectArray("races");
+        return races == null ? List.of() : races;
+    }
+}

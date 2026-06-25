@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GMRules Web</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="logged-out">
+  <div class="backdrop"></div>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">GMR</span>
+        <span class="brand-name" id="brandName">GMRules Web</span>
+      </div>
+      <div class="step-indicator" id="stepIndicator"></div>
+      <div class="status" id="saveStatus">Not saved yet</div>
+      <div class="actions">
+        <button class="btn ghost" id="downloadBtn" type="button">Download .gmrf</button>
+        <button class="btn ghost" id="logoutBtn" type="button">Logout</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-title" id="sidebarTitle">Stages</div>
+        <div class="sidebar-nav" id="sidebarNav"></div>
+      </aside>
+      <main id="view" class="view"></main>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="confirmModal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h3 id="confirmTitle">Confirm</h3>
+      <p id="confirmMessage"></p>
+      <div class="modal-actions">
+        <button class="btn ghost" id="confirmCancel" type="button">Cancel</button>
+        <button class="btn danger" id="confirmOk" type="button">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="typeModal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h3 id="typeTitle">Change Attribute Type</h3>
+      <div class="field">
+        <label for="typeSelector" id="typeLabel">Type</label>
+        <select id="typeSelector"></select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="typeCancel" type="button">Cancel</button>
+        <button class="btn" id="typeOk" type="button">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="deleteAccountModal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h3 id="deleteAccountTitle">Delete Account</h3>
+      <p id="deleteAccountMessage"></p>
+      <div class="field">
+        <label for="deleteAccountUsername" id="deleteAccountUsernameLabel">Username</label>
+        <input type="text" id="deleteAccountUsername" autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="deleteAccountPassword" id="deleteAccountPasswordLabel">Password</label>
+        <input type="password" id="deleteAccountPassword" autocomplete="current-password">
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="deleteAccountCancel" type="button">Cancel</button>
+        <button class="btn danger" id="deleteAccountOk" type="button">Delete Account</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="editModal" role="dialog" aria-modal="true">
+    <div class="modal-card wide">
+      <h3 id="editTitle">Edit</h3>
+      <div class="grid two" id="editPrimaryGrid">
+        <div class="field">
+          <label for="editName" id="editNameLabel">Name</label>
+          <input type="text" id="editName">
+        </div>
+        <div class="field" id="editTypeField">
+          <label for="editType" id="editTypeLabel">Type</label>
+          <div class="grid two">
+            <div>
+              <select id="editType"></select>
+            </div>
+            <div>
+              <button class="btn" id="editTypeAdd" type="button">Add Type</button>
+              <button class="btn ghost" id="editTypeCreate" type="button">Create Type</button>
+            </div>
+          </div>
+          <div class="list" id="editTypeList"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="editDescription" id="editDescriptionLabel">Description</label>
+        <textarea id="editDescription"></textarea>
+      </div>
+      <div class="grid two hidden" id="editWeightGrid">
+        <div class="field" id="editWeightValueField">
+          <label for="editWeightValue" id="editWeightValueLabel">Weight</label>
+          <input type="number" id="editWeightValue" min="0" step="1">
+        </div>
+        <div class="field" id="editWeightUnitField">
+          <label for="editWeightUnit" id="editWeightUnitLabel">Weight Unit</label>
+          <select id="editWeightUnit"></select>
+        </div>
+      </div>
+      <div class="grid three hidden" id="editWeaponDamageField">
+        <div class="field">
+          <label for="editWeaponDamageCount" id="editWeaponDamageCountLabel">Number of Rolls</label>
+          <input type="number" id="editWeaponDamageCount" min="0" step="1" value="0">
+        </div>
+        <div class="field">
+          <label for="editWeaponDamageSides" id="editWeaponDamageSidesLabel">Dice Sides</label>
+          <input type="number" id="editWeaponDamageSides" min="0" step="1" value="0">
+        </div>
+        <div class="field">
+          <label for="editWeaponDamageModifier" id="editWeaponDamageModifierLabel">Modifier</label>
+          <input type="number" id="editWeaponDamageModifier" min="-1000" step="1" value="0">
+        </div>
+      </div>
+      <div class="edit-section hidden" id="editClassSection">
+        <h4 id="editClassTitle">Class Details</h4>
+        <div class="grid two">
+          <div class="field">
+            <label for="editClassPrimary" id="editClassPrimaryLabel">Primary Attribute</label>
+            <select id="editClassPrimary"></select>
+          </div>
+          <div class="field">
+            <label for="editClassHitDieSelect" id="editClassHitDieLabel">Hit Die</label>
+            <select id="editClassHitDieSelect"></select>
+          </div>
+        </div>
+        <div class="grid two">
+          <div class="field">
+            <label for="editClassHitDieModifier" id="editClassHitDieModifierLabel">Modifier</label>
+            <input type="number" id="editClassHitDieModifier" min="-100" step="1" value="0">
+          </div>
+          <div class="field">
+            <label for="editClassSkillPoints" id="editClassSkillPointsLabel">Skill Points per Level</label>
+            <input type="number" id="editClassSkillPoints" min="0" step="1">
+          </div>
+        </div>
+        <div class="field">
+          <label for="editClassStartingMoney" id="editClassStartingMoneyLabel">Class Starting Money</label>
+          <input type="number" id="editClassStartingMoney" min="0" step="1" value="0">
+        </div>
+        <div class="grid two">
+          <div class="field">
+            <label for="editClassSkillPointsSame" id="editClassSkillPointsSameLabel">Same at all levels</label>
+            <input type="checkbox" id="editClassSkillPointsSame">
+          </div>
+          <div class="field"></div>
+        </div>
+        <div class="grid two">
+          <div class="field">
+            <label for="editClassSkillPointsLevel" id="editClassSkillPointsLevelLabel">Level</label>
+            <select id="editClassSkillPointsLevel"></select>
+          </div>
+          <div class="field">
+            <label for="editClassSkillPointsValue" id="editClassSkillPointsValueLabel">Points</label>
+            <input type="number" id="editClassSkillPointsValue" min="0" step="1" value="0">
+          </div>
+        </div>
+        <button class="btn" id="editClassSkillPointsAdd" type="button">Add Level</button>
+        <div class="list" id="editClassSkillPointsList"></div>
+        <div class="edit-section">
+          <h4 id="editClassSkillsTitle">Class Skills</h4>
+          <div class="grid two">
+            <div class="field">
+              <label for="editClassSkillSelect" id="editClassSkillSelectLabel">Select Skill</label>
+              <select id="editClassSkillSelect"></select>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button class="btn" id="editClassSkillAdd" type="button">Add Skill</button>
+              <button class="btn ghost" id="editClassSkillCreate" type="button">Create Skill</button>
+            </div>
+          </div>
+          <div class="list" id="editClassSkillList"></div>
+        </div>
+        <div class="edit-section">
+          <h4 id="editClassRequiredTitle">Required Attributes</h4>
+          <div class="grid two">
+            <div class="field">
+              <label for="editClassRequiredSelect" id="editClassRequiredSelectLabel">Select Attribute</label>
+              <select id="editClassRequiredSelect"></select>
+            </div>
+            <div class="field">
+              <label for="editClassRequiredScore" id="editClassRequiredScoreLabel">Score</label>
+              <input type="number" id="editClassRequiredScore" min="1" step="1">
+            </div>
+          </div>
+          <button class="btn" id="editClassRequiredAdd" type="button">Add Requirement</button>
+          <div class="list" id="editClassRequiredList"></div>
+        </div>
+      </div>
+      <div class="edit-section hidden" id="editRaceSection">
+        <h4 id="editRaceTraitsTitle">Racial Traits</h4>
+        <div class="grid two">
+          <div class="field">
+            <label for="editRaceTraitSelect" id="editRaceTraitLabel">Select Trait</label>
+            <select id="editRaceTraitSelect"></select>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button class="btn" id="editRaceTraitAdd" type="button">Add Trait</button>
+          </div>
+        </div>
+        <div class="list" id="editRaceTraitList"></div>
+        <div class="edit-section">
+          <h4 id="editRaceAttributesTitle">Attribute Limits</h4>
+          <div class="grid two">
+            <div class="field">
+              <label for="editRaceAttributeSelect" id="editRaceAttributeLabel">Select Attribute</label>
+              <select id="editRaceAttributeSelect"></select>
+            </div>
+            <div class="field">
+              <label for="editRaceAttributeMin" id="editRaceAttributeMinLabel">Minimum Value</label>
+              <input type="number" id="editRaceAttributeMin" step="1">
+            </div>
+            <div class="field">
+              <label for="editRaceAttributeMax" id="editRaceAttributeMaxLabel">Maximum Value</label>
+              <input type="number" id="editRaceAttributeMax" step="1">
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button class="btn" id="editRaceAttributeAdd" type="button">Add Limit</button>
+            </div>
+          </div>
+          <div class="list" id="editRaceAttributeList"></div>
+        </div>
+        <div class="edit-section">
+          <h4 id="editRaceTraitCreateTitle">Create Skill</h4>
+          <button class="btn" id="editRaceTraitCreate" type="button">Create Skill</button>
+        </div>
+        <div class="field">
+          <label for="editRaceStartingMoneyModifier" id="editRaceStartingMoneyModifierLabel">Race Starting Money Modifier</label>
+          <input type="number" id="editRaceStartingMoneyModifier" step="1" value="0">
+        </div>
+      </div>
+      <div class="grid two" id="editRangeFields">
+        <div class="field">
+          <label for="editMinValue" id="editMinLabel">Minimum Value</label>
+          <input type="number" id="editMinValue" step="1">
+        </div>
+        <div class="field">
+          <label for="editMaxValue" id="editMaxLabel">Maximum Value</label>
+          <input type="number" id="editMaxValue" step="1">
+        </div>
+      </div>
+      <div class="edit-section" id="editModifierSection">
+        <h4 id="editModifierTitle">Modifiers</h4>
+        <div class="grid two">
+          <div class="field">
+            <label for="editModifierScore" id="editModifierScoreLabel">Score</label>
+            <input type="number" id="editModifierScore" step="0.1">
+          </div>
+          <div class="field">
+            <label for="editModifierValue" id="editModifierValueLabel">Modifier</label>
+            <input type="number" id="editModifierValue" step="0.1">
+          </div>
+        </div>
+        <button class="btn" id="editModifierAdd" type="button">Add Modifier</button>
+        <label class="toggle">
+          <input type="checkbox" id="editModifierApplyAll">
+          <span id="editModifierApplyAllLabel">Apply modifiers to all attributes</span>
+        </label>
+        <div class="list" id="editModifierList"></div>
+      </div>
+      <div class="edit-section" id="editBonusSection">
+        <h4 id="editBonusTitle">Score Bonuses</h4>
+        <div class="grid two">
+          <div class="field">
+            <label for="editBonusThreshold" id="editBonusThresholdLabel">Threshold</label>
+            <input type="number" id="editBonusThreshold" step="1">
+          </div>
+          <div class="field">
+            <label for="editBonusEffect" id="editBonusEffectLabel">Effect</label>
+            <input type="text" id="editBonusEffect">
+          </div>
+        </div>
+        <button class="btn" id="editBonusAdd" type="button">Add Bonus</button>
+        <div class="list" id="editBonusList"></div>
+      </div>
+      <div class="edit-section hidden" id="editWeaponEffectsSection">
+        <h4 id="editWeaponEffectsTitle">Effects</h4>
+        <div class="grid two">
+          <div class="field">
+            <label for="editWeaponEffectSelect" id="editWeaponEffectSelectLabel">Select Effect</label>
+            <select id="editWeaponEffectSelect"></select>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button class="btn" id="editWeaponEffectAdd" type="button">Add Effect</button>
+            <button class="btn ghost" id="editWeaponEffectCreate" type="button">Create Effect</button>
+          </div>
+        </div>
+        <div class="list" id="editWeaponEffectList"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="editCancel" type="button">Cancel</button>
+        <button class="btn" id="editOk" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="skillModal" role="dialog" aria-modal="true">
+    <div class="modal-card wide">
+      <h3 id="skillModalTitle">Edit Skill</h3>
+      <div class="grid two">
+        <div class="field">
+          <label for="skillNameInput" id="skillNameLabel">Name</label>
+          <input type="text" id="skillNameInput">
+        </div>
+        <div class="field">
+          <label for="skillCategorySelect" id="skillCategoryLabel">Category</label>
+          <select id="skillCategorySelect"></select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="skillDescriptionInput" id="skillDescriptionLabel">Description</label>
+        <textarea id="skillDescriptionInput"></textarea>
+      </div>
+      <div class="edit-section">
+        <h4 id="skillCategoryCreateTitle">Create Category</h4>
+        <button class="btn" id="skillCategoryCreate" type="button">Create Category</button>
+      </div>
+      <div class="grid two">
+        <div class="field">
+          <label for="skillAbilitySelect" id="skillAbilityLabel">Related Attribute</label>
+          <select id="skillAbilitySelect"></select>
+        </div>
+        <div class="field">
+          <label for="skillArmorPenalty" id="skillArmorLabel">Armor Check Penalty</label>
+          <input type="number" id="skillArmorPenalty" step="1">
+        </div>
+      </div>
+      <div class="field">
+        <label for="skillStartingMoneyModifier" id="skillStartingMoneyModifierLabel">Trait Starting Money Modifier</label>
+        <input type="number" id="skillStartingMoneyModifier" step="1" value="0">
+      </div>
+      <div class="field">
+        <label for="skillTrainedOnly" id="skillTrainedLabel">Trained Only</label>
+        <input type="checkbox" id="skillTrainedOnly">
+      </div>
+      <div class="edit-section">
+        <h4 id="skillClassLimitsTitle">Class Restrictions</h4>
+        <div class="grid two">
+          <div class="field">
+            <label for="skillClassLimitSelect" id="skillClassLimitSelectLabel">Select Class</label>
+            <select id="skillClassLimitSelect"></select>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button class="btn" id="skillClassLimitAdd" type="button">Add Class</button>
+          </div>
+        </div>
+        <div class="list" id="skillClassLimitList"></div>
+      </div>
+      <div class="edit-section">
+        <h4 id="skillRaceLimitsTitle">Race Restrictions</h4>
+        <div class="grid two">
+          <div class="field">
+            <label for="skillRaceLimitSelect" id="skillRaceLimitSelectLabel">Select Race</label>
+            <select id="skillRaceLimitSelect"></select>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button class="btn" id="skillRaceLimitAdd" type="button">Add Race</button>
+          </div>
+        </div>
+        <div class="list" id="skillRaceLimitList"></div>
+      </div>
+      <div class="edit-section">
+        <h4 id="skillEffectsTitle">Effects</h4>
+        <div class="grid two">
+          <div class="field">
+            <label for="skillEffectSelect" id="skillEffectSelectLabel">Select Effect</label>
+            <select id="skillEffectSelect"></select>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button class="btn" id="skillEffectAdd" type="button">Add Effect</button>
+          </div>
+        </div>
+        <div class="list" id="skillEffectList"></div>
+      </div>
+      <div class="edit-section">
+        <h4 id="skillEffectCreateTitle">Create Effect</h4>
+        <button class="btn" id="skillEffectCreate" type="button">Create Effect</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="skillCancel" type="button">Cancel</button>
+        <button class="btn" id="skillSave" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="spellModal" role="dialog" aria-modal="true">
+    <div class="modal-card wide">
+      <h3 id="spellModalTitle">Edit Spell</h3>
+      <div class="grid two">
+        <div class="field">
+          <label for="spellNameInput" id="spellNameLabel">Name</label>
+          <input type="text" id="spellNameInput">
+        </div>
+        <div class="field">
+          <label for="spellSchoolInput" id="spellSchoolLabel">School</label>
+          <input type="text" id="spellSchoolInput">
+        </div>
+      </div>
+      <div class="field">
+        <label for="spellDescriptionInput" id="spellDescriptionLabel">Description</label>
+        <textarea id="spellDescriptionInput"></textarea>
+      </div>
+      <div class="field">
+        <label for="spellLevelInput" id="spellLevelLabel">Level</label>
+        <input type="number" id="spellLevelInput" min="0" max="20" step="1">
+      </div>
+      <div class="field">
+        <label for="spellCastingInput" id="spellCastingLabel">Casting Time</label>
+        <input type="text" id="spellCastingInput">
+      </div>
+      <div class="field">
+        <label for="spellRangeInput" id="spellRangeLabel">Range</label>
+        <input type="text" id="spellRangeInput">
+      </div>
+      <div class="field">
+        <label for="spellDurationInput" id="spellDurationLabel">Duration</label>
+        <input type="text" id="spellDurationInput">
+      </div>
+      <div class="edit-section">
+        <h4 id="spellEffectTitle">Effects</h4>
+        <div class="grid two">
+          <div class="field">
+            <label for="spellEffectSelect" id="spellEffectSelectLabel">Select Effect</label>
+            <select id="spellEffectSelect"></select>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button class="btn" id="spellEffectAdd" type="button">Add Effect</button>
+          </div>
+        </div>
+        <div class="list" id="spellEffectList"></div>
+      </div>
+      <div class="edit-section">
+        <h4 id="spellEffectCreateTitle">Create Effect</h4>
+        <button class="btn" id="spellEffectCreate" type="button">Create Effect</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="spellCancel" type="button">Cancel</button>
+        <button class="btn" id="spellSave" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      if (!params.has("debug")) {
+        return;
+      }
+      const panel = document.createElement("pre");
+      panel.style.whiteSpace = "pre-wrap";
+      panel.style.padding = "16px";
+      panel.style.margin = "16px";
+      panel.style.border = "1px solid #cc0000";
+      panel.style.background = "#fff5f5";
+      panel.style.color = "#660000";
+      panel.style.fontSize = "14px";
+      panel.textContent = "Debug mode enabled. Waiting for errors...";
+      document.body.appendChild(panel);
+      const report = (message) => {
+        panel.textContent = message;
+      };
+      window.addEventListener("error", (event) => {
+        const msg = event && event.message ? event.message : "Unknown error";
+        const src = event && event.filename ? event.filename : "";
+        const line = event && event.lineno ? event.lineno : "";
+        const col = event && event.colno ? event.colno : "";
+        report(`JS error: ${msg}\\n${src}:${line}:${col}`);
+      });
+      window.addEventListener("unhandledrejection", (event) => {
+        const reason = event && event.reason ? event.reason : "Unhandled rejection";
+        report(`JS rejection: ${reason}`);
+      });
+    })();
+  </script>
+
+  <script src="/app.js?v=20260616f"></script>
+</body>
+</html>

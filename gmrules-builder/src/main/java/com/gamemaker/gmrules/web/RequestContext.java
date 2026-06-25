@@ -1,0 +1,255 @@
+/*
+ FILE CONTRACT (Non-Null):
+ - Do not introduce null fields or null checks in this file.
+ - All instance fields are initialized (at declaration or in constructor) and remain non-null.
+ - Represent "empty" with empty/sentinel objects (e.g., "", empty lists, EMPTY instances), not null.
+ - If a value may be absent at an external boundary, normalize it immediately to a non-null value.
+*/
+// NONNULL_CONTRACT
+
+package com.gamemaker.gmrules.web;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sun.net.httpserver.Headers;
+import com.sun.net.httpserver.HttpExchange;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+/**
+ * Request and response helper for routing.
+ */
+public final class RequestContext {
+
+    // *** MEMBERS ***
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
+    };
+
+    private final HttpExchange exchange;
+    private final ObjectMapper mapper;
+    private final WebConfig config;
+    private final SessionStore sessionStore;
+    private final AccountStore accountStore;
+    private final DraftStore draftStore;
+    private final Map<String, String> pathParams;
+    private final Map<String, List<String>> queryParams;
+    private byte[] body = new byte[0];
+    private boolean bodyRead = false;
+
+    // *** CONSTRUCTORS ***
+    public RequestContext(
+            HttpExchange exchange,
+            ObjectMapper mapper,
+            WebConfig config,
+            SessionStore sessionStore,
+            AccountStore accountStore,
+            DraftStore draftStore,
+            Map<String, String> pathParams
+    ) {
+        this.exchange = exchange;
+        this.mapper = mapper;
+        this.config = config;
+        this.sessionStore = sessionStore;
+        this.accountStore = accountStore;
+        this.draftStore = draftStore;
+        this.pathParams = pathParams;
+        this.queryParams = parseQuery(exchange.getRequestURI().getRawQuery());
+    }
+
+    // *** METHODS ***
+    public String method() {
+        return exchange.getRequestMethod();
+    }
+
+    public String path() {
+        return exchange.getRequestURI().getPath();
+    }
+
+    public WebConfig getConfig() {
+        return config;
+    }
+
+    public SessionStore getSessionStore() {
+        return sessionStore;
+    }
+
+    public AccountStore getAccountStore() {
+        return accountStore;
+    }
+
+    public DraftStore getDraftStore() {
+        return draftStore;
+    }
+
+    public String pathParam(String name) {
+        return Objects.toString(pathParams.get(name), "");
+    }
+
+    public Map<String, List<String>> queryParams() {
+        return Collections.unmodifiableMap(queryParams);
+    }
+
+    public List<String> queryParam(String name) {
+        return queryParams.getOrDefault(name, List.of());
+    }
+
+    public String header(String name) {
+        String safeName = Objects.toString(name, "").trim();
+        if (safeName.isEmpty()) {
+            return "";
+        }
+        List<String> values = exchange.getRequestHeaders().getOrDefault(safeName, List.of());
+        if (values.isEmpty()) {
+            return "";
+        }
+        return Objects.toString(values.get(0), "");
+    }
+
+    public byte[] readBody() throws IOException {
+        if (bodyRead) {
+            return body;
+        }
+        bodyRead = true;
+        long maxBytes = config.getMaxUploadBytes();
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        InputStream input = exchange.getRequestBody();
+        byte[] buffer = new byte[8192];
+        int read;
+        long total = 0;
+        while ((read = input.read(buffer)) != -1) {
+            total += read;
+            if (total > maxBytes) {
+                throw new IOException("Request body too large.");
+            }
+            output.write(buffer, 0, read);
+        }
+        body = output.toByteArray();
+        return body;
+    }
+
+    public Map<String, Object> readJsonMap() throws IOException {
+        byte[] payload = readBody();
+        if (payload.length == 0) {
+            return new HashMap<>();
+        }
+        return mapper.readValue(payload, MAP_TYPE);
+    }
+
+    public void json(int status, Object payload) throws IOException {
+        byte[] data = mapper.writeValueAsBytes(payload);
+        Headers headers = exchange.getResponseHeaders();
+        headers.set("Content-Type", "application/json; charset=utf-8");
+        headers.set("Cache-Control", "no-store");
+        exchange.sendResponseHeaders(status, data.length);
+        exchange.getResponseBody().write(data);
+        exchange.close();
+    }
+
+    public void text(int status, String message, String contentType) throws IOException {
+        byte[] data = Objects.toString(message, "").getBytes(StandardCharsets.UTF_8);
+        Headers headers = exchange.getResponseHeaders();
+        headers.set("Content-Type", contentType + "; charset=utf-8");
+        exchange.sendResponseHeaders(status, data.length);
+        exchange.getResponseBody().write(data);
+        exchange.close();
+    }
+
+    public void bytes(int status, byte[] data, String contentType, Map<String, String> extraHeaders)
+            throws IOException {
+        byte[] payload = Objects.requireNonNullElseGet(data, () -> new byte[0]);
+        Headers headers = exchange.getResponseHeaders();
+        headers.set("Content-Type", contentType);
+        for (Map.Entry<String, String> entry : extraHeaders.entrySet()) {
+            headers.set(entry.getKey(), entry.getValue());
+        }
+        exchange.sendResponseHeaders(status, payload.length);
+        exchange.getResponseBody().write(payload);
+        exchange.close();
+    }
+
+    public void setCookie(String name, String value, long maxAgeSeconds) {
+        String safeName = Objects.toString(name, "").trim();
+        String safeValue = Objects.toString(value, "").trim();
+        if (safeName.isEmpty()) {
+            return;
+        }
+        StringBuilder cookie = new StringBuilder();
+        cookie.append(safeName).append("=").append(safeValue);
+        cookie.append("; Path=/; HttpOnly; SameSite=Strict");
+        if (maxAgeSeconds >= 0) {
+            cookie.append("; Max-Age=").append(maxAgeSeconds);
+        }
+        exchange.getResponseHeaders().add("Set-Cookie", cookie.toString());
+    }
+
+    public void clearCookie(String name) {
+        setCookie(name, "", 0);
+    }
+
+    public String getCookie(String name) {
+        String safeName = Objects.toString(name, "").trim();
+        if (safeName.isEmpty()) {
+            return "";
+        }
+        List<String> cookies = exchange.getRequestHeaders().getOrDefault("Cookie", List.of());
+        for (String header : cookies) {
+            String[] parts = header.split(";");
+            for (String part : parts) {
+                String trimmed = part.trim();
+                int idx = trimmed.indexOf('=');
+                if (idx <= 0) {
+                    continue;
+                }
+                String key = trimmed.substring(0, idx).trim();
+                String value = trimmed.substring(idx + 1).trim();
+                if (safeName.equals(key)) {
+                    return value;
+                }
+            }
+        }
+        return "";
+    }
+
+    public String decodeBase64(String value) {
+        String safeValue = Objects.toString(value, "").trim();
+        if (safeValue.isEmpty()) {
+            return "";
+        }
+        byte[] decoded = Base64.getDecoder().decode(safeValue);
+        return new String(decoded, StandardCharsets.UTF_8);
+    }
+
+    private Map<String, List<String>> parseQuery(String rawQuery) {
+        if (rawQuery == null || rawQuery.isEmpty()) {
+            return new HashMap<>();
+        }
+        Map<String, List<String>> params = new HashMap<>();
+        String[] pairs = rawQuery.split("&");
+        for (String pair : pairs) {
+            String[] parts = pair.split("=", 2);
+            String key = decode(parts[0]);
+            String value = parts.length > 1 ? decode(parts[1]) : "";
+            params.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
+        }
+        return params;
+    }
+
+    private String decode(String value) {
+        try {
+            return URLDecoder.decode(Objects.toString(value, ""), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            return Objects.toString(value, "");
+        }
+    }
+}
