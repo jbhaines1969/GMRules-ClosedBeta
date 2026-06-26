@@ -4504,6 +4504,7 @@ function renderLogin() {
   view.innerHTML = `
     <section class="panel">
       <h1>${t("web.login.title", "Account Access")}</h1>
+      <p>${t("web.login.update_notice", "This is how you update your droplet")}</p>
       <p>${t(
         "web.login.description",
         "Sign in to save up to two rulesets on this server. This local server supports up to ten accounts."

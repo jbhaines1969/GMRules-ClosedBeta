@@ -21,6 +21,7 @@ public final class WebConfig {
     // *** MEMBERS ***
     private static final String HOST_PROPERTY = "gmrules.web.host";
     private static final String PORT_PROPERTY = "gmrules.web.port";
+    private static final String RAILWAY_PORT_ENV = "PORT";
     private static final String THREADS_PROPERTY = "gmrules.web.threads";
     private static final String MAX_UPLOAD_PROPERTY = "gmrules.web.maxUploadBytes";
     private static final String SESSION_MINUTES_PROPERTY = "gmrules.web.sessionMinutes";
@@ -64,8 +65,8 @@ public final class WebConfig {
 
     // *** METHODS ***
     public static WebConfig load() {
-        String host = readString(HOST_PROPERTY, DEFAULT_HOST);
-        int port = readInt(PORT_PROPERTY, DEFAULT_PORT);
+        String host = readHost();
+        int port = readInt(PORT_PROPERTY, readEnvInt(RAILWAY_PORT_ENV, DEFAULT_PORT));
         int threads = Math.max(2, readInt(THREADS_PROPERTY, DEFAULT_THREADS));
         long maxUploadBytes = readLong(MAX_UPLOAD_PROPERTY, DEFAULT_MAX_UPLOAD_BYTES);
         long sessionMinutes = Math.max(15, readLong(SESSION_MINUTES_PROPERTY, DEFAULT_SESSION_MINUTES));
@@ -123,6 +124,18 @@ public final class WebConfig {
         return fallback;
     }
 
+    private static String readHost() {
+        String host = readString(HOST_PROPERTY, "");
+        if (!host.isEmpty()) {
+            return host;
+        }
+        String railwayPort = Objects.toString(System.getenv(RAILWAY_PORT_ENV), "").trim();
+        if (!railwayPort.isEmpty()) {
+            return "0.0.0.0";
+        }
+        return DEFAULT_HOST;
+    }
+
     private static int readInt(String property, int fallback) {
         String raw = Objects.toString(System.getProperty(property), "").trim();
         if (raw.isEmpty()) {
@@ -148,6 +161,18 @@ public final class WebConfig {
         }
         try {
             return Long.parseLong(raw);
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
+    }
+
+    private static int readEnvInt(String envKey, int fallback) {
+        String raw = Objects.toString(System.getenv(envKey), "").trim();
+        if (raw.isEmpty()) {
+            return fallback;
+        }
+        try {
+            return Integer.parseInt(raw);
         } catch (NumberFormatException ignored) {
             return fallback;
         }
