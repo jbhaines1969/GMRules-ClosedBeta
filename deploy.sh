@@ -3,6 +3,13 @@ set -e
 
 cd /opt/gmrules
 
+if [ -f /opt/gmrules/.env ]; then
+  echo "Loading environment..."
+  set -a
+  . /opt/gmrules/.env
+  set +a
+fi
+
 echo "Pulling latest code..."
 git pull
 

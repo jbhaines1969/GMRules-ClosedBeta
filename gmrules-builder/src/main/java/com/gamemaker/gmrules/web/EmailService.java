@@ -29,7 +29,13 @@ public final class EmailService {
 
     // *** MEMBERS ***
     private static final String CLOSED_BETA_SUBJECT = "GMRules Open Beta";
-    private static final String CLOSED_BETA_CONTENT = "";
+    private static final String CLOSED_BETA_CONTENT = """
+            Your GMRules open beta application has been received.
+
+            Return to the GMRules beta site and continue with this email address to finish setting up your account.
+
+            This access is for beta testing only. Please do not share unreleased GMRules material outside the beta.
+            """;
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
 
     private final WebConfig config;

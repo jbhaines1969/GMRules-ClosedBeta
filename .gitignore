@@ -4,6 +4,7 @@ target/
 .DS_Store
 .idea/
 *.iml
+.env
 
 server-data/
 drafts/
