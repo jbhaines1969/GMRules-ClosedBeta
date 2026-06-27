@@ -1,14 +1,7 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 cd /opt/gmrules
-
-if [ -f /opt/gmrules/.env ]; then
-  echo "Loading environment..."
-  set -a
-  . /opt/gmrules/.env
-  set +a
-fi
 
 echo "Pulling latest code..."
 git pull
@@ -16,18 +9,18 @@ git pull
 echo "Compiling..."
 mvn -q -DskipTests compile
 
-echo "Stopping old app..."
-pkill -f 'com.gamemaker.gmrules.web.WebMain' || true
+echo "Restarting gmrules.service..."
+systemctl restart gmrules
 
-sleep 3
+sleep 5
 
-echo "Starting app..."
-nohup mvn -pl gmrules-builder exec:java -Dexec.mainClass=com.gamemaker.gmrules.web.WebMain > /opt/gmrules/gmrules.log 2>&1 &
+echo "Service status:"
+systemctl status gmrules --no-pager
 
-sleep 3
-
-echo "Current Java process:"
+echo
+echo "Java process:"
 ps aux | grep '[j]ava' || true
 
-echo "Recent app log:"
-tail -40 /opt/gmrules/gmrules.log || true
+echo
+echo "Recent service log:"
+journalctl -u gmrules -n 40 --no-pager
