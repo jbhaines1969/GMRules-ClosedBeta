@@ -4,3 +4,7 @@ target/
 .DS_Store
 .idea/
 *.iml
+
+server-data/
+drafts/
+*.gmrf
