@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
 public final class AccountStore {
 
     // *** MEMBERS ***
-    private static final Pattern USERNAME_PATTERN = Pattern.compile("[A-Za-z0-9_.-]{3,40}");
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("[^@\\s]+@[^@\\s]+\\.[^@\\s]+");
     private static final int USER_ID_BYTES = 18;
     private static final int PASSWORD_SALT_BYTES = 18;
     private static final int PASSWORD_ITERATIONS = 120_000;
@@ -58,33 +58,69 @@ public final class AccountStore {
     }
 
     // *** METHODS ***
-    public Account createAccount(String username, String password) throws IOException {
-        String safeUsername = normalizeUsername(username);
-        validateUsername(safeUsername);
+    public Account createPendingAccount(String email) throws IOException {
+        String safeEmail = normalizeEmail(email);
+        validateEmail(safeEmail);
+        synchronized (lock) {
+            Properties properties = loadProperties();
+            String existingId = Objects.toString(properties.getProperty(userKey(safeEmail, "id")), "");
+            if (!existingId.isEmpty()) {
+                return new Account(existingId, safeEmail, false);
+            }
+            if (countAccounts(properties) >= MAX_ACCOUNTS) {
+                throw new IllegalArgumentException("Closed beta account limit reached.");
+            }
+            String userId = generateUserId(properties);
+            properties.setProperty(userKey(safeEmail, "id"), userId);
+            properties.setProperty(userKey(safeEmail, "username"), safeEmail);
+            properties.setProperty(userKey(safeEmail, "salt"), "");
+            properties.setProperty(userKey(safeEmail, "hash"), "");
+            properties.setProperty(userKey(safeEmail, "createdAt"), Instant.now().toString());
+            saveProperties(properties);
+            return new Account(userId, safeEmail, false);
+        }
+    }
+
+    public AccountLookup lookupAccount(String email) throws IOException {
+        String safeEmail = normalizeEmail(email);
+        if (safeEmail.isEmpty()) {
+            return new AccountLookup("", false, false);
+        }
+        synchronized (lock) {
+            Properties properties = loadProperties();
+            String userId = Objects.toString(properties.getProperty(userKey(safeEmail, "id")), "");
+            String saltValue = Objects.toString(properties.getProperty(userKey(safeEmail, "salt")), "");
+            String hashValue = Objects.toString(properties.getProperty(userKey(safeEmail, "hash")), "");
+            return new AccountLookup(safeEmail, !userId.isEmpty(), !saltValue.isEmpty() && !hashValue.isEmpty());
+        }
+    }
+
+    public Account setInitialPassword(String email, String password) throws IOException {
+        String safeEmail = normalizeEmail(email);
+        validateEmail(safeEmail);
         validatePassword(password);
         synchronized (lock) {
             Properties properties = loadProperties();
-            if (properties.containsKey(userKey(safeUsername, "id"))) {
-                throw new IllegalArgumentException("Username already exists.");
+            String userId = Objects.toString(properties.getProperty(userKey(safeEmail, "id")), "");
+            if (userId.isEmpty()) {
+                throw new IllegalArgumentException("This email is not on the closed beta list.");
             }
-            if (countAccounts(properties) >= MAX_ACCOUNTS) {
-                throw new IllegalArgumentException("Server account limit reached. This server supports up to 10 accounts.");
+            String saltValue = Objects.toString(properties.getProperty(userKey(safeEmail, "salt")), "");
+            String hashValue = Objects.toString(properties.getProperty(userKey(safeEmail, "hash")), "");
+            if (!saltValue.isEmpty() || !hashValue.isEmpty()) {
+                throw new IllegalArgumentException("Password is already set for this account.");
             }
-            String userId = generateUserId(properties);
             byte[] salt = randomBytes(PASSWORD_SALT_BYTES);
             byte[] hash = hashPassword(password, salt);
-            properties.setProperty(userKey(safeUsername, "id"), userId);
-            properties.setProperty(userKey(safeUsername, "username"), safeUsername);
-            properties.setProperty(userKey(safeUsername, "salt"), encode(salt));
-            properties.setProperty(userKey(safeUsername, "hash"), encode(hash));
-            properties.setProperty(userKey(safeUsername, "createdAt"), Instant.now().toString());
+            properties.setProperty(userKey(safeEmail, "salt"), encode(salt));
+            properties.setProperty(userKey(safeEmail, "hash"), encode(hash));
             saveProperties(properties);
-            return new Account(userId, safeUsername, false);
+            return new Account(userId, safeEmail, false);
         }
     }
 
     public Optional<Account> authenticate(String username, String password) throws IOException {
-        String safeUsername = normalizeUsername(username);
+        String safeUsername = normalizeEmail(username);
         if (safeUsername.isEmpty() || Objects.toString(password, "").isEmpty()) {
             return Optional.empty();
         }
@@ -107,10 +143,10 @@ public final class AccountStore {
     }
 
     public AccountDeletion deleteAccount(String username, String password) throws IOException {
-        String safeUsername = normalizeUsername(username);
+        String safeUsername = normalizeEmail(username);
         String safePassword = Objects.toString(password, "");
         if (safeUsername.isEmpty() || safePassword.isEmpty()) {
-            throw new IllegalArgumentException("Username and password are required.");
+            throw new IllegalArgumentException("Email and password are required.");
         }
         synchronized (lock) {
             Properties properties = loadProperties();
@@ -118,13 +154,13 @@ public final class AccountStore {
             String saltValue = Objects.toString(properties.getProperty(userKey(safeUsername, "salt")), "");
             String hashValue = Objects.toString(properties.getProperty(userKey(safeUsername, "hash")), "");
             if (userId.isEmpty() || saltValue.isEmpty() || hashValue.isEmpty()) {
-                throw new IllegalArgumentException("Invalid username or password.");
+                throw new IllegalArgumentException("Invalid email or password.");
             }
             byte[] salt = decode(saltValue);
             byte[] expected = decode(hashValue);
             byte[] actual = hashPassword(safePassword, salt);
             if (!MessageDigest.isEqual(expected, actual)) {
-                throw new IllegalArgumentException("Invalid username or password.");
+                throw new IllegalArgumentException("Invalid email or password.");
             }
             List<String> draftIds = readDraftIds(properties, userId);
             String userPrefix = userKey(safeUsername, "");
@@ -212,9 +248,9 @@ public final class AccountStore {
         }
     }
 
-    private void validateUsername(String username) {
-        if (!USERNAME_PATTERN.matcher(username).matches()) {
-            throw new IllegalArgumentException("Username must be 3-40 characters using letters, numbers, dots, underscores, or hyphens.");
+    private void validateEmail(String email) {
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            throw new IllegalArgumentException("Enter a valid email address.");
         }
     }
 
@@ -314,8 +350,8 @@ public final class AccountStore {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(Objects.requireNonNullElseGet(value, () -> new byte[0]));
     }
 
-    private String normalizeUsername(String username) {
-        return Objects.toString(username, "").trim();
+    private String normalizeEmail(String email) {
+        return Objects.toString(email, "").trim().toLowerCase();
     }
 
     private String normalizeId(String value) {
@@ -323,7 +359,7 @@ public final class AccountStore {
     }
 
     private String userKey(String username, String suffix) {
-        return USER_PREFIX + normalizeUsername(username).toLowerCase() + "." + Objects.toString(suffix, "");
+        return USER_PREFIX + normalizeEmail(username) + "." + Objects.toString(suffix, "");
     }
 
     private String draftKey(String userId) {
@@ -355,6 +391,35 @@ public final class AccountStore {
 
         public boolean isLegacyGuest() {
             return legacyGuest;
+        }
+    }
+
+
+    public static final class AccountLookup {
+
+        // *** MEMBERS ***
+        private final String email;
+        private final boolean exists;
+        private final boolean passwordSet;
+
+        // *** CONSTRUCTORS ***
+        private AccountLookup(String email, boolean exists, boolean passwordSet) {
+            this.email = Objects.toString(email, "");
+            this.exists = exists;
+            this.passwordSet = passwordSet;
+        }
+
+        // *** METHODS ***
+        public String getEmail() {
+            return email;
+        }
+
+        public boolean exists() {
+            return exists;
+        }
+
+        public boolean isPasswordSet() {
+            return passwordSet;
         }
     }
 

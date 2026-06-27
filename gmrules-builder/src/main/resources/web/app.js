@@ -425,9 +425,9 @@ function applyStaticLabels() {
   deleteAccountTitle.textContent = t("web.account_delete.title", "Permanently Delete Account");
   deleteAccountMessage.textContent = t(
     "web.account_delete.message",
-    "This permanently deletes the account and all saved rulesets for that account. Enter the username and password to confirm."
+    "This permanently deletes the account and all saved rulesets for that account. Enter the email and password to confirm."
   );
-  deleteAccountUsernameLabel.textContent = t("web.login.username", "Username");
+  deleteAccountUsernameLabel.textContent = t("web.login.email", "Email");
   deleteAccountPasswordLabel.textContent = t("web.login.password", "Password");
   deleteAccountCancel.textContent = t("common.cancel", "Cancel");
   deleteAccountOk.textContent = t("web.account_delete.confirm", "Permanently Delete Account");
@@ -4384,9 +4384,9 @@ logoutBtn.addEventListener("click", async () => {
   state.draftId = "";
   state.systemNames = {};
   resetVisited();
-  setStep("login");
+  setStep("beta-application");
   setLoggedIn(false);
-  renderLogin();
+  renderClosedBetaApplication();
 });
 
 if (sidebarNav) {
@@ -4485,109 +4485,258 @@ async function boot() {
       state.sessionToken = "";
       clearStoredSessionToken();
       setLoggedIn(false);
-      renderLogin();
+      renderClosedBetaApplication();
       ensureHistoryReady();
     }
   } catch (error) {
     state.sessionToken = "";
     clearStoredSessionToken();
     setLoggedIn(false);
-    renderLogin();
+    renderClosedBetaApplication();
     ensureHistoryReady();
   }
 }
 
-function renderLogin() {
+function renderClosedBetaApplication() {
+  setMode("home");
+  resetVisited();
+  setStep("beta-application");
+  view.innerHTML = `
+    <section class="panel">
+      <h1>${t("web.beta.title", "Apply for the Closed Beta")}</h1>
+      <p>${t(
+        "web.beta.description",
+        "Review the NDA, enter your email, and submit your closed beta application."
+      )}</p>
+      <div class="field">
+        <label for="closedBetaNda">${t("web.beta.nda", "NDA")}</label>
+        <div class="nda-scroll-box">
+          <textarea id="closedBetaNda" readonly></textarea>
+        </div>
+      </div>
+      <div class="grid two">
+        <div class="field checkbox-field">
+          <label class="checkbox-label" for="closedBetaAgree">
+            <input type="checkbox" id="closedBetaAgree">
+            <span>${t("web.beta.agree", "I agree to the NDA")}</span>
+          </label>
+        </div>
+        <div class="field">
+          <label for="closedBetaEmail">${t("web.beta.email", "Email")}</label>
+          <input type="email" id="closedBetaEmail" autocomplete="email">
+        </div>
+      </div>
+      <div class="actions-row">
+        <div class="left">
+          <button class="btn ghost" id="closedBetaLogin" type="button">
+            ${t("web.beta.proceed_login", "Already registered? Proceed to login")}
+          </button>
+        </div>
+        <div class="right">
+          <button class="btn" id="closedBetaSubmit" type="button">${t("web.beta.submit", "Submit")}</button>
+        </div>
+      </div>
+    </section>
+  `;
+  const betaEmailInput = document.getElementById("closedBetaEmail");
+  const betaAgreeInput = document.getElementById("closedBetaAgree");
+  document.getElementById("closedBetaLogin").addEventListener("click", () => renderLogin());
+  document.getElementById("closedBetaSubmit").addEventListener("click", async () => {
+    if (!betaAgreeInput.checked) {
+      showToast(t("web.beta.must_agree", "You must agree to the NDA before submitting."));
+      return;
+    }
+    const email = String(betaEmailInput.value || "").trim();
+    if (!email) {
+      showToast(t("web.login.email_required", "Email is required."));
+      return;
+    }
+    try {
+      const result = await api("POST", "/api/accounts", { email });
+      renderLogin(result.email || email);
+    } catch (error) {
+      showToast(error.message);
+    }
+  });
+}
+
+function renderLogin(email = "") {
   setMode("home");
   resetVisited();
   setStep("login");
   view.innerHTML = `
     <section class="panel">
       <h1>${t("web.login.title", "Account Access")}</h1>
-      <p>${t("web.login.update_notice", "And this is how you automate updates")}</p>
       <p>${t(
-        "web.login.description",
-        "Sign in to save up to two rulesets on this server. This local server supports up to ten accounts."
+        "web.login.email_description",
+        "Enter your closed beta email to continue."
       )}</p>
+      <div class="field">
+        <label for="loginEmail">${t("web.login.email", "Email")}</label>
+        <input type="email" id="loginEmail" autocomplete="email" value="${escapeHtml(email)}">
+      </div>
+      <div class="actions-row">
+        <div class="left">
+          <button class="btn ghost" id="loginBackToBeta" type="button">${t("setup.back", "Back")}</button>
+        </div>
+        <div class="right">
+          <button class="btn" id="loginContinue" type="button">${t("common.continue", "Continue")}</button>
+        </div>
+      </div>
+    </section>
+  `;
+
+  const emailInput = document.getElementById("loginEmail");
+  const continueButton = document.getElementById("loginContinue");
+  const continueLogin = async () => {
+    const safeEmail = String(emailInput.value || "").trim();
+    if (!safeEmail) {
+      showToast(t("web.login.email_required", "Email is required."));
+      return;
+    }
+    try {
+      const result = await api("POST", "/api/accounts/lookup", { email: safeEmail });
+      if (!result.exists) {
+        showToast(t("web.login.not_beta", "This email is not on the closed beta list."));
+        return;
+      }
+      if (result.passwordSet) {
+        renderPasswordLogin(result.email || safeEmail);
+        return;
+      }
+      renderCreatePassword(result.email || safeEmail);
+    } catch (error) {
+      showToast(error.message);
+    }
+  };
+
+  continueButton.addEventListener("click", continueLogin);
+  document.getElementById("loginBackToBeta").addEventListener("click", renderClosedBetaApplication);
+  emailInput.addEventListener("keypress", (event) => {
+    if (event.key === "Enter") {
+      continueLogin();
+    }
+  });
+  window.requestAnimationFrame(() => {
+    emailInput.focus();
+  });
+}
+
+function renderCreatePassword(email) {
+  setMode("home");
+  resetVisited();
+  setStep("login");
+  const safeEmail = String(email || "").trim();
+  view.innerHTML = `
+    <section class="panel">
+      <h1>${t("web.login.create_password_title", "Create Password")}</h1>
+      <p>${escapeHtml(safeEmail)}</p>
       <div class="grid two">
         <div class="field">
-          <label for="username">${t("web.login.username", "Username")}</label>
-          <input type="text" id="username" autocomplete="username">
-          <div class="field-hint">${t(
-            "web.login.username_hint",
-            "Username is required; shared guest access is disabled."
-          )}</div>
+          <label for="newPassword">${t("web.login.password", "Password")}</label>
+          <input type="password" id="newPassword" autocomplete="new-password">
         </div>
         <div class="field">
-          <label for="password">${t("web.login.password", "Password")}</label>
-          <input type="password" id="password" autocomplete="current-password">
+          <label for="confirmPassword">${t("web.login.confirm_password", "Confirm Password")}</label>
+          <input type="password" id="confirmPassword" autocomplete="new-password">
         </div>
       </div>
       <div class="actions-row">
         <div class="left">
-          <button class="btn danger ghost" id="deleteAccountBtn" type="button">${t("web.account_delete.permanent_button", "Permanently Delete Account")}</button>
+          <button class="btn ghost" id="createPasswordBack" type="button">${t("setup.back", "Back")}</button>
         </div>
         <div class="right">
-          <button class="btn ghost" id="createAccountBtn" type="button">${t("web.login.create_account", "Create Account")}</button>
+          <button class="btn" id="createPasswordSubmit" type="button">${t("web.login.create_password", "Create Password")}</button>
+        </div>
+      </div>
+    </section>
+  `;
+
+  const passwordInput = document.getElementById("newPassword");
+  const confirmInput = document.getElementById("confirmPassword");
+  const createPassword = async () => {
+    try {
+      const result = await api("POST", "/api/accounts/password", {
+        email: safeEmail,
+        password: passwordInput.value,
+        confirmPassword: confirmInput.value,
+      });
+      finishLogin(result);
+    } catch (error) {
+      showToast(error.message);
+    }
+  };
+  document.getElementById("createPasswordSubmit").addEventListener("click", createPassword);
+  document.getElementById("createPasswordBack").addEventListener("click", () => renderLogin(safeEmail));
+  confirmInput.addEventListener("keypress", (event) => {
+    if (event.key === "Enter") {
+      createPassword();
+    }
+  });
+  window.requestAnimationFrame(() => {
+    passwordInput.focus();
+  });
+}
+
+function renderPasswordLogin(email) {
+  setMode("home");
+  resetVisited();
+  setStep("login");
+  const safeEmail = String(email || "").trim();
+  view.innerHTML = `
+    <section class="panel">
+      <h1>${t("web.login.password_title", "Enter Password")}</h1>
+      <p>${escapeHtml(safeEmail)}</p>
+      <div class="field">
+        <label for="password">${t("web.login.password", "Password")}</label>
+        <input type="password" id="password" autocomplete="current-password">
+      </div>
+      <div class="actions-row">
+        <div class="left">
+          <button class="btn danger ghost" id="deleteAccountBtn" type="button">${t("web.account_delete.permanent_button", "Permanently Delete Account")}</button>
+          <button class="btn ghost" id="passwordBack" type="button">${t("setup.back", "Back")}</button>
+        </div>
+        <div class="right">
           <button class="btn" id="loginBtn" type="button">${t("web.login.sign_in", "Sign In")}</button>
         </div>
       </div>
     </section>
   `;
 
-  const loginBtn = document.getElementById("loginBtn");
-  const createAccountBtn = document.getElementById("createAccountBtn");
-  const deleteAccountBtn = document.getElementById("deleteAccountBtn");
-  const usernameInput = document.getElementById("username");
   const passwordInput = document.getElementById("password");
-
   const submit = async () => {
     try {
       const result = await api("POST", "/api/login", {
-        username: usernameInput.value,
+        username: safeEmail,
         password: passwordInput.value,
       });
-      state.sessionToken = result.token || "";
-      storeSessionToken(state.sessionToken);
-      state.accountName = result.username || "";
-      state.legacyGuest = !!result.legacyGuest;
-      setLoggedIn(true);
-      state.step = "splash";
-      renderHome();
+      finishLogin(result);
     } catch (error) {
       showToast(error.message);
     }
   };
 
-  const createAccount = async () => {
-    try {
-      const result = await api("POST", "/api/accounts", {
-        username: usernameInput.value,
-        password: passwordInput.value,
-      });
-      state.sessionToken = result.token || "";
-      storeSessionToken(state.sessionToken);
-      state.accountName = result.username || "";
-      state.legacyGuest = !!result.legacyGuest;
-      setLoggedIn(true);
-      state.step = "splash";
-      renderHome();
-    } catch (error) {
-      showToast(error.message);
-    }
-  };
-
-  loginBtn.addEventListener("click", submit);
-  createAccountBtn.addEventListener("click", createAccount);
-  deleteAccountBtn.addEventListener("click", () => openDeleteAccountModal(usernameInput.value));
+  document.getElementById("loginBtn").addEventListener("click", submit);
+  document.getElementById("passwordBack").addEventListener("click", () => renderLogin(safeEmail));
+  document.getElementById("deleteAccountBtn").addEventListener("click", () => openDeleteAccountModal(safeEmail));
   passwordInput.addEventListener("keypress", (event) => {
     if (event.key === "Enter") {
       submit();
     }
   });
   window.requestAnimationFrame(() => {
-    usernameInput.focus();
+    passwordInput.focus();
   });
+}
+
+function finishLogin(result) {
+  state.sessionToken = result.token || "";
+  storeSessionToken(state.sessionToken);
+  state.accountName = result.username || "";
+  state.legacyGuest = !!result.legacyGuest;
+  setLoggedIn(true);
+  state.step = "splash";
+  renderHome();
 }
 
 async function renderSavedDraftList() {
@@ -9719,6 +9868,7 @@ Object.assign(stepRoutes, {
 });
 
 Object.assign(historyRoutes, {
+  "beta-application": renderClosedBetaApplication,
   login: renderLogin,
   home: renderHome,
   splash: renderBuilderSplash,

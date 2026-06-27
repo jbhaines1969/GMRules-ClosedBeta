@@ -66,6 +66,8 @@ public final class ApiRoutes {
     public static void register(Router router) {
         router.add("GET", "/api/i18n", ApiRoutes::localization);
         router.add("POST", "/api/accounts", ApiRoutes::createAccount);
+        router.add("POST", "/api/accounts/lookup", ApiRoutes::lookupAccount);
+        router.add("POST", "/api/accounts/password", ApiRoutes::setInitialPassword);
         router.add("DELETE", "/api/accounts", ApiRoutes::deleteAccount);
         router.add("POST", "/api/login", ApiRoutes::login);
         router.add("POST", "/api/logout", ApiRoutes::logout);
@@ -229,10 +231,56 @@ public final class ApiRoutes {
 
     private static void createAccount(RequestContext ctx) throws IOException {
         Map<String, Object> body = ctx.readJsonMap();
-        String username = getString(body, "username").trim();
-        String password = getString(body, "password");
+        String email = getString(body, "email").trim();
+        AccountStore.Account account;
         try {
-            AccountStore.Account account = ctx.getAccountStore().createAccount(username, password);
+            account = ctx.getAccountStore().createPendingAccount(email);
+        } catch (IllegalArgumentException e) {
+            ctx.json(400, Map.of("error", e.getMessage()));
+            return;
+        }
+        boolean emailSent;
+        try {
+            emailSent = new EmailService(ctx.getConfig()).sendClosedBetaEmail(account.getUsername());
+        } catch (IOException e) {
+            ctx.json(502, Map.of("error", "Closed beta email could not be sent."));
+            return;
+        }
+        ctx.json(200, Map.of(
+            "ok",
+            true,
+            "email",
+            account.getUsername(),
+            "emailSent",
+            emailSent
+        ));
+    }
+
+    private static void lookupAccount(RequestContext ctx) throws IOException {
+        Map<String, Object> body = ctx.readJsonMap();
+        String email = getString(body, "email").trim();
+        AccountStore.AccountLookup lookup = ctx.getAccountStore().lookupAccount(email);
+        ctx.json(200, Map.of(
+            "exists",
+            lookup.exists(),
+            "passwordSet",
+            lookup.isPasswordSet(),
+            "email",
+            lookup.getEmail()
+        ));
+    }
+
+    private static void setInitialPassword(RequestContext ctx) throws IOException {
+        Map<String, Object> body = ctx.readJsonMap();
+        String email = getString(body, "email").trim();
+        String password = getString(body, "password");
+        String confirmPassword = getString(body, "confirmPassword");
+        if (!Objects.equals(password, confirmPassword)) {
+            ctx.json(400, Map.of("error", "Passwords do not match."));
+            return;
+        }
+        try {
+            AccountStore.Account account = ctx.getAccountStore().setInitialPassword(email, password);
             SessionStore.Session session = ctx.getSessionStore().createSession(
                 account.getId(),
                 account.getUsername(),
@@ -279,12 +327,12 @@ public final class ApiRoutes {
         String username = getString(body, "username").trim();
         String password = getString(body, "password");
         if (username.isEmpty() || password.isEmpty()) {
-            ctx.json(401, Map.of("error", "Username and password are required"));
+            ctx.json(401, Map.of("error", "Email and password are required"));
             return;
         }
         java.util.Optional<AccountStore.Account> resolved = ctx.getAccountStore().authenticate(username, password);
         if (resolved.isEmpty()) {
-            ctx.json(401, Map.of("error", "Invalid username or password"));
+            ctx.json(401, Map.of("error", "Invalid email or password"));
             return;
         }
         AccountStore.Account account = resolved.get();

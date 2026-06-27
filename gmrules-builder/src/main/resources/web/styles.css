@@ -270,6 +270,7 @@ label {
 
 input[type="text"],
 input[type="password"],
+input[type="email"],
 input[type="number"],
 textarea,
 select {
@@ -284,6 +285,32 @@ select {
 textarea {
   min-height: 100px;
   resize: vertical;
+}
+
+.nda-scroll-box {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  max-height: 260px;
+  overflow: auto;
+  padding: 8px;
+}
+
+.nda-scroll-box textarea {
+  min-height: 220px;
+  width: 100%;
+  resize: none;
+}
+
+.checkbox-field {
+  justify-content: end;
+}
+
+.checkbox-label {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-height: 43px;
 }
 
 .list {

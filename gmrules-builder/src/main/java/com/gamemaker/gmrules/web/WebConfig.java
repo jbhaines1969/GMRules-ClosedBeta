@@ -21,12 +21,14 @@ public final class WebConfig {
     // *** MEMBERS ***
     private static final String HOST_PROPERTY = "gmrules.web.host";
     private static final String PORT_PROPERTY = "gmrules.web.port";
-    private static final String RAILWAY_PORT_ENV = "PORT";
     private static final String THREADS_PROPERTY = "gmrules.web.threads";
     private static final String MAX_UPLOAD_PROPERTY = "gmrules.web.maxUploadBytes";
     private static final String SESSION_MINUTES_PROPERTY = "gmrules.web.sessionMinutes";
     private static final String DRAFTS_DIR_PROPERTY = "gmrules.web.draftsDir";
     private static final String ACCOUNTS_FILE_PROPERTY = "gmrules.web.accountsFile";
+    private static final String EMAIL_API_URL_PROPERTY = "gmrules.email.api.url";
+    private static final String EMAIL_API_KEY_PROPERTY = "gmrules.email.api.key";
+    private static final String EMAIL_FROM_PROPERTY = "gmrules.email.from";
 
     private static final String DEFAULT_HOST = "127.0.0.1";
     private static final int DEFAULT_PORT = 8080;
@@ -35,6 +37,9 @@ public final class WebConfig {
     private static final long DEFAULT_SESSION_MINUTES = 480;
     private static final String DEFAULT_DRAFTS_DIR = "drafts";
     private static final String DEFAULT_ACCOUNTS_FILE = "server-data/accounts.properties";
+    private static final String DEFAULT_EMAIL_API_URL = "https://api.resend.com/emails";
+    private static final String DEFAULT_EMAIL_API_KEY = "";
+    private static final String DEFAULT_EMAIL_FROM = "";
 
     private final String host;
     private final int port;
@@ -43,6 +48,9 @@ public final class WebConfig {
     private final long sessionMinutes;
     private final Path draftsDirectory;
     private final Path accountsFile;
+    private final String emailApiUrl;
+    private final String emailApiKey;
+    private final String emailFrom;
 
     // *** CONSTRUCTORS ***
     private WebConfig(
@@ -52,7 +60,10 @@ public final class WebConfig {
             long maxUploadBytes,
             long sessionMinutes,
             Path draftsDirectory,
-            Path accountsFile
+            Path accountsFile,
+            String emailApiUrl,
+            String emailApiKey,
+            String emailFrom
     ) {
         this.host = host;
         this.port = port;
@@ -61,17 +72,23 @@ public final class WebConfig {
         this.sessionMinutes = sessionMinutes;
         this.draftsDirectory = draftsDirectory;
         this.accountsFile = accountsFile;
+        this.emailApiUrl = emailApiUrl;
+        this.emailApiKey = emailApiKey;
+        this.emailFrom = emailFrom;
     }
 
     // *** METHODS ***
     public static WebConfig load() {
-        String host = readHost();
-        int port = readInt(PORT_PROPERTY, readEnvInt(RAILWAY_PORT_ENV, DEFAULT_PORT));
+        String host = readString(HOST_PROPERTY, DEFAULT_HOST);
+        int port = readInt(PORT_PROPERTY, DEFAULT_PORT);
         int threads = Math.max(2, readInt(THREADS_PROPERTY, DEFAULT_THREADS));
         long maxUploadBytes = readLong(MAX_UPLOAD_PROPERTY, DEFAULT_MAX_UPLOAD_BYTES);
         long sessionMinutes = Math.max(15, readLong(SESSION_MINUTES_PROPERTY, DEFAULT_SESSION_MINUTES));
         Path draftsDirectory = Paths.get(readString(DRAFTS_DIR_PROPERTY, DEFAULT_DRAFTS_DIR));
         Path accountsFile = Paths.get(readString(ACCOUNTS_FILE_PROPERTY, DEFAULT_ACCOUNTS_FILE));
+        String emailApiUrl = readString(EMAIL_API_URL_PROPERTY, DEFAULT_EMAIL_API_URL);
+        String emailApiKey = readString(EMAIL_API_KEY_PROPERTY, DEFAULT_EMAIL_API_KEY);
+        String emailFrom = readString(EMAIL_FROM_PROPERTY, DEFAULT_EMAIL_FROM);
 
         return new WebConfig(
             host,
@@ -80,7 +97,10 @@ public final class WebConfig {
             maxUploadBytes,
             sessionMinutes,
             draftsDirectory,
-            accountsFile
+            accountsFile,
+            emailApiUrl,
+            emailApiKey,
+            emailFrom
         );
     }
 
@@ -112,6 +132,18 @@ public final class WebConfig {
         return accountsFile;
     }
 
+    public String getEmailApiUrl() {
+        return emailApiUrl;
+    }
+
+    public String getEmailApiKey() {
+        return emailApiKey;
+    }
+
+    public String getEmailFrom() {
+        return emailFrom;
+    }
+
     private static String readString(String property, String fallback) {
         String value = Objects.toString(System.getProperty(property), "").trim();
         if (!value.isEmpty()) {
@@ -122,18 +154,6 @@ public final class WebConfig {
             return env;
         }
         return fallback;
-    }
-
-    private static String readHost() {
-        String host = readString(HOST_PROPERTY, "");
-        if (!host.isEmpty()) {
-            return host;
-        }
-        String railwayPort = Objects.toString(System.getenv(RAILWAY_PORT_ENV), "").trim();
-        if (!railwayPort.isEmpty()) {
-            return "0.0.0.0";
-        }
-        return DEFAULT_HOST;
     }
 
     private static int readInt(String property, int fallback) {
@@ -161,18 +181,6 @@ public final class WebConfig {
         }
         try {
             return Long.parseLong(raw);
-        } catch (NumberFormatException ignored) {
-            return fallback;
-        }
-    }
-
-    private static int readEnvInt(String envKey, int fallback) {
-        String raw = Objects.toString(System.getenv(envKey), "").trim();
-        if (raw.isEmpty()) {
-            return fallback;
-        }
-        try {
-            return Integer.parseInt(raw);
         } catch (NumberFormatException ignored) {
             return fallback;
         }
