@@ -29,14 +29,9 @@ public final class EmailService {
 
     // *** MEMBERS ***
     private static final String CLOSED_BETA_SUBJECT = "GMRules Open Beta";
-    private static final String CLOSED_BETA_CONTENT = """
-            Your GMRules open beta application has been received.
-
-            Return to the GMRules beta site and continue with this email address to finish setting up your account.
-
-            This access is for beta testing only. Please do not share unreleased GMRules material outside the beta.
-            """;
+    private static final String CLOSED_BETA_CONTENT = "GMRules closed beta email test.";
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
+    private static final int MAX_ERROR_BODY_LENGTH = 240;
 
     private final WebConfig config;
     private final HttpClient client;
@@ -62,13 +57,13 @@ public final class EmailService {
         }
         String safeSender = config.getEmailFrom();
         if (safeSender.isEmpty()) {
-            throw new IOException("Email sender is not configured.");
+            throw new IOException("Email send failed: sender is not configured.");
         }
         String safeRecipient = Objects.toString(recipient, "").trim();
         String safeSubject = Objects.toString(subject, "").trim();
         String safeContent = Objects.toString(content, "");
         if (safeRecipient.isEmpty()) {
-            throw new IOException("Email recipient is empty.");
+            throw new IOException("Email send failed: recipient is empty.");
         }
         URI apiUri = parseApiUri(apiUrl);
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -89,7 +84,13 @@ public final class EmailService {
         HttpResponse<String> response = sendRequest(requestBuilder.build());
         int status = response.statusCode();
         if (status < 200 || status >= 300) {
-            throw new IOException("Email API returned status " + status + ".");
+            String responseBody = safeResponseBody(response.body());
+            String message = "Email send failed: Resend returned HTTP " + status + ".";
+            if (!responseBody.isEmpty()) {
+                message += " " + responseBody;
+            }
+            System.err.println(message);
+            throw new IOException(message);
         }
         return true;
     }
@@ -98,7 +99,7 @@ public final class EmailService {
         try {
             return URI.create(apiUrl);
         } catch (IllegalArgumentException e) {
-            throw new IOException("Email API URL is invalid.", e);
+            throw new IOException("Email send failed: email API URL is invalid.", e);
         }
     }
 
@@ -107,7 +108,17 @@ public final class EmailService {
             return client.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IOException("Email API request was interrupted.", e);
+            throw new IOException("Email send failed: email API request was interrupted.", e);
+        } catch (IOException e) {
+            throw new IOException("Email send failed: could not connect to email API.", e);
         }
+    }
+
+    private String safeResponseBody(String body) {
+        String safeBody = Objects.toString(body, "").replaceAll("\\s+", " ").trim();
+        if (safeBody.length() <= MAX_ERROR_BODY_LENGTH) {
+            return safeBody;
+        }
+        return safeBody.substring(0, MAX_ERROR_BODY_LENGTH) + "...";
     }
 }

@@ -243,7 +243,7 @@ public final class ApiRoutes {
         try {
             emailSent = new EmailService(ctx.getConfig()).sendClosedBetaEmail(account.getUsername());
         } catch (IOException e) {
-            ctx.json(502, Map.of("error", "Closed beta email could not be sent."));
+            ctx.json(502, Map.of("error", e.getMessage()));
             return;
         }
         ctx.json(200, Map.of(

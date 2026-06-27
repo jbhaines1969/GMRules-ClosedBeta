@@ -4540,22 +4540,33 @@ function renderClosedBetaApplication() {
   `;
   const betaEmailInput = document.getElementById("closedBetaEmail");
   const betaAgreeInput = document.getElementById("closedBetaAgree");
+  const betaSubmitButton = document.getElementById("closedBetaSubmit");
   document.getElementById("closedBetaLogin").addEventListener("click", () => renderLogin());
-  document.getElementById("closedBetaSubmit").addEventListener("click", async () => {
+  betaSubmitButton.addEventListener("click", async () => {
     if (!betaAgreeInput.checked) {
-      showToast(t("web.beta.must_agree", "You must agree to the NDA before submitting."));
+      showToast(t("web.beta.must_agree", "Step 1 failed: you must agree to the NDA before submitting."));
       return;
     }
     const email = String(betaEmailInput.value || "").trim();
     if (!email) {
-      showToast(t("web.login.email_required", "Email is required."));
+      showToast(t("web.login.email_required", "Step 2 failed: email is required."));
       return;
     }
+    betaSubmitButton.disabled = true;
+    betaSubmitButton.textContent = t("web.beta.submitting", "Submitting...");
+    showToast(t("web.beta.submit_start", "Step 3: creating beta account and sending email."));
     try {
       const result = await api("POST", "/api/accounts", { email });
+      if (result.emailSent) {
+        showToast(t("web.beta.email_sent", "Step 4 complete: beta email sent. Continue to login."));
+      } else {
+        showToast(t("web.beta.email_skipped", "Step 4 skipped: email API key is not configured."));
+      }
       renderLogin(result.email || email);
     } catch (error) {
-      showToast(error.message);
+      showToast(`${t("web.beta.submit_failed", "Beta application failed")}: ${error.message}`);
+      betaSubmitButton.disabled = false;
+      betaSubmitButton.textContent = t("web.beta.submit", "Submit");
     }
   });
 }
