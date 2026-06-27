@@ -425,7 +425,7 @@ function applyStaticLabels() {
   deleteAccountTitle.textContent = t("web.account_delete.title", "Permanently Delete Account");
   deleteAccountMessage.textContent = t(
     "web.account_delete.message",
-    "This permanently deletes the account and all saved rulesets for that account. Enter the email and password to confirm."
+    "This permanently deletes the account and all saved rulesets for that account. Enter the email and password if one is set."
   );
   deleteAccountUsernameLabel.textContent = t("web.login.email", "Email");
   deleteAccountPasswordLabel.textContent = t("web.login.password", "Password");
@@ -4460,6 +4460,7 @@ async function boot() {
   trackTransientStacking();
   state.sessionToken = readStoredSessionToken();
   await loadLocalization(state.locale);
+  const verifiedEmail = readVerifiedEmailFromUrl();
   try {
     const session = await api("GET", "/api/session");
     if (session.authenticated) {
@@ -4485,16 +4486,42 @@ async function boot() {
       state.sessionToken = "";
       clearStoredSessionToken();
       setLoggedIn(false);
-      renderClosedBetaApplication();
+      if (verifiedEmail) {
+        clearVerifiedEmailFromUrl();
+        renderCreatePassword(verifiedEmail);
+        showToast(t("web.login.email_verified", "Email verified. Create your password to finish account setup."));
+      } else {
+        renderClosedBetaApplication();
+      }
       ensureHistoryReady();
     }
   } catch (error) {
     state.sessionToken = "";
     clearStoredSessionToken();
     setLoggedIn(false);
-    renderClosedBetaApplication();
+    if (verifiedEmail) {
+      clearVerifiedEmailFromUrl();
+      renderCreatePassword(verifiedEmail);
+      showToast(t("web.login.email_verified", "Email verified. Create your password to finish account setup."));
+    } else {
+      renderClosedBetaApplication();
+    }
     ensureHistoryReady();
   }
+}
+
+function readVerifiedEmailFromUrl() {
+  const params = new URLSearchParams(window.location.search || "");
+  return String(params.get("verifiedEmail") || "").trim();
+}
+
+function clearVerifiedEmailFromUrl() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has("verifiedEmail")) {
+    return;
+  }
+  url.searchParams.delete("verifiedEmail");
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
 function renderClosedBetaApplication() {
@@ -4558,11 +4585,12 @@ function renderClosedBetaApplication() {
     try {
       const result = await api("POST", "/api/accounts", { email });
       if (result.emailSent) {
-        showToast(t("web.beta.email_sent", "Step 4 complete: beta email sent. Continue to login."));
+        showToast(t("web.beta.email_sent", "Step 4 complete: verification email sent. Click the email link to create your account."));
       } else {
-        showToast(t("web.beta.email_skipped", "Step 4 skipped: email API key is not configured."));
+        showToast(t("web.beta.email_skipped", "Step 4 skipped: email API key is not configured, so no account was created."));
       }
-      renderLogin(result.email || email);
+      betaSubmitButton.disabled = false;
+      betaSubmitButton.textContent = t("web.beta.submit", "Submit");
     } catch (error) {
       showToast(`${t("web.beta.submit_failed", "Beta application failed")}: ${error.message}`);
       betaSubmitButton.disabled = false;
@@ -4588,6 +4616,7 @@ function renderLogin(email = "") {
       </div>
       <div class="actions-row">
         <div class="left">
+          <button class="btn danger ghost" id="loginDeleteAccount" type="button">${t("web.account_delete.opt_out_button", "Delete Account / Opt Out")}</button>
           <button class="btn ghost" id="loginBackToBeta" type="button">${t("setup.back", "Back")}</button>
         </div>
         <div class="right">
@@ -4622,6 +4651,9 @@ function renderLogin(email = "") {
   };
 
   continueButton.addEventListener("click", continueLogin);
+  document.getElementById("loginDeleteAccount").addEventListener("click", () => {
+    openDeleteAccountModal(emailInput.value.trim());
+  });
   document.getElementById("loginBackToBeta").addEventListener("click", renderClosedBetaApplication);
   emailInput.addEventListener("keypress", (event) => {
     if (event.key === "Enter") {
@@ -4654,6 +4686,7 @@ function renderCreatePassword(email) {
       </div>
       <div class="actions-row">
         <div class="left">
+          <button class="btn danger ghost" id="createPasswordDeleteAccount" type="button">${t("web.account_delete.opt_out_button", "Delete Account / Opt Out")}</button>
           <button class="btn ghost" id="createPasswordBack" type="button">${t("setup.back", "Back")}</button>
         </div>
         <div class="right">
@@ -4678,6 +4711,7 @@ function renderCreatePassword(email) {
     }
   };
   document.getElementById("createPasswordSubmit").addEventListener("click", createPassword);
+  document.getElementById("createPasswordDeleteAccount").addEventListener("click", () => openDeleteAccountModal(safeEmail));
   document.getElementById("createPasswordBack").addEventListener("click", () => renderLogin(safeEmail));
   confirmInput.addEventListener("keypress", (event) => {
     if (event.key === "Enter") {

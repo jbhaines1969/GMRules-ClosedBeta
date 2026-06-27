@@ -20,6 +20,7 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -42,9 +43,12 @@ public final class AccountStore {
     private static final int PASSWORD_SALT_BYTES = 18;
     private static final int PASSWORD_ITERATIONS = 120_000;
     private static final int PASSWORD_BITS = 256;
+    private static final int VERIFICATION_TOKEN_BYTES = 32;
+    private static final Duration VERIFICATION_TTL = Duration.ofHours(24);
     private static final int MAX_ACCOUNTS = 10;
     private static final int MAX_DRAFTS_PER_ACCOUNT = 2;
     private static final String USER_PREFIX = "users.";
+    private static final String PENDING_PREFIX = "pending.";
     private static final String DRAFT_PREFIX = "drafts.";
 
     private final Path accountFile;
@@ -58,13 +62,50 @@ public final class AccountStore {
     }
 
     // *** METHODS ***
-    public Account createPendingAccount(String email) throws IOException {
+    public VerificationRequest createVerificationRequest(String email) throws IOException {
         String safeEmail = normalizeEmail(email);
         validateEmail(safeEmail);
         synchronized (lock) {
             Properties properties = loadProperties();
             String existingId = Objects.toString(properties.getProperty(userKey(safeEmail, "id")), "");
             if (!existingId.isEmpty()) {
+                throw new IllegalArgumentException("This email is already registered. Proceed to login.");
+            }
+            if (countAccounts(properties) >= MAX_ACCOUNTS) {
+                throw new IllegalArgumentException("Closed beta account limit reached.");
+            }
+            removePendingForEmail(properties, safeEmail);
+            String token = generateVerificationToken(properties);
+            Instant now = Instant.now();
+            properties.setProperty(pendingKey(token, "email"), safeEmail);
+            properties.setProperty(pendingKey(token, "createdAt"), now.toString());
+            properties.setProperty(pendingKey(token, "expiresAt"), now.plus(VERIFICATION_TTL).toString());
+            saveProperties(properties);
+            return new VerificationRequest(safeEmail, token);
+        }
+    }
+
+    public Account verifyAccount(String token) throws IOException {
+        String safeToken = normalizeId(token);
+        if (safeToken.isEmpty()) {
+            throw new IllegalArgumentException("Verification token is required.");
+        }
+        synchronized (lock) {
+            Properties properties = loadProperties();
+            String safeEmail = Objects.toString(properties.getProperty(pendingKey(safeToken, "email")), "");
+            if (safeEmail.isEmpty()) {
+                throw new IllegalArgumentException("Verification link is invalid or already used.");
+            }
+            Instant expiresAt = parseInstant(properties.getProperty(pendingKey(safeToken, "expiresAt")));
+            if (expiresAt.isBefore(Instant.now())) {
+                removePendingToken(properties, safeToken);
+                saveProperties(properties);
+                throw new IllegalArgumentException("Verification link has expired. Submit the beta form again.");
+            }
+            String existingId = Objects.toString(properties.getProperty(userKey(safeEmail, "id")), "");
+            if (!existingId.isEmpty()) {
+                removePendingToken(properties, safeToken);
+                saveProperties(properties);
                 return new Account(existingId, safeEmail, false);
             }
             if (countAccounts(properties) >= MAX_ACCOUNTS) {
@@ -76,6 +117,8 @@ public final class AccountStore {
             properties.setProperty(userKey(safeEmail, "salt"), "");
             properties.setProperty(userKey(safeEmail, "hash"), "");
             properties.setProperty(userKey(safeEmail, "createdAt"), Instant.now().toString());
+            properties.setProperty(userKey(safeEmail, "verifiedAt"), Instant.now().toString());
+            removePendingToken(properties, safeToken);
             saveProperties(properties);
             return new Account(userId, safeEmail, false);
         }
@@ -145,22 +188,31 @@ public final class AccountStore {
     public AccountDeletion deleteAccount(String username, String password) throws IOException {
         String safeUsername = normalizeEmail(username);
         String safePassword = Objects.toString(password, "");
-        if (safeUsername.isEmpty() || safePassword.isEmpty()) {
-            throw new IllegalArgumentException("Email and password are required.");
+        if (safeUsername.isEmpty()) {
+            throw new IllegalArgumentException("Email is required.");
         }
         synchronized (lock) {
             Properties properties = loadProperties();
             String userId = Objects.toString(properties.getProperty(userKey(safeUsername, "id")), "");
             String saltValue = Objects.toString(properties.getProperty(userKey(safeUsername, "salt")), "");
             String hashValue = Objects.toString(properties.getProperty(userKey(safeUsername, "hash")), "");
-            if (userId.isEmpty() || saltValue.isEmpty() || hashValue.isEmpty()) {
+            if (userId.isEmpty()) {
                 throw new IllegalArgumentException("Invalid email or password.");
             }
-            byte[] salt = decode(saltValue);
-            byte[] expected = decode(hashValue);
-            byte[] actual = hashPassword(safePassword, salt);
-            if (!MessageDigest.isEqual(expected, actual)) {
-                throw new IllegalArgumentException("Invalid email or password.");
+            if (saltValue.isEmpty() || hashValue.isEmpty()) {
+                if (!safePassword.isEmpty()) {
+                    throw new IllegalArgumentException("This account does not have a password yet. Leave password blank to delete it.");
+                }
+            } else {
+                if (safePassword.isEmpty()) {
+                    throw new IllegalArgumentException("Password is required.");
+                }
+                byte[] salt = decode(saltValue);
+                byte[] expected = decode(hashValue);
+                byte[] actual = hashPassword(safePassword, salt);
+                if (!MessageDigest.isEqual(expected, actual)) {
+                    throw new IllegalArgumentException("Invalid email or password.");
+                }
             }
             List<String> draftIds = readDraftIds(properties, userId);
             String userPrefix = userKey(safeUsername, "");
@@ -287,6 +339,30 @@ public final class AccountStore {
         return count;
     }
 
+    private void removePendingForEmail(Properties properties, String email) {
+        String safeEmail = normalizeEmail(email);
+        ArrayList<String> pendingTokens = new ArrayList<>();
+        for (String key : properties.stringPropertyNames()) {
+            if (key.startsWith(PENDING_PREFIX) && key.endsWith(".email")) {
+                String pendingEmail = Objects.toString(properties.getProperty(key), "");
+                if (safeEmail.equals(pendingEmail)) {
+                    String token = key.substring(PENDING_PREFIX.length(), key.length() - ".email".length());
+                    pendingTokens.add(token);
+                }
+            }
+        }
+        for (String token : pendingTokens) {
+            removePendingToken(properties, token);
+        }
+    }
+
+    private void removePendingToken(Properties properties, String token) {
+        String safeToken = normalizeId(token);
+        properties.remove(pendingKey(safeToken, "email"));
+        properties.remove(pendingKey(safeToken, "createdAt"));
+        properties.remove(pendingKey(safeToken, "expiresAt"));
+    }
+
     private Properties loadProperties() throws IOException {
         Properties properties = new Properties();
         if (!Files.exists(accountFile)) {
@@ -326,6 +402,22 @@ public final class AccountStore {
         return userId;
     }
 
+    private String generateVerificationToken(Properties properties) {
+        String token = encode(randomBytes(VERIFICATION_TOKEN_BYTES));
+        while (!Objects.toString(properties.getProperty(pendingKey(token, "email")), "").isEmpty()) {
+            token = encode(randomBytes(VERIFICATION_TOKEN_BYTES));
+        }
+        return token;
+    }
+
+    private Instant parseInstant(String value) {
+        try {
+            return Instant.parse(Objects.toString(value, ""));
+        } catch (RuntimeException e) {
+            return Instant.EPOCH;
+        }
+    }
+
     private byte[] hashPassword(String password, byte[] salt) {
         try {
             PBEKeySpec spec = new PBEKeySpec(Objects.toString(password, "").toCharArray(), salt, PASSWORD_ITERATIONS, PASSWORD_BITS);
@@ -362,6 +454,10 @@ public final class AccountStore {
         return USER_PREFIX + normalizeEmail(username) + "." + Objects.toString(suffix, "");
     }
 
+    private String pendingKey(String token, String suffix) {
+        return PENDING_PREFIX + normalizeId(token) + "." + Objects.toString(suffix, "");
+    }
+
     private String draftKey(String userId) {
         return DRAFT_PREFIX + normalizeId(userId);
     }
@@ -394,6 +490,27 @@ public final class AccountStore {
         }
     }
 
+    public static final class VerificationRequest {
+
+        // *** MEMBERS ***
+        private final String email;
+        private final String token;
+
+        // *** CONSTRUCTORS ***
+        private VerificationRequest(String email, String token) {
+            this.email = Objects.toString(email, "");
+            this.token = Objects.toString(token, "");
+        }
+
+        // *** METHODS ***
+        public String getEmail() {
+            return email;
+        }
+
+        public String getToken() {
+            return token;
+        }
+    }
 
     public static final class AccountLookup {
 

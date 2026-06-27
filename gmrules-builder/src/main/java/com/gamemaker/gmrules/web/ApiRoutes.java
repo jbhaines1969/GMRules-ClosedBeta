@@ -39,6 +39,8 @@ import com.gamemaker.gmrules.SupportElements.Status;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -66,6 +68,7 @@ public final class ApiRoutes {
     public static void register(Router router) {
         router.add("GET", "/api/i18n", ApiRoutes::localization);
         router.add("POST", "/api/accounts", ApiRoutes::createAccount);
+        router.add("GET", "/api/accounts/verify", ApiRoutes::verifyAccount);
         router.add("POST", "/api/accounts/lookup", ApiRoutes::lookupAccount);
         router.add("POST", "/api/accounts/password", ApiRoutes::setInitialPassword);
         router.add("DELETE", "/api/accounts", ApiRoutes::deleteAccount);
@@ -232,16 +235,20 @@ public final class ApiRoutes {
     private static void createAccount(RequestContext ctx) throws IOException {
         Map<String, Object> body = ctx.readJsonMap();
         String email = getString(body, "email").trim();
-        AccountStore.Account account;
+        AccountStore.VerificationRequest verificationRequest;
         try {
-            account = ctx.getAccountStore().createPendingAccount(email);
+            verificationRequest = ctx.getAccountStore().createVerificationRequest(email);
         } catch (IllegalArgumentException e) {
             ctx.json(400, Map.of("error", e.getMessage()));
             return;
         }
         boolean emailSent;
         try {
-            emailSent = new EmailService(ctx.getConfig()).sendClosedBetaEmail(account.getUsername());
+            String verificationUrl = buildVerificationUrl(ctx.getConfig(), verificationRequest.getToken());
+            emailSent = new EmailService(ctx.getConfig()).sendClosedBetaEmail(
+                verificationRequest.getEmail(),
+                verificationUrl
+            );
         } catch (IOException e) {
             ctx.json(502, Map.of("error", e.getMessage()));
             return;
@@ -250,10 +257,36 @@ public final class ApiRoutes {
             "ok",
             true,
             "email",
-            account.getUsername(),
+            verificationRequest.getEmail(),
             "emailSent",
-            emailSent
+            emailSent,
+            "verificationRequired",
+            true
         ));
+    }
+
+    private static void verifyAccount(RequestContext ctx) throws IOException {
+        String token = firstQueryParam(ctx, "token");
+        try {
+            AccountStore.Account account = ctx.getAccountStore().verifyAccount(token);
+            ctx.redirect(buildVerifiedPasswordUrl(ctx.getConfig(), account.getUsername()));
+        } catch (IllegalArgumentException e) {
+            String safeMessage = escapeHtml(e.getMessage());
+            ctx.text(400, """
+                <!doctype html>
+                <html lang="en">
+                <head>
+                  <meta charset="utf-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1">
+                  <title>GMRules Verification Failed</title>
+                </head>
+                <body>
+                  <h1>Verification failed</h1>
+                  <p>%s</p>
+                </body>
+                </html>
+                """.formatted(safeMessage), "text/html");
+        }
     }
 
     private static void lookupAccount(RequestContext ctx) throws IOException {
@@ -3817,6 +3850,34 @@ public final class ApiRoutes {
             return "";
         }
         return Objects.toString(values.get(0), "");
+    }
+
+    private static String buildVerificationUrl(WebConfig config, String token) {
+        String baseUrl = trimTrailingSlash(config.getPublicBaseUrl());
+        String safeToken = URLEncoder.encode(Objects.toString(token, ""), StandardCharsets.UTF_8);
+        return baseUrl + "/api/accounts/verify?token=" + safeToken;
+    }
+
+    private static String buildVerifiedPasswordUrl(WebConfig config, String email) {
+        String baseUrl = trimTrailingSlash(config.getPublicBaseUrl());
+        String safeEmail = URLEncoder.encode(Objects.toString(email, ""), StandardCharsets.UTF_8);
+        return baseUrl + "/?verifiedEmail=" + safeEmail;
+    }
+
+    private static String trimTrailingSlash(String value) {
+        String safeValue = Objects.toString(value, "").trim();
+        while (safeValue.endsWith("/")) {
+            safeValue = safeValue.substring(0, safeValue.length() - 1);
+        }
+        return safeValue;
+    }
+
+    private static String escapeHtml(String value) {
+        return Objects.toString(value, "")
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;");
     }
 
     private static String normalizeSkillCategoryKey(String value) {

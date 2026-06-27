@@ -165,6 +165,15 @@ public final class RequestContext {
         exchange.close();
     }
 
+    public void redirect(String location) throws IOException {
+        String safeLocation = Objects.toString(location, "").trim();
+        Headers headers = exchange.getResponseHeaders();
+        headers.set("Location", safeLocation.isEmpty() ? "/" : safeLocation);
+        headers.set("Cache-Control", "no-store");
+        exchange.sendResponseHeaders(303, -1);
+        exchange.close();
+    }
+
     public void bytes(int status, byte[] data, String contentType, Map<String, String> extraHeaders)
             throws IOException {
         byte[] payload = Objects.requireNonNullElseGet(data, () -> new byte[0]);

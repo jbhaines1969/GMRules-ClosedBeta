@@ -29,7 +29,8 @@ public final class EmailService {
 
     // *** MEMBERS ***
     private static final String CLOSED_BETA_SUBJECT = "GMRules Open Beta";
-    private static final String CLOSED_BETA_CONTENT = "GMRules closed beta email test.";
+    private static final String CLOSED_BETA_CONTENT = "You requested to join the GMRules open beta and agreed to the NDA. Click the button below to verify your email and create your account.";
+    private static final String UNREQUESTED_ACCESS_TEXT = "If you did not request access to this Beta, please click HERE.";
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
     private static final int MAX_ERROR_BODY_LENGTH = 240;
 
@@ -46,11 +47,20 @@ public final class EmailService {
     }
 
     // *** METHODS ***
-    public boolean sendClosedBetaEmail(String recipient) throws IOException {
-        return sendEmail(recipient, CLOSED_BETA_SUBJECT, CLOSED_BETA_CONTENT);
+    public boolean sendClosedBetaEmail(String recipient, String verificationUrl) throws IOException {
+        String safeUrl = Objects.toString(verificationUrl, "").trim();
+        String text = CLOSED_BETA_CONTENT + "\n\n" + UNREQUESTED_ACCESS_TEXT + "\n\n" + safeUrl;
+        String html = "<p>" + CLOSED_BETA_CONTENT + "</p>"
+            + "<p>" + UNREQUESTED_ACCESS_TEXT + "</p>"
+            + "<p><a href=\"" + escapeHtml(safeUrl) + "\" "
+            + "style=\"display:inline-block;padding:12px 16px;background:#2563eb;color:#ffffff;"
+            + "text-decoration:none;border-radius:6px;\">Verify Email and Create Account</a></p>"
+            + "<p>If the button does not work, copy and paste this link:</p>"
+            + "<p>" + escapeHtml(safeUrl) + "</p>";
+        return sendEmail(recipient, CLOSED_BETA_SUBJECT, text, html);
     }
 
-    private boolean sendEmail(String recipient, String subject, String content) throws IOException {
+    private boolean sendEmail(String recipient, String subject, String content, String html) throws IOException {
         String apiUrl = config.getEmailApiUrl();
         if (apiUrl.isEmpty() || config.getEmailApiKey().isEmpty()) {
             return false;
@@ -62,6 +72,7 @@ public final class EmailService {
         String safeRecipient = Objects.toString(recipient, "").trim();
         String safeSubject = Objects.toString(subject, "").trim();
         String safeContent = Objects.toString(content, "");
+        String safeHtml = Objects.toString(html, "");
         if (safeRecipient.isEmpty()) {
             throw new IOException("Email send failed: recipient is empty.");
         }
@@ -71,6 +82,7 @@ public final class EmailService {
         payload.put("to", safeRecipient);
         payload.put("subject", safeSubject);
         payload.put("text", safeContent);
+        payload.put("html", safeHtml);
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(apiUri)
             .timeout(REQUEST_TIMEOUT)
             .header("Content-Type", "application/json")
@@ -120,5 +132,13 @@ public final class EmailService {
             return safeBody;
         }
         return safeBody.substring(0, MAX_ERROR_BODY_LENGTH) + "...";
+    }
+
+    private String escapeHtml(String value) {
+        return Objects.toString(value, "")
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;");
     }
 }
