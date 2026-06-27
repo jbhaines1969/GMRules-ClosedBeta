@@ -1110,7 +1110,7 @@ async function submitDeleteAccount() {
     state.draftId = "";
     state.systemNames = {};
     setLoggedIn(false);
-    renderLogin();
+    renderClosedBetaApplication();
     showToast(t(
       "web.account_delete.deleted",
       "Account deleted. Removed {count} saved rulesets."
