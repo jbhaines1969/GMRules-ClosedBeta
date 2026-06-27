@@ -31,6 +31,7 @@ public final class EmailService {
     private static final String CLOSED_BETA_SUBJECT = "GMRules Open Beta";
     private static final String CLOSED_BETA_CONTENT = "You requested to join the GMRules open beta and agreed to the NDA. Click the button below to verify your email and create your account.";
     private static final String UNREQUESTED_ACCESS_TEXT = "If you did not request access to this Beta, please click HERE.";
+    private static final String NDA_AUDIT_SUBJECT_PREFIX = "GMRules NDA Audit - ";
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
     private static final int MAX_ERROR_BODY_LENGTH = 240;
 
@@ -58,6 +59,27 @@ public final class EmailService {
             + "<p>If the button does not work, copy and paste this link:</p>"
             + "<p>" + escapeHtml(safeUrl) + "</p>";
         return sendEmail(recipient, CLOSED_BETA_SUBJECT, text, html);
+    }
+
+    public boolean sendNdaAuditEmail(String participantEmail, String auditCsv) throws IOException {
+        String recipient = config.getNdaAuditEmailTo();
+        if (recipient.isEmpty()) {
+            return false;
+        }
+        String safeParticipant = Objects.toString(participantEmail, "").trim();
+        String safeCsv = Objects.toString(auditCsv, "");
+        String subject = NDA_AUDIT_SUBJECT_PREFIX + safeParticipant;
+        String text = "A GMRules beta participant finalized NDA verification.\n\n"
+            + "Participant: " + safeParticipant + "\n\n"
+            + "Current audit CSV:\n\n"
+            + safeCsv;
+        String html = "<p>A GMRules beta participant finalized NDA verification.</p>"
+            + "<p><strong>Participant:</strong> " + escapeHtml(safeParticipant) + "</p>"
+            + "<p><strong>Current audit CSV:</strong></p>"
+            + "<pre style=\"white-space:pre-wrap;word-break:break-word;\">"
+            + escapeHtml(safeCsv)
+            + "</pre>";
+        return sendEmail(recipient, subject, text, html);
     }
 
     private boolean sendEmail(String recipient, String subject, String content, String html) throws IOException {

@@ -310,12 +310,14 @@ public final class ApiRoutes {
         String token = firstQueryParam(ctx, "token");
         try {
             AccountStore.Account account = ctx.getAccountStore().verifyAccount(token);
-            new NdaAuditStore(ctx.getConfig()).recordAccountCreated(
+            NdaAuditStore auditStore = new NdaAuditStore(ctx.getConfig());
+            auditStore.recordAccountCreated(
                 account.getUsername(),
                 ctx.clientIp(),
                 ctx.userAgent(),
                 account.getId()
             );
+            sendNdaAuditCopy(ctx, account, auditStore);
             ctx.redirect(buildVerifiedPasswordUrl(ctx.getConfig(), account.getUsername()));
         } catch (IllegalArgumentException e) {
             String safeMessage = escapeHtml(e.getMessage());
@@ -333,6 +335,19 @@ public final class ApiRoutes {
                 </body>
                 </html>
                 """.formatted(safeMessage), "text/html");
+        }
+    }
+
+    private static void sendNdaAuditCopy(
+            RequestContext ctx,
+            AccountStore.Account account,
+            NdaAuditStore auditStore
+    ) {
+        try {
+            String auditCsv = auditStore.readAuditCsv(account.getUsername());
+            new EmailService(ctx.getConfig()).sendNdaAuditEmail(account.getUsername(), auditCsv);
+        } catch (IOException e) {
+            System.err.println("NDA audit email failed: " + e.getMessage());
         }
     }
 

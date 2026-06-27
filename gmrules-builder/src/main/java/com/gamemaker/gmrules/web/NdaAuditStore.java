@@ -57,6 +57,14 @@ public final class NdaAuditStore {
         appendAuditRow("account_created", email, ipAddress, userAgent, "", "", accountId);
     }
 
+    public String readAuditCsv(String email) throws IOException {
+        Path auditFile = auditDirectory.resolve(filenameForEmail(normalizeEmail(email)));
+        if (!Files.exists(auditFile)) {
+            return "";
+        }
+        return Files.readString(auditFile, StandardCharsets.UTF_8);
+    }
+
     private void appendAuditRow(
             String event,
             String email,
