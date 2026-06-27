@@ -116,6 +116,22 @@ public final class RequestContext {
         return Objects.toString(values.get(0), "");
     }
 
+    public String clientIp() {
+        String forwardedFor = header("X-Forwarded-For").trim();
+        if (!forwardedFor.isEmpty()) {
+            return forwardedFor.split(",", 2)[0].trim();
+        }
+        String realIp = header("X-Real-IP").trim();
+        if (!realIp.isEmpty()) {
+            return realIp;
+        }
+        return Objects.toString(exchange.getRemoteAddress().getAddress().getHostAddress(), "");
+    }
+
+    public String userAgent() {
+        return header("User-Agent").trim();
+    }
+
     public byte[] readBody() throws IOException {
         if (bodyRead) {
             return body;

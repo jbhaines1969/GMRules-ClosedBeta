@@ -717,7 +717,7 @@ function applyStaticLabels() {
 function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
-  setTimeout(() => toast.classList.remove("show"), 2400);
+  setTimeout(() => toast.classList.remove("show"), 8000);
 }
 
 async function loadLocalization(language) {
@@ -4537,6 +4537,7 @@ function renderClosedBetaApplication() {
       )}</p>
       <div class="field">
         <label for="closedBetaNda">${t("web.beta.nda", "NDA")}</label>
+        <p class="field-hint">${t("web.beta.review_full", "Read and review the full Agreement before continuing.")}</p>
         <div class="nda-scroll-box">
           <textarea id="closedBetaNda" readonly></textarea>
         </div>
@@ -4544,13 +4545,13 @@ function renderClosedBetaApplication() {
       <div class="grid two">
         <div class="field checkbox-field">
           <label class="checkbox-label" for="closedBetaAgree">
-            <input type="checkbox" id="closedBetaAgree">
-            <span>${t("web.beta.agree", "I agree to the NDA")}</span>
+            <input type="checkbox" id="closedBetaAgree" disabled>
+            <span>${t("web.beta.agree", "I have reviewed and agree to the Beta Access NDA v1")}</span>
           </label>
         </div>
         <div class="field">
           <label for="closedBetaEmail">${t("web.beta.email", "Email")}</label>
-          <input type="email" id="closedBetaEmail" autocomplete="email">
+          <input type="email" id="closedBetaEmail" autocomplete="email" required>
         </div>
       </div>
       <div class="actions-row">
@@ -4567,8 +4568,36 @@ function renderClosedBetaApplication() {
   `;
   const betaEmailInput = document.getElementById("closedBetaEmail");
   const betaAgreeInput = document.getElementById("closedBetaAgree");
+  const betaNdaInput = document.getElementById("closedBetaNda");
   const betaSubmitButton = document.getElementById("closedBetaSubmit");
+  let ndaScrollCompletedAt = "";
+  let ndaAcceptedAt = "";
+  const hasValidEmail = () => Boolean(String(betaEmailInput.value || "").trim()) && betaEmailInput.checkValidity();
+  const syncBetaSubmitState = () => {
+    betaSubmitButton.disabled = !betaAgreeInput.checked || !hasValidEmail();
+  };
+  const syncNdaScrollState = () => {
+    const atBottom = betaNdaInput.scrollTop + betaNdaInput.clientHeight >= betaNdaInput.scrollHeight - 4;
+    if (atBottom) {
+      if (!ndaScrollCompletedAt) {
+        ndaScrollCompletedAt = new Date().toISOString();
+      }
+      betaAgreeInput.disabled = false;
+      betaAgreeInput.title = "";
+    } else {
+      betaAgreeInput.disabled = true;
+      betaAgreeInput.title = t("web.beta.scroll_required", "Read and review the full Agreement before checking this box.");
+    }
+    syncBetaSubmitState();
+  };
   document.getElementById("closedBetaLogin").addEventListener("click", () => renderLogin());
+  betaNdaInput.addEventListener("scroll", syncNdaScrollState);
+  betaEmailInput.addEventListener("input", syncBetaSubmitState);
+  betaAgreeInput.addEventListener("change", () => {
+    ndaAcceptedAt = betaAgreeInput.checked ? new Date().toISOString() : "";
+    syncBetaSubmitState();
+  });
+  syncNdaScrollState();
   betaSubmitButton.addEventListener("click", async () => {
     if (!betaAgreeInput.checked) {
       showToast(t("web.beta.must_agree", "Step 1 failed: you must agree to the NDA before submitting."));
@@ -4583,17 +4612,23 @@ function renderClosedBetaApplication() {
     betaSubmitButton.textContent = t("web.beta.submitting", "Submitting...");
     showToast(t("web.beta.submit_start", "Step 3: creating beta account and sending email."));
     try {
-      const result = await api("POST", "/api/accounts", { email });
+      const result = await api("POST", "/api/accounts", {
+        email,
+        ndaAccepted: betaAgreeInput.checked,
+        ndaVersion: "v1",
+        ndaScrollCompletedAt,
+        ndaAcceptedAt,
+      });
       if (result.emailSent) {
         showToast(t("web.beta.email_sent", "Step 4 complete: verification email sent. Click the email link to create your account."));
       } else {
         showToast(t("web.beta.email_skipped", "Step 4 skipped: email API key is not configured, so no account was created."));
       }
-      betaSubmitButton.disabled = false;
+      syncBetaSubmitState();
       betaSubmitButton.textContent = t("web.beta.submit", "Submit");
     } catch (error) {
       showToast(`${t("web.beta.submit_failed", "Beta application failed")}: ${error.message}`);
-      betaSubmitButton.disabled = false;
+      syncBetaSubmitState();
       betaSubmitButton.textContent = t("web.beta.submit", "Submit");
     }
   });

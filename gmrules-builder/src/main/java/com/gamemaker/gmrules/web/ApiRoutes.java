@@ -235,6 +235,22 @@ public final class ApiRoutes {
     private static void createAccount(RequestContext ctx) throws IOException {
         Map<String, Object> body = ctx.readJsonMap();
         String email = getString(body, "email").trim();
+        boolean ndaAccepted = getBoolean(body, "ndaAccepted", false);
+        String ndaVersion = getString(body, "ndaVersion").trim();
+        String ndaScrollCompletedAt = getString(body, "ndaScrollCompletedAt").trim();
+        String ndaAcceptedAt = getString(body, "ndaAcceptedAt").trim();
+        if (!ndaAccepted) {
+            ctx.json(400, Map.of("error", "You must agree to the NDA before submitting."));
+            return;
+        }
+        if (!Objects.equals(ndaVersion, NdaAuditStore.CURRENT_NDA_VERSION)) {
+            ctx.json(400, Map.of("error", "The NDA version is out of date. Refresh and try again."));
+            return;
+        }
+        if (ndaScrollCompletedAt.isEmpty() || ndaAcceptedAt.isEmpty()) {
+            ctx.json(400, Map.of("error", "Review and accept the full NDA before submitting."));
+            return;
+        }
         AccountStore.VerificationRequest verificationRequest;
         try {
             verificationRequest = ctx.getAccountStore().createVerificationRequest(email);
@@ -242,6 +258,13 @@ public final class ApiRoutes {
             ctx.json(400, Map.of("error", e.getMessage()));
             return;
         }
+        new NdaAuditStore(ctx.getConfig()).recordNdaAcceptance(
+            verificationRequest.getEmail(),
+            ctx.clientIp(),
+            ctx.userAgent(),
+            ndaScrollCompletedAt,
+            ndaAcceptedAt
+        );
         boolean emailSent;
         try {
             String verificationUrl = buildVerificationUrl(ctx.getConfig(), verificationRequest.getToken());
@@ -269,6 +292,12 @@ public final class ApiRoutes {
         String token = firstQueryParam(ctx, "token");
         try {
             AccountStore.Account account = ctx.getAccountStore().verifyAccount(token);
+            new NdaAuditStore(ctx.getConfig()).recordAccountCreated(
+                account.getUsername(),
+                ctx.clientIp(),
+                ctx.userAgent(),
+                account.getId()
+            );
             ctx.redirect(buildVerifiedPasswordUrl(ctx.getConfig(), account.getUsername()));
         } catch (IllegalArgumentException e) {
             String safeMessage = escapeHtml(e.getMessage());

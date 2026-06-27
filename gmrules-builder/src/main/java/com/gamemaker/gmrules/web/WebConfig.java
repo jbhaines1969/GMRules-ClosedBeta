@@ -26,6 +26,7 @@ public final class WebConfig {
     private static final String SESSION_MINUTES_PROPERTY = "gmrules.web.sessionMinutes";
     private static final String DRAFTS_DIR_PROPERTY = "gmrules.web.draftsDir";
     private static final String ACCOUNTS_FILE_PROPERTY = "gmrules.web.accountsFile";
+    private static final String NDA_AUDIT_DIR_PROPERTY = "gmrules.web.ndaAuditDir";
     private static final String PUBLIC_BASE_URL_PROPERTY = "gmrules.web.publicBaseUrl";
     private static final String EMAIL_API_URL_PROPERTY = "gmrules.email.api.url";
     private static final String EMAIL_API_KEY_PROPERTY = "gmrules.email.api.key";
@@ -38,6 +39,7 @@ public final class WebConfig {
     private static final long DEFAULT_SESSION_MINUTES = 480;
     private static final String DEFAULT_DRAFTS_DIR = "drafts";
     private static final String DEFAULT_ACCOUNTS_FILE = "server-data/accounts.properties";
+    private static final String DEFAULT_NDA_AUDIT_DIR = "server-data/nda-audit";
     private static final String DEFAULT_PUBLIC_BASE_URL = "https://gmrulesbeta.duckdns.org";
     private static final String DEFAULT_EMAIL_API_URL = "https://api.resend.com/emails";
     private static final String DEFAULT_EMAIL_API_KEY = "";
@@ -50,6 +52,7 @@ public final class WebConfig {
     private final long sessionMinutes;
     private final Path draftsDirectory;
     private final Path accountsFile;
+    private final Path ndaAuditDirectory;
     private final String publicBaseUrl;
     private final String emailApiUrl;
     private final String emailApiKey;
@@ -64,6 +67,7 @@ public final class WebConfig {
             long sessionMinutes,
             Path draftsDirectory,
             Path accountsFile,
+            Path ndaAuditDirectory,
             String publicBaseUrl,
             String emailApiUrl,
             String emailApiKey,
@@ -76,6 +80,7 @@ public final class WebConfig {
         this.sessionMinutes = sessionMinutes;
         this.draftsDirectory = draftsDirectory;
         this.accountsFile = accountsFile;
+        this.ndaAuditDirectory = ndaAuditDirectory;
         this.publicBaseUrl = publicBaseUrl;
         this.emailApiUrl = emailApiUrl;
         this.emailApiKey = emailApiKey;
@@ -91,6 +96,7 @@ public final class WebConfig {
         long sessionMinutes = Math.max(15, readLong(SESSION_MINUTES_PROPERTY, DEFAULT_SESSION_MINUTES));
         Path draftsDirectory = Paths.get(readString(DRAFTS_DIR_PROPERTY, DEFAULT_DRAFTS_DIR));
         Path accountsFile = Paths.get(readString(ACCOUNTS_FILE_PROPERTY, DEFAULT_ACCOUNTS_FILE));
+        Path ndaAuditDirectory = Paths.get(readString(NDA_AUDIT_DIR_PROPERTY, DEFAULT_NDA_AUDIT_DIR));
         String publicBaseUrl = readString(PUBLIC_BASE_URL_PROPERTY, DEFAULT_PUBLIC_BASE_URL);
         String emailApiUrl = readString(EMAIL_API_URL_PROPERTY, DEFAULT_EMAIL_API_URL);
         String emailApiKey = readString(EMAIL_API_KEY_PROPERTY, DEFAULT_EMAIL_API_KEY);
@@ -104,6 +110,7 @@ public final class WebConfig {
             sessionMinutes,
             draftsDirectory,
             accountsFile,
+            ndaAuditDirectory,
             publicBaseUrl,
             emailApiUrl,
             emailApiKey,
@@ -137,6 +144,10 @@ public final class WebConfig {
 
     public Path getAccountsFile() {
         return accountsFile;
+    }
+
+    public Path getNdaAuditDirectory() {
+        return ndaAuditDirectory;
     }
 
     public String getPublicBaseUrl() {
