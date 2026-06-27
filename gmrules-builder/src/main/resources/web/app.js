@@ -4572,6 +4572,7 @@ function renderClosedBetaApplication() {
   const betaSubmitButton = document.getElementById("closedBetaSubmit");
   let ndaScrollCompletedAt = "";
   let ndaAcceptedAt = "";
+  betaNdaInput.value = t("web.loading", "Loading...");
   const hasValidEmail = () => Boolean(String(betaEmailInput.value || "").trim()) && betaEmailInput.checkValidity();
   const syncBetaSubmitState = () => {
     betaSubmitButton.disabled = !betaAgreeInput.checked || !hasValidEmail();
@@ -4590,6 +4591,26 @@ function renderClosedBetaApplication() {
     }
     syncBetaSubmitState();
   };
+  const loadClosedBetaNda = async () => {
+    try {
+      const result = await api("GET", "/api/legal/nda");
+      betaNdaInput.value = String(result.text || "");
+      betaNdaInput.scrollTop = 0;
+      betaAgreeInput.checked = false;
+      betaAgreeInput.disabled = true;
+      ndaScrollCompletedAt = "";
+      ndaAcceptedAt = "";
+      syncNdaScrollState();
+    } catch (error) {
+      betaNdaInput.value = t("web.beta.nda_load_failed", "NDA text could not be loaded. Refresh and try again.");
+      betaAgreeInput.checked = false;
+      betaAgreeInput.disabled = true;
+      ndaScrollCompletedAt = "";
+      ndaAcceptedAt = "";
+      syncBetaSubmitState();
+      showToast(error.message);
+    }
+  };
   document.getElementById("closedBetaLogin").addEventListener("click", () => renderLogin());
   betaNdaInput.addEventListener("scroll", syncNdaScrollState);
   betaEmailInput.addEventListener("input", syncBetaSubmitState);
@@ -4597,7 +4618,8 @@ function renderClosedBetaApplication() {
     ndaAcceptedAt = betaAgreeInput.checked ? new Date().toISOString() : "";
     syncBetaSubmitState();
   });
-  syncNdaScrollState();
+  syncBetaSubmitState();
+  loadClosedBetaNda();
   betaSubmitButton.addEventListener("click", async () => {
     if (!betaAgreeInput.checked) {
       showToast(t("web.beta.must_agree", "Step 1 failed: you must agree to the NDA before submitting."));

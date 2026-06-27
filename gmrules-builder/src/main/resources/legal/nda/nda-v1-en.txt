@@ -1,0 +1,119 @@
+# Beta Access Non-Disclosure and Limited Use Agreement
+
+**Effective Date:** The date the participant clicks “I agree” or otherwise accepts this Agreement.
+
+**Project/Product:** GMRules
+
+**Owner:** John B Haines
+
+**Participant:** The person requesting or receiving beta access using the submitted email address.
+
+By clicking “I agree,” requesting access, creating an account, or using the beta product, the Participant agrees to the following terms.
+
+## 1. Purpose
+
+The Owner is allowing the Participant to access and test a private beta version of the Product for evaluation, feedback, and testing only. The Product is not being released to the public, sold, licensed for commercial use, or transferred to the Participant.
+
+## 2. Confidential Information
+
+“Confidential Information” means all non-public information related to the Product, whether shown directly in the Product or learned through beta access. This includes, but is not limited to:
+
+* product concepts, mechanics, systems, rules, designs, workflows, interfaces, files, databases, prompts, structures, architecture, and features;
+* unreleased or experimental functionality;
+* screenshots, screen recordings, demos, documentation, examples, test data, and user flows;
+* bugs, limitations, performance information, development plans, and future ideas;
+* feedback, suggestions, comments, and discussions related to the Product;
+* any other information that a reasonable person would understand to be private, proprietary, developmental, or confidential.
+
+Confidential Information does not include information that the Participant can prove was already publicly known through no fault of the Participant.
+
+## 3. Non-Disclosure
+
+The Participant agrees not to disclose, publish, share, post, copy, distribute, describe, demonstrate, summarize, or reveal the Confidential Information to any other person or entity without the Owner’s prior written permission.
+
+This includes, but is not limited to, sharing information through social media, forums, videos, livestreams, articles, private groups, public repositories, commercial discussions, competing projects, or AI systems.
+
+## 4. Limited Use
+
+The Participant may use the Product only for private beta testing and feedback.
+
+The Participant may not use the Product, Confidential Information, ideas, systems, mechanics, workflows, designs, rules, structure, or other protected material for any commercial, competitive, public, or derivative purpose without the Owner’s prior written permission.
+
+The Participant may not use the Product or Confidential Information to build, train, improve, market, sell, publish, fund, pitch, or support any competing or related product, service, game, tool, rules system, database, software system, AI system, or commercial project.
+
+## 5. No Reverse Engineering
+
+The Participant agrees not to reverse engineer, decompile, disassemble, inspect, scrape, crawl, extract, copy, reconstruct, bypass, modify, or otherwise attempt to discover the Product’s source code, internal structure, database structure, rules logic, algorithms, prompts, files, architecture, hidden functionality, or underlying systems.
+
+The Participant also agrees not to use automated tools, bots, scripts, crawlers, or other technical methods to access, copy, extract, test, overload, or analyze the Product except as expressly allowed by the Owner.
+
+## 6. No Ownership Transfer
+
+The Product and all related Confidential Information remain the property of the Owner.
+
+Nothing in this Agreement gives the Participant ownership of, or any license to commercially use, the Product, source code, design, mechanics, rules, systems, documentation, trade secrets, copyrights, trademarks, or other intellectual property.
+
+## 7. Feedback
+
+The Participant may provide feedback, bug reports, suggestions, ideas, comments, or other input about the Product.
+
+The Participant agrees that the Owner may use, modify, incorporate, develop, publish, commercialize, or ignore that feedback without owing payment, credit, ownership, approval, or compensation to the Participant.
+
+The Participant does not give up ownership of unrelated pre-existing work, but feedback specifically provided about the Product may be freely used by the Owner.
+
+## 8. Account Access and Security
+
+The Participant agrees to keep their account credentials private and not share access with anyone else.
+
+The Owner may suspend or terminate beta access at any time, with or without notice, especially if the Owner believes the Participant has violated this Agreement, created security risk, misused the Product, or acted outside the purpose of beta testing.
+
+## 9. Return or Deletion of Materials
+
+Upon request by the Owner, or when beta access ends, the Participant agrees to delete or return any Confidential Information in their possession, including screenshots, recordings, notes, downloaded files, documents, copies, or other materials, unless retention is required by law.
+
+## 10. Duration
+
+The Participant’s confidentiality, non-use, non-commercial-use, no-reverse-engineering, and feedback-use obligations continue after beta access ends.
+
+These obligations remain in effect until the Confidential Information becomes publicly available through an authorized public release by the Owner, or for as long as allowed by applicable law.
+
+## 11. No Warranty
+
+The Product is provided as a beta test version. It may contain bugs, errors, incomplete features, interruptions, data loss, inaccurate output, or other problems.
+
+The Product is provided “as is” and “as available,” without warranties of any kind.
+
+## 12. No Obligation to Continue
+
+The Owner is not required to continue developing, supporting, releasing, selling, maintaining, or providing access to the Product.
+
+The Owner may change, limit, suspend, or discontinue the Product or beta program at any time.
+
+## 13. Remedies
+
+The Participant understands that unauthorized disclosure, reverse engineering, or commercial use of the Product or Confidential Information may cause harm that cannot be fully repaired by money damages alone.
+
+The Owner may seek injunctive relief, damages, account termination, and any other remedies available under applicable law.
+
+## 14. Governing Law
+
+This Agreement is governed by the laws of Indiana and the United States, without regard to conflict-of-law rules.
+
+Any dispute related to this Agreement will be handled in the courts located in Steuben County, Indiana, unless applicable law requires otherwise.
+
+## 15. Entire Agreement
+
+This Agreement is the entire agreement between the Owner and the Participant regarding beta access, confidentiality, reverse engineering, feedback, and limited use of the Product.
+
+If any part of this Agreement is found unenforceable, the rest remains in effect as closely as possible to the original intent.
+
+## 16. Acceptance
+
+By checking the agreement box, submitting an access request, clicking an email access link, creating an account, or using the Product, the Participant confirms that they have read, understood, and agreed to this Agreement.
+
+**Participant Email:** The email address submitted during signup.
+
+**Accepted At:** Recorded automatically by the system.
+
+**Agreement Version:** v1
+

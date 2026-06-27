@@ -58,6 +58,7 @@ public final class ApiRoutes {
 
     // *** MEMBERS ***
     private static final String STRINGS_BUNDLE = "i18n/strings";
+    private static final String NDA_RESOURCE = "legal/nda/nda-v1-en.txt";
     private static final String ARRAY_HYBRID = "hybridStages";
 
     // *** CONSTRUCTORS ***
@@ -67,6 +68,7 @@ public final class ApiRoutes {
     // *** METHODS ***
     public static void register(Router router) {
         router.add("GET", "/api/i18n", ApiRoutes::localization);
+        router.add("GET", "/api/legal/nda", ApiRoutes::getNdaText);
         router.add("POST", "/api/accounts", ApiRoutes::createAccount);
         router.add("GET", "/api/accounts/verify", ApiRoutes::verifyAccount);
         router.add("POST", "/api/accounts/lookup", ApiRoutes::lookupAccount);
@@ -197,6 +199,22 @@ public final class ApiRoutes {
         strings.putAll(loadStrings(resolvedLocale));
         String localeTag = Objects.toString(resolvedLocale.toLanguageTag(), "");
         ctx.json(200, Map.of("locale", localeTag, "strings", strings));
+    }
+
+    private static void getNdaText(RequestContext ctx) throws IOException {
+        try (InputStream input = ApiRoutes.class.getClassLoader().getResourceAsStream(NDA_RESOURCE)) {
+            if (input == null) {
+                ctx.json(404, Map.of("error", "NDA text resource was not found."));
+                return;
+            }
+            String text = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+            ctx.json(200, Map.of(
+                "version",
+                NdaAuditStore.CURRENT_NDA_VERSION,
+                "text",
+                text
+            ));
+        }
     }
 
     private static Locale resolveLocale(String rawLanguage) {
