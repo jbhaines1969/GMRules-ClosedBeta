@@ -33,6 +33,9 @@ The Participant agrees not to disclose, publish, share, post, copy, distribute, 
 
 This includes, but is not limited to, sharing information through social media, forums, videos, livestreams, articles, private groups, public repositories, commercial discussions, competing projects, or AI systems.
 
+The Participant may not make public statements, reviews, comparisons, demonstrations, announcements, claims, or commentary about the Product, the beta program, or their participation in the beta program without the Owner’s prior written permission.
+
+
 ## 4. Limited Use
 
 The Participant may use the Product only for private beta testing and feedback.
@@ -65,7 +68,7 @@ The Participant does not give up ownership of unrelated pre-existing work, but f
 
 The Participant agrees to keep their account credentials private and not share access with anyone else.
 
-The Owner may suspend or terminate beta access at any time, with or without notice, especially if the Owner believes the Participant has violated this Agreement, created security risk, misused the Product, or acted outside the purpose of beta testing.
+The Owner may approve, deny, suspend, limit, or terminate the Participant’s beta access at any time, with or without notice, for any reason or no reason, including but not limited to violation of this Agreement, security concerns, misuse of the Product, inactivity, technical limitations, business needs, or conduct outside the purpose of beta testing.
 
 ## 9. Return or Deletion of Materials
 
@@ -85,9 +88,11 @@ The Product is provided “as is” and “as available,” without warranties o
 
 ## 12. No Obligation to Continue
 
-The Owner is not required to continue developing, supporting, releasing, selling, maintaining, or providing access to the Product.
+The Owner is not required to continue developing, supporting, releasing, selling, maintaining, or providing access to the Product or beta program.
 
-The Owner may change, limit, suspend, or discontinue the Product or beta program at any time.
+The Owner may change, limit, suspend, discontinue, restart, extend, or end the Product or beta program at any time, with or without notice, for any reason or no reason.
+
+The Participant may stop participating in the beta program at any time, for any reason or no reason, by ceasing use of the Product or deleting their account.
 
 ## 13. Remedies
 
@@ -107,13 +112,41 @@ This Agreement is the entire agreement between the Owner and the Participant reg
 
 If any part of this Agreement is found unenforceable, the rest remains in effect as closely as possible to the original intent.
 
-## 16. Acceptance
+## 16. Electronic Records
+
+The Participant agrees that the Owner may record and rely on electronic records showing acceptance of this Agreement, including the Participant’s submitted email address, account information, date and time of acceptance, IP address, access logs, Agreement version, Agreement language, and any other records reasonably necessary to verify acceptance.
+
+The Participant agrees that such electronic records may be used to verify access, confirm acceptance, maintain security, investigate misuse, and document the version and language of this Agreement accepted by the Participant.
+
+## 17. Participant Content and Submissions
+
+As between the Participant and the Owner, the Participant retains all ownership rights in any original content, files, text, rules, settings, examples, game materials, characters, campaigns, worlds, notes, data, or other creative materials that the Participant submits, uploads, enters, creates, or provides through or in connection with the Product, except for any rights owned by another person or entity.
+
+The Participant is solely responsible for the materials they submit and represents that they have all rights, licenses, and permissions necessary to provide those materials to the Owner and to grant the rights described in this Agreement.
+
+By submitting, uploading, entering, creating, or providing materials through or in connection with the Product, the Participant grants the Owner a non-exclusive, worldwide, royalty-free license to use, copy, store, review, test, analyze, modify, format, process, and create internal derivative works from those materials, without payment, royalties, or other compensation, as reasonably necessary to operate, test, secure, debug, improve, develop, and support the Product.
+
+This license does not transfer ownership of the Participant’s original materials to the Owner. The Owner may not sell, publish, distribute, publicly display, market, advertise, promote, or separately commercialize the Participant’s original materials except with the Participant’s separate written permission or as required to operate the Product.
+
+Deleting an account or ending beta participation does not revoke the Owner’s right to retain archived copies of submitted materials or to use those materials as allowed by this Agreement.
+
+The Participant should not submit confidential third-party information, copyrighted material they do not have permission to use, private personal information, or any material that violates another person’s rights or applicable law.
+
+## 18. Acceptance and Eligibility
+
+By accepting this Agreement, the Participant represents and confirms that they are at least eighteen (18) years of age and legally able to enter into this Agreement.
 
 By checking the agreement box, submitting an access request, clicking an email access link, creating an account, or using the Product, the Participant confirms that they have read, understood, and agreed to this Agreement.
+
 
 **Participant Email:** The email address submitted during signup.
 
 **Accepted At:** Recorded automatically by the system.
 
+**IP Address:** Recorded automatically by the system.
+
 **Agreement Version:** v1
+
+**Agreement Language:** en
+
 
