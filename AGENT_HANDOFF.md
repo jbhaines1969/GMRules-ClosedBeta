@@ -12,7 +12,6 @@ Read these files first:
 - `AGENTS.md`
 - `PROJECT_NOTES.md`
 - `TODO.md`
-- `TODO_backups.md`
 - `PROJECT_STRUCTURE.md`
 
 Then inspect `git status --short` before editing so new docs and user changes are not overwritten.
@@ -57,7 +56,7 @@ Launch blockers are tracked in `TODO.md`. Most important:
 - Add Discord webhook delivery for feedback, bug reports, and blocker/crash reports.
 - Final domain is confirmed in production `.env`: `GMRULES_WEB_PUBLICBASEURL=https://gmrules.com`.
 - `deploy.sh` is confirmed correct for the current Digital Ocean server-side launcher flow.
-- Production env vars are now documented in `.env.example`; backup/restore for `server-data/`, `drafts/`, and `.env` is tracked in `TODO_backups.md`.
+- Production env vars are now documented in `.env.example`; manual backup/restore for `server-data/`, `drafts/`, and `.env` has been implemented and tested.
 - Align "Closed Beta" copy in UI and email.
 - Fix the save-status mojibake separator in `app.js`.
 - Add smoke tests for account verification, login, draft persistence/export, and feedback submission.

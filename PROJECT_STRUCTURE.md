@@ -27,7 +27,6 @@ GMRules-ClosedBeta/
 |-- PROJECT_NOTES.md
 |-- PROJECT_STRUCTURE.md
 |-- TODO.md
-|-- TODO_backups.md
 |-- deploy.sh
 |-- makebackup.sh
 |-- pom.xml

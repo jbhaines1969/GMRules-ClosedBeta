@@ -7,9 +7,9 @@ Updated: 2026-07-01
 - [x] Set production `GMRULES_WEB_PUBLICBASEURL` to the final domain so email verification links do not use the old DuckDNS default.
 - [x] Confirm `deploy.sh` is correct for the current Digital Ocean server-side launcher flow.
 - [x] Document all production environment variables in `.env.example`, including host, port, public base URL, data paths, Resend sender/API key, NDA audit recipient, and Discord webhook values.
-- [ ] Add a backup/restore procedure for `server-data/`, `drafts/`, and `.env` before inviting more testers. See `TODO_backups.md`.
-- [ ] Add in-app feedback and bug reporting.
-- [ ] Add Discord webhook delivery for three intake types: feedback, bug report, and blocker/crash.
+- [x] Complete and test the manual backup/restore procedure for `server-data/`, `drafts/`, and `.env`: encrypted server backup, local download, local verification, upload from local backup, and restore.
+- [ ] Add in-app feedback and bug reporting. See `TODO_feedback.md`.
+- [ ] Add Discord webhook delivery for three intake types: feedback, bug report, and blocker/crash. See `TODO_feedback.md`.
 - [ ] Align all beta copy on "Closed Beta"; fix `EmailService` subject/body that currently says "Open Beta".
 - [ ] Replace the email "click HERE" opt-out text with either a real support/report path or neutral explanatory copy.
 - [ ] Fix the save-status mojibake separator in `app.js`.
