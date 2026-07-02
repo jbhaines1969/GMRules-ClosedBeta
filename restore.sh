@@ -42,10 +42,12 @@ timestamp="$(date +%F-%H%M%S)"
 restore_root="/tmp/gmrules-restore-${timestamp}"
 decrypted_archive="${restore_root}/backup.tar.gz"
 pre_restore_archive="/tmp/gmrules-pre-restore-${timestamp}.tar.gz"
+pre_restore_encrypted_archive="${pre_restore_archive}.gpg"
 pre_restore_created="false"
 
 cleanup_restore_temp() {
     rm -rf "$restore_root"
+    rm -f "$pre_restore_archive"
 }
 trap cleanup_restore_temp EXIT
 
@@ -83,8 +85,10 @@ pre_restore_paths=()
 
 if [ "${#pre_restore_paths[@]}" -gt 0 ]; then
     echo "Creating pre-restore safety backup:"
-    echo "$pre_restore_archive"
+    echo "$pre_restore_encrypted_archive"
     tar -czf "$pre_restore_archive" "${pre_restore_paths[@]}"
+    gpg -c --output "$pre_restore_encrypted_archive" "$pre_restore_archive"
+    rm -f "$pre_restore_archive"
     pre_restore_created="true"
 else
     echo "No existing runtime data found for pre-restore safety backup."
@@ -117,8 +121,8 @@ systemctl start gmrules
 echo
 echo "Restore complete."
 if [ "$pre_restore_created" = "true" ]; then
-    echo "Pre-restore safety backup kept at:"
-    echo "$pre_restore_archive"
+    echo "Encrypted pre-restore safety backup kept at:"
+    echo "$pre_restore_encrypted_archive"
 else
     echo "No pre-restore safety backup was created because no existing runtime data was found."
 fi

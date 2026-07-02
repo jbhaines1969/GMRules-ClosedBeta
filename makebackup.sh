@@ -16,7 +16,7 @@ echo "Creating backup archive..."
 tar -czf "$plain_archive" server-data drafts .env
 
 echo "Encrypting backup archive..."
-rm -f "$encrypted_archive"
+rm -f /tmp/gmrules-backup-*.tar.gz.gpg
 gpg -c --output "$encrypted_archive" "$plain_archive"
 
 cleanup_plain_archive
