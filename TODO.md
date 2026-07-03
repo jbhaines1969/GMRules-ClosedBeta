@@ -13,11 +13,13 @@ Updated: 2026-07-02
 - [x] Align all beta copy on "Closed Beta" in `EmailService`.
 - [x] Replace the old email opt-out text with neutral explanatory copy.
 - [x] Fix the save-status mojibake separator in `app.js`.
-- [ ] Add minimal smoke tests for account verification, login, draft persistence, and `.gmrf` export. Feedback submission has been smoke-tested.
+- [x] Smoke-test account verification, password creation, login, new draft creation, draft deletion, and `.gmrf` export/download.
+- [x] Smoke-test `.gmrf` upload/import and verify the uploaded draft opens with expected content and counts toward the account saved-draft limit.
 
 ## High Priority After First Invites
 
-- [ ] Add rate limits for signup, login, password setup, and import endpoints. Feedback submission has a basic per-user limit.
+- [ ] Add rate limits for login, password setup, and import endpoints. Signup has strict per-IP/per-email limits plus the total account cap; feedback submission has a basic per-user limit.
+- [ ] Add blocked IP/email controls later if signup abuse appears.
 - [ ] Add request logging that is useful for debugging without recording secrets or full ruleset payloads.
 - [ ] Add a simple health endpoint for uptime checks.
 - [ ] Add reverse-proxy/security-header documentation, including HTTPS, HSTS, CSP, frame protection, and referrer policy.

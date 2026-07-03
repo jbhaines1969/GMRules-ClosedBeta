@@ -71,6 +71,9 @@ public final class AccountStore {
             if (!existingId.isEmpty()) {
                 throw new IllegalArgumentException("This email is already registered. Proceed to login.");
             }
+            if (hasActivePendingForEmail(properties, safeEmail, Instant.now())) {
+                throw new IllegalArgumentException("A verification email is already pending. Check your email and use that link before requesting another.");
+            }
             if (countAccounts(properties) >= MAX_ACCOUNTS) {
                 throw new IllegalArgumentException("Closed beta account limit reached.");
             }
@@ -354,6 +357,31 @@ public final class AccountStore {
         for (String token : pendingTokens) {
             removePendingToken(properties, token);
         }
+    }
+
+    private boolean hasActivePendingForEmail(Properties properties, String email, Instant now) {
+        String safeEmail = normalizeEmail(email);
+        boolean activePending = false;
+        ArrayList<String> expiredTokens = new ArrayList<>();
+        for (String key : properties.stringPropertyNames()) {
+            if (key.startsWith(PENDING_PREFIX) && key.endsWith(".email")) {
+                String pendingEmail = Objects.toString(properties.getProperty(key), "");
+                if (!safeEmail.equals(pendingEmail)) {
+                    continue;
+                }
+                String token = key.substring(PENDING_PREFIX.length(), key.length() - ".email".length());
+                Instant expiresAt = parseInstant(properties.getProperty(pendingKey(token, "expiresAt")));
+                if (expiresAt.isAfter(now)) {
+                    activePending = true;
+                } else {
+                    expiredTokens.add(token);
+                }
+            }
+        }
+        for (String token : expiredTokens) {
+            removePendingToken(properties, token);
+        }
+        return activePending;
     }
 
     private void removePendingToken(Properties properties, String token) {

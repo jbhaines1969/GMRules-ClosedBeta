@@ -73,6 +73,11 @@ public final class ApiRoutes {
     private static final int FEEDBACK_RATE_LIMIT_MAX = 5;
     private static final Duration FEEDBACK_RATE_LIMIT_WINDOW = Duration.ofMinutes(10);
     private static final Map<String, Deque<Instant>> FEEDBACK_RATE_LIMITS = new ConcurrentHashMap<>();
+    private static final int SIGNUP_IP_RATE_LIMIT_MAX = 2;
+    private static final Duration SIGNUP_IP_RATE_LIMIT_WINDOW = Duration.ofDays(1);
+    private static final int SIGNUP_EMAIL_RATE_LIMIT_MAX = 1;
+    private static final Duration SIGNUP_EMAIL_RATE_LIMIT_WINDOW = Duration.ofDays(1);
+    private static final Map<String, Deque<Instant>> SIGNUP_RATE_LIMITS = new ConcurrentHashMap<>();
 
     // *** CONSTRUCTORS ***
     private ApiRoutes() {
@@ -281,6 +286,11 @@ public final class ApiRoutes {
         }
         if (ndaScrollCompletedAt.isEmpty() || ndaAcceptedAt.isEmpty()) {
             ctx.json(400, Map.of("error", "Review and accept the full NDA before submitting."));
+            return;
+        }
+        String signupRateLimitMessage = checkSignupRateLimit(ctx, email);
+        if (!signupRateLimitMessage.isEmpty()) {
+            ctx.json(429, Map.of("error", signupRateLimitMessage));
             return;
         }
         AccountStore.VerificationRequest verificationRequest;
@@ -3844,21 +3854,92 @@ public final class ApiRoutes {
         return entry;
     }
 
+    private static String checkSignupRateLimit(RequestContext ctx, String email) {
+        Instant now = Instant.now();
+        String ipKey = "ip:" + Objects.toString(ctx.clientIp(), "").trim();
+        String emailKey = "email:" + Objects.toString(email, "").trim().toLowerCase(Locale.ROOT);
+        if (!isRollingRateLimitAvailable(
+                SIGNUP_RATE_LIMITS,
+                ipKey,
+                SIGNUP_IP_RATE_LIMIT_MAX,
+                SIGNUP_IP_RATE_LIMIT_WINDOW,
+                now
+        )) {
+            return "A beta application was already submitted from this connection today.";
+        }
+        if (!emailKey.equals("email:") && !isRollingRateLimitAvailable(
+                SIGNUP_RATE_LIMITS,
+                emailKey,
+                SIGNUP_EMAIL_RATE_LIMIT_MAX,
+                SIGNUP_EMAIL_RATE_LIMIT_WINDOW,
+                now
+        )) {
+            return "A beta application was already submitted for this email today. Check your email for the verification link.";
+        }
+
+        recordRollingRateLimit(SIGNUP_RATE_LIMITS, ipKey, SIGNUP_IP_RATE_LIMIT_WINDOW, now);
+        if (!emailKey.equals("email:")) {
+            recordRollingRateLimit(SIGNUP_RATE_LIMITS, emailKey, SIGNUP_EMAIL_RATE_LIMIT_WINDOW, now);
+        }
+        return "";
+    }
+
     private static boolean consumeFeedbackRateLimit(RequestContext ctx, SessionStore.Session session) {
         String accountKey = Objects.toString(session.getUserId(), "").trim();
         String key = accountKey.isEmpty() ? "ip:" + ctx.clientIp() : "account:" + accountKey;
         Instant now = Instant.now();
-        Instant cutoff = now.minus(FEEDBACK_RATE_LIMIT_WINDOW);
-        Deque<Instant> submissions = FEEDBACK_RATE_LIMITS.computeIfAbsent(key, ignored -> new ArrayDeque<>());
-        synchronized (submissions) {
-            while (!submissions.isEmpty() && submissions.peekFirst().isBefore(cutoff)) {
-                submissions.removeFirst();
-            }
-            if (submissions.size() >= FEEDBACK_RATE_LIMIT_MAX) {
-                return false;
-            }
-            submissions.addLast(now);
-            return true;
+        if (!isRollingRateLimitAvailable(
+                FEEDBACK_RATE_LIMITS,
+                key,
+                FEEDBACK_RATE_LIMIT_MAX,
+                FEEDBACK_RATE_LIMIT_WINDOW,
+                now
+        )) {
+            return false;
+        }
+        recordRollingRateLimit(FEEDBACK_RATE_LIMITS, key, FEEDBACK_RATE_LIMIT_WINDOW, now);
+        return true;
+    }
+
+    private static boolean isRollingRateLimitAvailable(
+            Map<String, Deque<Instant>> limits,
+            String key,
+            int maxAttempts,
+            Duration window,
+            Instant now
+    ) {
+        String safeKey = Objects.toString(key, "").trim();
+        if (safeKey.isEmpty()) {
+            return false;
+        }
+        Deque<Instant> attempts = limits.computeIfAbsent(safeKey, ignored -> new ArrayDeque<>());
+        synchronized (attempts) {
+            removeExpiredAttempts(attempts, window, now);
+            return attempts.size() < maxAttempts;
+        }
+    }
+
+    private static void recordRollingRateLimit(
+            Map<String, Deque<Instant>> limits,
+            String key,
+            Duration window,
+            Instant now
+    ) {
+        String safeKey = Objects.toString(key, "").trim();
+        if (safeKey.isEmpty()) {
+            return;
+        }
+        Deque<Instant> attempts = limits.computeIfAbsent(safeKey, ignored -> new ArrayDeque<>());
+        synchronized (attempts) {
+            removeExpiredAttempts(attempts, window, now);
+            attempts.addLast(now);
+        }
+    }
+
+    private static void removeExpiredAttempts(Deque<Instant> attempts, Duration window, Instant now) {
+        Instant cutoff = now.minus(window);
+        while (!attempts.isEmpty() && attempts.peekFirst().isBefore(cutoff)) {
+            attempts.removeFirst();
         }
     }
 

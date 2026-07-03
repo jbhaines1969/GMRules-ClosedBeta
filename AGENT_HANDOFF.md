@@ -48,6 +48,8 @@ Implemented so far:
 - Hosted smoke testing passed: one feedback report, one bug report, and one blocker report reached the expected Discord channels and wrote expected JSONL files on the Droplet.
 - The feedback-specific TODO file was deleted after its remaining unchecked future items were moved into `TODO.md`.
 - `EmailService` now uses "GMRules Closed Beta" copy and neutral unrequested-access text.
+- Hosted account/draft smoke passed: account deletion/recreation, email verification, password creation, login, new draft creation, draft deletion, `.gmrf` export/download, `.gmrf` upload/import, opening uploaded content, and saved-draft limit counting worked.
+- Signup/application rate limiting was added: two applications per IP per day, one per email per day, no resend over an active pending verification email, plus the existing ten-account cap.
 
 External setup completed:
 
@@ -58,7 +60,7 @@ External setup completed:
 Next repo steps:
 
 - Review and commit any remaining feedback-intake/doc updates only if the user explicitly asks.
-- Continue remaining launch blockers: auth/draft/export smoke tests and visible UI polish.
+- Beta launch blockers in `TODO.md` are checked off. Next work should move to the high-priority-after-first-invites section unless the user redirects.
 
 ## Product Status
 
@@ -89,7 +91,7 @@ Launch blockers are tracked in `TODO.md`. Most important:
 - Final domain is confirmed in production `.env`: `GMRULES_WEB_PUBLICBASEURL=https://gmrules.com`.
 - `deploy.sh` is confirmed correct for the current Digital Ocean server-side launcher flow.
 - Production env vars are now documented in `.env.example`; manual backup/restore for `server-data/`, `drafts/`, and `.env` has been implemented and tested.
-- Add smoke tests for account verification, login, and draft persistence/export.
+- Beta launch blockers are complete. Next: rate limits for login, password setup, and import endpoints.
 
 ## Important Paths
 

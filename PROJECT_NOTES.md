@@ -69,6 +69,7 @@ Beta mechanics:
 
 - Feedback and bug-report intake exists and hosted smoke testing passed: feedback, bug, and blocker reports reached Discord and wrote JSONL files on the Droplet.
 - Discord webhook delivery is implemented and production `.env` has the expected webhook variable names set.
+- Hosted account/draft smoke testing passed: account recreation, email verification, password creation, login, draft create/delete, `.gmrf` export/download, `.gmrf` upload/import, uploaded draft open, and account saved-draft limit counting.
 - No admin/triage surface exists for reviewing feedback, accounts, drafts, or NDA records.
 
 Deployment and operations:
@@ -81,7 +82,7 @@ Deployment and operations:
 
 Security and abuse controls:
 
-- There is no rate limiting on signup, login, password creation, or imports. Feedback has a basic per-user submission limit.
+- Signup has strict per-IP/per-email application limits plus the total account cap, allowing two applications per IP per day for shared households. Feedback has a basic per-user submission limit. Login, password creation, and imports still need rate limits.
 - Session tokens are stored in browser `localStorage` and sent as bearer tokens.
 - Account storage is a flat properties file, suitable for a very small PoC but not for scale.
 - The built-in HTTP server does not set security headers such as HSTS, CSP, frame protection, or referrer policy. If these are handled by the reverse proxy, document that.
@@ -108,7 +109,7 @@ The fastest beta-launch path is to keep this as a small, controlled closed beta 
    Closed Beta email language, opt-out copy, and the save-status separator are fixed. Next polish pass should focus on mobile layout, modal density, button hierarchy, and onboarding copy.
 
 4. Add launch smoke tests.
-   At minimum cover signup request validation, verification token flow, login, and draft create/open/export. Feedback webhook formatting has been smoke-tested.
+   Hosted smoke tests now cover account verification, login, draft create/delete/export/import/open, saved-draft limit counting, and feedback webhook formatting.
 
 5. Launch with a small cohort.
    Keep the current account/draft caps for the first wave, invite a handful of testers, monitor Discord and server logs, and manually review saved data/backups.
