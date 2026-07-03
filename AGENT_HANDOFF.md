@@ -53,6 +53,7 @@ Implemented so far:
 - The beta application page now states the 10 accepted tester cap and two applications per connection per day.
 - `.gmrf` import/export rate limiting was added: two import attempts and two download attempts per account per rolling seven days.
 - Login now locks an account after three failed password attempts. Locked users get a popup that submits a blocker recovery request through `/api/accounts/locked-report`; account content and saved drafts are not deleted.
+- Admin account access was added through `GMRULES_WEB_ADMINEMAILS`, a comma-separated list of existing account emails. Configured admins get an in-app Admin button and can view account/draft/lock counts, see account lock/password/draft status, unlock locked accounts, and delete non-admin accounts plus their saved drafts.
 
 External setup completed:
 
@@ -62,8 +63,9 @@ External setup completed:
 
 Next repo steps:
 
-- Review and commit any remaining feedback-intake/doc updates only if the user explicitly asks.
-- Beta launch blockers in `TODO.md` are checked off. Next work should move to the high-priority-after-first-invites section unless the user redirects.
+- Set `GMRULES_WEB_ADMINEMAILS` in production `.env` to the account email that should administer the beta, then restart the service.
+- Smoke-test the Admin button with that account: account list, locked-account unlock, and non-admin account deletion.
+- Do not commit unless the user explicitly asks.
 
 ## Product Status
 
@@ -94,7 +96,7 @@ Launch blockers are tracked in `TODO.md`. Most important:
 - Final domain is confirmed in production `.env`: `GMRULES_WEB_PUBLICBASEURL=https://gmrules.com`.
 - `deploy.sh` is confirmed correct for the current Digital Ocean server-side launcher flow.
 - Production env vars are now documented in `.env.example`; manual backup/restore for `server-data/`, `drafts/`, and `.env` has been implemented and tested.
-- Beta launch blockers are complete. Login locking is implemented; password setup mismatch attempts are intentionally not rate-limited for now. Next actionable TODO is request logging unless blocked IP/email controls become necessary.
+- Beta launch blockers are complete. Login locking and the first account-admin panel are implemented; password setup mismatch attempts are intentionally not rate-limited for now. Next actionable TODO is setting/smoke-testing `GMRULES_WEB_ADMINEMAILS`, then request logging unless blocked IP/email controls become necessary.
 
 ## Important Paths
 
@@ -158,6 +160,9 @@ Non-draft:
 - `POST /api/logout`
 - `GET /api/session`
 - `POST /api/feedback`
+- `GET /api/admin/accounts`
+- `POST /api/admin/accounts/unlock`
+- `DELETE /api/admin/accounts`
 
 Draft lifecycle:
 
@@ -223,6 +228,6 @@ It auto-selects the single `/tmp/gmrules-backup-*.tar.gz.gpg` file when only one
 
 ## Next Best Moves
 
-1. Add smoke coverage/checklists around account verification, login, and draft persistence/export.
-2. Fix remaining small visible UI issues.
-3. Launch a small controlled beta cohort and monitor Discord/server logs.
+1. Set `GMRULES_WEB_ADMINEMAILS` in production `.env` to the existing account email that should administer the beta, then restart the service.
+2. Smoke-test the Admin button with that account: account list, locked-account unlock, and non-admin account deletion.
+3. Add request logging and continue the small controlled beta cohort.

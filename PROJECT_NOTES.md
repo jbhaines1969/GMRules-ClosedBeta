@@ -33,6 +33,7 @@ The web app is served from `gmrules-builder`:
 - Feedback records: append-only JSONL under `server-data/feedback`
 - Email: Resend-compatible HTTP API through `EmailService`
 - Discord feedback delivery: webhook-based forwarding through `DiscordWebhookService`
+- Admin access: configured by comma-separated `GMRULES_WEB_ADMINEMAILS`; matching logged-in accounts can use the in-app admin panel.
 
 The shaded app jar is produced by `mvn package` as `target/gmrules-app.jar`.
 
@@ -48,6 +49,7 @@ Closed beta access:
 - NDA acceptance and account creation are audited.
 - Logged-in users can submit feedback, bug reports, and blocker/crash reports from the web UI.
 - Feedback is saved locally before Discord delivery and includes safe metadata only, not full ruleset or character file contents.
+- Configured admins can view account counts, saved draft counts, lock status, failed login counts, and can unlock or delete non-admin accounts from the web UI.
 
 Ruleset builder:
 
@@ -70,7 +72,7 @@ Beta mechanics:
 - Feedback and bug-report intake exists and hosted smoke testing passed: feedback, bug, and blocker reports reached Discord and wrote JSONL files on the Droplet.
 - Discord webhook delivery is implemented and production `.env` has the expected webhook variable names set.
 - Hosted account/draft smoke testing passed: account recreation, email verification, password creation, login, draft create/delete, `.gmrf` export/download, `.gmrf` upload/import, uploaded draft open, and account saved-draft limit counting.
-- No admin/triage surface exists for reviewing feedback, accounts, drafts, or NDA records.
+- The admin panel covers account counts, saved draft counts, lock state, account unlocks, and non-admin account deletion. It does not yet include feedback, NDA audit, or draft-content triage.
 
 Deployment and operations:
 

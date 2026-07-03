@@ -251,20 +251,70 @@ public final class AccountStore {
                     throw new IllegalArgumentException("Invalid email or password.");
                 }
             }
-            List<String> draftIds = readDraftIds(properties, userId);
-            String userPrefix = userKey(safeUsername, "");
-            ArrayList<String> accountKeys = new ArrayList<>();
-            for (String key : properties.stringPropertyNames()) {
-                if (key.startsWith(userPrefix)) {
-                    accountKeys.add(key);
-                }
-            }
-            for (String key : accountKeys) {
-                properties.remove(key);
-            }
-            properties.remove(draftKey(userId));
+            List<String> draftIds = removeAccountProperties(properties, safeUsername, userId);
             saveProperties(properties);
             return new AccountDeletion(new Account(userId, safeUsername, false), draftIds);
+        }
+    }
+
+    public AccountDeletion deleteAccountAsAdmin(String email) throws IOException {
+        String safeEmail = normalizeEmail(email);
+        if (safeEmail.isEmpty()) {
+            throw new IllegalArgumentException("Email is required.");
+        }
+        synchronized (lock) {
+            Properties properties = loadProperties();
+            String userId = Objects.toString(properties.getProperty(userKey(safeEmail, "id")), "");
+            if (userId.isEmpty()) {
+                throw new IllegalArgumentException("Account not found.");
+            }
+            List<String> draftIds = removeAccountProperties(properties, safeEmail, userId);
+            saveProperties(properties);
+            return new AccountDeletion(new Account(userId, safeEmail, false), draftIds);
+        }
+    }
+
+    public void unlockAccount(String email) throws IOException {
+        String safeEmail = normalizeEmail(email);
+        if (safeEmail.isEmpty()) {
+            throw new IllegalArgumentException("Email is required.");
+        }
+        synchronized (lock) {
+            Properties properties = loadProperties();
+            String userId = Objects.toString(properties.getProperty(userKey(safeEmail, "id")), "");
+            if (userId.isEmpty()) {
+                throw new IllegalArgumentException("Account not found.");
+            }
+            clearLoginFailures(properties, safeEmail);
+            saveProperties(properties);
+        }
+    }
+
+    public List<AccountSummary> listAccounts() throws IOException {
+        synchronized (lock) {
+            Properties properties = loadProperties();
+            ArrayList<AccountSummary> accounts = new ArrayList<>();
+            for (String key : properties.stringPropertyNames()) {
+                if (!key.startsWith(USER_PREFIX) || !key.endsWith(".id")) {
+                    continue;
+                }
+                String email = key.substring(USER_PREFIX.length(), key.length() - ".id".length());
+                String userId = Objects.toString(properties.getProperty(key), "");
+                String saltValue = Objects.toString(properties.getProperty(userKey(email, "salt")), "");
+                String hashValue = Objects.toString(properties.getProperty(userKey(email, "hash")), "");
+                accounts.add(new AccountSummary(
+                    userId,
+                    email,
+                    !saltValue.isEmpty() && !hashValue.isEmpty(),
+                    isLoginLocked(properties, email),
+                    readFailedLoginAttempts(properties, email),
+                    Objects.toString(properties.getProperty(userKey(email, "createdAt")), ""),
+                    Objects.toString(properties.getProperty(userKey(email, "verifiedAt")), ""),
+                    readDraftIds(properties, userId)
+                ));
+            }
+            accounts.sort((left, right) -> left.getEmail().compareToIgnoreCase(right.getEmail()));
+            return List.copyOf(accounts);
         }
     }
 
@@ -401,6 +451,22 @@ public final class AccountStore {
     private void clearLoginFailures(Properties properties, String email) {
         properties.setProperty(userKey(email, "failedLoginAttempts"), "0");
         properties.setProperty(userKey(email, "loginLockedAt"), "");
+    }
+
+    private List<String> removeAccountProperties(Properties properties, String email, String userId) {
+        List<String> draftIds = readDraftIds(properties, userId);
+        String userPrefix = userKey(email, "");
+        ArrayList<String> accountKeys = new ArrayList<>();
+        for (String key : properties.stringPropertyNames()) {
+            if (key.startsWith(userPrefix)) {
+                accountKeys.add(key);
+            }
+        }
+        for (String key : accountKeys) {
+            properties.remove(key);
+        }
+        properties.remove(draftKey(userId));
+        return draftIds;
     }
 
     private void removePendingForEmail(Properties properties, String email) {
@@ -704,6 +770,73 @@ public final class AccountStore {
         // *** METHODS ***
         public Account getAccount() {
             return account;
+        }
+
+        public List<String> getDraftIds() {
+            return draftIds;
+        }
+    }
+
+    public static final class AccountSummary {
+
+        // *** MEMBERS ***
+        private final String id;
+        private final String email;
+        private final boolean passwordSet;
+        private final boolean locked;
+        private final int failedLoginAttempts;
+        private final String createdAt;
+        private final String verifiedAt;
+        private final List<String> draftIds;
+
+        // *** CONSTRUCTORS ***
+        private AccountSummary(
+                String id,
+                String email,
+                boolean passwordSet,
+                boolean locked,
+                int failedLoginAttempts,
+                String createdAt,
+                String verifiedAt,
+                List<String> draftIds
+        ) {
+            this.id = Objects.toString(id, "");
+            this.email = Objects.toString(email, "");
+            this.passwordSet = passwordSet;
+            this.locked = locked;
+            this.failedLoginAttempts = Math.max(0, failedLoginAttempts);
+            this.createdAt = Objects.toString(createdAt, "");
+            this.verifiedAt = Objects.toString(verifiedAt, "");
+            this.draftIds = List.copyOf(Objects.requireNonNullElseGet(draftIds, List::of));
+        }
+
+        // *** METHODS ***
+        public String getId() {
+            return id;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public boolean isPasswordSet() {
+            return passwordSet;
+        }
+
+        public boolean isLocked() {
+            return locked;
+        }
+
+        public int getFailedLoginAttempts() {
+            return failedLoginAttempts;
+        }
+
+        public String getCreatedAt() {
+            return createdAt;
+        }
+
+        public String getVerifiedAt() {
+            return verifiedAt;
         }
 
         public List<String> getDraftIds() {

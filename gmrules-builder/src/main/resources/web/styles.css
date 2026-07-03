@@ -421,6 +421,37 @@ textarea {
   justify-content: flex-end;
 }
 
+.admin-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 24px;
+}
+
+.stat {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--surface);
+}
+
+.stat strong {
+  display: block;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.stat span {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.admin-account-item {
+  gap: 12px;
+  align-items: flex-start;
+}
+
 .account-danger-zone {
   margin-top: 24px;
   padding: 16px;
@@ -562,6 +593,9 @@ textarea {
   }
   .actions {
     justify-content: center;
+  }
+  .admin-summary {
+    grid-template-columns: 1fr;
   }
   .view {
     padding: 20px;

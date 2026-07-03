@@ -9,6 +9,7 @@ const state = {
   sessionToken: "",
   accountName: "",
   legacyGuest: false,
+  admin: false,
   currencyId: "",
   chargenAttributes: [],
   chargenAttributeScores: {},
@@ -67,6 +68,7 @@ let appBackLocked = false;
 const view = document.getElementById("view");
 const stepIndicator = document.getElementById("stepIndicator");
 const saveStatus = document.getElementById("saveStatus");
+const adminBtn = document.getElementById("adminBtn");
 const feedbackBtn = document.getElementById("feedbackBtn");
 const downloadBtn = document.getElementById("downloadBtn");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -445,6 +447,9 @@ function applyStaticLabels() {
   saveStatus.textContent = t("web.save.empty", "Not saved yet");
   if (feedbackBtn) {
     feedbackBtn.textContent = t("web.feedback.button", "Report");
+  }
+  if (adminBtn) {
+    adminBtn.textContent = t("web.admin.button", "Admin");
   }
   downloadBtn.textContent = t("web.download", "Download .gmrf");
   logoutBtn.textContent = t("web.logout", "Logout");
@@ -1159,6 +1164,9 @@ function updateActions() {
   if (feedbackBtn) {
     feedbackBtn.style.display = state.sessionToken ? "" : "none";
   }
+  if (adminBtn) {
+    adminBtn.style.display = state.sessionToken && state.admin ? "" : "none";
+  }
   const showDownload = state.mode === "builder" || state.mode === "chargen";
   downloadBtn.style.display = showDownload ? "" : "none";
   downloadBtn.disabled = state.mode === "builder" ? !state.draftId : false;
@@ -1351,6 +1359,7 @@ async function submitDeleteAccount() {
     clearStoredSessionToken();
     state.accountName = "";
     state.legacyGuest = false;
+    state.admin = false;
     state.draftId = "";
     state.systemNames = {};
     setLoggedIn(false);
@@ -1390,6 +1399,9 @@ deleteAccountPassword.addEventListener("keypress", (event) => {
 
 if (feedbackBtn) {
   feedbackBtn.addEventListener("click", () => openFeedbackModal("feedback"));
+}
+if (adminBtn) {
+  adminBtn.addEventListener("click", renderAdmin);
 }
 
 feedbackCancel.addEventListener("click", closeFeedbackModal);
@@ -4639,6 +4651,7 @@ logoutBtn.addEventListener("click", async () => {
   clearStoredSessionToken();
   state.accountName = "";
   state.legacyGuest = false;
+  state.admin = false;
   state.draftId = "";
   state.systemNames = {};
   resetVisited();
@@ -4725,6 +4738,7 @@ async function boot() {
       setLoggedIn(true);
       state.accountName = session.username || "";
       state.legacyGuest = !!session.legacyGuest;
+      state.admin = !!session.admin;
       if (session.draftLocale) {
         state.locale = normalizeLocale(session.draftLocale);
         await loadLocalization(state.locale);
@@ -4743,6 +4757,9 @@ async function boot() {
     } else {
       state.sessionToken = "";
       clearStoredSessionToken();
+      state.accountName = "";
+      state.legacyGuest = false;
+      state.admin = false;
       setLoggedIn(false);
       if (verifiedEmail) {
         clearVerifiedEmailFromUrl();
@@ -4756,6 +4773,9 @@ async function boot() {
   } catch (error) {
     state.sessionToken = "";
     clearStoredSessionToken();
+    state.accountName = "";
+    state.legacyGuest = false;
+    state.admin = false;
     setLoggedIn(false);
     if (verifiedEmail) {
       clearVerifiedEmailFromUrl();
@@ -5106,6 +5126,7 @@ function finishLogin(result) {
   storeSessionToken(state.sessionToken);
   state.accountName = result.username || "";
   state.legacyGuest = !!result.legacyGuest;
+  state.admin = !!result.admin;
   setLoggedIn(true);
   state.step = "splash";
   renderHome();
@@ -5182,6 +5203,127 @@ function formatSavedDate(value) {
     return t("web.home.saved_unknown", "Unknown");
   }
   return date.toLocaleString();
+}
+
+async function renderAdmin() {
+  if (!state.admin) {
+    showToast(t("web.admin.forbidden", "Admin access required."));
+    return;
+  }
+  setMode("home");
+  setStep("admin");
+  view.innerHTML = `
+    <h1>${t("web.admin.title", "Admin")}</h1>
+    <div class="admin-summary" id="adminSummary">
+      <div class="stat"><strong>-</strong><span>${t("web.admin.accounts", "Accounts")}</span></div>
+      <div class="stat"><strong>-</strong><span>${t("web.admin.saved_drafts", "Saved Drafts")}</span></div>
+      <div class="stat"><strong>-</strong><span>${t("web.admin.locked", "Locked")}</span></div>
+    </div>
+    <div class="saved-drafts">
+      <div class="saved-drafts-header">
+        <h2>${t("web.admin.account_list", "User Accounts")}</h2>
+        <button class="btn ghost" id="adminRefresh" type="button">${t("web.admin.refresh", "Refresh")}</button>
+      </div>
+      <div class="list admin-account-list" id="adminAccountList">
+        <div class="field-hint">${t("web.loading", "Loading...")}</div>
+      </div>
+    </div>
+  `;
+  updateActions();
+  document.getElementById("adminRefresh").addEventListener("click", loadAdminAccounts);
+  await loadAdminAccounts();
+}
+
+async function loadAdminAccounts() {
+  const summary = document.getElementById("adminSummary");
+  const list = document.getElementById("adminAccountList");
+  if (!summary || !list) {
+    return;
+  }
+  try {
+    const data = await api("GET", "/api/admin/accounts");
+    summary.innerHTML = `
+      <div class="stat"><strong>${escapeHtml(data.accountCount || 0)}</strong><span>${t("web.admin.accounts", "Accounts")}</span></div>
+      <div class="stat"><strong>${escapeHtml(data.draftCount || 0)}</strong><span>${t("web.admin.saved_drafts", "Saved Drafts")}</span></div>
+      <div class="stat"><strong>${escapeHtml(data.lockedCount || 0)}</strong><span>${t("web.admin.locked", "Locked")}</span></div>
+    `;
+    const accounts = data.accounts || [];
+    if (!accounts.length) {
+      list.innerHTML = `<div class="field-hint">${t("web.admin.no_accounts", "No accounts found.")}</div>`;
+      return;
+    }
+    list.innerHTML = accounts.map((account) => renderAdminAccount(account)).join("");
+    list.querySelectorAll("button[data-admin-unlock]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const email = button.dataset.adminUnlock || "";
+        button.disabled = true;
+        try {
+          await api("POST", "/api/admin/accounts/unlock", { email });
+          showToast(t("web.admin.unlocked", "Account unlocked."));
+          await loadAdminAccounts();
+        } catch (error) {
+          showToast(error.message);
+          button.disabled = false;
+        }
+      });
+    });
+    list.querySelectorAll("button[data-admin-delete]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const email = button.dataset.adminDelete || "";
+        const confirmed = await showConfirm(
+          t("web.admin.delete_confirm", "Permanently delete {email} and all saved rulesets for that account?")
+            .replace("{email}", email),
+          t("web.admin.delete", "Delete Account")
+        );
+        if (!confirmed) {
+          return;
+        }
+        button.disabled = true;
+        try {
+          const result = await api("DELETE", "/api/admin/accounts", { email });
+          showToast(t("web.admin.deleted", "Account deleted. Removed {count} saved rulesets.")
+            .replace("{count}", String(result.deletedDrafts || 0)));
+          await loadAdminAccounts();
+        } catch (error) {
+          showToast(error.message);
+          button.disabled = false;
+        }
+      });
+    });
+  } catch (error) {
+    list.innerHTML = `<div class="field-hint">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function renderAdminAccount(account) {
+  const email = escapeHtml(account.email || "");
+  const id = escapeHtml(account.id || "");
+  const createdAt = escapeHtml(formatSavedDate(account.createdAt));
+  const verifiedAt = escapeHtml(formatSavedDate(account.verifiedAt));
+  const draftCount = Number(account.draftCount || 0);
+  const draftIds = (account.draftIds || []).map((draftId) => escapeHtml(draftId)).join(", ");
+  const badges = [
+    account.admin ? t("web.admin.badge_admin", "Admin") : "",
+    account.passwordSet ? t("web.admin.badge_password", "Password set") : t("web.admin.badge_no_password", "No password"),
+    account.locked ? t("web.admin.badge_locked", "Locked") : "",
+  ].filter(Boolean).map((label) => `<span class="badge">${escapeHtml(label)}</span>`).join(" ");
+  return `
+    <div class="list-item admin-account-item">
+      <div class="saved-draft-copy">
+        <strong>${email}</strong>
+        <div class="field-hint">${badges}</div>
+        <div class="field-hint">${t("web.admin.account_id", "Account ID")}: ${id}</div>
+        <div class="field-hint">${t("web.admin.created", "Created")}: ${createdAt}</div>
+        <div class="field-hint">${t("web.admin.verified", "Verified")}: ${verifiedAt}</div>
+        <div class="field-hint">${t("web.admin.drafts", "Drafts")}: ${draftCount}${draftIds ? ` (${draftIds})` : ""}</div>
+        <div class="field-hint">${t("web.admin.failed_attempts", "Failed login attempts")}: ${escapeHtml(account.failedLoginAttempts || 0)}</div>
+      </div>
+      <div class="saved-draft-actions">
+        <button class="btn small" type="button" data-admin-unlock="${email}" ${account.locked ? "" : "disabled"}>${t("web.admin.unlock", "Unlock")}</button>
+        <button class="btn danger small" type="button" data-admin-delete="${email}" ${account.admin ? "disabled" : ""}>${t("web.admin.delete", "Delete Account")}</button>
+      </div>
+    </div>
+  `;
 }
 
 function renderHome() {
@@ -10243,6 +10385,7 @@ Object.assign(historyRoutes, {
   "beta-application": renderClosedBetaApplication,
   login: renderLogin,
   home: renderHome,
+  admin: renderAdmin,
   splash: renderBuilderSplash,
   "chargen-upload": renderCharGenUpload,
   "chargen-resume": renderCharGenResume,

@@ -11,6 +11,8 @@ package com.gamemaker.gmrules.web;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.Objects;
 
 /**
@@ -28,6 +30,7 @@ public final class WebConfig {
     private static final String ACCOUNTS_FILE_PROPERTY = "gmrules.web.accountsFile";
     private static final String NDA_AUDIT_DIR_PROPERTY = "gmrules.web.ndaAuditDir";
     private static final String NDA_AUDIT_EMAIL_TO_PROPERTY = "gmrules.ndaAudit.emailTo";
+    private static final String ADMIN_EMAILS_PROPERTY = "gmrules.web.adminEmails";
     private static final String FEEDBACK_DIR_PROPERTY = "gmrules.web.feedbackDir";
     private static final String PUBLIC_BASE_URL_PROPERTY = "gmrules.web.publicBaseUrl";
     private static final String EMAIL_API_URL_PROPERTY = "gmrules.email.api.url";
@@ -46,6 +49,7 @@ public final class WebConfig {
     private static final String DEFAULT_ACCOUNTS_FILE = "server-data/accounts.properties";
     private static final String DEFAULT_NDA_AUDIT_DIR = "server-data/nda-audit";
     private static final String DEFAULT_NDA_AUDIT_EMAIL_TO = "";
+    private static final String DEFAULT_ADMIN_EMAILS = "";
     private static final String DEFAULT_FEEDBACK_DIR = "server-data/feedback";
     private static final String DEFAULT_PUBLIC_BASE_URL = "https://gmrulesbeta.duckdns.org";
     private static final String DEFAULT_EMAIL_API_URL = "https://api.resend.com/emails";
@@ -64,6 +68,7 @@ public final class WebConfig {
     private final Path accountsFile;
     private final Path ndaAuditDirectory;
     private final String ndaAuditEmailTo;
+    private final Set<String> adminEmails;
     private final Path feedbackDirectory;
     private final String publicBaseUrl;
     private final String emailApiUrl;
@@ -84,6 +89,7 @@ public final class WebConfig {
             Path accountsFile,
             Path ndaAuditDirectory,
             String ndaAuditEmailTo,
+            Set<String> adminEmails,
             Path feedbackDirectory,
             String publicBaseUrl,
             String emailApiUrl,
@@ -102,6 +108,7 @@ public final class WebConfig {
         this.accountsFile = accountsFile;
         this.ndaAuditDirectory = ndaAuditDirectory;
         this.ndaAuditEmailTo = ndaAuditEmailTo;
+        this.adminEmails = Set.copyOf(Objects.requireNonNullElseGet(adminEmails, Set::of));
         this.feedbackDirectory = feedbackDirectory;
         this.publicBaseUrl = publicBaseUrl;
         this.emailApiUrl = emailApiUrl;
@@ -123,6 +130,7 @@ public final class WebConfig {
         Path accountsFile = Paths.get(readString(ACCOUNTS_FILE_PROPERTY, DEFAULT_ACCOUNTS_FILE));
         Path ndaAuditDirectory = Paths.get(readString(NDA_AUDIT_DIR_PROPERTY, DEFAULT_NDA_AUDIT_DIR));
         String ndaAuditEmailTo = readString(NDA_AUDIT_EMAIL_TO_PROPERTY, DEFAULT_NDA_AUDIT_EMAIL_TO);
+        Set<String> adminEmails = readEmailSet(ADMIN_EMAILS_PROPERTY, DEFAULT_ADMIN_EMAILS);
         Path feedbackDirectory = Paths.get(readString(FEEDBACK_DIR_PROPERTY, DEFAULT_FEEDBACK_DIR));
         String publicBaseUrl = readString(PUBLIC_BASE_URL_PROPERTY, DEFAULT_PUBLIC_BASE_URL);
         String emailApiUrl = readString(EMAIL_API_URL_PROPERTY, DEFAULT_EMAIL_API_URL);
@@ -148,6 +156,7 @@ public final class WebConfig {
             accountsFile,
             ndaAuditDirectory,
             ndaAuditEmailTo,
+            adminEmails,
             feedbackDirectory,
             publicBaseUrl,
             emailApiUrl,
@@ -195,6 +204,14 @@ public final class WebConfig {
         return ndaAuditEmailTo;
     }
 
+    public Set<String> getAdminEmails() {
+        return adminEmails;
+    }
+
+    public boolean isAdminEmail(String email) {
+        return adminEmails.contains(Objects.toString(email, "").trim().toLowerCase());
+    }
+
     public Path getFeedbackDirectory() {
         return feedbackDirectory;
     }
@@ -237,6 +254,18 @@ public final class WebConfig {
             return env;
         }
         return fallback;
+    }
+
+    private static Set<String> readEmailSet(String property, String fallback) {
+        String raw = readString(property, fallback);
+        LinkedHashSet<String> values = new LinkedHashSet<>();
+        for (String part : raw.split(",")) {
+            String safePart = Objects.toString(part, "").trim().toLowerCase();
+            if (!safePart.isEmpty()) {
+                values.add(safePart);
+            }
+        }
+        return values;
     }
 
     private static int readInt(String property, int fallback) {

@@ -24,7 +24,8 @@ Updated: 2026-07-02
 - [ ] Add a simple health endpoint for uptime checks.
 - [ ] Add reverse-proxy/security-header documentation, including HTTPS, HSTS, CSP, frame protection, and referrer policy.
 - [ ] Change NDA audit filenames to include a full email hash or account id to avoid local-part collisions.
-- [ ] Add an admin-only way to see account count, saved draft count, and recent feedback.
+- [x] Add an admin-only way to see account count, saved draft count, account lock status, and manage account unlock/deletion.
+- [ ] Add admin-only recent feedback viewing if Discord triage becomes insufficient.
 - [x] Preserve tester context in feedback payloads: account email/id, draft id, current stage, browser user agent, timestamp, and severity.
 - [ ] Decide whether sessions being invalidated on restart is acceptable for closed beta.
 

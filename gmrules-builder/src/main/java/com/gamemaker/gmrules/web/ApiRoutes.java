@@ -106,6 +106,9 @@ public final class ApiRoutes {
         router.add("POST", "/api/logout", ApiRoutes::logout);
         router.add("GET", "/api/session", ApiRoutes::sessionInfo);
         router.add("POST", "/api/feedback", ApiRoutes::submitFeedback);
+        router.add("GET", "/api/admin/accounts", ApiRoutes::adminListAccounts);
+        router.add("POST", "/api/admin/accounts/unlock", ApiRoutes::adminUnlockAccount);
+        router.add("DELETE", "/api/admin/accounts", ApiRoutes::adminDeleteAccount);
 
         router.add("GET", "/api/drafts", ApiRoutes::listDrafts);
         router.add("POST", "/api/drafts", ApiRoutes::createDraft);
@@ -476,6 +479,7 @@ public final class ApiRoutes {
             return;
         }
         AccountStore.Account account = result.getAccount();
+        boolean admin = ctx.getConfig().isAdminEmail(account.getUsername());
         SessionStore.Session session = ctx.getSessionStore().createSession(
             account.getId(),
             account.getUsername(),
@@ -489,7 +493,9 @@ public final class ApiRoutes {
             "username",
             account.getUsername(),
             "legacyGuest",
-            account.isLegacyGuest()
+            account.isLegacyGuest(),
+            "admin",
+            admin
         ));
     }
 
@@ -509,10 +515,97 @@ public final class ApiRoutes {
         payload.put("authenticated", true);
         payload.put("username", session.getUsername());
         payload.put("legacyGuest", session.isLegacyGuest());
+        payload.put("admin", ctx.getConfig().isAdminEmail(session.getUsername()));
         payload.put("draftId", session.getDraftId());
         payload.put("draftLocale", resolveDraftLocale(ctx, session.getDraftId()));
         payload.put("completedStages", resolveCompletedStages(ctx, session.getDraftId()));
         ctx.json(200, payload);
+    }
+
+    private static void adminListAccounts(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireAdminSession(ctx);
+        if (session == null) {
+            return;
+        }
+        List<Map<String, Object>> accounts = new ArrayList<>();
+        int draftCount = 0;
+        int lockedCount = 0;
+        for (AccountStore.AccountSummary account : ctx.getAccountStore().listAccounts()) {
+            List<String> draftIds = account.getDraftIds();
+            draftCount += draftIds.size();
+            if (account.isLocked()) {
+                lockedCount++;
+            }
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("id", account.getId());
+            entry.put("email", account.getEmail());
+            entry.put("passwordSet", account.isPasswordSet());
+            entry.put("locked", account.isLocked());
+            entry.put("failedLoginAttempts", account.getFailedLoginAttempts());
+            entry.put("createdAt", account.getCreatedAt());
+            entry.put("verifiedAt", account.getVerifiedAt());
+            entry.put("draftCount", draftIds.size());
+            entry.put("draftIds", draftIds);
+            entry.put("admin", ctx.getConfig().isAdminEmail(account.getEmail()));
+            accounts.add(entry);
+        }
+        ctx.json(200, Map.of(
+            "ok",
+            true,
+            "accounts",
+            accounts,
+            "accountCount",
+            accounts.size(),
+            "draftCount",
+            draftCount,
+            "lockedCount",
+            lockedCount,
+            "adminEmailCount",
+            ctx.getConfig().getAdminEmails().size()
+        ));
+    }
+
+    private static void adminUnlockAccount(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireAdminSession(ctx);
+        if (session == null) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        String email = getString(body, "email").trim();
+        try {
+            ctx.getAccountStore().unlockAccount(email);
+            ctx.json(200, Map.of("ok", true));
+        } catch (IllegalArgumentException e) {
+            ctx.json(400, Map.of("error", e.getMessage()));
+        }
+    }
+
+    private static void adminDeleteAccount(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireAdminSession(ctx);
+        if (session == null) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        String email = getString(body, "email").trim();
+        if (ctx.getConfig().isAdminEmail(email)) {
+            ctx.json(400, Map.of("error", "Admin accounts cannot be deleted from this panel."));
+            return;
+        }
+        try {
+            AccountStore.AccountDeletion deletion = ctx.getAccountStore().deleteAccountAsAdmin(email);
+            for (String draftId : deletion.getDraftIds()) {
+                ctx.getDraftStore().deleteDraft(draftId);
+            }
+            ctx.getSessionStore().invalidateUser(deletion.getAccount().getId());
+            ctx.json(200, Map.of(
+                "ok",
+                true,
+                "deletedDrafts",
+                deletion.getDraftIds().size()
+            ));
+        } catch (IllegalArgumentException e) {
+            ctx.json(400, Map.of("error", e.getMessage()));
+        }
     }
 
     private static void submitFeedback(RequestContext ctx) throws IOException {
@@ -3848,6 +3941,18 @@ public final class ApiRoutes {
         SessionStore.Session session = ctx.getSessionStore().getSession(sessionId);
         if (session == null) {
             ctx.json(401, Map.of("error", "Unauthorized"));
+            return null;
+        }
+        return session;
+    }
+
+    private static SessionStore.Session requireAdminSession(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return null;
+        }
+        if (!ctx.getConfig().isAdminEmail(session.getUsername())) {
+            ctx.json(403, Map.of("error", "Admin access required."));
             return null;
         }
         return session;
