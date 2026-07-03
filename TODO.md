@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-07-01
+Updated: 2026-07-02
 
 ## Beta Launch Blockers
 
@@ -8,22 +8,22 @@ Updated: 2026-07-01
 - [x] Confirm `deploy.sh` is correct for the current Digital Ocean server-side launcher flow.
 - [x] Document all production environment variables in `.env.example`, including host, port, public base URL, data paths, Resend sender/API key, NDA audit recipient, and Discord webhook values.
 - [x] Complete and test the manual backup/restore procedure for `server-data/`, `drafts/`, and `.env`: encrypted server backup, local download, local verification, upload from local backup, and restore.
-- [ ] Add in-app feedback and bug reporting. See `TODO_feedback.md`.
-- [ ] Add Discord webhook delivery for three intake types: feedback, bug report, and blocker/crash. See `TODO_feedback.md`.
+- [x] Add in-app feedback and bug reporting. See `TODO_feedback.md`.
+- [x] Add Discord webhook delivery for three intake types: feedback, bug report, and blocker/crash. See `TODO_feedback.md`.
 - [ ] Align all beta copy on "Closed Beta"; fix `EmailService` subject/body that currently says "Open Beta".
 - [ ] Replace the email "click HERE" opt-out text with either a real support/report path or neutral explanatory copy.
-- [ ] Fix the save-status mojibake separator in `app.js`.
+- [x] Fix the save-status mojibake separator in `app.js`.
 - [ ] Add minimal smoke tests for account verification, login, draft persistence, `.gmrf` export, and feedback submission.
 
 ## High Priority After First Invites
 
-- [ ] Add rate limits for signup, login, password setup, import, and feedback endpoints.
+- [ ] Add rate limits for signup, login, password setup, and import endpoints. Feedback submission has a basic per-user limit.
 - [ ] Add request logging that is useful for debugging without recording secrets or full ruleset payloads.
 - [ ] Add a simple health endpoint for uptime checks.
 - [ ] Add reverse-proxy/security-header documentation, including HTTPS, HSTS, CSP, frame protection, and referrer policy.
 - [ ] Change NDA audit filenames to include a full email hash or account id to avoid local-part collisions.
 - [ ] Add an admin-only way to see account count, saved draft count, and recent feedback.
-- [ ] Preserve tester context in feedback payloads: account email/id, draft id, current stage, browser user agent, timestamp, and severity.
+- [x] Preserve tester context in feedback payloads: account email/id, draft id, current stage, browser user agent, timestamp, and severity.
 - [ ] Decide whether sessions being invalidated on restart is acceptable for closed beta.
 
 ## UI Polish

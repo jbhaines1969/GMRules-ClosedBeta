@@ -17,6 +17,7 @@
       <div class="step-indicator" id="stepIndicator"></div>
       <div class="status" id="saveStatus">Not saved yet</div>
       <div class="actions">
+        <button class="btn ghost" id="feedbackBtn" type="button">Report</button>
         <button class="btn ghost" id="downloadBtn" type="button">Download .gmrf</button>
         <button class="btn ghost" id="logoutBtn" type="button">Logout</button>
       </div>
@@ -71,6 +72,49 @@
       <div class="modal-actions">
         <button class="btn ghost" id="deleteAccountCancel" type="button">Cancel</button>
         <button class="btn danger" id="deleteAccountOk" type="button">Delete Account</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="feedbackModal" role="dialog" aria-modal="true">
+    <div class="modal-card wide">
+      <h3 id="feedbackTitle">Report Feedback</h3>
+      <div class="grid two">
+        <div class="field">
+          <label for="feedbackType" id="feedbackTypeLabel">Type</label>
+          <select id="feedbackType">
+            <option value="feedback">Feedback</option>
+            <option value="bug">Bug Report</option>
+            <option value="blocker">Blocker / Crash</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="feedbackSeverity" id="feedbackSeverityLabel">Severity</label>
+          <select id="feedbackSeverity">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="feedbackShortTitle" id="feedbackShortTitleLabel">Short Title</label>
+        <input type="text" id="feedbackShortTitle" maxlength="120">
+      </div>
+      <div class="field">
+        <label for="feedbackMessage" id="feedbackMessageLabel">Details</label>
+        <textarea id="feedbackMessage" maxlength="4000"></textarea>
+      </div>
+      <div class="field hidden" id="feedbackStepsField">
+        <label for="feedbackSteps" id="feedbackStepsLabel">Steps to Reproduce</label>
+        <textarea id="feedbackSteps" maxlength="2000"></textarea>
+      </div>
+      <p class="field-hint" id="feedbackPrivacyHint">Reports include account and page metadata, but not your ruleset file or full draft content.</p>
+      <div class="modal-status" id="feedbackStatus"></div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="feedbackCancel" type="button">Cancel</button>
+        <button class="btn" id="feedbackSubmit" type="button">Submit Report</button>
       </div>
     </div>
   </div>
@@ -496,6 +540,6 @@
     })();
   </script>
 
-  <script src="/app.js?v=20260616f"></script>
+  <script src="/app.js?v=20260702a"></script>
 </body>
 </html>

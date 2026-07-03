@@ -67,6 +67,7 @@ let appBackLocked = false;
 const view = document.getElementById("view");
 const stepIndicator = document.getElementById("stepIndicator");
 const saveStatus = document.getElementById("saveStatus");
+const feedbackBtn = document.getElementById("feedbackBtn");
 const downloadBtn = document.getElementById("downloadBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const toast = document.getElementById("toast");
@@ -95,6 +96,24 @@ const deleteAccountPasswordLabel = document.getElementById("deleteAccountPasswor
 const deleteAccountPassword = document.getElementById("deleteAccountPassword");
 const deleteAccountCancel = document.getElementById("deleteAccountCancel");
 const deleteAccountOk = document.getElementById("deleteAccountOk");
+
+const feedbackModal = document.getElementById("feedbackModal");
+const feedbackTitle = document.getElementById("feedbackTitle");
+const feedbackType = document.getElementById("feedbackType");
+const feedbackTypeLabel = document.getElementById("feedbackTypeLabel");
+const feedbackSeverity = document.getElementById("feedbackSeverity");
+const feedbackSeverityLabel = document.getElementById("feedbackSeverityLabel");
+const feedbackShortTitle = document.getElementById("feedbackShortTitle");
+const feedbackShortTitleLabel = document.getElementById("feedbackShortTitleLabel");
+const feedbackMessage = document.getElementById("feedbackMessage");
+const feedbackMessageLabel = document.getElementById("feedbackMessageLabel");
+const feedbackStepsField = document.getElementById("feedbackStepsField");
+const feedbackSteps = document.getElementById("feedbackSteps");
+const feedbackStepsLabel = document.getElementById("feedbackStepsLabel");
+const feedbackPrivacyHint = document.getElementById("feedbackPrivacyHint");
+const feedbackStatus = document.getElementById("feedbackStatus");
+const feedbackCancel = document.getElementById("feedbackCancel");
+const feedbackSubmit = document.getElementById("feedbackSubmit");
 
 const editModal = document.getElementById("editModal");
 const editTitle = document.getElementById("editTitle");
@@ -414,6 +433,9 @@ function applyStaticLabels() {
     brandName.textContent = t("web.brand", "GMRules Web");
   }
   saveStatus.textContent = t("web.save.empty", "Not saved yet");
+  if (feedbackBtn) {
+    feedbackBtn.textContent = t("web.feedback.button", "Report");
+  }
   downloadBtn.textContent = t("web.download", "Download .gmrf");
   logoutBtn.textContent = t("web.logout", "Logout");
   confirmTitle.textContent = t("web.confirm.title", "Confirm");
@@ -431,6 +453,57 @@ function applyStaticLabels() {
   deleteAccountPasswordLabel.textContent = t("web.login.password", "Password");
   deleteAccountCancel.textContent = t("common.cancel", "Cancel");
   deleteAccountOk.textContent = t("web.account_delete.confirm", "Permanently Delete Account");
+  if (feedbackTitle) {
+    feedbackTitle.textContent = t("web.feedback.title", "Report Feedback");
+  }
+  if (feedbackTypeLabel) {
+    feedbackTypeLabel.textContent = t("web.feedback.type", "Type");
+  }
+  if (feedbackType) {
+    const typeLabels = {
+      feedback: t("web.feedback.type.feedback", "Feedback"),
+      bug: t("web.feedback.type.bug", "Bug Report"),
+      blocker: t("web.feedback.type.blocker", "Blocker / Crash"),
+    };
+    Array.from(feedbackType.options).forEach((option) => {
+      option.textContent = typeLabels[option.value] || option.textContent;
+    });
+  }
+  if (feedbackSeverityLabel) {
+    feedbackSeverityLabel.textContent = t("web.feedback.severity", "Severity");
+  }
+  if (feedbackSeverity) {
+    const severityLabels = {
+      low: t("web.feedback.severity.low", "Low"),
+      medium: t("web.feedback.severity.medium", "Medium"),
+      high: t("web.feedback.severity.high", "High"),
+      critical: t("web.feedback.severity.critical", "Critical"),
+    };
+    Array.from(feedbackSeverity.options).forEach((option) => {
+      option.textContent = severityLabels[option.value] || option.textContent;
+    });
+  }
+  if (feedbackShortTitleLabel) {
+    feedbackShortTitleLabel.textContent = t("web.feedback.short_title", "Short Title");
+  }
+  if (feedbackMessageLabel) {
+    feedbackMessageLabel.textContent = t("web.feedback.details", "Details");
+  }
+  if (feedbackStepsLabel) {
+    feedbackStepsLabel.textContent = t("web.feedback.steps", "Steps to Reproduce");
+  }
+  if (feedbackPrivacyHint) {
+    feedbackPrivacyHint.textContent = t(
+      "web.feedback.privacy",
+      "Reports include account and page metadata, but not your ruleset file or full draft content."
+    );
+  }
+  if (feedbackCancel) {
+    feedbackCancel.textContent = t("common.cancel", "Cancel");
+  }
+  if (feedbackSubmit) {
+    feedbackSubmit.textContent = t("web.feedback.submit", "Submit Report");
+  }
   editNameLabel.textContent = t("common.name", "Name");
   editDescriptionLabel.textContent = t("common.description", "Description");
   if (editWeightValueLabel) {
@@ -1040,12 +1113,15 @@ function navigateToHistoryStep(stepId) {
 function markSaved(message) {
   const stamp = new Date().toLocaleTimeString();
   const savedLabel = t("web.save.saved", "Saved");
-  saveStatus.textContent = message ? `${message} · ${stamp}` : `${savedLabel} ${stamp}`;
+  saveStatus.textContent = message ? `${message} - ${stamp}` : `${savedLabel} ${stamp}`;
 }
 
 function updateActions() {
   if (!downloadBtn) {
     return;
+  }
+  if (feedbackBtn) {
+    feedbackBtn.style.display = state.sessionToken ? "" : "none";
   }
   const showDownload = state.mode === "builder" || state.mode === "chargen";
   downloadBtn.style.display = showDownload ? "" : "none";
@@ -1096,6 +1172,93 @@ function closeDeleteAccountModal() {
   deleteAccountPassword.value = "";
 }
 
+function defaultFeedbackSeverity(type) {
+  const safeType = String(type || "").trim().toLowerCase();
+  if (safeType === "blocker") {
+    return "high";
+  }
+  if (safeType === "bug") {
+    return "medium";
+  }
+  return "low";
+}
+
+function updateFeedbackStepsVisibility() {
+  if (!feedbackType || !feedbackStepsField) {
+    return;
+  }
+  const type = String(feedbackType.value || "").trim().toLowerCase();
+  feedbackStepsField.classList.toggle("hidden", type === "feedback");
+}
+
+function openFeedbackModal(defaultType = "feedback") {
+  if (!state.sessionToken) {
+    showToast(t("web.feedback.login_required", "Log in before submitting a report."));
+    return;
+  }
+  const safeType = ["feedback", "bug", "blocker"].includes(defaultType) ? defaultType : "feedback";
+  feedbackType.value = safeType;
+  feedbackSeverity.value = defaultFeedbackSeverity(safeType);
+  feedbackShortTitle.value = "";
+  feedbackMessage.value = "";
+  feedbackSteps.value = "";
+  feedbackStatus.textContent = "";
+  feedbackSubmit.disabled = false;
+  updateFeedbackStepsVisibility();
+  feedbackModal.classList.remove("hidden");
+  window.requestAnimationFrame(() => feedbackShortTitle.focus());
+}
+
+function closeFeedbackModal() {
+  feedbackModal.classList.add("hidden");
+  feedbackStatus.textContent = "";
+}
+
+function currentRouteForFeedback() {
+  const path = String(window.location.pathname || "");
+  const search = String(window.location.search || "");
+  const hash = String(window.location.hash || "");
+  return `${path}${search}${hash}`;
+}
+
+function buildFeedbackPayload() {
+  return {
+    type: feedbackType.value,
+    severity: feedbackSeverity.value,
+    title: feedbackShortTitle.value,
+    message: feedbackMessage.value,
+    steps: feedbackStepsField.classList.contains("hidden") ? "" : feedbackSteps.value,
+    route: currentRouteForFeedback(),
+    page: state.mode,
+    stage: state.mode === "builder" ? state.step : "",
+    draftId: state.draftId,
+    userAgent: String(navigator.userAgent || ""),
+    clientTimestamp: new Date().toISOString(),
+  };
+}
+
+async function submitFeedbackReport() {
+  const title = feedbackShortTitle.value.trim();
+  const message = feedbackMessage.value.trim();
+  if (!title || !message) {
+    feedbackStatus.textContent = t("web.feedback.required", "Add a short title and details before submitting.");
+    return;
+  }
+  feedbackSubmit.disabled = true;
+  feedbackCancel.disabled = true;
+  feedbackStatus.textContent = t("web.feedback.submitting", "Submitting...");
+  try {
+    await api("POST", "/api/feedback", buildFeedbackPayload());
+    closeFeedbackModal();
+    showToast(t("web.feedback.submitted", "Report submitted. Thank you."));
+  } catch (error) {
+    feedbackStatus.textContent = error.message;
+    feedbackSubmit.disabled = false;
+  } finally {
+    feedbackCancel.disabled = false;
+  }
+}
+
 async function submitDeleteAccount() {
   try {
     const result = await api("DELETE", "/api/accounts", {
@@ -1142,6 +1305,17 @@ deleteAccountPassword.addEventListener("keypress", (event) => {
   if (event.key === "Enter") {
     submitDeleteAccount();
   }
+});
+
+if (feedbackBtn) {
+  feedbackBtn.addEventListener("click", () => openFeedbackModal("feedback"));
+}
+
+feedbackCancel.addEventListener("click", closeFeedbackModal);
+feedbackSubmit.addEventListener("click", submitFeedbackReport);
+feedbackType.addEventListener("change", () => {
+  feedbackSeverity.value = defaultFeedbackSeverity(feedbackType.value);
+  updateFeedbackStepsVisibility();
 });
 
 typeCancel.addEventListener("click", () => {

@@ -1,6 +1,6 @@
 # GMRules Closed Beta Agent Handoff
 
-Updated: 2026-07-01
+Updated: 2026-07-02
 Repo root: `C:\Users\John\IdeaProjects\GMRules-ClosedBeta`
 
 This is the start-here snapshot for recovering the project after context loss or a machine failure.
@@ -12,7 +12,9 @@ Read these files first:
 - `AGENTS.md`
 - `PROJECT_NOTES.md`
 - `TODO.md`
+- `TODO_feedback.md` when working on beta intake, bug reports, blocker/crash reports, or Discord delivery.
 - `PROJECT_STRUCTURE.md`
+- `USER.md` if it exists locally. It is ignored by Git and contains user-specific collaboration preferences.
 
 Then inspect `git status --short` before editing so new docs and user changes are not overwritten.
 
@@ -24,8 +26,36 @@ This repo is the current closed-beta deploy release for GMRules.
 - `gmrules-core` contains the canonical ruleset model and `.gmrf` persistence.
 - `gmrules-builder` contains the legacy Swing builder plus the web server, web API, and SPA assets.
 - Web entry point is `com.gamemaker.gmrules.web.WebMain`.
-- `mvn test` passed locally on 2026-07-01, but there are no automated tests yet.
-- New continuity docs were added at the repo root: `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `AGENTS.md`, and `AGENT_HANDOFF.md`.
+- `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-02 after the feedback-intake implementation pass, but there are no automated tests yet.
+- New continuity docs were added at the repo root: `PROJECT_NOTES.md`, `TODO.md`, `TODO_feedback.md`, `PROJECT_STRUCTURE.md`, `AGENTS.md`, and `AGENT_HANDOFF.md`.
+
+## Active Resume Point
+
+Feedback intake implementation is in progress and uncommitted. The next session should resume from this state, not restart from `TODO_feedback.md`.
+
+Implemented so far:
+
+- Added a topbar Report action and report modal in the web app.
+- Report types are `feedback`, `bug`, and `blocker`.
+- The client captures safe metadata only: current route, app mode/page, builder stage, draft id reference, browser user agent, and client timestamp.
+- Added `POST /api/feedback`.
+- The server requires a logged-in session, validates size and required fields, rate-limits submissions, writes a local JSONL copy first, then attempts Discord delivery.
+- Added `FeedbackStore` for local private report storage under `GMRULES_WEB_FEEDBACKDIR`.
+- Added `DiscordWebhookService`; it is inert when webhook URLs are blank and logs failures without printing webhook URLs.
+- Added config keys for `GMRULES_WEB_FEEDBACKDIR`, `GMRULES_DISCORD_FEEDBACKWEBHOOKURL`, `GMRULES_DISCORD_BUGWEBHOOKURL`, and `GMRULES_DISCORD_BLOCKERWEBHOOKURL`.
+- Fixed the visible save-status separator in `app.js`.
+
+External setup completed:
+
+- The user created private Discord channels `feedback`, `bugs`, and `blockers`, created one webhook per channel, and added the expected webhook variables to production `.env`.
+- The user verified only variable names with a safe masked/name-only command; webhook values were not pasted into chat.
+- Do not ask the user to reconstruct missing crash-era personal notes while impaired. The repo-relevant resume state is captured here; defer any non-repo personal/user notes until the user is sober and explicitly wants to rebuild them.
+
+Next repo/deploy steps:
+
+- Review the uncommitted feedback-intake diff.
+- Do not deploy while the user is drunk unless the user explicitly overrides the local `USER.md` drunk protocol.
+- After deploy, smoke test one report of each type and confirm local JSONL storage plus Discord delivery.
 
 ## Product Status
 
@@ -36,6 +66,7 @@ Proof-of-concept functionality is present:
 - Password creation and login.
 - File-backed account storage.
 - Server-backed `.gmrf` draft creation/import/open/delete/export.
+- In-app feedback, bug report, and blocker/crash report intake with local storage and Discord forwarding.
 - Builder stages through setup, measurements, dice, attribute generation, attributes, hit points, armor class, currency, effects/statuses, equipment, weapons, skills, spells, races, and classes.
 - Early web character-generation flow through attributes, race, and class.
 
@@ -52,13 +83,12 @@ User-provided deployment context:
 
 Launch blockers are tracked in `TODO.md`. Most important:
 
-- Add in-app feedback and bug reporting.
-- Add Discord webhook delivery for feedback, bug reports, and blocker/crash reports.
+- Deploy and smoke-test in-app feedback and bug reporting. Detailed scope is in `TODO_feedback.md`.
+- Smoke-test Discord webhook delivery for feedback, bug reports, and blocker/crash reports. Detailed scope is in `TODO_feedback.md`.
 - Final domain is confirmed in production `.env`: `GMRULES_WEB_PUBLICBASEURL=https://gmrules.com`.
 - `deploy.sh` is confirmed correct for the current Digital Ocean server-side launcher flow.
 - Production env vars are now documented in `.env.example`; manual backup/restore for `server-data/`, `drafts/`, and `.env` has been implemented and tested.
 - Align "Closed Beta" copy in UI and email.
-- Fix the save-status mojibake separator in `app.js`.
 - Add smoke tests for account verification, login, draft persistence/export, and feedback submission.
 
 ## Important Paths
@@ -80,6 +110,8 @@ Web backend:
 - `gmrules-builder/src/main/java/com/gamemaker/gmrules/web/AccountStore.java`
 - `gmrules-builder/src/main/java/com/gamemaker/gmrules/web/DraftStore.java`
 - `gmrules-builder/src/main/java/com/gamemaker/gmrules/web/EmailService.java`
+- `gmrules-builder/src/main/java/com/gamemaker/gmrules/web/FeedbackStore.java`
+- `gmrules-builder/src/main/java/com/gamemaker/gmrules/web/DiscordWebhookService.java`
 - `gmrules-builder/src/main/java/com/gamemaker/gmrules/web/NdaAuditStore.java`
 
 Web frontend:
@@ -119,6 +151,7 @@ Non-draft:
 - `POST /api/login`
 - `POST /api/logout`
 - `GET /api/session`
+- `POST /api/feedback`
 
 Draft lifecycle:
 
@@ -159,6 +192,7 @@ The droplet data directories are runtime state, not source:
 server-data/
 drafts/
 .env
+server-data/feedback/
 ```
 
 Back them up before widening the beta.

@@ -11,57 +11,57 @@ Goal: add closed-beta in-app feedback and bug reporting without sending private 
 
 ## In-App Feedback Features
 
-- [ ] Decide the first beta report types: feedback, bug report, and blocker/crash.
-- [ ] Add a persistent in-app report action that is easy to reach from builder/account screens.
-- [ ] Build a report modal or panel with:
-  - [ ] Report type selector.
-  - [ ] Severity selector.
-  - [ ] Short title field.
-  - [ ] Message/details field.
-  - [ ] Optional reproduction steps field for bug/blocker reports.
-  - [ ] Clear submit/cancel states.
-- [ ] Capture safe metadata automatically:
-  - [ ] Account email or account id.
-  - [ ] Current route/page.
-  - [ ] Current builder stage, if available.
-  - [ ] Draft id or filename reference, if available.
-  - [ ] Browser user agent.
-  - [ ] Client timestamp.
-  - [ ] Server timestamp.
-- [ ] Add a server endpoint for report submission.
-- [ ] Validate report payloads server-side.
-- [ ] Add size limits so feedback cannot become a large content upload path.
-- [ ] Save submitted reports locally before Discord integration, using a private server-side feedback storage path.
-- [ ] Return clear success/failure messages in the UI.
-- [ ] Add basic rate limiting for report submission.
+- [x] Decide the first beta report types: feedback, bug report, and blocker/crash.
+- [x] Add a persistent in-app report action that is easy to reach from builder/account screens.
+- [x] Build a report modal or panel with:
+  - [x] Report type selector.
+  - [x] Severity selector.
+  - [x] Short title field.
+  - [x] Message/details field.
+  - [x] Optional reproduction steps field for bug/blocker reports.
+  - [x] Clear submit/cancel states.
+- [x] Capture safe metadata automatically:
+  - [x] Account email or account id.
+  - [x] Current route/page.
+  - [x] Current builder stage, if available.
+  - [x] Draft id or filename reference, if available.
+  - [x] Browser user agent.
+  - [x] Client timestamp.
+  - [x] Server timestamp.
+- [x] Add a server endpoint for report submission.
+- [x] Validate report payloads server-side.
+- [x] Add size limits so feedback cannot become a large content upload path.
+- [x] Save submitted reports locally before Discord integration, using a private server-side feedback storage path.
+- [x] Return clear success/failure messages in the UI.
+- [x] Add basic rate limiting for report submission.
 - [ ] Add a manual smoke test for submitting each report type.
 
 ## Discord Integration
 
-- [ ] Create private Discord channels for beta intake:
-  - [ ] Feedback.
-  - [ ] Bugs.
-  - [ ] Blockers/crashes.
-- [ ] Create one Discord webhook per channel.
-- [ ] Add webhook placeholders to `.env.example`.
-- [ ] Add real webhook URLs to production `.env` only.
-- [ ] Add server config loading for:
-  - [ ] `GMRULES_DISCORD_FEEDBACKWEBHOOKURL`
-  - [ ] `GMRULES_DISCORD_BUGWEBHOOKURL`
-  - [ ] `GMRULES_DISCORD_BLOCKERWEBHOOKURL`
-- [ ] Build a Discord delivery service.
-- [ ] Format Discord messages with:
-  - [ ] Report type.
-  - [ ] Severity.
-  - [ ] Title.
-  - [ ] Account email/id.
-  - [ ] Route/page/stage.
-  - [ ] Draft reference only, not full content.
-  - [ ] Browser/user agent.
-  - [ ] Timestamp.
-  - [ ] User message.
-- [ ] Store the report locally even if Discord delivery fails.
-- [ ] Surface Discord delivery failure in server logs without exposing webhook URLs.
+- [x] Create private Discord channels for beta intake:
+  - [x] Feedback.
+  - [x] Bugs.
+  - [x] Blockers/crashes.
+- [x] Create one Discord webhook per channel.
+- [x] Add webhook placeholders to `.env.example`.
+- [x] Add real webhook URLs to production `.env` only.
+- [x] Add server config loading for:
+  - [x] `GMRULES_DISCORD_FEEDBACKWEBHOOKURL`
+  - [x] `GMRULES_DISCORD_BUGWEBHOOKURL`
+  - [x] `GMRULES_DISCORD_BLOCKERWEBHOOKURL`
+- [x] Build a Discord delivery service.
+- [x] Format Discord messages with:
+  - [x] Report type.
+  - [x] Severity.
+  - [x] Title.
+  - [x] Account email/id.
+  - [x] Route/page/stage.
+  - [x] Draft reference only, not full content.
+  - [x] Browser/user agent.
+  - [x] Timestamp.
+  - [x] User message.
+- [x] Store the report locally even if Discord delivery fails.
+- [x] Surface Discord delivery failure in server logs without exposing webhook URLs.
 - [ ] Add a manual smoke test for each webhook.
 
 ## Later

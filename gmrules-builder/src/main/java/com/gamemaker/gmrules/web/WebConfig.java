@@ -28,10 +28,14 @@ public final class WebConfig {
     private static final String ACCOUNTS_FILE_PROPERTY = "gmrules.web.accountsFile";
     private static final String NDA_AUDIT_DIR_PROPERTY = "gmrules.web.ndaAuditDir";
     private static final String NDA_AUDIT_EMAIL_TO_PROPERTY = "gmrules.ndaAudit.emailTo";
+    private static final String FEEDBACK_DIR_PROPERTY = "gmrules.web.feedbackDir";
     private static final String PUBLIC_BASE_URL_PROPERTY = "gmrules.web.publicBaseUrl";
     private static final String EMAIL_API_URL_PROPERTY = "gmrules.email.api.url";
     private static final String EMAIL_API_KEY_PROPERTY = "gmrules.email.api.key";
     private static final String EMAIL_FROM_PROPERTY = "gmrules.email.from";
+    private static final String DISCORD_FEEDBACK_WEBHOOK_URL_PROPERTY = "gmrules.discord.feedbackWebhookUrl";
+    private static final String DISCORD_BUG_WEBHOOK_URL_PROPERTY = "gmrules.discord.bugWebhookUrl";
+    private static final String DISCORD_BLOCKER_WEBHOOK_URL_PROPERTY = "gmrules.discord.blockerWebhookUrl";
 
     private static final String DEFAULT_HOST = "127.0.0.1";
     private static final int DEFAULT_PORT = 8080;
@@ -42,10 +46,14 @@ public final class WebConfig {
     private static final String DEFAULT_ACCOUNTS_FILE = "server-data/accounts.properties";
     private static final String DEFAULT_NDA_AUDIT_DIR = "server-data/nda-audit";
     private static final String DEFAULT_NDA_AUDIT_EMAIL_TO = "";
+    private static final String DEFAULT_FEEDBACK_DIR = "server-data/feedback";
     private static final String DEFAULT_PUBLIC_BASE_URL = "https://gmrulesbeta.duckdns.org";
     private static final String DEFAULT_EMAIL_API_URL = "https://api.resend.com/emails";
     private static final String DEFAULT_EMAIL_API_KEY = "";
     private static final String DEFAULT_EMAIL_FROM = "";
+    private static final String DEFAULT_DISCORD_FEEDBACK_WEBHOOK_URL = "";
+    private static final String DEFAULT_DISCORD_BUG_WEBHOOK_URL = "";
+    private static final String DEFAULT_DISCORD_BLOCKER_WEBHOOK_URL = "";
 
     private final String host;
     private final int port;
@@ -56,10 +64,14 @@ public final class WebConfig {
     private final Path accountsFile;
     private final Path ndaAuditDirectory;
     private final String ndaAuditEmailTo;
+    private final Path feedbackDirectory;
     private final String publicBaseUrl;
     private final String emailApiUrl;
     private final String emailApiKey;
     private final String emailFrom;
+    private final String discordFeedbackWebhookUrl;
+    private final String discordBugWebhookUrl;
+    private final String discordBlockerWebhookUrl;
 
     // *** CONSTRUCTORS ***
     private WebConfig(
@@ -72,10 +84,14 @@ public final class WebConfig {
             Path accountsFile,
             Path ndaAuditDirectory,
             String ndaAuditEmailTo,
+            Path feedbackDirectory,
             String publicBaseUrl,
             String emailApiUrl,
             String emailApiKey,
-            String emailFrom
+            String emailFrom,
+            String discordFeedbackWebhookUrl,
+            String discordBugWebhookUrl,
+            String discordBlockerWebhookUrl
     ) {
         this.host = host;
         this.port = port;
@@ -86,10 +102,14 @@ public final class WebConfig {
         this.accountsFile = accountsFile;
         this.ndaAuditDirectory = ndaAuditDirectory;
         this.ndaAuditEmailTo = ndaAuditEmailTo;
+        this.feedbackDirectory = feedbackDirectory;
         this.publicBaseUrl = publicBaseUrl;
         this.emailApiUrl = emailApiUrl;
         this.emailApiKey = emailApiKey;
         this.emailFrom = emailFrom;
+        this.discordFeedbackWebhookUrl = discordFeedbackWebhookUrl;
+        this.discordBugWebhookUrl = discordBugWebhookUrl;
+        this.discordBlockerWebhookUrl = discordBlockerWebhookUrl;
     }
 
     // *** METHODS ***
@@ -103,10 +123,20 @@ public final class WebConfig {
         Path accountsFile = Paths.get(readString(ACCOUNTS_FILE_PROPERTY, DEFAULT_ACCOUNTS_FILE));
         Path ndaAuditDirectory = Paths.get(readString(NDA_AUDIT_DIR_PROPERTY, DEFAULT_NDA_AUDIT_DIR));
         String ndaAuditEmailTo = readString(NDA_AUDIT_EMAIL_TO_PROPERTY, DEFAULT_NDA_AUDIT_EMAIL_TO);
+        Path feedbackDirectory = Paths.get(readString(FEEDBACK_DIR_PROPERTY, DEFAULT_FEEDBACK_DIR));
         String publicBaseUrl = readString(PUBLIC_BASE_URL_PROPERTY, DEFAULT_PUBLIC_BASE_URL);
         String emailApiUrl = readString(EMAIL_API_URL_PROPERTY, DEFAULT_EMAIL_API_URL);
         String emailApiKey = readString(EMAIL_API_KEY_PROPERTY, DEFAULT_EMAIL_API_KEY);
         String emailFrom = readString(EMAIL_FROM_PROPERTY, DEFAULT_EMAIL_FROM);
+        String discordFeedbackWebhookUrl = readString(
+            DISCORD_FEEDBACK_WEBHOOK_URL_PROPERTY,
+            DEFAULT_DISCORD_FEEDBACK_WEBHOOK_URL
+        );
+        String discordBugWebhookUrl = readString(DISCORD_BUG_WEBHOOK_URL_PROPERTY, DEFAULT_DISCORD_BUG_WEBHOOK_URL);
+        String discordBlockerWebhookUrl = readString(
+            DISCORD_BLOCKER_WEBHOOK_URL_PROPERTY,
+            DEFAULT_DISCORD_BLOCKER_WEBHOOK_URL
+        );
 
         return new WebConfig(
             host,
@@ -118,10 +148,14 @@ public final class WebConfig {
             accountsFile,
             ndaAuditDirectory,
             ndaAuditEmailTo,
+            feedbackDirectory,
             publicBaseUrl,
             emailApiUrl,
             emailApiKey,
-            emailFrom
+            emailFrom,
+            discordFeedbackWebhookUrl,
+            discordBugWebhookUrl,
+            discordBlockerWebhookUrl
         );
     }
 
@@ -161,6 +195,10 @@ public final class WebConfig {
         return ndaAuditEmailTo;
     }
 
+    public Path getFeedbackDirectory() {
+        return feedbackDirectory;
+    }
+
     public String getPublicBaseUrl() {
         return publicBaseUrl;
     }
@@ -175,6 +213,18 @@ public final class WebConfig {
 
     public String getEmailFrom() {
         return emailFrom;
+    }
+
+    public String getDiscordFeedbackWebhookUrl() {
+        return discordFeedbackWebhookUrl;
+    }
+
+    public String getDiscordBugWebhookUrl() {
+        return discordBugWebhookUrl;
+    }
+
+    public String getDiscordBlockerWebhookUrl() {
+        return discordBlockerWebhookUrl;
     }
 
     private static String readString(String property, String fallback) {

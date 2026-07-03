@@ -1,9 +1,9 @@
 # GMRules Closed Beta Deploy Structure
 
-Updated: 2026-07-01
+Updated: 2026-07-02
 
 This file is the deploy-release filesystem map for `GMRules-ClosedBeta`.
-Update it whenever files or deploy-relevant directories are added, removed, or moved.
+Update it whenever tracked files or deploy-relevant directories are added, removed, or moved. Its purpose is to let agents find known paths from this document before falling back to repository searches.
 
 Runtime/build directories intentionally excluded from this map:
 
@@ -27,6 +27,7 @@ GMRules-ClosedBeta/
 |-- PROJECT_NOTES.md
 |-- PROJECT_STRUCTURE.md
 |-- TODO.md
+|-- TODO_feedback.md
 |-- deploy.sh
 |-- makebackup.sh
 |-- pom.xml
@@ -51,13 +52,14 @@ pom.xml
 ## Root Deploy Files
 
 ```text
-.env.example        # Resend/NDA audit env examples; expand before beta launch.
-.gitignore          # Excludes build/runtime/secrets/data files.
+.env.example        # Hosted service env example, including storage, Resend, NDA audit, and Discord webhook variables.
+.gitignore          # Excludes build/runtime/secrets/data files and local-only USER.md.
 deploy.sh           # Pull, compile, restart gmrules service, show status/logs.
 makebackup.sh       # Create encrypted droplet backup and remove unencrypted archive.
 restore.sh          # Restore runtime data from encrypted backup after confirmation.
 PROJECT_NOTES.md    # Current project status, risks, and launch path.
 TODO.md             # Launch-ordered beta checklist.
+TODO_feedback.md    # Detailed feedback, bug-report, blocker/crash, and Discord intake plan.
 AGENTS.md           # Operating instructions for future agents.
 AGENT_HANDOFF.md    # Current handoff snapshot for recovery/continuation.
 PROJECT_STRUCTURE.md
@@ -255,8 +257,10 @@ UI/
 web/
 |-- AccountStore.java
 |-- ApiRoutes.java
+|-- DiscordWebhookService.java
 |-- DraftStore.java
 |-- EmailService.java
+|-- FeedbackStore.java
 |-- NdaAuditStore.java
 |-- RequestContext.java
 |-- Router.java
@@ -290,7 +294,8 @@ These paths are intentionally ignored by Git and must be backed up on the drople
 ```text
 server-data/
 |-- accounts.properties
-`-- nda-audit/
+|-- nda-audit/
+`-- feedback/
 
 drafts/
 `-- *.gmrf

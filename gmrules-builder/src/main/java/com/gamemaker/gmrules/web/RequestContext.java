@@ -133,11 +133,17 @@ public final class RequestContext {
     }
 
     public byte[] readBody() throws IOException {
+        return readBody(config.getMaxUploadBytes());
+    }
+
+    public byte[] readBody(long maxBytes) throws IOException {
         if (bodyRead) {
+            if (body.length > maxBytes) {
+                throw new IOException("Request body too large.");
+            }
             return body;
         }
         bodyRead = true;
-        long maxBytes = config.getMaxUploadBytes();
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         InputStream input = exchange.getRequestBody();
         byte[] buffer = new byte[8192];
@@ -156,6 +162,14 @@ public final class RequestContext {
 
     public Map<String, Object> readJsonMap() throws IOException {
         byte[] payload = readBody();
+        if (payload.length == 0) {
+            return new HashMap<>();
+        }
+        return mapper.readValue(payload, MAP_TYPE);
+    }
+
+    public Map<String, Object> readJsonMap(long maxBytes) throws IOException {
+        byte[] payload = readBody(maxBytes);
         if (payload.length == 0) {
             return new HashMap<>();
         }

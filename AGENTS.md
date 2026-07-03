@@ -7,7 +7,9 @@ Before making changes, read these root files:
 - `AGENT_HANDOFF.md`
 - `PROJECT_NOTES.md`
 - `TODO.md`
+- `TODO_feedback.md` when working on beta intake, bug reports, blocker/crash reports, or Discord delivery.
 - `PROJECT_STRUCTURE.md`
+- `USER.md` if it exists locally. It is ignored by Git and contains user-specific collaboration preferences.
 
 Treat `AGENT_HANDOFF.md` as the primary recovery file for any new Codex/ChatGPT agent joining mid-stream.
 
@@ -23,7 +25,7 @@ Treat `AGENT_HANDOFF.md` as the primary recovery file for any new Codex/ChatGPT 
 - Keep edits scoped to the user's request.
 - When giving commands for the Digital Ocean web console, assume the user is already logged in as `root`; do not add `sudo` unless the user says they are using a non-root shell.
 - Update `PROJECT_STRUCTURE.md` whenever adding, deleting, or moving tracked files.
-- Update `AGENT_HANDOFF.md` when status, launch priorities, deployment assumptions, or active blockers change.
+- Update `AGENT_HANDOFF.md` when status, launch priorities, deployment assumptions, active blockers, or the recommended next starting point changes. At end of session, make sure it points to where the next agent should resume, not just where this session began.
 - Keep `PROJECT_NOTES.md` and `TODO.md` concise and current; do not append noisy historical logs.
 - Do not commit, push, reset, or revert unless the user explicitly asks.
 - Do not overwrite user/runtime data in `server-data/`, `drafts/`, `.env`, or `.gmrf` files.
@@ -58,13 +60,15 @@ Important configuration keys are read as Java system properties or environment v
 - `GMRULES_WEB_DRAFTSDIR`
 - `GMRULES_WEB_ACCOUNTSFILE`
 - `GMRULES_WEB_NDAAUDITDIR`
+- `GMRULES_WEB_FEEDBACKDIR`
 - `GMRULES_WEB_PUBLICBASEURL`
 - `GMRULES_EMAIL_API_URL`
 - `GMRULES_EMAIL_API_KEY`
 - `GMRULES_EMAIL_FROM`
 - `GMRULES_NDAAUDIT_EMAILTO`
-
-Before launch, add any Discord webhook settings to config/docs when implementing feedback and bug reporting.
+- `GMRULES_DISCORD_FEEDBACKWEBHOOKURL`
+- `GMRULES_DISCORD_BUGWEBHOOKURL`
+- `GMRULES_DISCORD_BLOCKERWEBHOOKURL`
 
 ## Core Architecture Pointers
 

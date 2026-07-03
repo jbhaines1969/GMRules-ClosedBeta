@@ -41,15 +41,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Registers API routes for the web UI.
@@ -60,6 +65,14 @@ public final class ApiRoutes {
     private static final String STRINGS_BUNDLE = "i18n/strings";
     private static final String NDA_RESOURCE = "legal/nda/nda-v1-en.txt";
     private static final String ARRAY_HYBRID = "hybridStages";
+    private static final long FEEDBACK_MAX_BODY_BYTES = 16L * 1024;
+    private static final int FEEDBACK_TITLE_MAX_LENGTH = 120;
+    private static final int FEEDBACK_MESSAGE_MAX_LENGTH = 4000;
+    private static final int FEEDBACK_STEPS_MAX_LENGTH = 2000;
+    private static final int FEEDBACK_METADATA_MAX_LENGTH = 512;
+    private static final int FEEDBACK_RATE_LIMIT_MAX = 5;
+    private static final Duration FEEDBACK_RATE_LIMIT_WINDOW = Duration.ofMinutes(10);
+    private static final Map<String, Deque<Instant>> FEEDBACK_RATE_LIMITS = new ConcurrentHashMap<>();
 
     // *** CONSTRUCTORS ***
     private ApiRoutes() {
@@ -77,6 +90,7 @@ public final class ApiRoutes {
         router.add("POST", "/api/login", ApiRoutes::login);
         router.add("POST", "/api/logout", ApiRoutes::logout);
         router.add("GET", "/api/session", ApiRoutes::sessionInfo);
+        router.add("POST", "/api/feedback", ApiRoutes::submitFeedback);
 
         router.add("GET", "/api/drafts", ApiRoutes::listDrafts);
         router.add("POST", "/api/drafts", ApiRoutes::createDraft);
@@ -467,6 +481,86 @@ public final class ApiRoutes {
         payload.put("draftId", session.getDraftId());
         payload.put("draftLocale", resolveDraftLocale(ctx, session.getDraftId()));
         payload.put("completedStages", resolveCompletedStages(ctx, session.getDraftId()));
+        ctx.json(200, payload);
+    }
+
+    private static void submitFeedback(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        if (!consumeFeedbackRateLimit(ctx, session)) {
+            ctx.json(429, Map.of("error", "Too many reports submitted. Wait a few minutes and try again."));
+            return;
+        }
+        Map<String, Object> body;
+        try {
+            body = ctx.readJsonMap(FEEDBACK_MAX_BODY_BYTES);
+        } catch (IOException e) {
+            String message = Objects.toString(e.getMessage(), "");
+            if (message.toLowerCase(Locale.ROOT).contains("too large")) {
+                ctx.json(413, Map.of("error", "Feedback report is too large."));
+                return;
+            }
+            ctx.json(400, Map.of("error", "Feedback report must be valid JSON."));
+            return;
+        }
+
+        String type = normalizeFeedbackType(getString(body, "type"));
+        if (type.isEmpty()) {
+            ctx.json(400, Map.of("error", "Choose a valid report type."));
+            return;
+        }
+        String severity = normalizeFeedbackSeverity(getString(body, "severity"));
+        String title = limitLength(getString(body, "title"), FEEDBACK_TITLE_MAX_LENGTH).trim();
+        String reportMessage = limitLength(getString(body, "message"), FEEDBACK_MESSAGE_MAX_LENGTH).trim();
+        String steps = limitLength(getString(body, "steps"), FEEDBACK_STEPS_MAX_LENGTH).trim();
+        if (title.isEmpty() || reportMessage.isEmpty()) {
+            ctx.json(400, Map.of("error", "Add a short title and details before submitting."));
+            return;
+        }
+
+        String serverTimestamp = Instant.now().toString();
+        FeedbackStore.Report report = new FeedbackStore.Report(
+            UUID.randomUUID().toString(),
+            type,
+            severity,
+            title,
+            reportMessage,
+            steps,
+            session.getUserId(),
+            session.getUsername(),
+            session.isLegacyGuest(),
+            limitLength(getString(body, "route"), FEEDBACK_METADATA_MAX_LENGTH),
+            limitLength(getString(body, "page"), FEEDBACK_METADATA_MAX_LENGTH),
+            limitLength(getString(body, "stage"), FEEDBACK_METADATA_MAX_LENGTH),
+            limitLength(getString(body, "draftId"), FEEDBACK_METADATA_MAX_LENGTH),
+            limitLength(getString(body, "userAgent"), FEEDBACK_METADATA_MAX_LENGTH),
+            limitLength(ctx.userAgent(), FEEDBACK_METADATA_MAX_LENGTH),
+            limitLength(ctx.clientIp(), 128),
+            limitLength(getString(body, "clientTimestamp"), FEEDBACK_METADATA_MAX_LENGTH),
+            serverTimestamp
+        );
+
+        try {
+            new FeedbackStore(ctx.getConfig()).save(report);
+        } catch (IOException e) {
+            System.err.println("Feedback local save failed: " + e.getMessage());
+            ctx.json(500, Map.of("error", "Feedback could not be saved."));
+            return;
+        }
+
+        boolean discordDelivered = false;
+        try {
+            discordDelivered = new DiscordWebhookService(ctx.getConfig()).deliver(report);
+        } catch (IOException e) {
+            System.err.println("Discord feedback delivery failed for report " + report.getId() + ": " + e.getMessage());
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("ok", true);
+        payload.put("reportId", report.getId());
+        payload.put("discordDelivered", discordDelivered);
         ctx.json(200, payload);
     }
 
@@ -3748,6 +3842,58 @@ public final class ApiRoutes {
         Instant lastSaved = ctx.getDraftStore().getLastSaved(draftId);
         entry.put("lastSaved", lastSaved.toString());
         return entry;
+    }
+
+    private static boolean consumeFeedbackRateLimit(RequestContext ctx, SessionStore.Session session) {
+        String accountKey = Objects.toString(session.getUserId(), "").trim();
+        String key = accountKey.isEmpty() ? "ip:" + ctx.clientIp() : "account:" + accountKey;
+        Instant now = Instant.now();
+        Instant cutoff = now.minus(FEEDBACK_RATE_LIMIT_WINDOW);
+        Deque<Instant> submissions = FEEDBACK_RATE_LIMITS.computeIfAbsent(key, ignored -> new ArrayDeque<>());
+        synchronized (submissions) {
+            while (!submissions.isEmpty() && submissions.peekFirst().isBefore(cutoff)) {
+                submissions.removeFirst();
+            }
+            if (submissions.size() >= FEEDBACK_RATE_LIMIT_MAX) {
+                return false;
+            }
+            submissions.addLast(now);
+            return true;
+        }
+    }
+
+    private static String normalizeFeedbackType(String type) {
+        String safeType = Objects.toString(type, "").trim().toLowerCase(Locale.ROOT);
+        if ("bug-report".equals(safeType) || "bug_report".equals(safeType)) {
+            return "bug";
+        }
+        if ("blocker/crash".equals(safeType) || "blocker-crash".equals(safeType) || "crash".equals(safeType)) {
+            return "blocker";
+        }
+        if ("feedback".equals(safeType) || "bug".equals(safeType) || "blocker".equals(safeType)) {
+            return safeType;
+        }
+        return "";
+    }
+
+    private static String normalizeFeedbackSeverity(String severity) {
+        String safeSeverity = Objects.toString(severity, "").trim().toLowerCase(Locale.ROOT);
+        if ("low".equals(safeSeverity)
+                || "medium".equals(safeSeverity)
+                || "high".equals(safeSeverity)
+                || "critical".equals(safeSeverity)) {
+            return safeSeverity;
+        }
+        return "medium";
+    }
+
+    private static String limitLength(String value, int maxLength) {
+        String safeValue = Objects.toString(value, "");
+        int safeLimit = Math.max(0, maxLength);
+        if (safeValue.length() <= safeLimit) {
+            return safeValue;
+        }
+        return safeValue.substring(0, safeLimit);
     }
 
     private static String getString(Map<String, Object> body, String key) {

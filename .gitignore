@@ -5,6 +5,7 @@ target/
 .idea/
 *.iml
 .env
+USER.md
 
 server-data/
 drafts/
