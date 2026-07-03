@@ -13,6 +13,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +33,7 @@ public final class Router {
     private final SessionStore sessionStore;
     private final AccountStore accountStore;
     private final DraftStore draftStore;
+    private final RequestLogStore requestLogStore;
 
     // *** CONSTRUCTORS ***
     public Router(WebConfig config, SessionStore sessionStore, AccountStore accountStore, DraftStore draftStore) {
@@ -38,6 +41,7 @@ public final class Router {
         this.sessionStore = Objects.requireNonNullElseGet(sessionStore, () -> new SessionStore(this.config));
         this.accountStore = Objects.requireNonNullElseGet(accountStore, () -> new AccountStore(this.config));
         this.draftStore = Objects.requireNonNullElseGet(draftStore, () -> new DraftStore(this.config));
+        this.requestLogStore = new RequestLogStore(this.config);
     }
 
     // *** METHODS ***
@@ -46,6 +50,7 @@ public final class Router {
     }
 
     public boolean handle(HttpExchange exchange) throws IOException {
+        Instant startedAt = Instant.now();
         String method = exchange.getRequestMethod();
         String path = normalizePath(exchange.getRequestURI().getPath());
         for (Route route : routes) {
@@ -56,19 +61,49 @@ public final class Router {
             if (params == null) {
                 continue;
             }
-            RequestContext context = new RequestContext(exchange, mapper, config, sessionStore, accountStore, draftStore, params);
+            RequestContext context = new RequestContext(
+                exchange,
+                mapper,
+                config,
+                sessionStore,
+                accountStore,
+                draftStore,
+                route.getTemplate(),
+                params
+            );
+            SessionStore.Session requestSession = resolveSession(context);
             try {
                 if (!authorizeDraftRoute(route, context, params)) {
                     return true;
                 }
                 route.handle(context);
             } catch (IOException e) {
+                context.setLogErrorCategory("io_exception");
                 context.json(500, Map.of("error", "Server error"));
+            } catch (RuntimeException e) {
+                context.setLogErrorCategory("runtime_exception");
+                context.json(500, Map.of("error", "Server error"));
+            } finally {
+                logRequest(context, requestSession, startedAt);
             }
             return true;
         }
-        RequestContext context = new RequestContext(exchange, mapper, config, sessionStore, accountStore, draftStore, new HashMap<>());
-        context.json(404, Map.of("error", "Not found"));
+        RequestContext context = new RequestContext(
+            exchange,
+            mapper,
+            config,
+            sessionStore,
+            accountStore,
+            draftStore,
+            "unmatched",
+            new HashMap<>()
+        );
+        SessionStore.Session requestSession = resolveSession(context);
+        try {
+            context.json(404, Map.of("error", "Not found"));
+        } finally {
+            logRequest(context, requestSession, startedAt);
+        }
         return true;
     }
 
@@ -118,6 +153,50 @@ public final class Router {
             return trimmed.substring(7).trim();
         }
         return trimmed;
+    }
+
+    private SessionStore.Session resolveSession(RequestContext context) {
+        try {
+            return sessionStore.getSession(resolveToken(context));
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    private void logRequest(RequestContext context, SessionStore.Session session, Instant startedAt) {
+        try {
+            int status = context.responseStatus();
+            if (status <= 0) {
+                status = 500;
+            }
+            long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
+            String accountId = "";
+            String accountEmail = "";
+            boolean admin = false;
+            if (session != null) {
+                accountId = session.getUserId();
+                accountEmail = session.getUsername();
+                admin = config.isAdminEmail(accountEmail);
+            }
+            requestLogStore.save(new RequestLogStore.RequestLogEntry(
+                Instant.now().toString(),
+                context.getRequestId(),
+                context.method(),
+                context.getRouteTemplate(),
+                status,
+                durationMs,
+                context.clientIp(),
+                context.userAgent(),
+                accountId,
+                accountEmail,
+                admin,
+                context.requestBodyBytes(),
+                context.responseBodyBytes(),
+                context.logErrorCategory()
+            ));
+        } catch (RuntimeException | IOException e) {
+            System.err.println("Request logging failed: " + e.getMessage());
+        }
     }
 
     public interface RouteHandler {
@@ -173,6 +252,10 @@ public final class Router {
 
         private boolean isDraftScoped() {
             return draftScoped;
+        }
+
+        private String getTemplate() {
+            return template;
         }
 
         private static boolean isParam(String segment) {

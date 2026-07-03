@@ -55,6 +55,8 @@ Implemented so far:
 - Login now locks an account after three failed password attempts. Locked users get a popup that submits a blocker recovery request through `/api/accounts/locked-report`; account content and saved drafts are not deleted.
 - Admin account access was added through `GMRULES_WEB_ADMINEMAILS`, a comma-separated list of existing account emails. Configured admins get an in-app Admin button and can view account/draft/lock counts, see account lock/password/draft status and last login IP, block/unblock emails and IPs, unlock locked accounts, and delete non-admin accounts plus their saved drafts.
 - Added `BlockedAccessStore` using `GMRULES_WEB_BLOCKEDACCESSFILE` with the default `server-data/blocked-access.properties`. Blocks persist outside live accounts so deleted accounts do not erase email/IP abuse controls.
+- Added `RequestLogStore` using `GMRULES_WEB_REQUESTLOGDIR` with the default `server-data/request-logs`. Request logs are append-only JSONL and include route templates, status, duration, IP, user agent, authenticated account metadata, and byte counts. They intentionally omit query strings, bearer tokens, passwords, verification tokens, request bodies, uploaded rulesets, feedback text, and secrets.
+- Added `GET /api/health`, which returns `200` when the app can answer and core runtime storage probes pass, or `503` with sanitized failing check names when storage is unavailable.
 
 External setup completed:
 
@@ -65,7 +67,7 @@ External setup completed:
 Next repo steps:
 
 - Set `GMRULES_WEB_ADMINEMAILS` in production `.env` to the account email that should administer the beta, then restart the service.
-- Smoke-test the Admin button with that account: account list, email/IP block and unblock, locked-account unlock, and non-admin account deletion.
+- Smoke-test `/api/health`, then the Admin button with that account: account list, email/IP block and unblock, locked-account unlock, non-admin account deletion, and request log creation.
 - Do not commit unless the user explicitly asks.
 
 ## Product Status
@@ -97,7 +99,7 @@ Launch blockers are tracked in `TODO.md`. Most important:
 - Final domain is confirmed in production `.env`: `GMRULES_WEB_PUBLICBASEURL=https://gmrules.com`.
 - `deploy.sh` is confirmed correct for the current Digital Ocean server-side launcher flow.
 - Production env vars are now documented in `.env.example`; manual backup/restore for `server-data/`, `drafts/`, and `.env` has been implemented and tested.
-- Beta launch blockers are complete. Login locking, the account-admin panel, and email/IP block controls are implemented; password setup mismatch attempts are intentionally not rate-limited for now. Next actionable TODO is setting/smoke-testing `GMRULES_WEB_ADMINEMAILS`, then request logging.
+- Beta launch blockers are complete. Login locking, the account-admin panel, email/IP block controls, and secure request logging are implemented. Password setup mismatch attempts are intentionally not rate-limited for now. Next actionable TODO is setting/smoke-testing `GMRULES_WEB_ADMINEMAILS` and the admin controls on production.
 
 ## Important Paths
 
@@ -150,6 +152,7 @@ External character reference:
 Non-draft:
 
 - `GET /api/i18n`
+- `GET /api/health`
 - `GET /api/legal/nda`
 - `POST /api/accounts`
 - `GET /api/accounts/verify`
@@ -206,6 +209,7 @@ The droplet data directories are runtime state, not source:
 ```text
 server-data/
 server-data/blocked-access.properties
+server-data/request-logs/
 drafts/
 .env
 server-data/feedback/
@@ -234,5 +238,5 @@ It auto-selects the single `/tmp/gmrules-backup-*.tar.gz.gpg` file when only one
 ## Next Best Moves
 
 1. Set `GMRULES_WEB_ADMINEMAILS` in production `.env` to the existing account email that should administer the beta, then restart the service.
-2. Smoke-test the Admin button with that account: account list, email/IP block and unblock, locked-account unlock, and non-admin account deletion.
-3. Add request logging and continue the small controlled beta cohort.
+2. Smoke-test `/api/health`, then the Admin button with that account: account list, email/IP block and unblock, locked-account unlock, non-admin account deletion, and request log creation.
+3. Continue the small controlled beta cohort.

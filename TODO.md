@@ -20,8 +20,8 @@ Updated: 2026-07-02
 
 - [x] Lock login after three failed password attempts and route locked-account recovery requests to blockers. Password setup mismatch attempts are intentionally not rate-limited for now.
 - [x] Add blocked IP/email controls later if signup abuse appears.
-- [ ] Add request logging that is useful for debugging without recording secrets or full ruleset payloads.
-- [ ] Add a simple health endpoint for uptime checks.
+- [x] Add request logging that is useful for debugging without recording secrets or full ruleset payloads.
+- [x] Add a simple health endpoint for uptime checks.
 - [ ] Add reverse-proxy/security-header documentation, including HTTPS, HSTS, CSP, frame protection, and referrer policy.
 - [ ] Change NDA audit filenames to include a full email hash or account id to avoid local-part collisions.
 - [x] Add an admin-only way to see account count, saved draft count, account lock status, and manage account unlock/deletion.

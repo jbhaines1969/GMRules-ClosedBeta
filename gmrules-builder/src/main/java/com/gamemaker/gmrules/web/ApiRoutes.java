@@ -40,6 +40,8 @@ import com.gamemaker.gmrules.SupportElements.Status;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -94,6 +96,7 @@ public final class ApiRoutes {
 
     // *** METHODS ***
     public static void register(Router router) {
+        router.add("GET", "/api/health", ApiRoutes::health);
         router.add("GET", "/api/i18n", ApiRoutes::localization);
         router.add("GET", "/api/legal/nda", ApiRoutes::getNdaText);
         router.add("POST", "/api/accounts", ApiRoutes::createAccount);
@@ -224,6 +227,28 @@ public final class ApiRoutes {
         router.add("POST", "/api/drafts/{id}/races", ApiRoutes::addRace);
         router.add("DELETE", "/api/drafts/{id}/races", ApiRoutes::removeRace);
         router.add("POST", "/api/drafts/{id}/races/update", ApiRoutes::updateRace);
+    }
+
+    private static void health(RequestContext ctx) throws IOException {
+        List<String> failedChecks = new ArrayList<>();
+        WebConfig config = ctx.getConfig();
+        probeWritableDirectory("accounts", parentDirectory(config.getAccountsFile()), failedChecks);
+        probeWritableDirectory("drafts", config.getDraftsDirectory(), failedChecks);
+        probeWritableDirectory("ndaAudit", config.getNdaAuditDirectory(), failedChecks);
+        probeWritableDirectory("feedback", config.getFeedbackDirectory(), failedChecks);
+        probeWritableDirectory("blockedAccess", parentDirectory(config.getBlockedAccessFile()), failedChecks);
+        probeWritableDirectory("requestLogs", config.getRequestLogDirectory(), failedChecks);
+
+        boolean healthy = failedChecks.isEmpty();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("ok", healthy);
+        payload.put("status", healthy ? "healthy" : "unhealthy");
+        payload.put("version", "closed-beta");
+        payload.put("timestamp", Instant.now().toString());
+        if (!healthy) {
+            payload.put("failedChecks", failedChecks);
+        }
+        ctx.json(healthy ? 200 : 503, payload);
     }
 
     private static void localization(RequestContext ctx) throws IOException {
@@ -4370,6 +4395,27 @@ public final class ApiRoutes {
             return safeValue;
         }
         return safeValue.substring(0, safeLimit);
+    }
+
+    private static Path parentDirectory(Path path) {
+        Path safePath = Objects.requireNonNullElseGet(path, () -> Path.of(""));
+        Path parent = safePath.getParent();
+        if (parent == null) {
+            return Path.of(".");
+        }
+        return parent;
+    }
+
+    private static void probeWritableDirectory(String checkName, Path directory, List<String> failedChecks) {
+        Path safeDirectory = Objects.requireNonNullElseGet(directory, () -> Path.of("."));
+        try {
+            Files.createDirectories(safeDirectory);
+            Path probe = Files.createTempFile(safeDirectory, ".health-", ".tmp");
+            Files.writeString(probe, "ok", StandardCharsets.UTF_8);
+            Files.deleteIfExists(probe);
+        } catch (IOException | RuntimeException e) {
+            failedChecks.add(Objects.toString(checkName, "storage"));
+        }
     }
 
     private static String getString(Map<String, Object> body, String key) {

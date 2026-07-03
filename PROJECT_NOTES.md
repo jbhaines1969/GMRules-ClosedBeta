@@ -32,10 +32,13 @@ The web app is served from `gmrules-builder`:
 - Draft data: file-backed `.gmrf` files under `drafts/`
 - NDA audit records: append-only CSV under `server-data/nda-audit`
 - Feedback records: append-only JSONL under `server-data/feedback`
+- Request logs: append-only JSONL under `server-data/request-logs`, using route templates and metadata only.
 - Email: Resend-compatible HTTP API through `EmailService`
 - Discord feedback delivery: webhook-based forwarding through `DiscordWebhookService`
 - Admin access: configured by comma-separated `GMRULES_WEB_ADMINEMAILS`; matching logged-in accounts can use the in-app admin panel.
 - Signup/login blocking: admins can block or unblock emails and IP addresses; blocks persist outside live account records so deletion does not erase abuse controls.
+- Request logging records timestamp, request id, route template, status, duration, IP, user agent, authenticated account metadata, and byte counts. It does not log query strings, bearer tokens, passwords, verification tokens, request bodies, uploaded rulesets, feedback text, or secrets.
+- Health checks are available at `GET /api/health`; the endpoint returns `200` when core runtime storage is writable and `503` with sanitized failing check names when storage probes fail.
 
 The shaded app jar is produced by `mvn package` as `target/gmrules-app.jar`.
 
@@ -81,7 +84,7 @@ Deployment and operations:
 - `deploy.sh` is confirmed correct for the current Digital Ocean server-side launcher flow.
 - Production `.env` is confirmed to point `GMRULES_WEB_PUBLICBASEURL` at `https://gmrules.com`, so verification links use the user-facing domain.
 - `.env.example` now documents the current hosted service configuration, data paths, host/port, public base URL, Resend settings, NDA audit recipient, feedback storage, and Discord webhook variables.
-- Accounts, drafts, NDA audits, feedback records, and blocked-access records live on the droplet filesystem. Backups are required before widening the beta.
+- Accounts, drafts, NDA audits, feedback records, request logs, and blocked-access records live on the droplet filesystem. Backups are required before widening the beta.
 - Sessions are in-memory, so deploys/restarts log users out.
 
 Security and abuse controls:

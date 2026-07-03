@@ -261,6 +261,7 @@ web/
 |-- EmailService.java
 |-- FeedbackStore.java
 |-- NdaAuditStore.java
+|-- RequestLogStore.java
 |-- RequestContext.java
 |-- Router.java
 |-- SessionStore.java
@@ -295,7 +296,8 @@ server-data/
 |-- accounts.properties
 |-- blocked-access.properties
 |-- nda-audit/
-`-- feedback/
+|-- feedback/
+`-- request-logs/
 
 drafts/
 `-- *.gmrf

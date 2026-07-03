@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Request and response helper for routing.
@@ -42,10 +43,15 @@ public final class RequestContext {
     private final SessionStore sessionStore;
     private final AccountStore accountStore;
     private final DraftStore draftStore;
+    private final String routeTemplate;
+    private final String requestId = UUID.randomUUID().toString();
     private final Map<String, String> pathParams;
     private final Map<String, List<String>> queryParams;
     private byte[] body = new byte[0];
     private boolean bodyRead = false;
+    private int responseStatus = 0;
+    private long responseBodyBytes = 0L;
+    private String logErrorCategory = "";
 
     // *** CONSTRUCTORS ***
     public RequestContext(
@@ -55,6 +61,7 @@ public final class RequestContext {
             SessionStore sessionStore,
             AccountStore accountStore,
             DraftStore draftStore,
+            String routeTemplate,
             Map<String, String> pathParams
     ) {
         this.exchange = exchange;
@@ -63,6 +70,7 @@ public final class RequestContext {
         this.sessionStore = sessionStore;
         this.accountStore = accountStore;
         this.draftStore = draftStore;
+        this.routeTemplate = Objects.toString(routeTemplate, "").trim();
         this.pathParams = pathParams;
         this.queryParams = parseQuery(exchange.getRequestURI().getRawQuery());
     }
@@ -74,6 +82,14 @@ public final class RequestContext {
 
     public String path() {
         return exchange.getRequestURI().getPath();
+    }
+
+    public String getRouteTemplate() {
+        return routeTemplate;
+    }
+
+    public String getRequestId() {
+        return requestId;
     }
 
     public WebConfig getConfig() {
@@ -132,6 +148,37 @@ public final class RequestContext {
         return header("User-Agent").trim();
     }
 
+    public long requestBodyBytes() {
+        if (bodyRead) {
+            return body.length;
+        }
+        String contentLength = header("Content-Length").trim();
+        if (contentLength.isEmpty()) {
+            return 0L;
+        }
+        try {
+            return Math.max(0L, Long.parseLong(contentLength));
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
+    }
+
+    public int responseStatus() {
+        return responseStatus;
+    }
+
+    public long responseBodyBytes() {
+        return responseBodyBytes;
+    }
+
+    public String logErrorCategory() {
+        return logErrorCategory;
+    }
+
+    public void setLogErrorCategory(String logErrorCategory) {
+        this.logErrorCategory = Objects.toString(logErrorCategory, "").trim();
+    }
+
     public byte[] readBody() throws IOException {
         return readBody(config.getMaxUploadBytes());
     }
@@ -178,6 +225,7 @@ public final class RequestContext {
 
     public void json(int status, Object payload) throws IOException {
         byte[] data = mapper.writeValueAsBytes(payload);
+        recordResponse(status, data.length);
         Headers headers = exchange.getResponseHeaders();
         headers.set("Content-Type", "application/json; charset=utf-8");
         headers.set("Cache-Control", "no-store");
@@ -188,6 +236,7 @@ public final class RequestContext {
 
     public void text(int status, String message, String contentType) throws IOException {
         byte[] data = Objects.toString(message, "").getBytes(StandardCharsets.UTF_8);
+        recordResponse(status, data.length);
         Headers headers = exchange.getResponseHeaders();
         headers.set("Content-Type", contentType + "; charset=utf-8");
         exchange.sendResponseHeaders(status, data.length);
@@ -200,6 +249,7 @@ public final class RequestContext {
         Headers headers = exchange.getResponseHeaders();
         headers.set("Location", safeLocation.isEmpty() ? "/" : safeLocation);
         headers.set("Cache-Control", "no-store");
+        recordResponse(303, 0L);
         exchange.sendResponseHeaders(303, -1);
         exchange.close();
     }
@@ -207,6 +257,7 @@ public final class RequestContext {
     public void bytes(int status, byte[] data, String contentType, Map<String, String> extraHeaders)
             throws IOException {
         byte[] payload = Objects.requireNonNullElseGet(data, () -> new byte[0]);
+        recordResponse(status, payload.length);
         Headers headers = exchange.getResponseHeaders();
         headers.set("Content-Type", contentType);
         for (Map.Entry<String, String> entry : extraHeaders.entrySet()) {
@@ -282,6 +333,11 @@ public final class RequestContext {
             params.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
         }
         return params;
+    }
+
+    private void recordResponse(int status, long bodyBytes) {
+        responseStatus = Math.max(0, status);
+        responseBodyBytes = Math.max(0L, bodyBytes);
     }
 
     private String decode(String value) {
