@@ -52,6 +52,8 @@ Closed beta access:
 - Password creation and login are implemented.
 - Accounts are capped at 10 and saved rulesets are capped at 2 per account for the PoC.
 - NDA acceptance and account creation are audited.
+- Closed-beta application now requires legal full name, and NDA audit CSVs include `full_name`.
+- New NDA audit filenames use a SHA-256 hash of the normalized full email. Existing legacy local-part CSV files are still read when sending audit copies.
 - Logged-in users can submit feedback, bug reports, and blocker/crash reports from the web UI.
 - Feedback is saved locally before Discord delivery and includes safe metadata only, not full ruleset or character file contents.
 - Configured admins can view account counts, saved draft counts, lock status, failed login counts, last login IPs, and can block/unblock email/IP access, unlock, or delete non-admin accounts from the web UI.
@@ -84,6 +86,7 @@ Deployment and operations:
 - `deploy.sh` is confirmed correct for the current Digital Ocean server-side launcher flow.
 - Production `.env` is confirmed to point `GMRULES_WEB_PUBLICBASEURL` at `https://gmrules.com`, so verification links use the user-facing domain.
 - `.env.example` now documents the current hosted service configuration, data paths, host/port, public base URL, Resend settings, NDA audit recipient, feedback storage, and Discord webhook variables.
+- Reverse-proxy and security-header expectations are documented in `docs/REVERSE_PROXY_SECURITY.md`; production values still need to be confirmed against the Droplet's actual Nginx config.
 - Accounts, drafts, NDA audits, feedback records, request logs, and blocked-access records live on the droplet filesystem. Backups are required before widening the beta.
 - Sessions are in-memory, so deploys/restarts log users out.
 
@@ -92,8 +95,8 @@ Security and abuse controls:
 - Signup has strict per-IP/per-email application limits plus the total account cap, allowing two applications per IP per day for shared households. Login locks an account after three failed password attempts and lets the locked user submit a blocker recovery request without deleting account content. Import/export each allow two attempts per account per week. Feedback has a basic per-user submission limit. Password setup mismatch attempts are intentionally not rate-limited for now.
 - Session tokens are stored in browser `localStorage` and sent as bearer tokens.
 - Account storage is a flat properties file, suitable for a very small PoC but not for scale.
-- The built-in HTTP server does not set security headers such as HSTS, CSP, frame protection, or referrer policy. If these are handled by the reverse proxy, document that.
-- NDA audit filenames are based on email local-part only, so two users with the same local-part on different domains can collide.
+- The built-in HTTP server does not set security headers such as HSTS, CSP, frame protection, or referrer policy. The intended reverse-proxy header setup is documented, but production Nginx still needs to be checked against it.
+- Legacy NDA audit files may still exist under old local-part filenames; new writes use full-email hash filenames to avoid local-part collisions.
 
 UX and copy:
 

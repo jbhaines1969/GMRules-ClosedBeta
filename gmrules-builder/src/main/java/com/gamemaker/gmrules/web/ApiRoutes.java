@@ -248,6 +248,10 @@ public final class ApiRoutes {
         if (!healthy) {
             payload.put("failedChecks", failedChecks);
         }
+        if (prefersHtml(ctx)) {
+            ctx.text(healthy ? 200 : 503, healthHtml(healthy, failedChecks), "text/html");
+            return;
+        }
         ctx.json(healthy ? 200 : 503, payload);
     }
 
@@ -312,11 +316,16 @@ public final class ApiRoutes {
 
     private static void createAccount(RequestContext ctx) throws IOException {
         Map<String, Object> body = ctx.readJsonMap();
+        String fullName = limitLength(getString(body, "fullName").trim(), 120);
         String email = getString(body, "email").trim();
         boolean ndaAccepted = getBoolean(body, "ndaAccepted", false);
         String ndaVersion = getString(body, "ndaVersion").trim();
         String ndaScrollCompletedAt = getString(body, "ndaScrollCompletedAt").trim();
         String ndaAcceptedAt = getString(body, "ndaAcceptedAt").trim();
+        if (fullName.length() < 2) {
+            ctx.json(400, Map.of("error", "Legal full name is required."));
+            return;
+        }
         if (!ndaAccepted) {
             ctx.json(400, Map.of("error", "You must agree to the NDA before submitting."));
             return;
@@ -345,6 +354,7 @@ public final class ApiRoutes {
             return;
         }
         new NdaAuditStore(ctx.getConfig()).recordNdaAcceptance(
+            fullName,
             verificationRequest.getEmail(),
             ctx.clientIp(),
             ctx.userAgent(),
@@ -4416,6 +4426,43 @@ public final class ApiRoutes {
         } catch (IOException | RuntimeException e) {
             failedChecks.add(Objects.toString(checkName, "storage"));
         }
+    }
+
+    private static boolean prefersHtml(RequestContext ctx) {
+        String accept = Objects.toString(ctx.header("Accept"), "").toLowerCase(Locale.ROOT);
+        return accept.contains("text/html") && !accept.contains("application/json");
+    }
+
+    private static String healthHtml(boolean healthy, List<String> failedChecks) {
+        String status = healthy ? "Healthy" : "Unhealthy";
+        String statusClass = healthy ? "healthy" : "unhealthy";
+        String checks = healthy
+            ? "<p>Runtime storage checks passed.</p>"
+            : "<p>Failed checks: " + escapeHtml(String.join(", ", failedChecks)) + "</p>";
+        return """
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <title>GMRules Health</title>
+              <style>
+                body { font-family: system-ui, sans-serif; margin: 40px; color: #1f2933; }
+                .badge { display: inline-block; padding: 8px 12px; border-radius: 8px; font-weight: 700; }
+                .healthy { background: #e7f6ec; color: #176b35; }
+                .unhealthy { background: #fdecec; color: #9f1d1d; }
+                code { background: #f3f4f6; padding: 2px 5px; border-radius: 4px; }
+              </style>
+            </head>
+            <body>
+              <h1>GMRules Health</h1>
+              <p><span class="badge %s">%s</span></p>
+              %s
+              <p>Version: <code>closed-beta</code></p>
+              <p>Timestamp: <code>%s</code></p>
+            </body>
+            </html>
+            """.formatted(statusClass, status, checks, Instant.now().toString());
     }
 
     private static String getString(Map<String, Object> body, String key) {

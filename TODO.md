@@ -22,8 +22,8 @@ Updated: 2026-07-02
 - [x] Add blocked IP/email controls later if signup abuse appears.
 - [x] Add request logging that is useful for debugging without recording secrets or full ruleset payloads.
 - [x] Add a simple health endpoint for uptime checks.
-- [ ] Add reverse-proxy/security-header documentation, including HTTPS, HSTS, CSP, frame protection, and referrer policy.
-- [ ] Change NDA audit filenames to include a full email hash or account id to avoid local-part collisions.
+- [x] Add reverse-proxy/security-header documentation, including HTTPS, HSTS, CSP, frame protection, and referrer policy.
+- [x] Change NDA audit filenames to include a full email hash or account id to avoid local-part collisions.
 - [x] Add an admin-only way to see account count, saved draft count, account lock status, and manage account unlock/deletion.
 - [ ] Add admin-only recent feedback viewing if Discord triage becomes insufficient.
 - [x] Preserve tester context in feedback payloads: account email/id, draft id, current stage, browser user agent, timestamp, and severity.

@@ -4824,12 +4824,16 @@ function renderClosedBetaApplication() {
           <textarea id="closedBetaNda" readonly></textarea>
         </div>
       </div>
-      <div class="grid two">
+      <div class="grid three">
         <div class="field checkbox-field">
           <label class="checkbox-label" for="closedBetaAgree">
             <input type="checkbox" id="closedBetaAgree" disabled>
             <span>${t("web.beta.agree", "I have reviewed and agree to the Beta Access NDA v1")}</span>
           </label>
+        </div>
+        <div class="field">
+          <label for="closedBetaFullName">${t("web.beta.full_name", "Legal Full Name")}</label>
+          <input type="text" id="closedBetaFullName" autocomplete="name" maxlength="120" required>
         </div>
         <div class="field">
           <label for="closedBetaEmail">${t("web.beta.email", "Email")}</label>
@@ -4848,6 +4852,7 @@ function renderClosedBetaApplication() {
       </div>
     </section>
   `;
+  const betaFullNameInput = document.getElementById("closedBetaFullName");
   const betaEmailInput = document.getElementById("closedBetaEmail");
   const betaAgreeInput = document.getElementById("closedBetaAgree");
   const betaNdaInput = document.getElementById("closedBetaNda");
@@ -4855,9 +4860,10 @@ function renderClosedBetaApplication() {
   let ndaScrollCompletedAt = "";
   let ndaAcceptedAt = "";
   betaNdaInput.value = t("web.loading", "Loading...");
+  const hasFullName = () => String(betaFullNameInput.value || "").trim().length >= 2;
   const hasValidEmail = () => Boolean(String(betaEmailInput.value || "").trim()) && betaEmailInput.checkValidity();
   const syncBetaSubmitState = () => {
-    betaSubmitButton.disabled = !betaAgreeInput.checked || !hasValidEmail();
+    betaSubmitButton.disabled = !betaAgreeInput.checked || !hasFullName() || !hasValidEmail();
   };
   const syncNdaScrollState = () => {
     const atBottom = betaNdaInput.scrollTop + betaNdaInput.clientHeight >= betaNdaInput.scrollHeight - 4;
@@ -4895,6 +4901,7 @@ function renderClosedBetaApplication() {
   };
   document.getElementById("closedBetaLogin").addEventListener("click", () => renderLogin());
   betaNdaInput.addEventListener("scroll", syncNdaScrollState);
+  betaFullNameInput.addEventListener("input", syncBetaSubmitState);
   betaEmailInput.addEventListener("input", syncBetaSubmitState);
   betaAgreeInput.addEventListener("change", () => {
     ndaAcceptedAt = betaAgreeInput.checked ? new Date().toISOString() : "";
@@ -4907,6 +4914,11 @@ function renderClosedBetaApplication() {
       showToast(t("web.beta.must_agree", "Step 1 failed: you must agree to the NDA before submitting."));
       return;
     }
+    const fullName = String(betaFullNameInput.value || "").trim();
+    if (!fullName) {
+      showToast(t("web.beta.full_name_required", "Step 2 failed: legal full name is required."));
+      return;
+    }
     const email = String(betaEmailInput.value || "").trim();
     if (!email) {
       showToast(t("web.login.email_required", "Step 2 failed: email is required."));
@@ -4917,6 +4929,7 @@ function renderClosedBetaApplication() {
     showToast(t("web.beta.submit_start", "Step 3: creating beta account and sending email."));
     try {
       const result = await api("POST", "/api/accounts", {
+        fullName,
         email,
         ndaAccepted: betaAgreeInput.checked,
         ndaVersion: "v1",

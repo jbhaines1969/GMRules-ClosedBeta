@@ -28,6 +28,7 @@ GMRules-ClosedBeta/
 |-- PROJECT_STRUCTURE.md
 |-- TODO.md
 |-- deploy.sh
+|-- docs/
 |-- makebackup.sh
 |-- pom.xml
 |-- restore.sh
@@ -61,6 +62,14 @@ TODO.md             # Launch-ordered beta checklist.
 AGENTS.md           # Operating instructions for future agents.
 AGENT_HANDOFF.md    # Current handoff snapshot for recovery/continuation.
 PROJECT_STRUCTURE.md
+docs/                  # Operational runbooks for deploy and server-side configuration.
+```
+
+## Docs
+
+```text
+docs/
+`-- REVERSE_PROXY_SECURITY.md
 ```
 
 ## gmrules-core

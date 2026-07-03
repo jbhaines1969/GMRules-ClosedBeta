@@ -14,6 +14,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -29,7 +31,8 @@ public final class NdaAuditStore {
 
     private static final Object WRITE_LOCK = new Object();
     private static final Pattern UNSAFE_FILENAME = Pattern.compile("[^a-zA-Z0-9._-]");
-    private static final String HEADER = "audit_id,event,timestamp,email,ip_address,nda_version,nda_scroll_completed_at,nda_accepted_at,user_agent,public_base_url,account_id\n";
+    private static final String HEADER = "audit_id,event,timestamp,full_name,email,ip_address,nda_version,nda_scroll_completed_at,nda_accepted_at,user_agent,public_base_url,account_id\n";
+    private static final String LEGACY_HEADER = "audit_id,event,timestamp,email,ip_address,nda_version,nda_scroll_completed_at,nda_accepted_at,user_agent,public_base_url,account_id";
 
     private final Path auditDirectory;
     private final String publicBaseUrl;
@@ -43,30 +46,38 @@ public final class NdaAuditStore {
 
     // *** METHODS ***
     public void recordNdaAcceptance(
+            String fullName,
             String email,
             String ipAddress,
             String userAgent,
             String ndaScrollCompletedAt,
             String ndaAcceptedAt
     ) throws IOException {
-        appendAuditRow("nda_accepted", email, ipAddress, userAgent, ndaScrollCompletedAt, ndaAcceptedAt, "");
+        appendAuditRow("nda_accepted", fullName, email, ipAddress, userAgent, ndaScrollCompletedAt, ndaAcceptedAt, "");
     }
 
     public void recordAccountCreated(String email, String ipAddress, String userAgent, String accountId)
             throws IOException {
-        appendAuditRow("account_created", email, ipAddress, userAgent, "", "", accountId);
+        appendAuditRow("account_created", "", email, ipAddress, userAgent, "", "", accountId);
     }
 
     public String readAuditCsv(String email) throws IOException {
-        Path auditFile = auditDirectory.resolve(filenameForEmail(normalizeEmail(email)));
-        if (!Files.exists(auditFile)) {
-            return "";
+        String safeEmail = normalizeEmail(email);
+        Path auditFile = auditDirectory.resolve(filenameForEmail(safeEmail));
+        Path legacyAuditFile = auditDirectory.resolve(legacyFilenameForEmail(safeEmail));
+        StringBuilder auditCsv = new StringBuilder();
+        if (Files.exists(auditFile)) {
+            auditCsv.append(Files.readString(auditFile, StandardCharsets.UTF_8));
         }
-        return Files.readString(auditFile, StandardCharsets.UTF_8);
+        if (!auditFile.equals(legacyAuditFile) && Files.exists(legacyAuditFile)) {
+            appendLegacyAuditCsv(auditCsv, legacyAuditFile);
+        }
+        return auditCsv.toString();
     }
 
     private void appendAuditRow(
             String event,
+            String fullName,
             String email,
             String ipAddress,
             String userAgent,
@@ -80,6 +91,7 @@ public final class NdaAuditStore {
         String row = csv(UUID.randomUUID().toString())
             + "," + csv(event)
             + "," + csv(Instant.now().toString())
+            + "," + csv(fullName)
             + "," + csv(safeEmail)
             + "," + csv(ipAddress)
             + "," + csv(CURRENT_NDA_VERSION)
@@ -112,6 +124,14 @@ public final class NdaAuditStore {
     }
 
     private String filenameForEmail(String email) {
+        String safeEmail = normalizeEmail(email);
+        if (safeEmail.isEmpty()) {
+            return "email-unknown.csv";
+        }
+        return "email-" + sha256Hex(safeEmail) + ".csv";
+    }
+
+    private String legacyFilenameForEmail(String email) {
         String localPart = email;
         int atIndex = email.indexOf('@');
         if (atIndex > 0) {
@@ -122,6 +142,67 @@ public final class NdaAuditStore {
             filenameBase = "unknown";
         }
         return filenameBase + ".csv";
+    }
+
+    private void appendLegacyAuditCsv(StringBuilder auditCsv, Path legacyAuditFile) throws IOException {
+        String legacyCsv = Files.readString(legacyAuditFile, StandardCharsets.UTF_8);
+        if (legacyCsv.isBlank()) {
+            return;
+        }
+        if (auditCsv.length() == 0) {
+            auditCsv.append(legacyCsv);
+            return;
+        }
+        String[] lines = legacyCsv.split("\\R", -1);
+        int startIndex = 0;
+        boolean legacyHeader = lines.length > 0 && LEGACY_HEADER.equals(lines[0].trim());
+        if (lines.length > 0 && (HEADER.trim().equals(lines[0].trim()) || legacyHeader)) {
+            startIndex = 1;
+        }
+        for (int i = startIndex; i < lines.length; i++) {
+            if (lines[i].isBlank()) {
+                continue;
+            }
+            if (auditCsv.length() > 0 && auditCsv.charAt(auditCsv.length() - 1) != '\n') {
+                auditCsv.append('\n');
+            }
+            auditCsv.append(legacyHeader ? addBlankFullNameColumn(lines[i]) : lines[i]).append('\n');
+        }
+    }
+
+    private String addBlankFullNameColumn(String legacyRow) {
+        int insertAt = nthCommaIndex(legacyRow, 3);
+        if (insertAt < 0) {
+            return legacyRow;
+        }
+        return legacyRow.substring(0, insertAt) + ",\"\"" + legacyRow.substring(insertAt);
+    }
+
+    private int nthCommaIndex(String value, int commaCount) {
+        int found = 0;
+        for (int i = 0; i < value.length(); i++) {
+            if (value.charAt(i) == ',') {
+                found++;
+                if (found == commaCount) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private String sha256Hex(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(Objects.toString(value, "").getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available.", e);
+        }
     }
 
     private String normalizeEmail(String email) {
