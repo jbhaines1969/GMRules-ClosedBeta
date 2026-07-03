@@ -82,7 +82,7 @@ Deployment and operations:
 
 Security and abuse controls:
 
-- Signup has strict per-IP/per-email application limits plus the total account cap, allowing two applications per IP per day for shared households. Feedback has a basic per-user submission limit. Login, password creation, and imports still need rate limits.
+- Signup has strict per-IP/per-email application limits plus the total account cap, allowing two applications per IP per day for shared households. Import/export each allow two attempts per account per week. Feedback has a basic per-user submission limit. Login and password creation still need rate limits.
 - Session tokens are stored in browser `localStorage` and sent as bearer tokens.
 - Account storage is a flat properties file, suitable for a very small PoC but not for scale.
 - The built-in HTTP server does not set security headers such as HSTS, CSP, frame protection, or referrer policy. If these are handled by the reverse proxy, document that.

@@ -4709,6 +4709,10 @@ function renderClosedBetaApplication() {
         "web.beta.description",
         "Review the NDA, enter your email, and submit your closed beta application."
       )}</p>
+      <p class="field-hint">${t(
+        "web.beta.limits",
+        "Closed beta access is limited to 10 accepted testers. To support shared households, this form accepts up to two applications from the same connection per day."
+      )}</p>
       <div class="field">
         <label for="closedBetaNda">${t("web.beta.nda", "NDA")}</label>
         <p class="field-hint">${t("web.beta.review_full", "Read and review the full Agreement before continuing.")}</p>

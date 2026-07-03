@@ -78,6 +78,12 @@ public final class ApiRoutes {
     private static final int SIGNUP_EMAIL_RATE_LIMIT_MAX = 1;
     private static final Duration SIGNUP_EMAIL_RATE_LIMIT_WINDOW = Duration.ofDays(1);
     private static final Map<String, Deque<Instant>> SIGNUP_RATE_LIMITS = new ConcurrentHashMap<>();
+    private static final int IMPORT_RATE_LIMIT_MAX = 2;
+    private static final Duration IMPORT_RATE_LIMIT_WINDOW = Duration.ofDays(7);
+    private static final Map<String, Deque<Instant>> IMPORT_RATE_LIMITS = new ConcurrentHashMap<>();
+    private static final int EXPORT_RATE_LIMIT_MAX = 2;
+    private static final Duration EXPORT_RATE_LIMIT_WINDOW = Duration.ofDays(7);
+    private static final Map<String, Deque<Instant>> EXPORT_RATE_LIMITS = new ConcurrentHashMap<>();
 
     // *** CONSTRUCTORS ***
     private ApiRoutes() {
@@ -646,6 +652,10 @@ public final class ApiRoutes {
         if (!ensureCanCreateDraft(ctx, session)) {
             return;
         }
+        if (!consumeImportRateLimit(ctx, session)) {
+            ctx.json(429, Map.of("error", "Each account can import up to two ruleset files per week during the closed beta."));
+            return;
+        }
         byte[] payload = ctx.readBody();
         try {
             DraftStore.Draft draft = ctx.getDraftStore().importDraft(payload);
@@ -705,6 +715,10 @@ public final class ApiRoutes {
     private static void exportDraft(RequestContext ctx) throws IOException {
         SessionStore.Session session = requireSession(ctx);
         if (session == null) {
+            return;
+        }
+        if (!consumeExportRateLimit(ctx, session)) {
+            ctx.json(429, Map.of("error", "Each account can download up to two ruleset files per week during the closed beta."));
             return;
         }
         String draftId = ctx.pathParam("id");
@@ -3898,6 +3912,40 @@ public final class ApiRoutes {
             return false;
         }
         recordRollingRateLimit(FEEDBACK_RATE_LIMITS, key, FEEDBACK_RATE_LIMIT_WINDOW, now);
+        return true;
+    }
+
+    private static boolean consumeImportRateLimit(RequestContext ctx, SessionStore.Session session) {
+        String accountKey = Objects.toString(session.getUserId(), "").trim();
+        String key = accountKey.isEmpty() ? "ip:" + ctx.clientIp() : "account:" + accountKey;
+        Instant now = Instant.now();
+        if (!isRollingRateLimitAvailable(
+                IMPORT_RATE_LIMITS,
+                key,
+                IMPORT_RATE_LIMIT_MAX,
+                IMPORT_RATE_LIMIT_WINDOW,
+                now
+        )) {
+            return false;
+        }
+        recordRollingRateLimit(IMPORT_RATE_LIMITS, key, IMPORT_RATE_LIMIT_WINDOW, now);
+        return true;
+    }
+
+    private static boolean consumeExportRateLimit(RequestContext ctx, SessionStore.Session session) {
+        String accountKey = Objects.toString(session.getUserId(), "").trim();
+        String key = accountKey.isEmpty() ? "ip:" + ctx.clientIp() : "account:" + accountKey;
+        Instant now = Instant.now();
+        if (!isRollingRateLimitAvailable(
+                EXPORT_RATE_LIMITS,
+                key,
+                EXPORT_RATE_LIMIT_MAX,
+                EXPORT_RATE_LIMIT_WINDOW,
+                now
+        )) {
+            return false;
+        }
+        recordRollingRateLimit(EXPORT_RATE_LIMITS, key, EXPORT_RATE_LIMIT_WINDOW, now);
         return true;
     }
 

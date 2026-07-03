@@ -18,7 +18,7 @@ Updated: 2026-07-02
 
 ## High Priority After First Invites
 
-- [ ] Add rate limits for login, password setup, and import endpoints. Signup has strict per-IP/per-email limits plus the total account cap; feedback submission has a basic per-user limit.
+- [ ] Add rate limits for login and password setup endpoints. Signup has strict per-IP/per-email limits plus the total account cap; import/export each allow two attempts per account per week; feedback submission has a basic per-user limit.
 - [ ] Add blocked IP/email controls later if signup abuse appears.
 - [ ] Add request logging that is useful for debugging without recording secrets or full ruleset payloads.
 - [ ] Add a simple health endpoint for uptime checks.
