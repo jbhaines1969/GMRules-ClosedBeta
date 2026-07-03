@@ -109,6 +109,9 @@ public final class ApiRoutes {
         router.add("GET", "/api/admin/accounts", ApiRoutes::adminListAccounts);
         router.add("POST", "/api/admin/accounts/unlock", ApiRoutes::adminUnlockAccount);
         router.add("DELETE", "/api/admin/accounts", ApiRoutes::adminDeleteAccount);
+        router.add("GET", "/api/admin/blocks", ApiRoutes::adminListBlocks);
+        router.add("POST", "/api/admin/blocks", ApiRoutes::adminBlockAccess);
+        router.add("DELETE", "/api/admin/blocks", ApiRoutes::adminUnblockAccess);
 
         router.add("GET", "/api/drafts", ApiRoutes::listDrafts);
         router.add("POST", "/api/drafts", ApiRoutes::createDraft);
@@ -301,6 +304,9 @@ public final class ApiRoutes {
             ctx.json(400, Map.of("error", "Review and accept the full NDA before submitting."));
             return;
         }
+        if (isBlockedSignup(ctx, email)) {
+            return;
+        }
         String signupRateLimitMessage = checkSignupRateLimit(ctx, email);
         if (!signupRateLimitMessage.isEmpty()) {
             ctx.json(429, Map.of("error", signupRateLimitMessage));
@@ -391,6 +397,9 @@ public final class ApiRoutes {
     private static void lookupAccount(RequestContext ctx) throws IOException {
         Map<String, Object> body = ctx.readJsonMap();
         String email = getString(body, "email").trim();
+        if (isBlockedLogin(ctx, email)) {
+            return;
+        }
         AccountStore.AccountLookup lookup = ctx.getAccountStore().lookupAccount(email);
         ctx.json(200, Map.of(
             "exists",
@@ -409,12 +418,17 @@ public final class ApiRoutes {
         String email = getString(body, "email").trim();
         String password = getString(body, "password");
         String confirmPassword = getString(body, "confirmPassword");
+        if (isBlockedLogin(ctx, email)) {
+            return;
+        }
         if (!Objects.equals(password, confirmPassword)) {
             ctx.json(400, Map.of("error", "Passwords do not match."));
             return;
         }
         try {
             AccountStore.Account account = ctx.getAccountStore().setInitialPassword(email, password);
+            ctx.getAccountStore().recordSuccessfulLogin(account.getUsername(), ctx.clientIp());
+            boolean admin = ctx.getConfig().isAdminEmail(account.getUsername());
             SessionStore.Session session = ctx.getSessionStore().createSession(
                 account.getId(),
                 account.getUsername(),
@@ -428,7 +442,9 @@ public final class ApiRoutes {
                 "username",
                 account.getUsername(),
                 "legacyGuest",
-                account.isLegacyGuest()
+                account.isLegacyGuest(),
+                "admin",
+                admin
             ));
         } catch (IllegalArgumentException e) {
             ctx.json(400, Map.of("error", e.getMessage()));
@@ -464,6 +480,9 @@ public final class ApiRoutes {
             ctx.json(401, Map.of("error", "Email and password are required"));
             return;
         }
+        if (isBlockedLogin(ctx, username)) {
+            return;
+        }
         AccountStore.AuthenticationResult result = ctx.getAccountStore().authenticate(username, password);
         if (result.isLocked()) {
             ctx.json(423, accountLockedPayload());
@@ -479,6 +498,7 @@ public final class ApiRoutes {
             return;
         }
         AccountStore.Account account = result.getAccount();
+        ctx.getAccountStore().recordSuccessfulLogin(account.getUsername(), ctx.clientIp());
         boolean admin = ctx.getConfig().isAdminEmail(account.getUsername());
         SessionStore.Session session = ctx.getSessionStore().createSession(
             account.getId(),
@@ -527,6 +547,7 @@ public final class ApiRoutes {
         if (session == null) {
             return;
         }
+        BlockedAccessStore blockedAccessStore = new BlockedAccessStore(ctx.getConfig());
         List<Map<String, Object>> accounts = new ArrayList<>();
         int draftCount = 0;
         int lockedCount = 0;
@@ -544,9 +565,13 @@ public final class ApiRoutes {
             entry.put("failedLoginAttempts", account.getFailedLoginAttempts());
             entry.put("createdAt", account.getCreatedAt());
             entry.put("verifiedAt", account.getVerifiedAt());
+            entry.put("lastLoginAt", account.getLastLoginAt());
+            entry.put("lastLoginIp", account.getLastLoginIp());
             entry.put("draftCount", draftIds.size());
             entry.put("draftIds", draftIds);
             entry.put("admin", ctx.getConfig().isAdminEmail(account.getEmail()));
+            entry.put("emailBlocked", blockedAccessStore.isEmailBlocked(account.getEmail()));
+            entry.put("lastLoginIpBlocked", blockedAccessStore.isIpBlocked(account.getLastLoginIp()));
             accounts.add(entry);
         }
         ctx.json(200, Map.of(
@@ -563,6 +588,83 @@ public final class ApiRoutes {
             "adminEmailCount",
             ctx.getConfig().getAdminEmails().size()
         ));
+    }
+
+    private static void adminListBlocks(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireAdminSession(ctx);
+        if (session == null) {
+            return;
+        }
+        List<Map<String, Object>> blocks = new ArrayList<>();
+        for (BlockedAccessStore.BlockEntry block : new BlockedAccessStore(ctx.getConfig()).listBlocks()) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("type", block.getType());
+            entry.put("value", block.getValue());
+            entry.put("reason", block.getReason());
+            entry.put("createdBy", block.getCreatedBy());
+            entry.put("sourceAccountId", block.getSourceAccountId());
+            entry.put("createdAt", block.getCreatedAt());
+            blocks.add(entry);
+        }
+        ctx.json(200, Map.of("ok", true, "blocks", blocks, "blockCount", blocks.size()));
+    }
+
+    private static void adminBlockAccess(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireAdminSession(ctx);
+        if (session == null) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        String type = getString(body, "type").trim().toLowerCase(Locale.ROOT);
+        String value = getString(body, "value").trim();
+        String reason = limitLength(getString(body, "reason"), 500);
+        String sourceAccountId = getString(body, "sourceAccountId").trim();
+        BlockedAccessStore blockedAccessStore = new BlockedAccessStore(ctx.getConfig());
+        try {
+            if (Objects.equals(type, "email")) {
+                if (ctx.getConfig().isAdminEmail(value)) {
+                    ctx.json(400, Map.of("error", "Admin emails cannot be blocked from this panel."));
+                    return;
+                }
+                blockedAccessStore.blockEmail(value, reason, session.getUsername(), sourceAccountId);
+            } else if (Objects.equals(type, "ip")) {
+                if (Objects.equals(value, ctx.clientIp())) {
+                    ctx.json(400, Map.of("error", "The current admin IP cannot be blocked from this panel."));
+                    return;
+                }
+                blockedAccessStore.blockIp(value, reason, session.getUsername(), sourceAccountId);
+            } else {
+                ctx.json(400, Map.of("error", "Block type must be email or ip."));
+                return;
+            }
+            ctx.json(200, Map.of("ok", true));
+        } catch (IllegalArgumentException e) {
+            ctx.json(400, Map.of("error", e.getMessage()));
+        }
+    }
+
+    private static void adminUnblockAccess(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireAdminSession(ctx);
+        if (session == null) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        String type = getString(body, "type").trim().toLowerCase(Locale.ROOT);
+        String value = getString(body, "value").trim();
+        BlockedAccessStore blockedAccessStore = new BlockedAccessStore(ctx.getConfig());
+        try {
+            if (Objects.equals(type, "email")) {
+                blockedAccessStore.unblockEmail(value);
+            } else if (Objects.equals(type, "ip")) {
+                blockedAccessStore.unblockIp(value);
+            } else {
+                ctx.json(400, Map.of("error", "Block type must be email or ip."));
+                return;
+            }
+            ctx.json(200, Map.of("ok", true));
+        } catch (IllegalArgumentException e) {
+            ctx.json(400, Map.of("error", e.getMessage()));
+        }
     }
 
     private static void adminUnlockAccount(RequestContext ctx) throws IOException {
@@ -3956,6 +4058,24 @@ public final class ApiRoutes {
             return null;
         }
         return session;
+    }
+
+    private static boolean isBlockedSignup(RequestContext ctx, String email) throws IOException {
+        BlockedAccessStore blockedAccessStore = new BlockedAccessStore(ctx.getConfig());
+        if (blockedAccessStore.isIpBlocked(ctx.clientIp()) || blockedAccessStore.isEmailBlocked(email)) {
+            ctx.json(403, Map.of("error", "Closed beta access is not available for this request."));
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean isBlockedLogin(RequestContext ctx, String email) throws IOException {
+        BlockedAccessStore blockedAccessStore = new BlockedAccessStore(ctx.getConfig());
+        if (blockedAccessStore.isIpBlocked(ctx.clientIp()) || blockedAccessStore.isEmailBlocked(email)) {
+            ctx.json(403, Map.of("error", "This account is blocked from closed beta access."));
+            return true;
+        }
+        return false;
     }
 
     private static boolean ensureCanCreateDraft(RequestContext ctx, SessionStore.Session session) throws IOException {

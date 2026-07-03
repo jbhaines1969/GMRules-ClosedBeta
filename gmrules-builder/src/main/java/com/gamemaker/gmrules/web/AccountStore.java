@@ -207,6 +207,23 @@ public final class AccountStore {
         }
     }
 
+    public void recordSuccessfulLogin(String email, String ipAddress) throws IOException {
+        String safeEmail = normalizeEmail(email);
+        if (safeEmail.isEmpty()) {
+            return;
+        }
+        synchronized (lock) {
+            Properties properties = loadProperties();
+            String userId = Objects.toString(properties.getProperty(userKey(safeEmail, "id")), "");
+            if (userId.isEmpty()) {
+                return;
+            }
+            properties.setProperty(userKey(safeEmail, "lastLoginAt"), Instant.now().toString());
+            properties.setProperty(userKey(safeEmail, "lastLoginIp"), Objects.toString(ipAddress, "").trim());
+            saveProperties(properties);
+        }
+    }
+
     public Account lockedAccount(String email) throws IOException {
         String safeEmail = normalizeEmail(email);
         if (safeEmail.isEmpty()) {
@@ -310,6 +327,8 @@ public final class AccountStore {
                     readFailedLoginAttempts(properties, email),
                     Objects.toString(properties.getProperty(userKey(email, "createdAt")), ""),
                     Objects.toString(properties.getProperty(userKey(email, "verifiedAt")), ""),
+                    Objects.toString(properties.getProperty(userKey(email, "lastLoginAt")), ""),
+                    Objects.toString(properties.getProperty(userKey(email, "lastLoginIp")), ""),
                     readDraftIds(properties, userId)
                 ));
             }
@@ -787,6 +806,8 @@ public final class AccountStore {
         private final int failedLoginAttempts;
         private final String createdAt;
         private final String verifiedAt;
+        private final String lastLoginAt;
+        private final String lastLoginIp;
         private final List<String> draftIds;
 
         // *** CONSTRUCTORS ***
@@ -798,6 +819,8 @@ public final class AccountStore {
                 int failedLoginAttempts,
                 String createdAt,
                 String verifiedAt,
+                String lastLoginAt,
+                String lastLoginIp,
                 List<String> draftIds
         ) {
             this.id = Objects.toString(id, "");
@@ -807,6 +830,8 @@ public final class AccountStore {
             this.failedLoginAttempts = Math.max(0, failedLoginAttempts);
             this.createdAt = Objects.toString(createdAt, "");
             this.verifiedAt = Objects.toString(verifiedAt, "");
+            this.lastLoginAt = Objects.toString(lastLoginAt, "");
+            this.lastLoginIp = Objects.toString(lastLoginIp, "");
             this.draftIds = List.copyOf(Objects.requireNonNullElseGet(draftIds, List::of));
         }
 
@@ -837,6 +862,14 @@ public final class AccountStore {
 
         public String getVerifiedAt() {
             return verifiedAt;
+        }
+
+        public String getLastLoginAt() {
+            return lastLoginAt;
+        }
+
+        public String getLastLoginIp() {
+            return lastLoginIp;
         }
 
         public List<String> getDraftIds() {

@@ -31,6 +31,7 @@ public final class WebConfig {
     private static final String NDA_AUDIT_DIR_PROPERTY = "gmrules.web.ndaAuditDir";
     private static final String NDA_AUDIT_EMAIL_TO_PROPERTY = "gmrules.ndaAudit.emailTo";
     private static final String ADMIN_EMAILS_PROPERTY = "gmrules.web.adminEmails";
+    private static final String BLOCKED_ACCESS_FILE_PROPERTY = "gmrules.web.blockedAccessFile";
     private static final String FEEDBACK_DIR_PROPERTY = "gmrules.web.feedbackDir";
     private static final String PUBLIC_BASE_URL_PROPERTY = "gmrules.web.publicBaseUrl";
     private static final String EMAIL_API_URL_PROPERTY = "gmrules.email.api.url";
@@ -50,6 +51,7 @@ public final class WebConfig {
     private static final String DEFAULT_NDA_AUDIT_DIR = "server-data/nda-audit";
     private static final String DEFAULT_NDA_AUDIT_EMAIL_TO = "";
     private static final String DEFAULT_ADMIN_EMAILS = "";
+    private static final String DEFAULT_BLOCKED_ACCESS_FILE = "server-data/blocked-access.properties";
     private static final String DEFAULT_FEEDBACK_DIR = "server-data/feedback";
     private static final String DEFAULT_PUBLIC_BASE_URL = "https://gmrulesbeta.duckdns.org";
     private static final String DEFAULT_EMAIL_API_URL = "https://api.resend.com/emails";
@@ -69,6 +71,7 @@ public final class WebConfig {
     private final Path ndaAuditDirectory;
     private final String ndaAuditEmailTo;
     private final Set<String> adminEmails;
+    private final Path blockedAccessFile;
     private final Path feedbackDirectory;
     private final String publicBaseUrl;
     private final String emailApiUrl;
@@ -90,6 +93,7 @@ public final class WebConfig {
             Path ndaAuditDirectory,
             String ndaAuditEmailTo,
             Set<String> adminEmails,
+            Path blockedAccessFile,
             Path feedbackDirectory,
             String publicBaseUrl,
             String emailApiUrl,
@@ -109,6 +113,7 @@ public final class WebConfig {
         this.ndaAuditDirectory = ndaAuditDirectory;
         this.ndaAuditEmailTo = ndaAuditEmailTo;
         this.adminEmails = Set.copyOf(Objects.requireNonNullElseGet(adminEmails, Set::of));
+        this.blockedAccessFile = blockedAccessFile;
         this.feedbackDirectory = feedbackDirectory;
         this.publicBaseUrl = publicBaseUrl;
         this.emailApiUrl = emailApiUrl;
@@ -131,6 +136,7 @@ public final class WebConfig {
         Path ndaAuditDirectory = Paths.get(readString(NDA_AUDIT_DIR_PROPERTY, DEFAULT_NDA_AUDIT_DIR));
         String ndaAuditEmailTo = readString(NDA_AUDIT_EMAIL_TO_PROPERTY, DEFAULT_NDA_AUDIT_EMAIL_TO);
         Set<String> adminEmails = readEmailSet(ADMIN_EMAILS_PROPERTY, DEFAULT_ADMIN_EMAILS);
+        Path blockedAccessFile = Paths.get(readString(BLOCKED_ACCESS_FILE_PROPERTY, DEFAULT_BLOCKED_ACCESS_FILE));
         Path feedbackDirectory = Paths.get(readString(FEEDBACK_DIR_PROPERTY, DEFAULT_FEEDBACK_DIR));
         String publicBaseUrl = readString(PUBLIC_BASE_URL_PROPERTY, DEFAULT_PUBLIC_BASE_URL);
         String emailApiUrl = readString(EMAIL_API_URL_PROPERTY, DEFAULT_EMAIL_API_URL);
@@ -157,6 +163,7 @@ public final class WebConfig {
             ndaAuditDirectory,
             ndaAuditEmailTo,
             adminEmails,
+            blockedAccessFile,
             feedbackDirectory,
             publicBaseUrl,
             emailApiUrl,
@@ -210,6 +217,10 @@ public final class WebConfig {
 
     public boolean isAdminEmail(String email) {
         return adminEmails.contains(Objects.toString(email, "").trim().toLowerCase());
+    }
+
+    public Path getBlockedAccessFile() {
+        return blockedAccessFile;
     }
 
     public Path getFeedbackDirectory() {

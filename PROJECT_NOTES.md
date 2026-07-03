@@ -28,12 +28,14 @@ The web app is served from `gmrules-builder`:
 - API routing: `ApiRoutes` and `Router`
 - Static assets: `src/main/resources/web/index.html`, `app.js`, `styles.css`
 - Account data: file-backed `server-data/accounts.properties`
+- Blocked signup/login identities: file-backed `server-data/blocked-access.properties`
 - Draft data: file-backed `.gmrf` files under `drafts/`
 - NDA audit records: append-only CSV under `server-data/nda-audit`
 - Feedback records: append-only JSONL under `server-data/feedback`
 - Email: Resend-compatible HTTP API through `EmailService`
 - Discord feedback delivery: webhook-based forwarding through `DiscordWebhookService`
 - Admin access: configured by comma-separated `GMRULES_WEB_ADMINEMAILS`; matching logged-in accounts can use the in-app admin panel.
+- Signup/login blocking: admins can block or unblock emails and IP addresses; blocks persist outside live account records so deletion does not erase abuse controls.
 
 The shaded app jar is produced by `mvn package` as `target/gmrules-app.jar`.
 
@@ -49,7 +51,7 @@ Closed beta access:
 - NDA acceptance and account creation are audited.
 - Logged-in users can submit feedback, bug reports, and blocker/crash reports from the web UI.
 - Feedback is saved locally before Discord delivery and includes safe metadata only, not full ruleset or character file contents.
-- Configured admins can view account counts, saved draft counts, lock status, failed login counts, and can unlock or delete non-admin accounts from the web UI.
+- Configured admins can view account counts, saved draft counts, lock status, failed login counts, last login IPs, and can block/unblock email/IP access, unlock, or delete non-admin accounts from the web UI.
 
 Ruleset builder:
 
@@ -72,14 +74,14 @@ Beta mechanics:
 - Feedback and bug-report intake exists and hosted smoke testing passed: feedback, bug, and blocker reports reached Discord and wrote JSONL files on the Droplet.
 - Discord webhook delivery is implemented and production `.env` has the expected webhook variable names set.
 - Hosted account/draft smoke testing passed: account recreation, email verification, password creation, login, draft create/delete, `.gmrf` export/download, `.gmrf` upload/import, uploaded draft open, and account saved-draft limit counting.
-- The admin panel covers account counts, saved draft counts, lock state, account unlocks, and non-admin account deletion. It does not yet include feedback, NDA audit, or draft-content triage.
+- The admin panel covers account counts, saved draft counts, lock state, last login IPs, email/IP blocks, account unlocks, and non-admin account deletion. It does not yet include feedback, NDA audit, or draft-content triage.
 
 Deployment and operations:
 
 - `deploy.sh` is confirmed correct for the current Digital Ocean server-side launcher flow.
 - Production `.env` is confirmed to point `GMRULES_WEB_PUBLICBASEURL` at `https://gmrules.com`, so verification links use the user-facing domain.
 - `.env.example` now documents the current hosted service configuration, data paths, host/port, public base URL, Resend settings, NDA audit recipient, feedback storage, and Discord webhook variables.
-- Accounts, drafts, NDA audits, and feedback records live on the droplet filesystem. Backups are required before widening the beta.
+- Accounts, drafts, NDA audits, feedback records, and blocked-access records live on the droplet filesystem. Backups are required before widening the beta.
 - Sessions are in-memory, so deploys/restarts log users out.
 
 Security and abuse controls:

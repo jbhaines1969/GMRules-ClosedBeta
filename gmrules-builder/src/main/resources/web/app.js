@@ -5228,10 +5228,38 @@ async function renderAdmin() {
         <div class="field-hint">${t("web.loading", "Loading...")}</div>
       </div>
     </div>
+    <div class="saved-drafts">
+      <div class="saved-drafts-header">
+        <h2>${t("web.admin.block_list", "Blocked Access")}</h2>
+      </div>
+      <div class="grid three admin-block-form">
+        <div class="field">
+          <label for="adminBlockType">${t("web.admin.block_type", "Type")}</label>
+          <select id="adminBlockType">
+            <option value="email">${t("web.admin.email", "Email")}</option>
+            <option value="ip">${t("web.admin.ip", "IP")}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="adminBlockValue">${t("web.admin.block_value", "Value")}</label>
+          <input type="text" id="adminBlockValue">
+        </div>
+        <div class="field">
+          <label for="adminBlockReason">${t("web.admin.block_reason", "Reason")}</label>
+          <input type="text" id="adminBlockReason" maxlength="500">
+        </div>
+      </div>
+      <button class="btn" id="adminAddBlock" type="button">${t("web.admin.add_block", "Add Block")}</button>
+      <div class="list admin-block-list" id="adminBlockList">
+        <div class="field-hint">${t("web.loading", "Loading...")}</div>
+      </div>
+    </div>
   `;
   updateActions();
   document.getElementById("adminRefresh").addEventListener("click", loadAdminAccounts);
+  document.getElementById("adminAddBlock").addEventListener("click", addManualAdminBlock);
   await loadAdminAccounts();
+  await loadAdminBlocks();
 }
 
 async function loadAdminAccounts() {
@@ -5267,6 +5295,18 @@ async function loadAdminAccounts() {
         }
       });
     });
+    list.querySelectorAll("button[data-admin-block-email]").forEach((button) => {
+      button.addEventListener("click", () => blockAdminValue("email", button.dataset.adminBlockEmail || "", button.dataset.adminSourceAccount || ""));
+    });
+    list.querySelectorAll("button[data-admin-unblock-email]").forEach((button) => {
+      button.addEventListener("click", () => unblockAdminValue("email", button.dataset.adminUnblockEmail || ""));
+    });
+    list.querySelectorAll("button[data-admin-block-ip]").forEach((button) => {
+      button.addEventListener("click", () => blockAdminValue("ip", button.dataset.adminBlockIp || "", button.dataset.adminSourceAccount || ""));
+    });
+    list.querySelectorAll("button[data-admin-unblock-ip]").forEach((button) => {
+      button.addEventListener("click", () => unblockAdminValue("ip", button.dataset.adminUnblockIp || ""));
+    });
     list.querySelectorAll("button[data-admin-delete]").forEach((button) => {
       button.addEventListener("click", async () => {
         const email = button.dataset.adminDelete || "";
@@ -5295,17 +5335,127 @@ async function loadAdminAccounts() {
   }
 }
 
+async function loadAdminBlocks() {
+  const list = document.getElementById("adminBlockList");
+  if (!list) {
+    return;
+  }
+  try {
+    const data = await api("GET", "/api/admin/blocks");
+    const blocks = data.blocks || [];
+    if (!blocks.length) {
+      list.innerHTML = `<div class="field-hint">${t("web.admin.no_blocks", "No blocked emails or IPs.")}</div>`;
+      return;
+    }
+    list.innerHTML = blocks.map((block) => renderAdminBlock(block)).join("");
+    list.querySelectorAll("button[data-admin-unblock-type]").forEach((button) => {
+      button.addEventListener("click", () => unblockAdminValue(
+        button.dataset.adminUnblockType || "",
+        button.dataset.adminUnblockValue || ""
+      ));
+    });
+  } catch (error) {
+    list.innerHTML = `<div class="field-hint">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function renderAdminBlock(block) {
+  const type = escapeHtml(block.type || "");
+  const value = escapeHtml(block.value || "");
+  const reason = escapeHtml(block.reason || "");
+  const createdAt = escapeHtml(formatSavedDate(block.createdAt));
+  const createdBy = escapeHtml(block.createdBy || "");
+  const sourceAccountId = escapeHtml(block.sourceAccountId || "");
+  return `
+    <div class="list-item admin-account-item">
+      <div class="saved-draft-copy">
+        <strong>${type}: ${value}</strong>
+        ${reason ? `<div class="field-hint">${t("web.admin.block_reason", "Reason")}: ${reason}</div>` : ""}
+        <div class="field-hint">${t("web.admin.created", "Created")}: ${createdAt}</div>
+        ${createdBy ? `<div class="field-hint">${t("web.admin.created_by", "Created by")}: ${createdBy}</div>` : ""}
+        ${sourceAccountId ? `<div class="field-hint">${t("web.admin.source_account", "Source Account")}: ${sourceAccountId}</div>` : ""}
+      </div>
+      <div class="saved-draft-actions">
+        <button class="btn small" type="button" data-admin-unblock-type="${type}" data-admin-unblock-value="${value}">
+          ${t("web.admin.unblock", "Unblock")}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+async function addManualAdminBlock() {
+  const typeInput = document.getElementById("adminBlockType");
+  const valueInput = document.getElementById("adminBlockValue");
+  const reasonInput = document.getElementById("adminBlockReason");
+  const type = typeInput ? typeInput.value : "email";
+  const value = valueInput ? valueInput.value.trim() : "";
+  const reason = reasonInput ? reasonInput.value.trim() : "";
+  if (!value) {
+    showToast(t("web.admin.block_value_required", "Enter a value to block."));
+    return;
+  }
+  await blockAdminValue(type, value, "", reason);
+  if (valueInput) {
+    valueInput.value = "";
+  }
+  if (reasonInput) {
+    reasonInput.value = "";
+  }
+}
+
+async function blockAdminValue(type, value, sourceAccountId = "", reason = "") {
+  const safeValue = String(value || "").trim();
+  if (!safeValue) {
+    showToast(t("web.admin.block_value_required", "Enter a value to block."));
+    return;
+  }
+  const safeReason = reason || window.prompt(t("web.admin.block_reason_prompt", "Reason for block?"), "") || "";
+  try {
+    await api("POST", "/api/admin/blocks", {
+      type,
+      value: safeValue,
+      reason: safeReason,
+      sourceAccountId,
+    });
+    showToast(t("web.admin.blocked", "Access block saved."));
+    await loadAdminAccounts();
+    await loadAdminBlocks();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function unblockAdminValue(type, value) {
+  const safeValue = String(value || "").trim();
+  if (!safeValue) {
+    return;
+  }
+  try {
+    await api("DELETE", "/api/admin/blocks", { type, value: safeValue });
+    showToast(t("web.admin.unblocked", "Access block removed."));
+    await loadAdminAccounts();
+    await loadAdminBlocks();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
 function renderAdminAccount(account) {
   const email = escapeHtml(account.email || "");
   const id = escapeHtml(account.id || "");
   const createdAt = escapeHtml(formatSavedDate(account.createdAt));
   const verifiedAt = escapeHtml(formatSavedDate(account.verifiedAt));
+  const lastLoginAt = escapeHtml(formatSavedDate(account.lastLoginAt));
+  const lastLoginIp = escapeHtml(account.lastLoginIp || "");
   const draftCount = Number(account.draftCount || 0);
   const draftIds = (account.draftIds || []).map((draftId) => escapeHtml(draftId)).join(", ");
   const badges = [
     account.admin ? t("web.admin.badge_admin", "Admin") : "",
     account.passwordSet ? t("web.admin.badge_password", "Password set") : t("web.admin.badge_no_password", "No password"),
     account.locked ? t("web.admin.badge_locked", "Locked") : "",
+    account.emailBlocked ? t("web.admin.badge_email_blocked", "Email blocked") : "",
+    account.lastLoginIpBlocked ? t("web.admin.badge_ip_blocked", "IP blocked") : "",
   ].filter(Boolean).map((label) => `<span class="badge">${escapeHtml(label)}</span>`).join(" ");
   return `
     <div class="list-item admin-account-item">
@@ -5315,11 +5465,17 @@ function renderAdminAccount(account) {
         <div class="field-hint">${t("web.admin.account_id", "Account ID")}: ${id}</div>
         <div class="field-hint">${t("web.admin.created", "Created")}: ${createdAt}</div>
         <div class="field-hint">${t("web.admin.verified", "Verified")}: ${verifiedAt}</div>
+        <div class="field-hint">${t("web.admin.last_login", "Last Login")}: ${lastLoginAt}</div>
+        <div class="field-hint">${t("web.admin.last_login_ip", "Last Login IP")}: ${lastLoginIp || t("web.home.saved_unknown", "Unknown")}</div>
         <div class="field-hint">${t("web.admin.drafts", "Drafts")}: ${draftCount}${draftIds ? ` (${draftIds})` : ""}</div>
         <div class="field-hint">${t("web.admin.failed_attempts", "Failed login attempts")}: ${escapeHtml(account.failedLoginAttempts || 0)}</div>
       </div>
       <div class="saved-draft-actions">
         <button class="btn small" type="button" data-admin-unlock="${email}" ${account.locked ? "" : "disabled"}>${t("web.admin.unlock", "Unlock")}</button>
+        <button class="btn small" type="button" data-admin-block-email="${email}" data-admin-source-account="${id}" ${account.admin || account.emailBlocked ? "disabled" : ""}>${t("web.admin.block_email", "Block Email")}</button>
+        <button class="btn small" type="button" data-admin-unblock-email="${email}" ${account.emailBlocked ? "" : "disabled"}>${t("web.admin.unblock_email", "Unblock Email")}</button>
+        <button class="btn small" type="button" data-admin-block-ip="${lastLoginIp}" data-admin-source-account="${id}" ${lastLoginIp && !account.lastLoginIpBlocked ? "" : "disabled"}>${t("web.admin.block_ip", "Block IP")}</button>
+        <button class="btn small" type="button" data-admin-unblock-ip="${lastLoginIp}" ${account.lastLoginIpBlocked ? "" : "disabled"}>${t("web.admin.unblock_ip", "Unblock IP")}</button>
         <button class="btn danger small" type="button" data-admin-delete="${email}" ${account.admin ? "disabled" : ""}>${t("web.admin.delete", "Delete Account")}</button>
       </div>
     </div>

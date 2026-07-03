@@ -254,6 +254,7 @@ UI/
 ```text
 web/
 |-- AccountStore.java
+|-- BlockedAccessStore.java
 |-- ApiRoutes.java
 |-- DiscordWebhookService.java
 |-- DraftStore.java
@@ -292,6 +293,7 @@ These paths are intentionally ignored by Git and must be backed up on the drople
 ```text
 server-data/
 |-- accounts.properties
+|-- blocked-access.properties
 |-- nda-audit/
 `-- feedback/
 
