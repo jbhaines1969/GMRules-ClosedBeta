@@ -7,7 +7,6 @@ Before making changes, read these root files:
 - `AGENT_HANDOFF.md`
 - `PROJECT_NOTES.md`
 - `TODO.md`
-- `TODO_feedback.md` when working on beta intake, bug reports, blocker/crash reports, or Discord delivery.
 - `PROJECT_STRUCTURE.md`
 - `USER.md` if it exists locally. It is ignored by Git and contains user-specific collaboration preferences.
 
@@ -84,9 +83,6 @@ Important configuration keys are read as Java system properties or environment v
 
 Follow `TODO.md` order unless the user redirects:
 
-1. Stabilize hosted config and backups.
-2. Add feedback and bug-reporting intake.
-3. Wire Discord delivery for feedback stages.
-4. Fix beta-facing copy and obvious UI polish.
-5. Add minimum smoke tests.
-6. Launch to a small controlled cohort.
+1. Add minimum smoke tests for auth, drafts, and export.
+2. Fix remaining beta-facing UI polish.
+3. Launch to a small controlled cohort.

@@ -67,8 +67,8 @@ Character generation:
 
 Beta mechanics:
 
-- Feedback and bug-report intake exists, but hosted smoke testing is still needed after deploy.
-- Discord webhook delivery is implemented and production `.env` has the expected webhook variable names set; webhook delivery still needs hosted smoke testing.
+- Feedback and bug-report intake exists and hosted smoke testing passed: feedback, bug, and blocker reports reached Discord and wrote JSONL files on the Droplet.
+- Discord webhook delivery is implemented and production `.env` has the expected webhook variable names set.
 - No admin/triage surface exists for reviewing feedback, accounts, drafts, or NDA records.
 
 Deployment and operations:
@@ -89,8 +89,7 @@ Security and abuse controls:
 
 UX and copy:
 
-- Email copy says "Open Beta" while the app says "Closed Beta"; this should be consistent before public beta traffic.
-- The "If you did not request access" email text currently says "click HERE" but does not provide a real opt-out/report link.
+- Email copy is aligned on "Closed Beta" and the old opt-out wording has been replaced with neutral explanatory copy.
 - The save-status mojibake separator in `app.js` has been fixed.
 - The visual style is serviceable for PoC, but mobile layout, modal density, button hierarchy, and closed-beta onboarding copy need polish.
 - The character generator currently ends with "Character creation screens coming next."
@@ -103,13 +102,13 @@ The fastest beta-launch path is to keep this as a small, controlled closed beta 
    Confirm domain, HTTPS, reverse proxy, service startup command, environment variables, persistent data directories, backups, and rollback.
 
 2. Add beta feedback intake.
-   The in-app feedback/report control, local feedback storage, and Discord forwarding are implemented. Next step is hosted smoke testing after deploy.
+   The in-app feedback/report control, local feedback storage, and Discord forwarding are implemented and smoke-tested on the hosted Droplet.
 
 3. Fix beta-facing copy and obvious polish.
-   Align "Closed Beta" language, fix the email opt-out copy, remove the save-status separator display issue, tighten mobile layout, and make the home/signup flow feel intentional.
+   Closed Beta email language, opt-out copy, and the save-status separator are fixed. Next polish pass should focus on mobile layout, modal density, button hierarchy, and onboarding copy.
 
 4. Add launch smoke tests.
-   At minimum cover signup request validation, verification token flow, login, draft create/open/export, and feedback webhook formatting.
+   At minimum cover signup request validation, verification token flow, login, and draft create/open/export. Feedback webhook formatting has been smoke-tested.
 
 5. Launch with a small cohort.
    Keep the current account/draft caps for the first wave, invite a handful of testers, monitor Discord and server logs, and manually review saved data/backups.

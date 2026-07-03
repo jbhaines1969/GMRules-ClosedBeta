@@ -12,7 +12,6 @@ Read these files first:
 - `AGENTS.md`
 - `PROJECT_NOTES.md`
 - `TODO.md`
-- `TODO_feedback.md` when working on beta intake, bug reports, blocker/crash reports, or Discord delivery.
 - `PROJECT_STRUCTURE.md`
 - `USER.md` if it exists locally. It is ignored by Git and contains user-specific collaboration preferences.
 
@@ -26,12 +25,14 @@ This repo is the current closed-beta deploy release for GMRules.
 - `gmrules-core` contains the canonical ruleset model and `.gmrf` persistence.
 - `gmrules-builder` contains the legacy Swing builder plus the web server, web API, and SPA assets.
 - Web entry point is `com.gamemaker.gmrules.web.WebMain`.
-- `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-02 after the feedback-intake implementation pass, but there are no automated tests yet.
-- New continuity docs were added at the repo root: `PROJECT_NOTES.md`, `TODO.md`, `TODO_feedback.md`, `PROJECT_STRUCTURE.md`, `AGENTS.md`, and `AGENT_HANDOFF.md`.
+- `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-02 after the feedback-intake implementation pass.
+- `mvn test` passed again on 2026-07-02 after deleting the feedback-specific TODO file and fixing `EmailService` Closed Beta copy.
+- There are currently no automated test sources, so successful Maven runs are compile/build verification, not behavioral coverage.
+- New continuity docs were added at the repo root: `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `AGENTS.md`, and `AGENT_HANDOFF.md`.
 
 ## Active Resume Point
 
-Feedback intake implementation is in progress and uncommitted. The next session should resume from this state, not restart from `TODO_feedback.md`.
+Feedback intake implementation is complete and smoke-tested. The next session should resume from this state, not restart the feedback work.
 
 Implemented so far:
 
@@ -44,6 +45,9 @@ Implemented so far:
 - Added `DiscordWebhookService`; it is inert when webhook URLs are blank and logs failures without printing webhook URLs.
 - Added config keys for `GMRULES_WEB_FEEDBACKDIR`, `GMRULES_DISCORD_FEEDBACKWEBHOOKURL`, `GMRULES_DISCORD_BUGWEBHOOKURL`, and `GMRULES_DISCORD_BLOCKERWEBHOOKURL`.
 - Fixed the visible save-status separator in `app.js`.
+- Hosted smoke testing passed: one feedback report, one bug report, and one blocker report reached the expected Discord channels and wrote expected JSONL files on the Droplet.
+- The feedback-specific TODO file was deleted after its remaining unchecked future items were moved into `TODO.md`.
+- `EmailService` now uses "GMRules Closed Beta" copy and neutral unrequested-access text.
 
 External setup completed:
 
@@ -51,11 +55,10 @@ External setup completed:
 - The user verified only variable names with a safe masked/name-only command; webhook values were not pasted into chat.
 - Do not ask the user to reconstruct missing crash-era personal notes while impaired. The repo-relevant resume state is captured here; defer any non-repo personal/user notes until the user is sober and explicitly wants to rebuild them.
 
-Next repo/deploy steps:
+Next repo steps:
 
-- Review the uncommitted feedback-intake diff.
-- Do not deploy while the user is drunk unless the user explicitly overrides the local `USER.md` drunk protocol.
-- After deploy, smoke test one report of each type and confirm local JSONL storage plus Discord delivery.
+- Review and commit any remaining feedback-intake/doc updates only if the user explicitly asks.
+- Continue remaining launch blockers: auth/draft/export smoke tests and visible UI polish.
 
 ## Product Status
 
@@ -83,13 +86,10 @@ User-provided deployment context:
 
 Launch blockers are tracked in `TODO.md`. Most important:
 
-- Deploy and smoke-test in-app feedback and bug reporting. Detailed scope is in `TODO_feedback.md`.
-- Smoke-test Discord webhook delivery for feedback, bug reports, and blocker/crash reports. Detailed scope is in `TODO_feedback.md`.
 - Final domain is confirmed in production `.env`: `GMRULES_WEB_PUBLICBASEURL=https://gmrules.com`.
 - `deploy.sh` is confirmed correct for the current Digital Ocean server-side launcher flow.
 - Production env vars are now documented in `.env.example`; manual backup/restore for `server-data/`, `drafts/`, and `.env` has been implemented and tested.
-- Align "Closed Beta" copy in UI and email.
-- Add smoke tests for account verification, login, draft persistence/export, and feedback submission.
+- Add smoke tests for account verification, login, and draft persistence/export.
 
 ## Important Paths
 
@@ -217,8 +217,6 @@ It auto-selects the single `/tmp/gmrules-backup-*.tar.gz.gpg` file when only one
 
 ## Next Best Moves
 
-1. Implement feedback/bug/blocker intake and Discord webhook delivery.
-2. Tighten deploy configuration docs and `.env.example`.
-3. Fix beta-facing copy and small visible UI issues.
-4. Add a minimal automated smoke-test layer around auth, drafts, and feedback.
-5. Launch a small controlled beta cohort and monitor Discord/server logs.
+1. Add smoke coverage/checklists around account verification, login, and draft persistence/export.
+2. Fix remaining small visible UI issues.
+3. Launch a small controlled beta cohort and monitor Discord/server logs.

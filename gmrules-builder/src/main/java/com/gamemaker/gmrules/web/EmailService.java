@@ -28,9 +28,9 @@ import java.util.Objects;
 public final class EmailService {
 
     // *** MEMBERS ***
-    private static final String CLOSED_BETA_SUBJECT = "GMRules Open Beta";
-    private static final String CLOSED_BETA_CONTENT = "You requested to join the GMRules open beta and agreed to the NDA. Click the button below to verify your email and create your account.";
-    private static final String UNREQUESTED_ACCESS_TEXT = "If you did not request access to this Beta, please click HERE.";
+    private static final String CLOSED_BETA_SUBJECT = "GMRules Closed Beta";
+    private static final String CLOSED_BETA_CONTENT = "You requested access to the GMRules closed beta and agreed to the NDA. Click the button below to verify your email and create your account.";
+    private static final String UNREQUESTED_ACCESS_TEXT = "If you did not request access to the GMRules Closed Beta, you can ignore this email.";
     private static final String NDA_AUDIT_SUBJECT_PREFIX = "GMRules NDA Audit - ";
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
     private static final int MAX_ERROR_BODY_LENGTH = 240;

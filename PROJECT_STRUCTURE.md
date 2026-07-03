@@ -27,7 +27,6 @@ GMRules-ClosedBeta/
 |-- PROJECT_NOTES.md
 |-- PROJECT_STRUCTURE.md
 |-- TODO.md
-|-- TODO_feedback.md
 |-- deploy.sh
 |-- makebackup.sh
 |-- pom.xml
@@ -59,7 +58,6 @@ makebackup.sh       # Create encrypted droplet backup and remove unencrypted arc
 restore.sh          # Restore runtime data from encrypted backup after confirmation.
 PROJECT_NOTES.md    # Current project status, risks, and launch path.
 TODO.md             # Launch-ordered beta checklist.
-TODO_feedback.md    # Detailed feedback, bug-report, blocker/crash, and Discord intake plan.
 AGENTS.md           # Operating instructions for future agents.
 AGENT_HANDOFF.md    # Current handoff snapshot for recovery/continuation.
 PROJECT_STRUCTURE.md

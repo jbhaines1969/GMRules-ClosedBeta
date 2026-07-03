@@ -8,12 +8,12 @@ Updated: 2026-07-02
 - [x] Confirm `deploy.sh` is correct for the current Digital Ocean server-side launcher flow.
 - [x] Document all production environment variables in `.env.example`, including host, port, public base URL, data paths, Resend sender/API key, NDA audit recipient, and Discord webhook values.
 - [x] Complete and test the manual backup/restore procedure for `server-data/`, `drafts/`, and `.env`: encrypted server backup, local download, local verification, upload from local backup, and restore.
-- [x] Add in-app feedback and bug reporting. See `TODO_feedback.md`.
-- [x] Add Discord webhook delivery for three intake types: feedback, bug report, and blocker/crash. See `TODO_feedback.md`.
-- [ ] Align all beta copy on "Closed Beta"; fix `EmailService` subject/body that currently says "Open Beta".
-- [ ] Replace the email "click HERE" opt-out text with either a real support/report path or neutral explanatory copy.
+- [x] Add in-app feedback and bug reporting.
+- [x] Add Discord webhook delivery for three intake types: feedback, bug report, and blocker/crash.
+- [x] Align all beta copy on "Closed Beta" in `EmailService`.
+- [x] Replace the old email opt-out text with neutral explanatory copy.
 - [x] Fix the save-status mojibake separator in `app.js`.
-- [ ] Add minimal smoke tests for account verification, login, draft persistence, `.gmrf` export, and feedback submission.
+- [ ] Add minimal smoke tests for account verification, login, draft persistence, and `.gmrf` export. Feedback submission has been smoke-tested.
 
 ## High Priority After First Invites
 
@@ -56,6 +56,8 @@ Updated: 2026-07-02
 
 - [ ] Replace flat-file account storage with a database if beta usage grows.
 - [ ] Add persistent sessions or refresh-token behavior if restart logouts become painful.
-- [ ] Add structured feedback triage statuses in Discord or an admin view.
+- [ ] Add admin-only feedback report viewing if Discord triage becomes insufficient.
+- [ ] Add report statuses such as new, acknowledged, fixed, deferred, and needs follow-up.
+- [ ] Add optional feedback attachment/export upload only after private encrypted content storage is designed.
 - [ ] Add product analytics only after deciding what metrics are useful and privacy-appropriate.
 - [ ] Build a formal beta onboarding email and tester instructions.
