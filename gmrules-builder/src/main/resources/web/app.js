@@ -5523,7 +5523,7 @@ function renderHome() {
         <div class="field">
           <label for="homeEditFile">${t("web.home.edit_game", "Edit Existing Game")}</label>
           <input class="hidden" type="file" id="homeEditFile" accept=".gmrf">
-          <button class="btn ghost" id="homeEditChoose" type="button">${t("web.home.choose_game", "Choose Game File")}</button>
+          <button class="btn ghost" id="homeEditChoose" type="button">${t("web.home.choose_game", "Upload Game File")}</button>
         </div>
         <div class="field">
           <label for="homeCharacterFile">${t("web.home.create_character", "Create Character")}</label>
