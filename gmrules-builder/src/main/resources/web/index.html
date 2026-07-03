@@ -119,6 +119,22 @@
     </div>
   </div>
 
+  <div class="modal hidden" id="lockedAccountModal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h3 id="lockedAccountTitle">Account Locked</h3>
+      <p id="lockedAccountMessage"></p>
+      <div class="field">
+        <label for="lockedAccountDetails" id="lockedAccountDetailsLabel">Message</label>
+        <textarea id="lockedAccountDetails" maxlength="4000"></textarea>
+      </div>
+      <div class="modal-status" id="lockedAccountStatus"></div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="lockedAccountCancel" type="button">Cancel</button>
+        <button class="btn" id="lockedAccountSubmit" type="button">Request Review</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal hidden" id="editModal" role="dialog" aria-modal="true">
     <div class="modal-card wide">
       <h3 id="editTitle">Edit</h3>

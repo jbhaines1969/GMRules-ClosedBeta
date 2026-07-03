@@ -73,6 +73,9 @@ public final class ApiRoutes {
     private static final int FEEDBACK_RATE_LIMIT_MAX = 5;
     private static final Duration FEEDBACK_RATE_LIMIT_WINDOW = Duration.ofMinutes(10);
     private static final Map<String, Deque<Instant>> FEEDBACK_RATE_LIMITS = new ConcurrentHashMap<>();
+    private static final int LOCKED_ACCOUNT_REPORT_RATE_LIMIT_MAX = 3;
+    private static final Duration LOCKED_ACCOUNT_REPORT_RATE_LIMIT_WINDOW = Duration.ofMinutes(10);
+    private static final Map<String, Deque<Instant>> LOCKED_ACCOUNT_REPORT_RATE_LIMITS = new ConcurrentHashMap<>();
     private static final int SIGNUP_IP_RATE_LIMIT_MAX = 2;
     private static final Duration SIGNUP_IP_RATE_LIMIT_WINDOW = Duration.ofDays(1);
     private static final int SIGNUP_EMAIL_RATE_LIMIT_MAX = 1;
@@ -97,6 +100,7 @@ public final class ApiRoutes {
         router.add("GET", "/api/accounts/verify", ApiRoutes::verifyAccount);
         router.add("POST", "/api/accounts/lookup", ApiRoutes::lookupAccount);
         router.add("POST", "/api/accounts/password", ApiRoutes::setInitialPassword);
+        router.add("POST", "/api/accounts/locked-report", ApiRoutes::submitLockedAccountReport);
         router.add("DELETE", "/api/accounts", ApiRoutes::deleteAccount);
         router.add("POST", "/api/login", ApiRoutes::login);
         router.add("POST", "/api/logout", ApiRoutes::logout);
@@ -390,6 +394,8 @@ public final class ApiRoutes {
             lookup.exists(),
             "passwordSet",
             lookup.isPasswordSet(),
+            "locked",
+            lookup.isLocked(),
             "email",
             lookup.getEmail()
         ));
@@ -455,12 +461,21 @@ public final class ApiRoutes {
             ctx.json(401, Map.of("error", "Email and password are required"));
             return;
         }
-        java.util.Optional<AccountStore.Account> resolved = ctx.getAccountStore().authenticate(username, password);
-        if (resolved.isEmpty()) {
-            ctx.json(401, Map.of("error", "Invalid email or password"));
+        AccountStore.AuthenticationResult result = ctx.getAccountStore().authenticate(username, password);
+        if (result.isLocked()) {
+            ctx.json(423, accountLockedPayload());
             return;
         }
-        AccountStore.Account account = resolved.get();
+        if (!result.isAuthenticated()) {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("error", "Invalid email or password");
+            if (result.getFailedAttempts() > 0) {
+                payload.put("remainingAttempts", result.getRemainingAttempts());
+            }
+            ctx.json(401, payload);
+            return;
+        }
+        AccountStore.Account account = result.getAccount();
         SessionStore.Session session = ctx.getSessionStore().createSession(
             account.getId(),
             account.getUsername(),
@@ -571,6 +586,79 @@ public final class ApiRoutes {
             discordDelivered = new DiscordWebhookService(ctx.getConfig()).deliver(report);
         } catch (IOException e) {
             System.err.println("Discord feedback delivery failed for report " + report.getId() + ": " + e.getMessage());
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("ok", true);
+        payload.put("reportId", report.getId());
+        payload.put("discordDelivered", discordDelivered);
+        ctx.json(200, payload);
+    }
+
+    private static void submitLockedAccountReport(RequestContext ctx) throws IOException {
+        Map<String, Object> body;
+        try {
+            body = ctx.readJsonMap(FEEDBACK_MAX_BODY_BYTES);
+        } catch (IOException e) {
+            String message = Objects.toString(e.getMessage(), "");
+            if (message.toLowerCase(Locale.ROOT).contains("too large")) {
+                ctx.json(413, Map.of("error", "Account recovery report is too large."));
+                return;
+            }
+            ctx.json(400, Map.of("error", "Account recovery report must be valid JSON."));
+            return;
+        }
+
+        AccountStore.Account account;
+        try {
+            account = ctx.getAccountStore().lockedAccount(getString(body, "email"));
+        } catch (IllegalArgumentException e) {
+            ctx.json(400, Map.of("error", e.getMessage()));
+            return;
+        }
+        if (!consumeLockedAccountReportRateLimit(ctx, account.getUsername())) {
+            ctx.json(429, Map.of("error", "Too many account recovery reports submitted. Wait a few minutes and try again."));
+            return;
+        }
+
+        String userMessage = limitLength(getString(body, "message"), FEEDBACK_MESSAGE_MAX_LENGTH).trim();
+        String reportMessage = userMessage.isEmpty()
+            ? "User requested review for a locked closed-beta account."
+            : userMessage;
+        FeedbackStore.Report report = new FeedbackStore.Report(
+            UUID.randomUUID().toString(),
+            "blocker",
+            "high",
+            "Locked account recovery request",
+            reportMessage,
+            "Login locked after three failed password attempts. User submitted this request from the locked-account prompt.",
+            account.getId(),
+            account.getUsername(),
+            account.isLegacyGuest(),
+            limitLength(getString(body, "route"), FEEDBACK_METADATA_MAX_LENGTH),
+            "login",
+            "",
+            "",
+            limitLength(getString(body, "userAgent"), FEEDBACK_METADATA_MAX_LENGTH),
+            limitLength(ctx.userAgent(), FEEDBACK_METADATA_MAX_LENGTH),
+            limitLength(ctx.clientIp(), 128),
+            limitLength(getString(body, "clientTimestamp"), FEEDBACK_METADATA_MAX_LENGTH),
+            Instant.now().toString()
+        );
+
+        try {
+            new FeedbackStore(ctx.getConfig()).save(report);
+        } catch (IOException e) {
+            System.err.println("Locked account report local save failed: " + e.getMessage());
+            ctx.json(500, Map.of("error", "Account recovery report could not be saved."));
+            return;
+        }
+
+        boolean discordDelivered = false;
+        try {
+            discordDelivered = new DiscordWebhookService(ctx.getConfig()).deliver(report);
+        } catch (IOException e) {
+            System.err.println("Discord locked account report delivery failed for report " + report.getId() + ": " + e.getMessage());
         }
 
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -3915,6 +4003,33 @@ public final class ApiRoutes {
         return true;
     }
 
+    private static boolean consumeLockedAccountReportRateLimit(RequestContext ctx, String email) {
+        String emailKey = "locked-email:" + Objects.toString(email, "").trim().toLowerCase(Locale.ROOT);
+        String ipKey = "locked-ip:" + ctx.clientIp();
+        Instant now = Instant.now();
+        if (!isRollingRateLimitAvailable(
+                LOCKED_ACCOUNT_REPORT_RATE_LIMITS,
+                emailKey,
+                LOCKED_ACCOUNT_REPORT_RATE_LIMIT_MAX,
+                LOCKED_ACCOUNT_REPORT_RATE_LIMIT_WINDOW,
+                now
+        )) {
+            return false;
+        }
+        if (!isRollingRateLimitAvailable(
+                LOCKED_ACCOUNT_REPORT_RATE_LIMITS,
+                ipKey,
+                LOCKED_ACCOUNT_REPORT_RATE_LIMIT_MAX,
+                LOCKED_ACCOUNT_REPORT_RATE_LIMIT_WINDOW,
+                now
+        )) {
+            return false;
+        }
+        recordRollingRateLimit(LOCKED_ACCOUNT_REPORT_RATE_LIMITS, emailKey, LOCKED_ACCOUNT_REPORT_RATE_LIMIT_WINDOW, now);
+        recordRollingRateLimit(LOCKED_ACCOUNT_REPORT_RATE_LIMITS, ipKey, LOCKED_ACCOUNT_REPORT_RATE_LIMIT_WINDOW, now);
+        return true;
+    }
+
     private static boolean consumeImportRateLimit(RequestContext ctx, SessionStore.Session session) {
         String accountKey = Objects.toString(session.getUserId(), "").trim();
         String key = accountKey.isEmpty() ? "ip:" + ctx.clientIp() : "account:" + accountKey;
@@ -3989,6 +4104,13 @@ public final class ApiRoutes {
         while (!attempts.isEmpty() && attempts.peekFirst().isBefore(cutoff)) {
             attempts.removeFirst();
         }
+    }
+
+    private static Map<String, Object> accountLockedPayload() {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("error", "This account is locked after repeated failed login attempts.");
+        payload.put("code", "account_locked");
+        return payload;
     }
 
     private static String normalizeFeedbackType(String type) {

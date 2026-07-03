@@ -52,6 +52,7 @@ Implemented so far:
 - Signup/application rate limiting was added: two applications per IP per day, one per email per day, no resend over an active pending verification email, plus the existing ten-account cap.
 - The beta application page now states the 10 accepted tester cap and two applications per connection per day.
 - `.gmrf` import/export rate limiting was added: two import attempts and two download attempts per account per rolling seven days.
+- Login now locks an account after three failed password attempts. Locked users get a popup that submits a blocker recovery request through `/api/accounts/locked-report`; account content and saved drafts are not deleted.
 
 External setup completed:
 
@@ -93,7 +94,7 @@ Launch blockers are tracked in `TODO.md`. Most important:
 - Final domain is confirmed in production `.env`: `GMRULES_WEB_PUBLICBASEURL=https://gmrules.com`.
 - `deploy.sh` is confirmed correct for the current Digital Ocean server-side launcher flow.
 - Production env vars are now documented in `.env.example`; manual backup/restore for `server-data/`, `drafts/`, and `.env` has been implemented and tested.
-- Beta launch blockers are complete. Next: rate limits for login and password setup endpoints.
+- Beta launch blockers are complete. Login locking is implemented; password setup mismatch attempts are intentionally not rate-limited for now. Next actionable TODO is request logging unless blocked IP/email controls become necessary.
 
 ## Important Paths
 
@@ -151,6 +152,7 @@ Non-draft:
 - `GET /api/accounts/verify`
 - `POST /api/accounts/lookup`
 - `POST /api/accounts/password`
+- `POST /api/accounts/locked-report`
 - `DELETE /api/accounts`
 - `POST /api/login`
 - `POST /api/logout`

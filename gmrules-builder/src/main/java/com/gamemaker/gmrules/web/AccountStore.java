@@ -27,7 +27,6 @@ import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -47,6 +46,7 @@ public final class AccountStore {
     private static final Duration VERIFICATION_TTL = Duration.ofHours(24);
     private static final int MAX_ACCOUNTS = 10;
     private static final int MAX_DRAFTS_PER_ACCOUNT = 2;
+    private static final int MAX_FAILED_LOGIN_ATTEMPTS = 3;
     private static final String USER_PREFIX = "users.";
     private static final String PENDING_PREFIX = "pending.";
     private static final String DRAFT_PREFIX = "drafts.";
@@ -121,6 +121,8 @@ public final class AccountStore {
             properties.setProperty(userKey(safeEmail, "hash"), "");
             properties.setProperty(userKey(safeEmail, "createdAt"), Instant.now().toString());
             properties.setProperty(userKey(safeEmail, "verifiedAt"), Instant.now().toString());
+            properties.setProperty(userKey(safeEmail, "failedLoginAttempts"), "0");
+            properties.setProperty(userKey(safeEmail, "loginLockedAt"), "");
             removePendingToken(properties, safeToken);
             saveProperties(properties);
             return new Account(userId, safeEmail, false);
@@ -130,14 +132,19 @@ public final class AccountStore {
     public AccountLookup lookupAccount(String email) throws IOException {
         String safeEmail = normalizeEmail(email);
         if (safeEmail.isEmpty()) {
-            return new AccountLookup("", false, false);
+            return new AccountLookup("", false, false, false);
         }
         synchronized (lock) {
             Properties properties = loadProperties();
             String userId = Objects.toString(properties.getProperty(userKey(safeEmail, "id")), "");
             String saltValue = Objects.toString(properties.getProperty(userKey(safeEmail, "salt")), "");
             String hashValue = Objects.toString(properties.getProperty(userKey(safeEmail, "hash")), "");
-            return new AccountLookup(safeEmail, !userId.isEmpty(), !saltValue.isEmpty() && !hashValue.isEmpty());
+            return new AccountLookup(
+                safeEmail,
+                !userId.isEmpty(),
+                !saltValue.isEmpty() && !hashValue.isEmpty(),
+                isLoginLocked(properties, safeEmail)
+            );
         }
     }
 
@@ -160,15 +167,16 @@ public final class AccountStore {
             byte[] hash = hashPassword(password, salt);
             properties.setProperty(userKey(safeEmail, "salt"), encode(salt));
             properties.setProperty(userKey(safeEmail, "hash"), encode(hash));
+            clearLoginFailures(properties, safeEmail);
             saveProperties(properties);
             return new Account(userId, safeEmail, false);
         }
     }
 
-    public Optional<Account> authenticate(String username, String password) throws IOException {
+    public AuthenticationResult authenticate(String username, String password) throws IOException {
         String safeUsername = normalizeEmail(username);
         if (safeUsername.isEmpty() || Objects.toString(password, "").isEmpty()) {
-            return Optional.empty();
+            return AuthenticationResult.failed();
         }
         synchronized (lock) {
             Properties properties = loadProperties();
@@ -176,15 +184,41 @@ public final class AccountStore {
             String saltValue = Objects.toString(properties.getProperty(userKey(safeUsername, "salt")), "");
             String hashValue = Objects.toString(properties.getProperty(userKey(safeUsername, "hash")), "");
             if (userId.isEmpty() || saltValue.isEmpty() || hashValue.isEmpty()) {
-                return Optional.empty();
+                return AuthenticationResult.failed();
+            }
+            Account account = new Account(userId, safeUsername, false);
+            if (isLoginLocked(properties, safeUsername)) {
+                return AuthenticationResult.locked(account, readFailedLoginAttempts(properties, safeUsername));
             }
             byte[] salt = decode(saltValue);
             byte[] expected = decode(hashValue);
             byte[] actual = hashPassword(password, salt);
             if (!MessageDigest.isEqual(expected, actual)) {
-                return Optional.empty();
+                int failedAttempts = recordFailedLoginAttempt(properties, safeUsername);
+                saveProperties(properties);
+                if (failedAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+                    return AuthenticationResult.locked(account, failedAttempts);
+                }
+                return AuthenticationResult.failed(failedAttempts);
             }
-            return Optional.of(new Account(userId, safeUsername, false));
+            clearLoginFailures(properties, safeUsername);
+            saveProperties(properties);
+            return AuthenticationResult.authenticated(account);
+        }
+    }
+
+    public Account lockedAccount(String email) throws IOException {
+        String safeEmail = normalizeEmail(email);
+        if (safeEmail.isEmpty()) {
+            throw new IllegalArgumentException("Email is required.");
+        }
+        synchronized (lock) {
+            Properties properties = loadProperties();
+            String userId = Objects.toString(properties.getProperty(userKey(safeEmail, "id")), "");
+            if (userId.isEmpty() || !isLoginLocked(properties, safeEmail)) {
+                throw new IllegalArgumentException("This account is not locked.");
+            }
+            return new Account(userId, safeEmail, false);
         }
     }
 
@@ -340,6 +374,33 @@ public final class AccountStore {
             }
         }
         return count;
+    }
+
+    private boolean isLoginLocked(Properties properties, String email) {
+        return !Objects.toString(properties.getProperty(userKey(email, "loginLockedAt")), "").isBlank();
+    }
+
+    private int readFailedLoginAttempts(Properties properties, String email) {
+        String raw = Objects.toString(properties.getProperty(userKey(email, "failedLoginAttempts")), "0").trim();
+        try {
+            return Math.max(0, Integer.parseInt(raw));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private int recordFailedLoginAttempt(Properties properties, String email) {
+        int failedAttempts = readFailedLoginAttempts(properties, email) + 1;
+        properties.setProperty(userKey(email, "failedLoginAttempts"), Integer.toString(failedAttempts));
+        if (failedAttempts >= MAX_FAILED_LOGIN_ATTEMPTS && !isLoginLocked(properties, email)) {
+            properties.setProperty(userKey(email, "loginLockedAt"), Instant.now().toString());
+        }
+        return failedAttempts;
+    }
+
+    private void clearLoginFailures(Properties properties, String email) {
+        properties.setProperty(userKey(email, "failedLoginAttempts"), "0");
+        properties.setProperty(userKey(email, "loginLockedAt"), "");
     }
 
     private void removePendingForEmail(Properties properties, String email) {
@@ -518,6 +579,60 @@ public final class AccountStore {
         }
     }
 
+    public static final class AuthenticationResult {
+
+        // *** MEMBERS ***
+        private final Account account;
+        private final boolean authenticated;
+        private final boolean locked;
+        private final int failedAttempts;
+
+        // *** CONSTRUCTORS ***
+        private AuthenticationResult(Account account, boolean authenticated, boolean locked, int failedAttempts) {
+            this.account = Objects.requireNonNullElseGet(account, () -> new Account("", "", false));
+            this.authenticated = authenticated;
+            this.locked = locked;
+            this.failedAttempts = Math.max(0, failedAttempts);
+        }
+
+        private static AuthenticationResult authenticated(Account account) {
+            return new AuthenticationResult(account, true, false, 0);
+        }
+
+        private static AuthenticationResult failed() {
+            return new AuthenticationResult(new Account("", "", false), false, false, 0);
+        }
+
+        private static AuthenticationResult failed(int failedAttempts) {
+            return new AuthenticationResult(new Account("", "", false), false, false, failedAttempts);
+        }
+
+        private static AuthenticationResult locked(Account account, int failedAttempts) {
+            return new AuthenticationResult(account, false, true, Math.max(MAX_FAILED_LOGIN_ATTEMPTS, failedAttempts));
+        }
+
+        // *** METHODS ***
+        public Account getAccount() {
+            return account;
+        }
+
+        public boolean isAuthenticated() {
+            return authenticated;
+        }
+
+        public boolean isLocked() {
+            return locked;
+        }
+
+        public int getFailedAttempts() {
+            return failedAttempts;
+        }
+
+        public int getRemainingAttempts() {
+            return Math.max(0, MAX_FAILED_LOGIN_ATTEMPTS - failedAttempts);
+        }
+    }
+
     public static final class VerificationRequest {
 
         // *** MEMBERS ***
@@ -546,12 +661,14 @@ public final class AccountStore {
         private final String email;
         private final boolean exists;
         private final boolean passwordSet;
+        private final boolean locked;
 
         // *** CONSTRUCTORS ***
-        private AccountLookup(String email, boolean exists, boolean passwordSet) {
+        private AccountLookup(String email, boolean exists, boolean passwordSet, boolean locked) {
             this.email = Objects.toString(email, "");
             this.exists = exists;
             this.passwordSet = passwordSet;
+            this.locked = locked;
         }
 
         // *** METHODS ***
@@ -565,6 +682,10 @@ public final class AccountStore {
 
         public boolean isPasswordSet() {
             return passwordSet;
+        }
+
+        public boolean isLocked() {
+            return locked;
         }
     }
 

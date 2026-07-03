@@ -115,6 +115,15 @@ const feedbackStatus = document.getElementById("feedbackStatus");
 const feedbackCancel = document.getElementById("feedbackCancel");
 const feedbackSubmit = document.getElementById("feedbackSubmit");
 
+const lockedAccountModal = document.getElementById("lockedAccountModal");
+const lockedAccountTitle = document.getElementById("lockedAccountTitle");
+const lockedAccountMessage = document.getElementById("lockedAccountMessage");
+const lockedAccountDetailsLabel = document.getElementById("lockedAccountDetailsLabel");
+const lockedAccountDetails = document.getElementById("lockedAccountDetails");
+const lockedAccountStatus = document.getElementById("lockedAccountStatus");
+const lockedAccountCancel = document.getElementById("lockedAccountCancel");
+const lockedAccountSubmit = document.getElementById("lockedAccountSubmit");
+
 const editModal = document.getElementById("editModal");
 const editTitle = document.getElementById("editTitle");
 const editNameLabel = document.getElementById("editNameLabel");
@@ -341,6 +350,7 @@ let spellEffectOptions = [];
 state.locale = "en";
 
 let transientZIndex = 1000;
+let lockedAccountEmail = "";
 
 function bringTransientToFront(element) {
   transientZIndex += 1;
@@ -503,6 +513,24 @@ function applyStaticLabels() {
   }
   if (feedbackSubmit) {
     feedbackSubmit.textContent = t("web.feedback.submit", "Submit Report");
+  }
+  if (lockedAccountTitle) {
+    lockedAccountTitle.textContent = t("web.login.locked_title", "Account Locked");
+  }
+  if (lockedAccountMessage) {
+    lockedAccountMessage.textContent = t(
+      "web.login.locked_message",
+      "This account is locked after repeated failed login attempts. Send a blocker report to request review; your account and saved rulesets are not deleted."
+    );
+  }
+  if (lockedAccountDetailsLabel) {
+    lockedAccountDetailsLabel.textContent = t("web.login.locked_details", "Message");
+  }
+  if (lockedAccountCancel) {
+    lockedAccountCancel.textContent = t("common.cancel", "Cancel");
+  }
+  if (lockedAccountSubmit) {
+    lockedAccountSubmit.textContent = t("web.login.locked_submit", "Request Review");
   }
   editNameLabel.textContent = t("common.name", "Name");
   editDescriptionLabel.textContent = t("common.description", "Description");
@@ -855,7 +883,11 @@ async function api(method, path, body) {
   const text = await response.text();
   const data = text ? JSON.parse(text) : {};
   if (!response.ok) {
-    throw new Error(data.error || t("web.error.request_failed", "Request failed"));
+    const error = new Error(data.error || t("web.error.request_failed", "Request failed"));
+    error.status = response.status;
+    error.code = data.code || "";
+    error.data = data;
+    throw error;
   }
   return data;
 }
@@ -874,7 +906,11 @@ async function apiBinary(method, path, buffer) {
   const text = await response.text();
   const data = text ? JSON.parse(text) : {};
   if (!response.ok) {
-    throw new Error(data.error || t("web.error.request_failed", "Request failed"));
+    const error = new Error(data.error || t("web.error.request_failed", "Request failed"));
+    error.status = response.status;
+    error.code = data.code || "";
+    error.data = data;
+    throw error;
   }
   return data;
 }
@@ -1214,6 +1250,24 @@ function closeFeedbackModal() {
   feedbackStatus.textContent = "";
 }
 
+function openLockedAccountModal(email) {
+  lockedAccountEmail = String(email || "").trim();
+  lockedAccountDetails.value = t(
+    "web.login.locked_default_message",
+    "Please review this locked closed-beta account. I need help getting access back."
+  );
+  lockedAccountStatus.textContent = "";
+  lockedAccountSubmit.disabled = false;
+  lockedAccountCancel.disabled = false;
+  lockedAccountModal.classList.remove("hidden");
+  window.requestAnimationFrame(() => lockedAccountDetails.focus());
+}
+
+function closeLockedAccountModal() {
+  lockedAccountModal.classList.add("hidden");
+  lockedAccountStatus.textContent = "";
+}
+
 function currentRouteForFeedback() {
   const path = String(window.location.pathname || "");
   const search = String(window.location.search || "");
@@ -1256,6 +1310,33 @@ async function submitFeedbackReport() {
     feedbackSubmit.disabled = false;
   } finally {
     feedbackCancel.disabled = false;
+  }
+}
+
+async function submitLockedAccountReport() {
+  const email = String(lockedAccountEmail || "").trim();
+  if (!email) {
+    lockedAccountStatus.textContent = t("web.login.email_required", "Email is required.");
+    return;
+  }
+  lockedAccountSubmit.disabled = true;
+  lockedAccountCancel.disabled = true;
+  lockedAccountStatus.textContent = t("web.feedback.submitting", "Submitting...");
+  try {
+    await api("POST", "/api/accounts/locked-report", {
+      email,
+      message: lockedAccountDetails.value,
+      route: currentRouteForFeedback(),
+      userAgent: String(navigator.userAgent || ""),
+      clientTimestamp: new Date().toISOString(),
+    });
+    closeLockedAccountModal();
+    showToast(t("web.login.locked_submitted", "Account review request submitted."));
+  } catch (error) {
+    lockedAccountStatus.textContent = error.message;
+    lockedAccountSubmit.disabled = false;
+  } finally {
+    lockedAccountCancel.disabled = false;
   }
 }
 
@@ -1317,6 +1398,9 @@ feedbackType.addEventListener("change", () => {
   feedbackSeverity.value = defaultFeedbackSeverity(feedbackType.value);
   updateFeedbackStepsVisibility();
 });
+
+lockedAccountCancel.addEventListener("click", closeLockedAccountModal);
+lockedAccountSubmit.addEventListener("click", submitLockedAccountReport);
 
 typeCancel.addEventListener("click", () => {
   typeModal.classList.add("hidden");
@@ -4875,6 +4959,10 @@ function renderLogin(email = "") {
         showToast(t("web.login.not_beta", "This email is not on the closed beta list."));
         return;
       }
+      if (result.locked) {
+        openLockedAccountModal(result.email || safeEmail);
+        return;
+      }
       if (result.passwordSet) {
         renderPasswordLogin(result.email || safeEmail);
         return;
@@ -4992,6 +5080,10 @@ function renderPasswordLogin(email) {
       });
       finishLogin(result);
     } catch (error) {
+      if (error.code === "account_locked") {
+        openLockedAccountModal(safeEmail);
+        return;
+      }
       showToast(error.message);
     }
   };
