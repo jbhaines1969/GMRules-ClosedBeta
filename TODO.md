@@ -34,7 +34,7 @@ Updated: 2026-07-04
 ## UI Polish
 
 - [x] Review the closed-beta signup screen on desktop and mobile.
-- [ ] Make the account/home screen clearer for new users choosing builder vs character generation.
+- [ ] Make the account/home screen clearer for new users choosing builder vs character generation after beta feedback identifies awkward spots.
 - [ ] Tighten modal layout for dense edit forms.
 - [ ] Review button hierarchy and action color usage.
 - [ ] Verify mobile behavior for the stage sidebar, lists, long labels, and form grids.
@@ -44,8 +44,9 @@ Updated: 2026-07-04
 ## Character Generation
 
 - [ ] Choose beta scope: defer full character generation or integrate `gmrules-character`.
+- [x] Add account-backed lightweight web `.gmcf` character draft saves with closed-beta caps: four per account and two per saved ruleset.
 - [ ] If integrating, add `gmrules-character` as a Maven module in this reactor.
-- [ ] Replace or bridge the browser-side `.gmcf` text draft format with `CharacterFileIO`.
+- [x] Bridge the browser-side `.gmcf` text draft format to `CharacterFileIO` for downloadable final character files.
 - [ ] Continue the web character flow after class selection: skills, equipment/weapons/armor, starting money, armor class, final `.gmcf` export.
 - [ ] Add compatibility tests for `.gmrf` plus `.gmcf` resume behavior.
 

@@ -36,6 +36,8 @@ import com.gamemaker.gmrules.GameElements.Weapon;
 import com.gamemaker.gmrules.SupportElements.AttributeModifiers;
 import com.gamemaker.gmrules.SupportElements.Effect;
 import com.gamemaker.gmrules.SupportElements.Status;
+import com.gamemaker.gmrules.character.CharacterDraft;
+import com.gamemaker.gmrules.character.CharacterFileIO;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -131,6 +133,11 @@ public final class ApiRoutes {
         router.add("POST", "/api/drafts/{id}/locale", ApiRoutes::updateLocale);
         router.add("GET", "/api/drafts/{id}/system-names", ApiRoutes::getSystemNames);
         router.add("POST", "/api/drafts/{id}/system-names", ApiRoutes::updateSystemName);
+        router.add("GET", "/api/characters", ApiRoutes::listCharacterDrafts);
+        router.add("POST", "/api/characters", ApiRoutes::saveCharacterDraft);
+        router.add("POST", "/api/characters/export", ApiRoutes::exportCharacterFile);
+        router.add("GET", "/api/characters/{id}", ApiRoutes::openCharacterDraft);
+        router.add("DELETE", "/api/characters/{id}", ApiRoutes::deleteCharacterDraft);
 
         router.add("GET", "/api/drafts/{id}/setup", ApiRoutes::getSetup);
         router.add("POST", "/api/drafts/{id}/setup", ApiRoutes::updateSetup);
@@ -541,12 +548,18 @@ public final class ApiRoutes {
             for (String draftId : deletion.getDraftIds()) {
                 ctx.getDraftStore().deleteDraft(draftId);
             }
+            CharacterDraftStore characterDraftStore = new CharacterDraftStore(ctx.getConfig());
+            for (String characterDraftId : deletion.getCharacterDraftIds()) {
+                characterDraftStore.deleteCharacterDraft(characterDraftId);
+            }
             ctx.getSessionStore().invalidateUser(deletion.getAccount().getId());
             ctx.json(200, Map.of(
                 "ok",
                 true,
                 "deletedDrafts",
-                deletion.getDraftIds().size()
+                deletion.getDraftIds().size(),
+                "deletedCharacterDrafts",
+                deletion.getCharacterDraftIds().size()
             ));
         } catch (IllegalArgumentException e) {
             ctx.json(401, Map.of("error", e.getMessage()));
@@ -804,12 +817,18 @@ public final class ApiRoutes {
             for (String draftId : deletion.getDraftIds()) {
                 ctx.getDraftStore().deleteDraft(draftId);
             }
+            CharacterDraftStore characterDraftStore = new CharacterDraftStore(ctx.getConfig());
+            for (String characterDraftId : deletion.getCharacterDraftIds()) {
+                characterDraftStore.deleteCharacterDraft(characterDraftId);
+            }
             ctx.getSessionStore().invalidateUser(deletion.getAccount().getId());
             ctx.json(200, Map.of(
                 "ok",
                 true,
                 "deletedDrafts",
-                deletion.getDraftIds().size()
+                deletion.getDraftIds().size(),
+                "deletedCharacterDrafts",
+                deletion.getCharacterDraftIds().size()
             ));
         } catch (IllegalArgumentException e) {
             ctx.json(400, Map.of("error", e.getMessage()));
@@ -1093,6 +1112,11 @@ public final class ApiRoutes {
         String draftId = ctx.pathParam("id");
         ctx.getDraftStore().deleteDraft(draftId);
         if (!session.isLegacyGuest()) {
+            CharacterDraftStore characterDraftStore = new CharacterDraftStore(ctx.getConfig());
+            for (String characterDraftId : ctx.getAccountStore().listCharacterDraftIdsForGameDraft(session.getUserId(), draftId)) {
+                characterDraftStore.deleteCharacterDraft(characterDraftId);
+                ctx.getAccountStore().removeCharacterDraft(session.getUserId(), characterDraftId);
+            }
             ctx.getAccountStore().removeDraft(session.getUserId(), draftId);
         }
         if (Objects.equals(session.getDraftId(), draftId)) {
@@ -1116,6 +1140,184 @@ public final class ApiRoutes {
         Map<String, String> headers = new LinkedHashMap<>();
         headers.put("Content-Disposition", "attachment; filename=\"" + filename + "\"");
         ctx.bytes(200, data, "application/octet-stream", headers);
+    }
+
+    private static void listCharacterDrafts(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        if (session.isLegacyGuest()) {
+            ctx.json(200, Map.of(
+                "characters",
+                List.of(),
+                "maxCharacters",
+                0,
+                "maxCharactersPerDraft",
+                0,
+                "transientGuest",
+                true
+            ));
+            return;
+        }
+        CharacterDraftStore characterDraftStore = new CharacterDraftStore(ctx.getConfig());
+        List<Map<String, Object>> characters = new ArrayList<>();
+        for (String characterDraftId : ctx.getAccountStore().listCharacterDraftIds(session.getUserId())) {
+            try {
+                CharacterDraftStore.CharacterDraftSummary summary = characterDraftStore.summarize(characterDraftId);
+                characters.add(characterDraftEntry(summary));
+            } catch (IOException ignored) {
+                // Missing or invalid character draft files are skipped from the account list.
+            }
+        }
+        characters.sort(Comparator.comparing(entry -> Objects.toString(entry.get("lastSaved"), ""), Comparator.reverseOrder()));
+        ctx.json(200, Map.of(
+            "characters",
+            characters,
+            "maxCharacters",
+            4,
+            "maxCharactersPerDraft",
+            2,
+            "canCreate",
+            characters.size() < 4
+        ));
+    }
+
+    private static void saveCharacterDraft(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        if (session.isLegacyGuest()) {
+            ctx.json(400, Map.of("error", "Log in before saving character drafts to this server."));
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        String characterDraftId = getString(body, "id").trim();
+        String gameDraftId = getString(body, "gameDraftId").trim();
+        String text = getString(body, "text");
+        if (gameDraftId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Character draft must be linked to a saved ruleset."));
+            return;
+        }
+        if (!ctx.getAccountStore().userOwnsDraft(session.getUserId(), gameDraftId)) {
+            ctx.json(403, Map.of("error", "Character draft must be linked to one of your saved rulesets."));
+            return;
+        }
+        boolean existing = !characterDraftId.isEmpty()
+            && ctx.getAccountStore().userOwnsCharacterDraft(session.getUserId(), characterDraftId);
+        if (!existing && !ctx.getAccountStore().canAddCharacterDraft(session.getUserId(), gameDraftId)) {
+            ctx.json(400, Map.of("error", "Each account can save up to four characters, with up to two characters per saved ruleset."));
+            return;
+        }
+        try {
+            CharacterDraftStore.CharacterDraft draft = new CharacterDraftStore(ctx.getConfig()).saveCharacterDraft(characterDraftId, text);
+            ctx.getAccountStore().addCharacterDraft(session.getUserId(), draft.getId(), gameDraftId);
+            ctx.json(200, Map.of(
+                "ok",
+                true,
+                "id",
+                draft.getId(),
+                "lastSaved",
+                draft.getLastSaved().toString()
+            ));
+        } catch (IllegalArgumentException e) {
+            ctx.json(400, Map.of("error", e.getMessage()));
+        } catch (IllegalStateException e) {
+            ctx.json(400, Map.of("error", e.getMessage()));
+        }
+    }
+
+    private static void exportCharacterFile(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap(96L * 1024);
+        String gameDraftId = getString(body, "gameDraftId").trim();
+        String text = getString(body, "text");
+        if (gameDraftId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Character must be linked to a saved ruleset."));
+            return;
+        }
+        if (session.isLegacyGuest()) {
+            if (!Objects.equals(session.getDraftId(), gameDraftId)) {
+                ctx.json(403, Map.of("error", "Open the linked ruleset before exporting this character."));
+                return;
+            }
+        } else if (!ctx.getAccountStore().userOwnsDraft(session.getUserId(), gameDraftId)) {
+            ctx.json(403, Map.of("error", "Character must be linked to one of your saved rulesets."));
+            return;
+        }
+
+        try {
+            CharacterFileIO characterFileIO = new CharacterFileIO();
+            CharacterExport export = ctx.getDraftStore().readDraft(gameDraftId, game -> {
+                try {
+                    CharacterDraft draft = parseCharacterDraft(text);
+                    validateCharacterDraft(draft);
+                    byte[] data = writeCharacterFileBytes(characterFileIO, game, draft);
+                    String filename = characterFileIO.normalizeFilename(game.getName() + "_character");
+                    return new CharacterExport(data, filename);
+                } catch (IOException e) {
+                    throw new CharacterExportException(e);
+                }
+            });
+            Map<String, String> headers = new LinkedHashMap<>();
+            headers.put("Content-Disposition", "attachment; filename=\"" + export.getFilename() + "\"");
+            ctx.bytes(200, export.getData(), "application/octet-stream", headers);
+        } catch (CharacterExportException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof IllegalArgumentException) {
+                ctx.json(400, Map.of("error", cause.getMessage()));
+            } else if (cause instanceof IOException) {
+                ctx.json(400, Map.of("error", "Character file could not be exported."));
+            } else {
+                ctx.json(400, Map.of("error", "Character file could not be exported."));
+            }
+        } catch (IOException e) {
+            ctx.json(404, Map.of("error", "Linked ruleset not found."));
+        }
+    }
+
+    private static void openCharacterDraft(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String characterDraftId = ctx.pathParam("id");
+        if (session.isLegacyGuest() || !ctx.getAccountStore().userOwnsCharacterDraft(session.getUserId(), characterDraftId)) {
+            ctx.json(404, Map.of("error", "Character draft not found."));
+            return;
+        }
+        try {
+            CharacterDraftStore.CharacterDraft draft = new CharacterDraftStore(ctx.getConfig()).readCharacterDraft(characterDraftId);
+            ctx.json(200, Map.of(
+                "id",
+                draft.getId(),
+                "text",
+                draft.getText(),
+                "lastSaved",
+                draft.getLastSaved().toString()
+            ));
+        } catch (IOException e) {
+            ctx.json(404, Map.of("error", "Character draft not found."));
+        }
+    }
+
+    private static void deleteCharacterDraft(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String characterDraftId = ctx.pathParam("id");
+        if (session.isLegacyGuest() || !ctx.getAccountStore().userOwnsCharacterDraft(session.getUserId(), characterDraftId)) {
+            ctx.json(404, Map.of("error", "Character draft not found."));
+            return;
+        }
+        new CharacterDraftStore(ctx.getConfig()).deleteCharacterDraft(characterDraftId);
+        ctx.getAccountStore().removeCharacterDraft(session.getUserId(), characterDraftId);
+        ctx.json(200, Map.of("ok", true));
     }
 
     private static void summary(RequestContext ctx) throws IOException {
@@ -4287,6 +4489,58 @@ public final class ApiRoutes {
         return entry;
     }
 
+    private static Map<String, Object> characterDraftEntry(CharacterDraftStore.CharacterDraftSummary summary) {
+        Map<String, Object> entry = new LinkedHashMap<>();
+        String gameName = Objects.toString(summary.getGameName(), "").trim();
+        entry.put("id", summary.getId());
+        entry.put("gameDraftId", summary.getGameDraftId());
+        entry.put("gameId", summary.getGameId());
+        entry.put("gameHash", summary.getGameHash());
+        entry.put("gameName", gameName);
+        entry.put("name", gameName.isEmpty() ? "Character Draft" : gameName + " Character");
+        entry.put("raceId", summary.getRaceId());
+        entry.put("classId", summary.getClassId());
+        entry.put("lastSaved", summary.getLastSaved().toString());
+        return entry;
+    }
+
+    private static CharacterDraft parseCharacterDraft(String text) throws IOException {
+        Path tempFile = Files.createTempFile("gmrules-character-draft-", ".gmcf");
+        try {
+            Files.writeString(tempFile, Objects.toString(text, ""), StandardCharsets.UTF_8);
+            return new CharacterFileIO().read(tempFile);
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
+    }
+
+    private static void validateCharacterDraft(CharacterDraft draft) {
+        CharacterDraft safeDraft = Objects.requireNonNullElseGet(draft, CharacterDraft::new);
+        if (safeDraft.getGameId().isEmpty() || safeDraft.getGameHash().isEmpty()) {
+            throw new IllegalArgumentException("Character must be linked to a ruleset file.");
+        }
+        if (safeDraft.getRaceId().isEmpty()) {
+            throw new IllegalArgumentException("Choose a race before exporting this character.");
+        }
+        if (safeDraft.getClassId().isEmpty()) {
+            throw new IllegalArgumentException("Choose a class before exporting this character.");
+        }
+        if (safeDraft.getAttributeScores().isEmpty()) {
+            throw new IllegalArgumentException("Assign attribute scores before exporting this character.");
+        }
+    }
+
+    private static byte[] writeCharacterFileBytes(CharacterFileIO characterFileIO, Game game, CharacterDraft draft)
+            throws IOException {
+        Path tempFile = Files.createTempFile("gmrules-character-export-", ".gmcf");
+        try {
+            characterFileIO.write(game, draft, tempFile);
+            return Files.readAllBytes(tempFile);
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
+    }
+
     private static String checkSignupRateLimit(RequestContext ctx, String email) {
         Instant now = Instant.now();
         String ipKey = "ip:" + Objects.toString(ctx.clientIp(), "").trim();
@@ -4835,5 +5089,38 @@ public final class ApiRoutes {
     private static List<Race> getRaces(Game game) {
         List<Race> races = game.<Race>getObjectArray("races");
         return races == null ? List.of() : races;
+    }
+
+    private static final class CharacterExport {
+
+        // *** MEMBERS ***
+        private final byte[] data;
+        private final String filename;
+
+        // *** CONSTRUCTORS ***
+        private CharacterExport(byte[] data, String filename) {
+            this.data = Objects.requireNonNullElseGet(data, () -> new byte[0]);
+            this.filename = Objects.toString(filename, "character.gmcf");
+        }
+
+        // *** METHODS ***
+        private byte[] getData() {
+            return data.clone();
+        }
+
+        private String getFilename() {
+            return filename;
+        }
+    }
+
+    private static final class CharacterExportException extends RuntimeException {
+
+        // *** MEMBERS ***
+        private static final long serialVersionUID = 1L;
+
+        // *** CONSTRUCTORS ***
+        private CharacterExportException(Throwable cause) {
+            super(cause);
+        }
     }
 }

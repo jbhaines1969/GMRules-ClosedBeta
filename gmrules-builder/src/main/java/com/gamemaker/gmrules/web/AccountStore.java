@@ -46,10 +46,14 @@ public final class AccountStore {
     private static final Duration VERIFICATION_TTL = Duration.ofHours(24);
     private static final int MAX_ACCOUNTS = 10;
     private static final int MAX_DRAFTS_PER_ACCOUNT = 2;
+    private static final int MAX_CHARACTER_DRAFTS_PER_ACCOUNT = 4;
+    private static final int MAX_CHARACTER_DRAFTS_PER_GAME_DRAFT = 2;
     private static final int MAX_FAILED_LOGIN_ATTEMPTS = 3;
     private static final String USER_PREFIX = "users.";
     private static final String PENDING_PREFIX = "pending.";
     private static final String DRAFT_PREFIX = "drafts.";
+    private static final String CHARACTER_DRAFT_PREFIX = "characterDrafts.";
+    private static final String CHARACTER_DRAFT_META_PREFIX = "characterDraft.";
     private static final String PENDING_PURPOSE_CREATE = "create";
     private static final String PENDING_PURPOSE_PASSWORD_RESET = "password-reset";
 
@@ -340,9 +344,10 @@ public final class AccountStore {
                     throw new IllegalArgumentException("Invalid email or password.");
                 }
             }
+            List<String> characterDraftIds = readCharacterDraftIds(properties, userId);
             List<String> draftIds = removeAccountProperties(properties, safeUsername, userId);
             saveProperties(properties);
-            return new AccountDeletion(new Account(userId, safeUsername, false), draftIds);
+            return new AccountDeletion(new Account(userId, safeUsername, false), draftIds, characterDraftIds);
         }
     }
 
@@ -357,9 +362,10 @@ public final class AccountStore {
             if (userId.isEmpty()) {
                 throw new IllegalArgumentException("Account not found.");
             }
+            List<String> characterDraftIds = readCharacterDraftIds(properties, userId);
             List<String> draftIds = removeAccountProperties(properties, safeEmail, userId);
             saveProperties(properties);
-            return new AccountDeletion(new Account(userId, safeEmail, false), draftIds);
+            return new AccountDeletion(new Account(userId, safeEmail, false), draftIds, characterDraftIds);
         }
     }
 
@@ -478,6 +484,104 @@ public final class AccountStore {
         }
     }
 
+    public void addCharacterDraft(String userId, String characterDraftId, String gameDraftId) throws IOException {
+        String safeUserId = normalizeId(userId);
+        String safeCharacterDraftId = normalizeId(characterDraftId);
+        String safeGameDraftId = normalizeId(gameDraftId);
+        if (safeUserId.isEmpty() || safeCharacterDraftId.isEmpty() || safeGameDraftId.isEmpty()) {
+            return;
+        }
+        synchronized (lock) {
+            Properties properties = loadProperties();
+            Set<String> characterDraftIds = new LinkedHashSet<>(readCharacterDraftIds(properties, safeUserId));
+            boolean existing = characterDraftIds.contains(safeCharacterDraftId);
+            if (!existing && characterDraftIds.size() >= MAX_CHARACTER_DRAFTS_PER_ACCOUNT) {
+                throw new IllegalStateException("Each account can save up to four character drafts for this PoC.");
+            }
+            if (!existing && countCharacterDraftsForGameDraft(properties, characterDraftIds, safeGameDraftId) >= MAX_CHARACTER_DRAFTS_PER_GAME_DRAFT) {
+                throw new IllegalStateException("Each saved ruleset can have up to two character drafts for this PoC.");
+            }
+            characterDraftIds.add(safeCharacterDraftId);
+            properties.setProperty(characterDraftKey(safeUserId), String.join(",", characterDraftIds));
+            properties.setProperty(characterDraftMetaKey(safeCharacterDraftId, "gameDraftId"), safeGameDraftId);
+            saveProperties(properties);
+        }
+    }
+
+    public void removeCharacterDraft(String userId, String characterDraftId) throws IOException {
+        String safeUserId = normalizeId(userId);
+        String safeCharacterDraftId = normalizeId(characterDraftId);
+        if (safeUserId.isEmpty() || safeCharacterDraftId.isEmpty()) {
+            return;
+        }
+        synchronized (lock) {
+            Properties properties = loadProperties();
+            ArrayList<String> characterDraftIds = new ArrayList<>(readCharacterDraftIds(properties, safeUserId));
+            characterDraftIds.removeIf(safeCharacterDraftId::equals);
+            if (characterDraftIds.isEmpty()) {
+                properties.remove(characterDraftKey(safeUserId));
+            } else {
+                properties.setProperty(characterDraftKey(safeUserId), String.join(",", characterDraftIds));
+            }
+            removeCharacterDraftMetadata(properties, safeCharacterDraftId);
+            saveProperties(properties);
+        }
+    }
+
+    public boolean userOwnsCharacterDraft(String userId, String characterDraftId) throws IOException {
+        String safeUserId = normalizeId(userId);
+        String safeCharacterDraftId = normalizeId(characterDraftId);
+        if (safeUserId.isEmpty() || safeCharacterDraftId.isEmpty()) {
+            return false;
+        }
+        synchronized (lock) {
+            return readCharacterDraftIds(loadProperties(), safeUserId).contains(safeCharacterDraftId);
+        }
+    }
+
+    public boolean canAddCharacterDraft(String userId, String gameDraftId) throws IOException {
+        String safeUserId = normalizeId(userId);
+        String safeGameDraftId = normalizeId(gameDraftId);
+        if (safeUserId.isEmpty() || safeGameDraftId.isEmpty()) {
+            return false;
+        }
+        synchronized (lock) {
+            Properties properties = loadProperties();
+            List<String> characterDraftIds = readCharacterDraftIds(properties, safeUserId);
+            return characterDraftIds.size() < MAX_CHARACTER_DRAFTS_PER_ACCOUNT
+                && countCharacterDraftsForGameDraft(properties, characterDraftIds, safeGameDraftId) < MAX_CHARACTER_DRAFTS_PER_GAME_DRAFT;
+        }
+    }
+
+    public List<String> listCharacterDraftIds(String userId) throws IOException {
+        String safeUserId = normalizeId(userId);
+        if (safeUserId.isEmpty()) {
+            return List.of();
+        }
+        synchronized (lock) {
+            return readCharacterDraftIds(loadProperties(), safeUserId);
+        }
+    }
+
+    public List<String> listCharacterDraftIdsForGameDraft(String userId, String gameDraftId) throws IOException {
+        String safeUserId = normalizeId(userId);
+        String safeGameDraftId = normalizeId(gameDraftId);
+        if (safeUserId.isEmpty() || safeGameDraftId.isEmpty()) {
+            return List.of();
+        }
+        synchronized (lock) {
+            Properties properties = loadProperties();
+            ArrayList<String> matches = new ArrayList<>();
+            for (String characterDraftId : readCharacterDraftIds(properties, safeUserId)) {
+                String storedGameDraftId = Objects.toString(properties.getProperty(characterDraftMetaKey(characterDraftId, "gameDraftId")), "");
+                if (safeGameDraftId.equals(storedGameDraftId)) {
+                    matches.add(characterDraftId);
+                }
+            }
+            return List.copyOf(matches);
+        }
+    }
+
     private void validateEmail(String email) {
         if (!EMAIL_PATTERN.matcher(email).matches()) {
             throw new IllegalArgumentException("Enter a valid email address.");
@@ -505,6 +609,37 @@ public final class AccountStore {
             }
         }
         return ids;
+    }
+
+    private List<String> readCharacterDraftIds(Properties properties, String userId) {
+        String raw = Objects.toString(properties.getProperty(characterDraftKey(userId)), "");
+        if (raw.isBlank()) {
+            return List.of();
+        }
+        ArrayList<String> ids = new ArrayList<>();
+        String[] parts = raw.split(",");
+        for (String part : parts) {
+            String safePart = normalizeId(part);
+            if (!safePart.isEmpty() && !ids.contains(safePart)) {
+                ids.add(safePart);
+            }
+        }
+        return ids;
+    }
+
+    private int countCharacterDraftsForGameDraft(Properties properties, Iterable<String> characterDraftIds, String gameDraftId) {
+        String safeGameDraftId = normalizeId(gameDraftId);
+        if (safeGameDraftId.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        for (String characterDraftId : characterDraftIds) {
+            String storedGameDraftId = Objects.toString(properties.getProperty(characterDraftMetaKey(characterDraftId, "gameDraftId")), "");
+            if (safeGameDraftId.equals(storedGameDraftId)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private int countAccounts(Properties properties) {
@@ -546,6 +681,7 @@ public final class AccountStore {
 
     private List<String> removeAccountProperties(Properties properties, String email, String userId) {
         List<String> draftIds = readDraftIds(properties, userId);
+        List<String> characterDraftIds = readCharacterDraftIds(properties, userId);
         String userPrefix = userKey(email, "");
         ArrayList<String> accountKeys = new ArrayList<>();
         for (String key : properties.stringPropertyNames()) {
@@ -557,7 +693,25 @@ public final class AccountStore {
             properties.remove(key);
         }
         properties.remove(draftKey(userId));
+        properties.remove(characterDraftKey(userId));
+        for (String characterDraftId : characterDraftIds) {
+            removeCharacterDraftMetadata(properties, characterDraftId);
+        }
         return draftIds;
+    }
+
+    private void removeCharacterDraftMetadata(Properties properties, String characterDraftId) {
+        String safeCharacterDraftId = normalizeId(characterDraftId);
+        ArrayList<String> keys = new ArrayList<>();
+        String prefix = characterDraftMetaKey(safeCharacterDraftId, "");
+        for (String key : properties.stringPropertyNames()) {
+            if (key.startsWith(prefix)) {
+                keys.add(key);
+            }
+        }
+        for (String key : keys) {
+            properties.remove(key);
+        }
     }
 
     private void removePendingForEmail(Properties properties, String email) {
@@ -729,6 +883,14 @@ public final class AccountStore {
 
     private String draftKey(String userId) {
         return DRAFT_PREFIX + normalizeId(userId);
+    }
+
+    private String characterDraftKey(String userId) {
+        return CHARACTER_DRAFT_PREFIX + normalizeId(userId);
+    }
+
+    private String characterDraftMetaKey(String characterDraftId, String suffix) {
+        return CHARACTER_DRAFT_META_PREFIX + normalizeId(characterDraftId) + "." + Objects.toString(suffix, "");
     }
 
     public static final class Account {
@@ -910,11 +1072,13 @@ public final class AccountStore {
         // *** MEMBERS ***
         private final Account account;
         private final List<String> draftIds;
+        private final List<String> characterDraftIds;
 
         // *** CONSTRUCTORS ***
-        private AccountDeletion(Account account, List<String> draftIds) {
+        private AccountDeletion(Account account, List<String> draftIds, List<String> characterDraftIds) {
             this.account = Objects.requireNonNullElseGet(account, () -> new Account("", "", false));
             this.draftIds = List.copyOf(Objects.requireNonNullElseGet(draftIds, List::of));
+            this.characterDraftIds = List.copyOf(Objects.requireNonNullElseGet(characterDraftIds, List::of));
         }
 
         // *** METHODS ***
@@ -924,6 +1088,10 @@ public final class AccountStore {
 
         public List<String> getDraftIds() {
             return draftIds;
+        }
+
+        public List<String> getCharacterDraftIds() {
+            return characterDraftIds;
         }
     }
 

@@ -207,8 +207,19 @@ gmrules-builder/
 src/main/java/com/gamemaker/gmrules/
 |-- App.java
 |-- Main.java
+|-- character/
 |-- UI/
 `-- web/
+```
+
+### Character File Package
+
+```text
+character/
+|-- CharacterDraft.java
+|-- CharacterFile.java
+|-- CharacterFileBuilder.java
+`-- CharacterFileIO.java
 ```
 
 ### Swing UI Package
@@ -265,6 +276,7 @@ web/
 |-- AccountStore.java
 |-- BlockedAccessStore.java
 |-- ApiRoutes.java
+|-- CharacterDraftStore.java
 |-- DiscordWebhookService.java
 |-- DraftStore.java
 |-- EmailService.java
@@ -309,7 +321,9 @@ server-data/
 `-- request-logs/
 
 drafts/
-`-- *.gmrf
+|-- *.gmrf
+`-- characters/
+    `-- *.gmcf
 ```
 
 ## External Local Reference
@@ -326,4 +340,4 @@ Key referenced file:
 src/main/java/com/gamemaker/gmrules/character/CharacterFile.java
 ```
 
-Closed beta currently contains only the web-side lightweight `.gmcf` draft flow in `gmrules-builder/src/main/resources/web/app.js`. Full character output integration is a planned follow-up.
+Closed beta now keeps the web-side lightweight `.gmcf` draft flow for resume/save behavior and bridges finished downloads through `gmrules-builder/src/main/java/com/gamemaker/gmrules/character/CharacterFileIO.java`.

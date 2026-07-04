@@ -16,7 +16,8 @@ The application is functional enough for proof of concept: account signup, NDA a
 ## Verified Locally
 
 - `mvn test` completed successfully on 2026-07-02.
-- The build compiles `60` core Java source files and `55` builder Java source files.
+- `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` completed successfully on 2026-07-04 after adding character draft saves and final `.gmcf` export.
+- The current build compiles `60` core Java source files and `62` builder Java source files.
 - There are currently no automated test sources, so the successful Maven run is a compile/build verification, not behavioral coverage.
 
 ## Web Architecture
@@ -65,6 +66,7 @@ Ruleset builder:
 
 - Server-backed draft creation/import/open/delete/export.
 - Local `.gmrf` download.
+- Server-backed web character draft saves are stored as lightweight `.gmcf` text under `drafts/characters/`, associated with the account and saved ruleset draft. The closed-beta cap is four character drafts per account and two character drafts per saved ruleset.
 - Builder stages for setup, measurements, dice, attribute generation, standard arrays, dice rolling, point buy, attribute types, attributes, hit points, armor class, currency, effect types, statuses, effects, equipment, weapons, skills, spells, races, and classes.
 - Stage completion is tracked in the `Game` object.
 - Custom labels/system names are supported for some stage labels.
@@ -72,8 +74,10 @@ Ruleset builder:
 Character generation:
 
 - The web app has an early character flow for uploading `.gmrf` or `.gmcf`, selecting/generating attributes, choosing race, and choosing class.
-- The current web `.gmcf` is a lightweight text draft format in `app.js`.
-- A richer `gmrules-character` module exists outside this repo with `CharacterDraft`, `CharacterFile`, `CharacterFileIO`, `CharacterFileBuilder`, and Swing character stages, but it is not part of this closed-beta Maven reactor yet.
+- The current web `.gmcf` save/resume path remains a lightweight text draft format in `app.js`.
+- Logged-in character-generator progress now saves to the account automatically and appears on the home screen under Saved Characters. Download/upload of `.gmcf` remains available.
+- Downloading from the web character flow now posts the text draft to `POST /api/characters/export`; the server uses `CharacterFileIO` and the linked saved ruleset to return a final object-backed `.gmcf`.
+- A richer `gmrules-character` module exists outside this repo with Swing character stages, but the file model pieces needed for export are now present in `gmrules-builder`.
 
 ## Known Gaps And Risks
 
@@ -107,6 +111,7 @@ UX and copy:
 - The save-status mojibake separator in `app.js` has been fixed.
 - The closed-beta signup screen has been reviewed on desktop/mobile and accepted for beta.
 - The visual style is serviceable for PoC, but mobile layout, modal density, button hierarchy, and closed-beta onboarding copy need polish.
+- Broader UI polish is intentionally waiting for beta feedback so effort goes to awkward spots testers actually notice.
 - The character generator currently ends with "Character creation screens coming next."
 
 ## Best Path Forward
@@ -128,5 +133,5 @@ The fastest beta-launch path is to keep this as a small, controlled closed beta 
 5. Launch with a small cohort.
    Keep the current account/draft caps for the first wave, invite a handful of testers, monitor Discord and server logs, and manually review saved data/backups.
 
-6. Decide character-generator scope.
-   Either explicitly defer full character generation from this beta, or bring `gmrules-character` into the closed-beta reactor and replace the lightweight web `.gmcf` draft with the richer `CharacterFileIO` format.
+6. Continue character-generator scope.
+   Final `.gmcf` export is now bridged through `CharacterFileIO`; the remaining decision is whether to keep expanding the web flow or bring in the full `gmrules-character` module.

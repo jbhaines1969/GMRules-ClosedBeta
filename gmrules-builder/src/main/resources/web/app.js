@@ -20,6 +20,9 @@ const state = {
   chargenGameHash: "",
   chargenGameName: "",
   chargenDraftText: "",
+  chargenCharacterDraftId: "",
+  chargenServerSaveInFlight: false,
+  chargenServerSaveQueued: false,
   lastAttributeTypeKey: "",
   lastSkillCategoryKey: "",
   lastEffectTypeKeys: [],
@@ -520,12 +523,12 @@ function applyStaticLabels() {
     feedbackSubmit.textContent = t("web.feedback.submit", "Submit Report");
   }
   if (lockedAccountTitle) {
-    lockedAccountTitle.textContent = t("web.login.locked_title", "Account Locked");
+    lockedAccountTitle.textContent = t("web.login.locked_password_title", "Locked After Failed Password Attempts");
   }
   if (lockedAccountMessage) {
     lockedAccountMessage.textContent = t(
-      "web.login.locked_message",
-      "This account is locked after repeated failed login attempts. Send a blocker report to request review; your account and saved rulesets are not deleted."
+      "web.login.locked_password_message",
+      "This account was locked after repeated password failures. Use Forgot Password to verify by email and choose a new password."
     );
   }
   if (lockedAccountDetailsLabel) {
@@ -535,7 +538,7 @@ function applyStaticLabels() {
     lockedAccountCancel.textContent = t("common.cancel", "Cancel");
   }
   if (lockedAccountSubmit) {
-    lockedAccountSubmit.textContent = t("web.login.locked_submit", "Request Review");
+    lockedAccountSubmit.textContent = t("web.login.forgot_password", "Forgot Password?");
   }
   editNameLabel.textContent = t("common.name", "Name");
   editDescriptionLabel.textContent = t("common.description", "Description");
@@ -1260,20 +1263,50 @@ function closeFeedbackModal() {
 
 function openLockedAccountModal(email) {
   lockedAccountEmail = String(email || "").trim();
-  lockedAccountDetails.value = t(
-    "web.login.locked_default_message",
-    "Please review this locked closed-beta account. I need help getting access back."
+  lockedAccountTitle.textContent = t("web.login.locked_password_title", "Locked After Failed Password Attempts");
+  lockedAccountMessage.textContent = t(
+    "web.login.locked_password_message",
+    "This account was locked after repeated password failures. Use Forgot Password to verify by email and choose a new password."
   );
+  lockedAccountDetails.value = "";
+  const detailsField = lockedAccountDetails.closest(".field");
+  if (detailsField) {
+    detailsField.classList.add("hidden");
+  }
+  lockedAccountSubmit.textContent = t("web.login.forgot_password", "Forgot Password?");
   lockedAccountStatus.textContent = "";
   lockedAccountSubmit.disabled = false;
   lockedAccountCancel.disabled = false;
   lockedAccountModal.classList.remove("hidden");
-  window.requestAnimationFrame(() => lockedAccountDetails.focus());
+  window.requestAnimationFrame(() => lockedAccountSubmit.focus());
 }
 
 function closeLockedAccountModal() {
   lockedAccountModal.classList.add("hidden");
   lockedAccountStatus.textContent = "";
+}
+
+async function requestPasswordResetEmail(email, button) {
+  const safeEmail = String(email || "").trim();
+  if (!safeEmail) {
+    showToast(t("web.login.email_required", "Email is required."));
+    return false;
+  }
+  if (button) {
+    button.disabled = true;
+  }
+  try {
+    await api("POST", "/api/accounts/password-reset", { email: safeEmail });
+    showToast(t("web.login.reset_email_sent", "If this email has a GMRules Closed Beta account, a password reset link has been sent."));
+    return true;
+  } catch (error) {
+    showToast(error.message);
+    return false;
+  } finally {
+    if (button) {
+      button.disabled = false;
+    }
+  }
 }
 
 function currentRouteForFeedback() {
@@ -1327,25 +1360,15 @@ async function submitLockedAccountReport() {
     lockedAccountStatus.textContent = t("web.login.email_required", "Email is required.");
     return;
   }
-  lockedAccountSubmit.disabled = true;
   lockedAccountCancel.disabled = true;
-  lockedAccountStatus.textContent = t("web.feedback.submitting", "Submitting...");
-  try {
-    await api("POST", "/api/accounts/locked-report", {
-      email,
-      message: lockedAccountDetails.value,
-      route: currentRouteForFeedback(),
-      userAgent: String(navigator.userAgent || ""),
-      clientTimestamp: new Date().toISOString(),
-    });
+  lockedAccountStatus.textContent = t("web.login.reset_sending", "Sending password reset email...");
+  const sent = await requestPasswordResetEmail(email, lockedAccountSubmit);
+  if (sent) {
     closeLockedAccountModal();
-    showToast(t("web.login.locked_submitted", "Account review request submitted."));
-  } catch (error) {
-    lockedAccountStatus.textContent = error.message;
-    lockedAccountSubmit.disabled = false;
-  } finally {
-    lockedAccountCancel.disabled = false;
+    return;
   }
+  lockedAccountStatus.textContent = "";
+  lockedAccountCancel.disabled = false;
 }
 
 async function submitDeleteAccount() {
@@ -4685,7 +4708,7 @@ window.addEventListener("popstate", (event) => {
 
 downloadBtn.addEventListener("click", async () => {
   if (state.mode === "chargen") {
-    downloadCharGenDraft();
+    await downloadCharGenDraft();
     return;
   }
   await downloadDraft();
@@ -5075,6 +5098,7 @@ function renderCreatePassword(email, resetToken = "") {
           <input type="password" id="confirmPassword" autocomplete="new-password">
         </div>
       </div>
+      <p class="field-hint">${t("web.login.password_requirement", "Password must be at least 8 characters.")}</p>
       <div class="actions-row">
         <div class="left">
           <button class="btn danger ghost" id="createPasswordDeleteAccount" type="button">${t("web.account_delete.opt_out_button", "Delete Account / Opt Out")}</button>
@@ -5131,7 +5155,7 @@ function renderPasswordLogin(email, locked = false) {
     <section class="panel">
       <h1>${t("web.login.password_title", "Enter Password")}</h1>
       <p>${escapeHtml(safeEmail)}</p>
-      ${isLocked ? `<p class="field-hint">${t("web.login.locked_reset_hint", "This account is locked after repeated failed login attempts. You can reset the password by email or request admin review.")}</p>` : ""}
+      ${isLocked ? `<p class="field-hint">${t("web.login.locked_reset_hint", "This account is locked after repeated failed login attempts. Use Forgot Password to verify by email and choose a new password.")}</p>` : ""}
       <div class="field">
         <label for="password">${t("web.login.password", "Password")}</label>
         <input type="password" id="password" autocomplete="current-password">
@@ -5171,15 +5195,7 @@ function renderPasswordLogin(email, locked = false) {
   document.getElementById("deleteAccountBtn").addEventListener("click", () => openDeleteAccountModal(safeEmail));
   document.getElementById("forgotPasswordBtn").addEventListener("click", async () => {
     const resetButton = document.getElementById("forgotPasswordBtn");
-    resetButton.disabled = true;
-    try {
-      await api("POST", "/api/accounts/password-reset", { email: safeEmail });
-      showToast(t("web.login.reset_email_sent", "If this email has a GMRules Closed Beta account, a password reset link has been sent."));
-    } catch (error) {
-      showToast(error.message);
-    } finally {
-      resetButton.disabled = false;
-    }
+    await requestPasswordResetEmail(safeEmail, resetButton);
   });
   passwordInput.addEventListener("keypress", (event) => {
     if (event.key === "Enter") {
@@ -5267,6 +5283,92 @@ async function renderSavedDraftList() {
   }
 }
 
+async function renderSavedCharacterList() {
+  const panel = document.getElementById("savedCharactersPanel");
+  const list = document.getElementById("savedCharactersList");
+  const meta = document.getElementById("savedCharactersMeta");
+  if (!panel || !list || !meta) {
+    return;
+  }
+  try {
+    const data = await api("GET", "/api/characters");
+    const characters = data.characters || [];
+    const maxCharacters = data.maxCharacters || 4;
+    const canCreate = data.canCreate !== false;
+    const transientGuest = !!data.transientGuest;
+    meta.textContent = `${characters.length}/${maxCharacters} ${t("web.home.character_save_slots", "character save slots used")}`;
+    if (transientGuest) {
+      meta.textContent = t("web.home.guest_badge", "Guest");
+    }
+    const characterChooseButton = document.getElementById("homeCharacterChoose");
+    if (characterChooseButton) {
+      characterChooseButton.disabled = !canCreate;
+    }
+    if (transientGuest) {
+      list.innerHTML = `<div class="field-hint">${t(
+        "web.home.character_guest_transient",
+        "Guest character work is temporary. Create an account for server saves, or use Download .gmcf to keep a local file."
+      )}</div>`;
+      return;
+    }
+    if (!characters.length) {
+      list.innerHTML = `<div class="field-hint">${t("web.home.no_saved_characters", "No characters are saved to this account yet.")}</div>`;
+      return;
+    }
+    list.innerHTML = characters
+      .map((character) => {
+        const id = escapeHtml(character.id || "");
+        const name = escapeHtml(character.name || t("web.home.untitled_character", "Character Draft"));
+        const gameName = escapeHtml(character.gameName || t("web.home.saved_unknown", "Unknown"));
+        const savedAt = escapeHtml(formatSavedDate(character.lastSaved));
+        return `
+          <div class="list-item saved-character-item">
+            <div class="saved-draft-copy">
+              <strong>${name}</strong>
+              <div class="field-hint">${t("web.home.character_game", "Game")}: ${gameName}</div>
+              <div class="field-hint">${t("web.home.last_saved", "Last saved")}: ${savedAt}</div>
+            </div>
+            <div class="saved-draft-actions">
+              <button class="btn small" type="button" data-open-character="${id}">${t("web.home.open_saved", "Open")}</button>
+              <button class="btn danger small" type="button" data-delete-character="${id}" data-delete-character-name="${name}">${t("web.home.delete_saved", "Delete Save")}</button>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+    list.querySelectorAll("button[data-open-character]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        await openSavedCharacter(button.dataset.openCharacter || "");
+      });
+    });
+    list.querySelectorAll("button[data-delete-character]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const id = button.dataset.deleteCharacter || "";
+        const name = button.dataset.deleteCharacterName || t("web.home.untitled_character", "Character Draft");
+        const confirmed = await showConfirm(
+          t("web.home.delete_character_confirm", "Permanently delete saved character \"{name}\"?")
+            .replace("{name}", name),
+          t("web.home.delete_saved", "Delete Save")
+        );
+        if (!confirmed) {
+          return;
+        }
+        button.disabled = true;
+        try {
+          await api("DELETE", `/api/characters/${encodeURIComponent(id)}`);
+          showToast(t("web.toast.character_deleted", "Saved character deleted"));
+          await renderSavedCharacterList();
+        } catch (error) {
+          showToast(error.message);
+          button.disabled = false;
+        }
+      });
+    });
+  } catch (error) {
+    list.innerHTML = `<div class="field-hint">${escapeHtml(error.message)}</div>`;
+  }
+}
+
 function formatSavedDate(value) {
   const date = new Date(String(value || ""));
   if (Number.isNaN(date.getTime())) {
@@ -5339,6 +5441,45 @@ async function renderAdmin() {
   document.getElementById("adminAddBlock").addEventListener("click", addManualAdminBlock);
   await loadAdminAccounts();
   await loadAdminBlocks();
+}
+
+async function openSavedCharacter(characterDraftId) {
+  const safeId = String(characterDraftId || "").trim();
+  if (!safeId) {
+    return;
+  }
+  try {
+    const result = await api("GET", `/api/characters/${encodeURIComponent(safeId)}`);
+    const text = String(result.text || "");
+    const draft = parseCharGenDraft(text);
+    const gameDraftId = String(draft.gameDraftId || "").trim();
+    if (!gameDraftId) {
+      showToast(t("web.chargen.missing", "Upload a ruleset to save this character."));
+      return;
+    }
+    const openResult = await api("POST", `/api/drafts/${encodeURIComponent(gameDraftId)}/open`, {});
+    state.draftId = openResult.draftId || gameDraftId;
+    state.chargenCharacterDraftId = result.id || safeId;
+    applyCharGenDraft(draft);
+    state.chargenDraftText = text;
+    updateActions();
+    if (openResult.locale) {
+      state.locale = normalizeLocale(openResult.locale);
+      await loadLocalization(state.locale);
+    }
+    const target = resolveCharGenResumeStage();
+    if (target === "classes") {
+      renderCharGenClasses();
+    } else if (target === "races") {
+      renderCharGenRaces();
+    } else if (target === "attributes") {
+      renderCharGenAttributes();
+    } else {
+      renderCharGenIntro();
+    }
+  } catch (error) {
+    showToast(error.message);
+  }
 }
 
 async function loadAdminAccounts() {
@@ -5632,6 +5773,15 @@ function renderHome() {
           <div class="field-hint">${t("web.loading", "Loading...")}</div>
         </div>
       </div>
+      <div class="saved-drafts" id="savedCharactersPanel">
+        <div class="saved-drafts-header">
+          <h2>${t("web.home.saved_characters_title", "Saved Characters")}</h2>
+          <span class="badge" id="savedCharactersMeta">${t("web.loading", "Loading...")}</span>
+        </div>
+        <div class="list saved-character-list" id="savedCharactersList">
+          <div class="field-hint">${t("web.loading", "Loading...")}</div>
+        </div>
+      </div>
       <div class="grid two">
         <div class="field">
           <label for="homeEditFile">${t("web.home.edit_game", "Upload Game File")}</label>
@@ -5719,6 +5869,7 @@ function renderHome() {
         const text = await file.text();
         const draft = parseCharGenDraft(text);
         applyCharGenDraft(draft);
+        state.chargenCharacterDraftId = "";
         state.chargenDraftText = text;
         renderCharGenResume();
         return;
@@ -5796,6 +5947,7 @@ function renderHome() {
           updateActions();
         }
         await renderSavedDraftList();
+        await renderSavedCharacterList();
         showToast(t("web.toast.draft_deleted", "Saved ruleset deleted"));
       } catch (error) {
         showToast(error.message);
@@ -5834,6 +5986,7 @@ function renderHome() {
   });
 
   renderSavedDraftList();
+  renderSavedCharacterList();
 }
 
 function renderBuilderSplash() {
@@ -6876,8 +7029,10 @@ function rotr(value, bits) {
 
 function buildCharGenDraft() {
   return {
+    gameDraftId: String(state.draftId || ""),
     gameId: String(state.chargenGameId || ""),
     gameHash: String(state.chargenGameHash || ""),
+    gameName: String(state.chargenGameName || ""),
     raceId: String(state.chargenRaceId || ""),
     classId: String(state.chargenClassId || ""),
     attributeScores: state.chargenAttributeScores || {},
@@ -6887,8 +7042,10 @@ function buildCharGenDraft() {
 function serializeCharGenDraft(draft) {
   const safeDraft = draft || {};
   const lines = ["GMRulesCharacterFile v1"];
+  lines.push(`gameDraftId=${safeDraft.gameDraftId || ""}`);
   lines.push(`gameId=${safeDraft.gameId || ""}`);
   lines.push(`gameHash=${safeDraft.gameHash || ""}`);
+  lines.push(`gameName=${safeDraft.gameName || ""}`);
   if (safeDraft.raceId) {
     lines.push(`raceId=${safeDraft.raceId}`);
   }
@@ -6911,8 +7068,10 @@ function parseCharGenDraft(text) {
     throw new Error(t("web.chargen.invalid", "Invalid character file."));
   }
   const draft = {
+    gameDraftId: "",
     gameId: "",
     gameHash: "",
+    gameName: "",
     raceId: "",
     classId: "",
     attributeScores: {},
@@ -6928,10 +7087,14 @@ function parseCharGenDraft(text) {
     }
     const key = line.slice(0, separator).trim();
     const value = line.slice(separator + 1).trim();
-    if (key === "gameId") {
+    if (key === "gameDraftId") {
+      draft.gameDraftId = value;
+    } else if (key === "gameId") {
       draft.gameId = value;
     } else if (key === "gameHash") {
       draft.gameHash = value;
+    } else if (key === "gameName") {
+      draft.gameName = value;
     } else if (key === "raceId") {
       draft.raceId = value;
     } else if (key === "classId") {
@@ -6952,8 +7115,12 @@ function parseCharGenDraft(text) {
 
 function applyCharGenDraft(draft) {
   const safeDraft = draft || {};
+  if (safeDraft.gameDraftId) {
+    state.draftId = String(safeDraft.gameDraftId || "");
+  }
   state.chargenGameId = String(safeDraft.gameId || "");
   state.chargenGameHash = String(safeDraft.gameHash || "");
+  state.chargenGameName = String(safeDraft.gameName || "");
   state.chargenRaceId = String(safeDraft.raceId || "");
   state.chargenClassId = String(safeDraft.classId || "");
   state.chargenAttributeScores = safeDraft.attributeScores || {};
@@ -6969,6 +7136,9 @@ function resetCharGenState() {
   state.chargenGameHash = "";
   state.chargenGameName = "";
   state.chargenDraftText = "";
+  state.chargenCharacterDraftId = "";
+  state.chargenServerSaveInFlight = false;
+  state.chargenServerSaveQueued = false;
 }
 
 function saveCharGenDraftLocal() {
@@ -6980,25 +7150,89 @@ function saveCharGenDraftLocal() {
   } catch (error) {
     // Ignore storage failures.
   }
+  saveCharGenDraftServer(text);
 }
 
-function downloadCharGenDraft() {
+function saveCharGenDraftServer(text) {
+  const safeText = String(text || "");
+  if (!state.sessionToken || state.legacyGuest || !state.draftId || !state.chargenGameId || !state.chargenGameHash) {
+    return;
+  }
+  if (state.chargenServerSaveInFlight) {
+    state.chargenServerSaveQueued = true;
+    return;
+  }
+  state.chargenServerSaveInFlight = true;
+  state.chargenServerSaveQueued = false;
+  api("POST", "/api/characters", {
+    id: state.chargenCharacterDraftId,
+    gameDraftId: state.draftId,
+    text: safeText,
+  })
+    .then((result) => {
+      if (result.id) {
+        state.chargenCharacterDraftId = result.id;
+      }
+      if (result.lastSaved) {
+        markSaved(t("web.toast.character_saved", "Character saved"));
+      }
+    })
+    .catch((error) => {
+      showToast(error.message);
+    })
+    .finally(() => {
+      state.chargenServerSaveInFlight = false;
+      if (state.chargenServerSaveQueued) {
+        saveCharGenDraftServer(state.chargenDraftText);
+      }
+    });
+}
+
+async function downloadCharGenDraft() {
   if (!state.chargenGameId || !state.chargenGameHash) {
     showToast(t("web.chargen.missing", "Upload a ruleset to save this character."));
     return;
   }
+  if (!state.draftId) {
+    showToast(t("web.chargen.missing", "Upload a ruleset to save this character."));
+    return;
+  }
   const text = serializeCharGenDraft(buildCharGenDraft());
-  const blob = new Blob([text], { type: "text/plain" });
-  const filename = buildCharGenFilename();
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
-  showToast(t("web.toast.downloaded", "Downloaded"));
+  state.chargenDraftText = text;
+  try {
+    const headers = { "Content-Type": "application/json" };
+    if (state.sessionToken) {
+      headers.Authorization = `Bearer ${state.sessionToken}`;
+    }
+    const response = await fetch("/api/characters/export", {
+      method: "POST",
+      headers,
+      cache: "no-store",
+      body: JSON.stringify({
+        gameDraftId: state.draftId,
+        text,
+      }),
+    });
+    if (!response.ok) {
+      const payload = await response.json();
+      throw new Error(payload.error || t("web.error.download_failed", "Download failed"));
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename=\"([^\"]+)\"/);
+    const filename = match ? match[1] : buildCharGenFilename();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    markSaved(t("web.toast.downloaded", "Downloaded"));
+  } catch (error) {
+    showToast(error.message);
+  }
 }
 
 function buildCharGenFilename() {

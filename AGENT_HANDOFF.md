@@ -28,6 +28,8 @@ This repo is the current closed-beta deploy release for GMRules.
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-02 after the feedback-intake implementation pass.
 - `mvn test` passed again on 2026-07-02 after deleting the feedback-specific TODO file and fixing `EmailService` Closed Beta copy.
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-04 after adding password reset and admin active-session visibility.
+- `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-04 after adding account-backed character draft saves.
+- `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-04 after adding the character file export bridge.
 - There are currently no automated test sources, so successful Maven runs are compile/build verification, not behavioral coverage.
 - New continuity docs were added at the repo root: `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `AGENTS.md`, and `AGENT_HANDOFF.md`.
 
@@ -66,6 +68,8 @@ Implemented so far:
 - Closed-beta application now requires legal full name and writes `full_name` to new NDA audit CSV rows.
 - The closed-beta signup screen has been reviewed on desktop/mobile and accepted for beta.
 - Password reset was added to the sign-in flow. Users can request a reset email for the original account email; the emailed link verifies the reset request and opens the existing password-create screen. Existing passwords are not changed or deleted until the reset token is submitted with a valid new password. Password reset can clear a failed-login lock, but admin email/IP blocks still prevent reset requests and reset-token use.
+- Account-backed character draft saves were added for the current lightweight web `.gmcf` character flow. Character drafts are stored under `drafts/characters/`, listed on the home screen, and capped at four character drafts per account and two character drafts per saved ruleset.
+- Final character download now bridges the lightweight web `.gmcf` draft through server-side `CharacterFileIO` and the linked saved ruleset, returning an object-backed `.gmcf` from `POST /api/characters/export`.
 
 External setup completed:
 
@@ -75,6 +79,7 @@ External setup completed:
 
 Next repo steps:
 
+- Verify and smoke-test the new character download flow: create/select attributes, race, and class, click Download, and confirm the returned `.gmcf` is accepted by `CharacterFileIO.readCharacterFile`.
 - Deploy and smoke-test the password reset flow in production: request reset from the password screen, click the email link, set a new password, confirm login succeeds, and confirm the old password still works before the reset token is consumed.
 - Compare the Droplet's Nginx config and response headers against `docs/REVERSE_PROXY_SECURITY.md`; fill in the production details section.
 - Do not commit unless the user explicitly asks.
@@ -88,6 +93,8 @@ Proof-of-concept functionality is present:
 - Password creation and login.
 - File-backed account storage.
 - Server-backed `.gmrf` draft creation/import/open/delete/export.
+- Server-backed lightweight `.gmcf` character draft save/open/delete for logged-in users, capped at four per account and two per saved ruleset.
+- Server-backed final `.gmcf` character export using the `CharacterFileIO` object format.
 - In-app feedback, bug report, and blocker/crash report intake with local storage and Discord forwarding.
 - Builder stages through setup, measurements, dice, attribute generation, attributes, hit points, armor class, currency, effects/statuses, equipment, weapons, skills, spells, races, and classes.
 - Early web character-generation flow through attributes, race, and class.
@@ -127,11 +134,16 @@ Web backend:
 - `gmrules-builder/src/main/java/com/gamemaker/gmrules/web/WebConfig.java`
 - `gmrules-builder/src/main/java/com/gamemaker/gmrules/web/ApiRoutes.java`
 - `gmrules-builder/src/main/java/com/gamemaker/gmrules/web/AccountStore.java`
+- `gmrules-builder/src/main/java/com/gamemaker/gmrules/web/CharacterDraftStore.java`
 - `gmrules-builder/src/main/java/com/gamemaker/gmrules/web/DraftStore.java`
 - `gmrules-builder/src/main/java/com/gamemaker/gmrules/web/EmailService.java`
 - `gmrules-builder/src/main/java/com/gamemaker/gmrules/web/FeedbackStore.java`
 - `gmrules-builder/src/main/java/com/gamemaker/gmrules/web/DiscordWebhookService.java`
 - `gmrules-builder/src/main/java/com/gamemaker/gmrules/web/NdaAuditStore.java`
+- `gmrules-builder/src/main/java/com/gamemaker/gmrules/character/CharacterDraft.java`
+- `gmrules-builder/src/main/java/com/gamemaker/gmrules/character/CharacterFile.java`
+- `gmrules-builder/src/main/java/com/gamemaker/gmrules/character/CharacterFileBuilder.java`
+- `gmrules-builder/src/main/java/com/gamemaker/gmrules/character/CharacterFileIO.java`
 
 Web frontend:
 
@@ -174,6 +186,11 @@ Non-draft:
 - `POST /api/logout`
 - `GET /api/session`
 - `POST /api/feedback`
+- `GET /api/characters`
+- `POST /api/characters`
+- `POST /api/characters/export`
+- `GET /api/characters/{id}`
+- `DELETE /api/characters/{id}`
 - `GET /api/admin/accounts`
 - `POST /api/admin/accounts/unlock`
 - `DELETE /api/admin/accounts`
