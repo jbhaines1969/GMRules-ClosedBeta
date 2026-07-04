@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-07-02
+Updated: 2026-07-04
 
 ## Beta Launch Blockers
 
@@ -25,7 +25,7 @@ Updated: 2026-07-02
 - [x] Add reverse-proxy/security-header documentation, including HTTPS, HSTS, CSP, frame protection, and referrer policy.
 - [x] Change NDA audit filenames to include a full email hash or account id to avoid local-part collisions.
 - [x] Add an admin-only way to see account count, saved draft count, account lock status, and manage account unlock/deletion.
-- [ ] Add lost password function to sign in page, use supplied email to reset password
+- [x] Add lost password function to sign in page, use supplied email to reset password.
 - [ ] Add admin-only recent feedback viewing if Discord triage becomes insufficient.
 - [x] Preserve tester context in feedback payloads: account email/id, draft id, current stage, browser user agent, timestamp, and severity.
 - [ ] Decide whether sessions being invalidated on restart is acceptable for closed beta.

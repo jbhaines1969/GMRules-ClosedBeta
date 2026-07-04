@@ -4732,6 +4732,20 @@ async function boot() {
   state.sessionToken = readStoredSessionToken();
   await loadLocalization(state.locale);
   const verifiedEmail = readVerifiedEmailFromUrl();
+  const passwordReset = readPasswordResetFromUrl();
+  if (passwordReset.email && passwordReset.token) {
+    clearPasswordResetFromUrl();
+    state.sessionToken = "";
+    clearStoredSessionToken();
+    state.accountName = "";
+    state.legacyGuest = false;
+    state.admin = false;
+    setLoggedIn(false);
+    renderCreatePassword(passwordReset.email, passwordReset.token);
+    showToast(t("web.login.reset_verified", "Password reset verified. Create a new password to finish."));
+    ensureHistoryReady();
+    return;
+  }
   try {
     const session = await api("GET", "/api/session");
     if (session.authenticated) {
@@ -4799,6 +4813,24 @@ function clearVerifiedEmailFromUrl() {
     return;
   }
   url.searchParams.delete("verifiedEmail");
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function readPasswordResetFromUrl() {
+  const params = new URLSearchParams(window.location.search || "");
+  return {
+    email: String(params.get("resetEmail") || "").trim(),
+    token: String(params.get("resetToken") || "").trim(),
+  };
+}
+
+function clearPasswordResetFromUrl() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has("resetEmail") && !url.searchParams.has("resetToken")) {
+    return;
+  }
+  url.searchParams.delete("resetEmail");
+  url.searchParams.delete("resetToken");
   window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
@@ -4993,7 +5025,7 @@ function renderLogin(email = "") {
         return;
       }
       if (result.locked) {
-        openLockedAccountModal(result.email || safeEmail);
+        renderPasswordLogin(result.email || safeEmail, true);
         return;
       }
       if (result.passwordSet) {
@@ -5021,15 +5053,18 @@ function renderLogin(email = "") {
   });
 }
 
-function renderCreatePassword(email) {
+function renderCreatePassword(email, resetToken = "") {
   setMode("home");
   resetVisited();
   setStep("login");
   const safeEmail = String(email || "").trim();
+  const safeResetToken = String(resetToken || "").trim();
+  const isReset = Boolean(safeResetToken);
   view.innerHTML = `
     <section class="panel">
-      <h1>${t("web.login.create_password_title", "Create Password")}</h1>
+      <h1>${isReset ? t("web.login.reset_password_title", "Reset Password") : t("web.login.create_password_title", "Create Password")}</h1>
       <p>${escapeHtml(safeEmail)}</p>
+      ${isReset ? `<p class="field-hint">${t("web.login.reset_password_hint", "Choose a new password for this account.")}</p>` : ""}
       <div class="grid two">
         <div class="field">
           <label for="newPassword">${t("web.login.password", "Password")}</label>
@@ -5046,7 +5081,7 @@ function renderCreatePassword(email) {
           <button class="btn ghost" id="createPasswordBack" type="button">${t("setup.back", "Back")}</button>
         </div>
         <div class="right">
-          <button class="btn" id="createPasswordSubmit" type="button">${t("web.login.create_password", "Create Password")}</button>
+          <button class="btn" id="createPasswordSubmit" type="button">${isReset ? t("web.login.reset_password", "Reset Password") : t("web.login.create_password", "Create Password")}</button>
         </div>
       </div>
     </section>
@@ -5060,6 +5095,7 @@ function renderCreatePassword(email) {
         email: safeEmail,
         password: passwordInput.value,
         confirmPassword: confirmInput.value,
+        resetToken: safeResetToken,
       });
       finishLogin(result);
     } catch (error) {
@@ -5068,7 +5104,13 @@ function renderCreatePassword(email) {
   };
   document.getElementById("createPasswordSubmit").addEventListener("click", createPassword);
   document.getElementById("createPasswordDeleteAccount").addEventListener("click", () => openDeleteAccountModal(safeEmail));
-  document.getElementById("createPasswordBack").addEventListener("click", () => renderLogin(safeEmail));
+  document.getElementById("createPasswordBack").addEventListener("click", () => {
+    if (isReset) {
+      renderPasswordLogin(safeEmail);
+      return;
+    }
+    renderLogin(safeEmail);
+  });
   confirmInput.addEventListener("keypress", (event) => {
     if (event.key === "Enter") {
       createPassword();
@@ -5079,15 +5121,17 @@ function renderCreatePassword(email) {
   });
 }
 
-function renderPasswordLogin(email) {
+function renderPasswordLogin(email, locked = false) {
   setMode("home");
   resetVisited();
   setStep("login");
   const safeEmail = String(email || "").trim();
+  const isLocked = Boolean(locked);
   view.innerHTML = `
     <section class="panel">
       <h1>${t("web.login.password_title", "Enter Password")}</h1>
       <p>${escapeHtml(safeEmail)}</p>
+      ${isLocked ? `<p class="field-hint">${t("web.login.locked_reset_hint", "This account is locked after repeated failed login attempts. You can reset the password by email or request admin review.")}</p>` : ""}
       <div class="field">
         <label for="password">${t("web.login.password", "Password")}</label>
         <input type="password" id="password" autocomplete="current-password">
@@ -5095,6 +5139,7 @@ function renderPasswordLogin(email) {
       <div class="actions-row">
         <div class="left">
           <button class="btn danger ghost" id="deleteAccountBtn" type="button">${t("web.account_delete.permanent_button", "Permanently Delete Account")}</button>
+          <button class="btn ghost" id="forgotPasswordBtn" type="button">${t("web.login.forgot_password", "Forgot Password?")}</button>
           <button class="btn ghost" id="passwordBack" type="button">${t("setup.back", "Back")}</button>
         </div>
         <div class="right">
@@ -5124,6 +5169,18 @@ function renderPasswordLogin(email) {
   document.getElementById("loginBtn").addEventListener("click", submit);
   document.getElementById("passwordBack").addEventListener("click", () => renderLogin(safeEmail));
   document.getElementById("deleteAccountBtn").addEventListener("click", () => openDeleteAccountModal(safeEmail));
+  document.getElementById("forgotPasswordBtn").addEventListener("click", async () => {
+    const resetButton = document.getElementById("forgotPasswordBtn");
+    resetButton.disabled = true;
+    try {
+      await api("POST", "/api/accounts/password-reset", { email: safeEmail });
+      showToast(t("web.login.reset_email_sent", "If this email has a GMRules Closed Beta account, a password reset link has been sent."));
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      resetButton.disabled = false;
+    }
+  });
   passwordInput.addEventListener("keypress", (event) => {
     if (event.key === "Enter") {
       submit();

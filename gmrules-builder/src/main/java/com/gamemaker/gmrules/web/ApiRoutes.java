@@ -78,6 +78,9 @@ public final class ApiRoutes {
     private static final int LOCKED_ACCOUNT_REPORT_RATE_LIMIT_MAX = 3;
     private static final Duration LOCKED_ACCOUNT_REPORT_RATE_LIMIT_WINDOW = Duration.ofMinutes(10);
     private static final Map<String, Deque<Instant>> LOCKED_ACCOUNT_REPORT_RATE_LIMITS = new ConcurrentHashMap<>();
+    private static final int PASSWORD_RESET_RATE_LIMIT_MAX = 3;
+    private static final Duration PASSWORD_RESET_RATE_LIMIT_WINDOW = Duration.ofMinutes(10);
+    private static final Map<String, Deque<Instant>> PASSWORD_RESET_RATE_LIMITS = new ConcurrentHashMap<>();
     private static final int SIGNUP_IP_RATE_LIMIT_MAX = 2;
     private static final Duration SIGNUP_IP_RATE_LIMIT_WINDOW = Duration.ofDays(1);
     private static final int SIGNUP_EMAIL_RATE_LIMIT_MAX = 1;
@@ -103,6 +106,7 @@ public final class ApiRoutes {
         router.add("GET", "/api/accounts/verify", ApiRoutes::verifyAccount);
         router.add("POST", "/api/accounts/lookup", ApiRoutes::lookupAccount);
         router.add("POST", "/api/accounts/password", ApiRoutes::setInitialPassword);
+        router.add("POST", "/api/accounts/password-reset", ApiRoutes::requestPasswordReset);
         router.add("POST", "/api/accounts/locked-report", ApiRoutes::submitLockedAccountReport);
         router.add("DELETE", "/api/accounts", ApiRoutes::deleteAccount);
         router.add("POST", "/api/login", ApiRoutes::login);
@@ -387,7 +391,12 @@ public final class ApiRoutes {
     private static void verifyAccount(RequestContext ctx) throws IOException {
         String token = firstQueryParam(ctx, "token");
         try {
-            AccountStore.Account account = ctx.getAccountStore().verifyAccount(token);
+            AccountStore.VerificationResult verification = ctx.getAccountStore().verifyAccount(token);
+            AccountStore.Account account = verification.getAccount();
+            if (verification.isPasswordReset()) {
+                ctx.redirect(buildResetPasswordUrl(ctx.getConfig(), account.getUsername(), verification.getToken()));
+                return;
+            }
             NdaAuditStore auditStore = new NdaAuditStore(ctx.getConfig());
             auditStore.recordAccountCreated(
                 account.getUsername(),
@@ -448,6 +457,40 @@ public final class ApiRoutes {
         ));
     }
 
+    private static void requestPasswordReset(RequestContext ctx) throws IOException {
+        Map<String, Object> body = ctx.readJsonMap();
+        String email = getString(body, "email").trim();
+        if (isBlockedLogin(ctx, email)) {
+            return;
+        }
+        if (!consumePasswordResetRateLimit(ctx, email)) {
+            ctx.json(429, Map.of("error", "Too many password reset requests. Try again later."));
+            return;
+        }
+        boolean emailSent = false;
+        try {
+            AccountStore.VerificationRequest resetRequest = ctx.getAccountStore().createPasswordResetRequest(email);
+            String resetUrl = buildVerificationUrl(ctx.getConfig(), resetRequest.getToken());
+            emailSent = new EmailService(ctx.getConfig()).sendPasswordResetEmail(
+                resetRequest.getEmail(),
+                resetUrl
+            );
+        } catch (IllegalArgumentException ignored) {
+            emailSent = false;
+        } catch (IOException e) {
+            ctx.json(502, Map.of("error", e.getMessage()));
+            return;
+        }
+        ctx.json(200, Map.of(
+            "ok",
+            true,
+            "emailSent",
+            emailSent,
+            "message",
+            "If this email has a GMRules Closed Beta account, a password reset link has been sent."
+        ));
+    }
+
     private static void setInitialPassword(RequestContext ctx) throws IOException {
         Map<String, Object> body = ctx.readJsonMap();
         String email = getString(body, "email").trim();
@@ -461,7 +504,10 @@ public final class ApiRoutes {
             return;
         }
         try {
-            AccountStore.Account account = ctx.getAccountStore().setInitialPassword(email, password);
+            String resetToken = getString(body, "resetToken").trim();
+            AccountStore.Account account = resetToken.isEmpty()
+                ? ctx.getAccountStore().setInitialPassword(email, password)
+                : ctx.getAccountStore().resetPassword(email, resetToken, password);
             ctx.getAccountStore().recordSuccessfulLogin(account.getUsername(), ctx.clientIp());
             boolean admin = ctx.getConfig().isAdminEmail(account.getUsername());
             SessionStore.Session session = ctx.getSessionStore().createSession(
@@ -4290,6 +4336,33 @@ public final class ApiRoutes {
         return true;
     }
 
+    private static boolean consumePasswordResetRateLimit(RequestContext ctx, String email) {
+        String emailKey = "password-reset-email:" + Objects.toString(email, "").trim().toLowerCase(Locale.ROOT);
+        String ipKey = "password-reset-ip:" + ctx.clientIp();
+        Instant now = Instant.now();
+        if (!isRollingRateLimitAvailable(
+                PASSWORD_RESET_RATE_LIMITS,
+                emailKey,
+                PASSWORD_RESET_RATE_LIMIT_MAX,
+                PASSWORD_RESET_RATE_LIMIT_WINDOW,
+                now
+        )) {
+            return false;
+        }
+        if (!isRollingRateLimitAvailable(
+                PASSWORD_RESET_RATE_LIMITS,
+                ipKey,
+                PASSWORD_RESET_RATE_LIMIT_MAX,
+                PASSWORD_RESET_RATE_LIMIT_WINDOW,
+                now
+        )) {
+            return false;
+        }
+        recordRollingRateLimit(PASSWORD_RESET_RATE_LIMITS, emailKey, PASSWORD_RESET_RATE_LIMIT_WINDOW, now);
+        recordRollingRateLimit(PASSWORD_RESET_RATE_LIMITS, ipKey, PASSWORD_RESET_RATE_LIMIT_WINDOW, now);
+        return true;
+    }
+
     private static boolean consumeImportRateLimit(RequestContext ctx, SessionStore.Session session) {
         String accountKey = Objects.toString(session.getUserId(), "").trim();
         String key = accountKey.isEmpty() ? "ip:" + ctx.clientIp() : "account:" + accountKey;
@@ -4639,6 +4712,13 @@ public final class ApiRoutes {
         String baseUrl = trimTrailingSlash(config.getPublicBaseUrl());
         String safeEmail = URLEncoder.encode(Objects.toString(email, ""), StandardCharsets.UTF_8);
         return baseUrl + "/?verifiedEmail=" + safeEmail;
+    }
+
+    private static String buildResetPasswordUrl(WebConfig config, String email, String token) {
+        String baseUrl = trimTrailingSlash(config.getPublicBaseUrl());
+        String safeEmail = URLEncoder.encode(Objects.toString(email, ""), StandardCharsets.UTF_8);
+        String safeToken = URLEncoder.encode(Objects.toString(token, ""), StandardCharsets.UTF_8);
+        return baseUrl + "/?resetEmail=" + safeEmail + "&resetToken=" + safeToken;
     }
 
     private static String trimTrailingSlash(String value) {

@@ -50,6 +50,8 @@ public final class AccountStore {
     private static final String USER_PREFIX = "users.";
     private static final String PENDING_PREFIX = "pending.";
     private static final String DRAFT_PREFIX = "drafts.";
+    private static final String PENDING_PURPOSE_CREATE = "create";
+    private static final String PENDING_PURPOSE_PASSWORD_RESET = "password-reset";
 
     private final Path accountFile;
     private final Object lock = new Object();
@@ -83,12 +85,13 @@ public final class AccountStore {
             properties.setProperty(pendingKey(token, "email"), safeEmail);
             properties.setProperty(pendingKey(token, "createdAt"), now.toString());
             properties.setProperty(pendingKey(token, "expiresAt"), now.plus(VERIFICATION_TTL).toString());
+            properties.setProperty(pendingKey(token, "purpose"), PENDING_PURPOSE_CREATE);
             saveProperties(properties);
             return new VerificationRequest(safeEmail, token);
         }
     }
 
-    public Account verifyAccount(String token) throws IOException {
+    public VerificationResult verifyAccount(String token) throws IOException {
         String safeToken = normalizeId(token);
         if (safeToken.isEmpty()) {
             throw new IllegalArgumentException("Verification token is required.");
@@ -96,6 +99,7 @@ public final class AccountStore {
         synchronized (lock) {
             Properties properties = loadProperties();
             String safeEmail = Objects.toString(properties.getProperty(pendingKey(safeToken, "email")), "");
+            String purpose = Objects.toString(properties.getProperty(pendingKey(safeToken, "purpose")), PENDING_PURPOSE_CREATE);
             if (safeEmail.isEmpty()) {
                 throw new IllegalArgumentException("Verification link is invalid or already used.");
             }
@@ -105,11 +109,20 @@ public final class AccountStore {
                 saveProperties(properties);
                 throw new IllegalArgumentException("Verification link has expired. Submit the beta form again.");
             }
+            if (PENDING_PURPOSE_PASSWORD_RESET.equals(purpose)) {
+                String existingId = Objects.toString(properties.getProperty(userKey(safeEmail, "id")), "");
+                if (existingId.isEmpty()) {
+                    removePendingToken(properties, safeToken);
+                    saveProperties(properties);
+                    throw new IllegalArgumentException("Verification link is invalid or already used.");
+                }
+                return VerificationResult.passwordReset(new Account(existingId, safeEmail, false), safeToken);
+            }
             String existingId = Objects.toString(properties.getProperty(userKey(safeEmail, "id")), "");
             if (!existingId.isEmpty()) {
                 removePendingToken(properties, safeToken);
                 saveProperties(properties);
-                return new Account(existingId, safeEmail, false);
+                return VerificationResult.accountCreated(new Account(existingId, safeEmail, false));
             }
             if (countAccounts(properties) >= MAX_ACCOUNTS) {
                 throw new IllegalArgumentException("Closed beta account limit reached.");
@@ -125,7 +138,28 @@ public final class AccountStore {
             properties.setProperty(userKey(safeEmail, "loginLockedAt"), "");
             removePendingToken(properties, safeToken);
             saveProperties(properties);
-            return new Account(userId, safeEmail, false);
+            return VerificationResult.accountCreated(new Account(userId, safeEmail, false));
+        }
+    }
+
+    public VerificationRequest createPasswordResetRequest(String email) throws IOException {
+        String safeEmail = normalizeEmail(email);
+        validateEmail(safeEmail);
+        synchronized (lock) {
+            Properties properties = loadProperties();
+            String userId = Objects.toString(properties.getProperty(userKey(safeEmail, "id")), "");
+            if (userId.isEmpty()) {
+                throw new IllegalArgumentException("Account not found.");
+            }
+            removePendingForEmailAndPurpose(properties, safeEmail, PENDING_PURPOSE_PASSWORD_RESET);
+            String token = generateVerificationToken(properties);
+            Instant now = Instant.now();
+            properties.setProperty(pendingKey(token, "email"), safeEmail);
+            properties.setProperty(pendingKey(token, "createdAt"), now.toString());
+            properties.setProperty(pendingKey(token, "expiresAt"), now.plus(VERIFICATION_TTL).toString());
+            properties.setProperty(pendingKey(token, "purpose"), PENDING_PURPOSE_PASSWORD_RESET);
+            saveProperties(properties);
+            return new VerificationRequest(safeEmail, token);
         }
     }
 
@@ -168,6 +202,44 @@ public final class AccountStore {
             properties.setProperty(userKey(safeEmail, "salt"), encode(salt));
             properties.setProperty(userKey(safeEmail, "hash"), encode(hash));
             clearLoginFailures(properties, safeEmail);
+            saveProperties(properties);
+            return new Account(userId, safeEmail, false);
+        }
+    }
+
+    public Account resetPassword(String email, String token, String password) throws IOException {
+        String safeEmail = normalizeEmail(email);
+        String safeToken = normalizeId(token);
+        validateEmail(safeEmail);
+        validatePassword(password);
+        if (safeToken.isEmpty()) {
+            throw new IllegalArgumentException("Password reset token is required.");
+        }
+        synchronized (lock) {
+            Properties properties = loadProperties();
+            String pendingEmail = Objects.toString(properties.getProperty(pendingKey(safeToken, "email")), "");
+            String pendingPurpose = Objects.toString(properties.getProperty(pendingKey(safeToken, "purpose")), "");
+            if (!safeEmail.equals(pendingEmail) || !PENDING_PURPOSE_PASSWORD_RESET.equals(pendingPurpose)) {
+                throw new IllegalArgumentException("Password reset link is invalid or already used.");
+            }
+            Instant expiresAt = parseInstant(properties.getProperty(pendingKey(safeToken, "expiresAt")));
+            if (expiresAt.isBefore(Instant.now())) {
+                removePendingToken(properties, safeToken);
+                saveProperties(properties);
+                throw new IllegalArgumentException("Password reset link has expired. Request a new reset email.");
+            }
+            String userId = Objects.toString(properties.getProperty(userKey(safeEmail, "id")), "");
+            if (userId.isEmpty()) {
+                removePendingToken(properties, safeToken);
+                saveProperties(properties);
+                throw new IllegalArgumentException("Password reset link is invalid or already used.");
+            }
+            byte[] salt = randomBytes(PASSWORD_SALT_BYTES);
+            byte[] hash = hashPassword(password, salt);
+            properties.setProperty(userKey(safeEmail, "salt"), encode(salt));
+            properties.setProperty(userKey(safeEmail, "hash"), encode(hash));
+            clearLoginFailures(properties, safeEmail);
+            removePendingToken(properties, safeToken);
             saveProperties(properties);
             return new Account(userId, safeEmail, false);
         }
@@ -505,6 +577,28 @@ public final class AccountStore {
         }
     }
 
+    private void removePendingForEmailAndPurpose(Properties properties, String email, String purpose) {
+        String safeEmail = normalizeEmail(email);
+        String safePurpose = Objects.toString(purpose, "");
+        ArrayList<String> pendingTokens = new ArrayList<>();
+        for (String key : properties.stringPropertyNames()) {
+            if (key.startsWith(PENDING_PREFIX) && key.endsWith(".email")) {
+                String pendingEmail = Objects.toString(properties.getProperty(key), "");
+                if (!safeEmail.equals(pendingEmail)) {
+                    continue;
+                }
+                String token = key.substring(PENDING_PREFIX.length(), key.length() - ".email".length());
+                String pendingPurpose = Objects.toString(properties.getProperty(pendingKey(token, "purpose")), PENDING_PURPOSE_CREATE);
+                if (safePurpose.equals(pendingPurpose)) {
+                    pendingTokens.add(token);
+                }
+            }
+        }
+        for (String token : pendingTokens) {
+            removePendingToken(properties, token);
+        }
+    }
+
     private boolean hasActivePendingForEmail(Properties properties, String email, Instant now) {
         String safeEmail = normalizeEmail(email);
         boolean activePending = false;
@@ -535,6 +629,7 @@ public final class AccountStore {
         properties.remove(pendingKey(safeToken, "email"));
         properties.remove(pendingKey(safeToken, "createdAt"));
         properties.remove(pendingKey(safeToken, "expiresAt"));
+        properties.remove(pendingKey(safeToken, "purpose"));
     }
 
     private Properties loadProperties() throws IOException {
@@ -733,6 +828,42 @@ public final class AccountStore {
         // *** METHODS ***
         public String getEmail() {
             return email;
+        }
+
+        public String getToken() {
+            return token;
+        }
+    }
+
+    public static final class VerificationResult {
+
+        // *** MEMBERS ***
+        private final Account account;
+        private final boolean passwordReset;
+        private final String token;
+
+        // *** CONSTRUCTORS ***
+        private VerificationResult(Account account, boolean passwordReset, String token) {
+            this.account = Objects.requireNonNullElseGet(account, () -> new Account("", "", false));
+            this.passwordReset = passwordReset;
+            this.token = Objects.toString(token, "");
+        }
+
+        private static VerificationResult accountCreated(Account account) {
+            return new VerificationResult(account, false, "");
+        }
+
+        private static VerificationResult passwordReset(Account account, String token) {
+            return new VerificationResult(account, true, token);
+        }
+
+        // *** METHODS ***
+        public Account getAccount() {
+            return account;
+        }
+
+        public boolean isPasswordReset() {
+            return passwordReset;
         }
 
         public String getToken() {

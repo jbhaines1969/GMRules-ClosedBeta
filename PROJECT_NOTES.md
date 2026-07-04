@@ -1,6 +1,6 @@
 # GMRules Closed Beta Project Notes
 
-Updated: 2026-07-02
+Updated: 2026-07-04
 
 ## Current Status
 
@@ -50,6 +50,7 @@ Closed beta access:
 - Signup requires NDA scroll/acceptance metadata.
 - Email verification tokens are generated and sent through Resend.
 - Password creation and login are implemented.
+- Password reset is available from the sign-in flow. It emails the original account address, routes through the existing password-create screen, and keeps the old password valid until the reset token is consumed by a successful new-password submission. It can clear a failed-login lock, but admin email/IP blocks still prevent reset requests and reset-token use.
 - Accounts are capped at 10 and saved rulesets are capped at 2 per account for the PoC.
 - NDA acceptance and account creation are audited.
 - Closed-beta application now requires legal full name, and NDA audit CSVs include `full_name`.
@@ -57,6 +58,7 @@ Closed beta access:
 - Logged-in users can submit feedback, bug reports, and blocker/crash reports from the web UI.
 - Feedback is saved locally before Discord delivery and includes safe metadata only, not full ruleset or character file contents.
 - Configured admins can view account counts, saved draft counts, lock status, failed login counts, last login IPs, and can block/unblock email/IP access, unlock, or delete non-admin accounts from the web UI.
+- Admin smoke testing passed on production for the current account list, email/IP block and unblock, account unlock, non-admin account deletion, and request log behavior.
 
 Ruleset builder:
 

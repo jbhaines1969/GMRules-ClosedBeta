@@ -30,6 +30,8 @@ public final class EmailService {
     // *** MEMBERS ***
     private static final String CLOSED_BETA_SUBJECT = "GMRules Closed Beta";
     private static final String CLOSED_BETA_CONTENT = "You requested access to the GMRules closed beta and agreed to the NDA. Click the button below to verify your email and create your account.";
+    private static final String PASSWORD_RESET_SUBJECT = "GMRules Closed Beta Password Reset";
+    private static final String PASSWORD_RESET_CONTENT = "A password reset was requested for your GMRules Closed Beta account. Click the button below to verify the request and choose a new password.";
     private static final String UNREQUESTED_ACCESS_TEXT = "If you did not request access to the GMRules Closed Beta, you can ignore this email.";
     private static final String NDA_AUDIT_SUBJECT_PREFIX = "GMRules NDA Audit - ";
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
@@ -59,6 +61,19 @@ public final class EmailService {
             + "<p>If the button does not work, copy and paste this link:</p>"
             + "<p>" + escapeHtml(safeUrl) + "</p>";
         return sendEmail(recipient, CLOSED_BETA_SUBJECT, text, html);
+    }
+
+    public boolean sendPasswordResetEmail(String recipient, String resetUrl) throws IOException {
+        String safeUrl = Objects.toString(resetUrl, "").trim();
+        String text = PASSWORD_RESET_CONTENT + "\n\n" + UNREQUESTED_ACCESS_TEXT + "\n\n" + safeUrl;
+        String html = "<p>" + PASSWORD_RESET_CONTENT + "</p>"
+            + "<p>" + UNREQUESTED_ACCESS_TEXT + "</p>"
+            + "<p><a href=\"" + escapeHtml(safeUrl) + "\" "
+            + "style=\"display:inline-block;padding:12px 16px;background:#2563eb;color:#ffffff;"
+            + "text-decoration:none;border-radius:6px;\">Verify Password Reset</a></p>"
+            + "<p>If the button does not work, copy and paste this link:</p>"
+            + "<p>" + escapeHtml(safeUrl) + "</p>";
+        return sendEmail(recipient, PASSWORD_RESET_SUBJECT, text, html);
     }
 
     public boolean sendNdaAuditEmail(String participantEmail, String auditCsv) throws IOException {
