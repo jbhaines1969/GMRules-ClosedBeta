@@ -28,11 +28,12 @@ Updated: 2026-07-04
 - [x] Add lost password function to sign in page, use supplied email to reset password.
 - [ ] Add admin-only recent feedback viewing if Discord triage becomes insufficient.
 - [x] Preserve tester context in feedback payloads: account email/id, draft id, current stage, browser user agent, timestamp, and severity.
-- [ ] Decide whether sessions being invalidated on restart is acceptable for closed beta.
+- [x] Decide whether sessions being invalidated on restart is acceptable for closed beta.
+- [x] Add admin-only current logged-in user/session visibility for deploy timing.
 
 ## UI Polish
 
-- [ ] Review the closed-beta signup screen on desktop and mobile.
+- [x] Review the closed-beta signup screen on desktop and mobile.
 - [ ] Make the account/home screen clearer for new users choosing builder vs character generation.
 - [ ] Tighten modal layout for dense edit forms.
 - [ ] Review button hierarchy and action color usage.

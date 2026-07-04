@@ -13,6 +13,9 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -72,6 +75,20 @@ public final class SessionStore {
             return;
         }
         sessions.entrySet().removeIf(entry -> safeUserId.equals(entry.getValue().getUserId()));
+    }
+
+    public List<Session> listActiveSessions() {
+        ArrayList<Session> activeSessions = new ArrayList<>();
+        for (Map.Entry<String, Session> entry : sessions.entrySet()) {
+            Session session = entry.getValue();
+            if (session.isExpired(sessionTtl)) {
+                sessions.remove(entry.getKey(), session);
+                continue;
+            }
+            activeSessions.add(session.snapshot());
+        }
+        activeSessions.sort(Comparator.comparing(Session::getLastAccessAt).reversed());
+        return List.copyOf(activeSessions);
     }
 
     private String generateSessionId() {
@@ -139,6 +156,14 @@ public final class SessionStore {
         private boolean isExpired(Duration ttl) {
             Instant expiration = lastAccessAt.plus(ttl);
             return Instant.now().isAfter(expiration);
+        }
+
+        private Session snapshot() {
+            Session session = new Session(id, userId, username, legacyGuest);
+            session.createdAt = createdAt;
+            session.lastAccessAt = lastAccessAt;
+            session.draftId = draftId;
+            return session;
         }
     }
 }

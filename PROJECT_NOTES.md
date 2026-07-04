@@ -36,6 +36,7 @@ The web app is served from `gmrules-builder`:
 - Email: Resend-compatible HTTP API through `EmailService`
 - Discord feedback delivery: webhook-based forwarding through `DiscordWebhookService`
 - Admin access: configured by comma-separated `GMRULES_WEB_ADMINEMAILS`; matching logged-in accounts can use the in-app admin panel.
+- Admins can see current in-memory active sessions, including account email, account id, session start, last active time, admin/legacy status, and current draft id. Session tokens are never returned.
 - Signup/login blocking: admins can block or unblock emails and IP addresses; blocks persist outside live account records so deletion does not erase abuse controls.
 - Request logging records timestamp, request id, route template, status, duration, IP, user agent, authenticated account metadata, and byte counts. It does not log query strings, bearer tokens, passwords, verification tokens, request bodies, uploaded rulesets, feedback text, or secrets.
 - Health checks are available at `GET /api/health`; the endpoint returns `200` when core runtime storage is writable and `503` with sanitized failing check names when storage probes fail.
@@ -90,7 +91,7 @@ Deployment and operations:
 - `.env.example` now documents the current hosted service configuration, data paths, host/port, public base URL, Resend settings, NDA audit recipient, feedback storage, and Discord webhook variables.
 - Reverse-proxy and security-header expectations are documented in `docs/REVERSE_PROXY_SECURITY.md`; production values still need to be confirmed against the Droplet's actual Nginx config.
 - Accounts, drafts, NDA audits, feedback records, request logs, and blocked-access records live on the droplet filesystem. Backups are required before widening the beta.
-- Sessions are in-memory, so deploys/restarts log users out.
+- Sessions are in-memory, so deploys/restarts log users out. This is acceptable for closed beta; the admin panel now exposes current active sessions so deploys can be timed when no one is active.
 
 Security and abuse controls:
 
@@ -104,6 +105,7 @@ UX and copy:
 
 - Email copy is aligned on "Closed Beta" and the old opt-out wording has been replaced with neutral explanatory copy.
 - The save-status mojibake separator in `app.js` has been fixed.
+- The closed-beta signup screen has been reviewed on desktop/mobile and accepted for beta.
 - The visual style is serviceable for PoC, but mobile layout, modal density, button hierarchy, and closed-beta onboarding copy need polish.
 - The character generator currently ends with "Character creation screens coming next."
 

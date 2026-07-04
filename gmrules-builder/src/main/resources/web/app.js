@@ -5288,6 +5288,15 @@ async function renderAdmin() {
       <div class="stat"><strong>-</strong><span>${t("web.admin.accounts", "Accounts")}</span></div>
       <div class="stat"><strong>-</strong><span>${t("web.admin.saved_drafts", "Saved Drafts")}</span></div>
       <div class="stat"><strong>-</strong><span>${t("web.admin.locked", "Locked")}</span></div>
+      <div class="stat"><strong>-</strong><span>${t("web.admin.active_sessions", "Active Sessions")}</span></div>
+    </div>
+    <div class="saved-drafts">
+      <div class="saved-drafts-header">
+        <h2>${t("web.admin.active_users", "Active Users")}</h2>
+      </div>
+      <div class="list admin-session-list" id="adminSessionList">
+        <div class="field-hint">${t("web.loading", "Loading...")}</div>
+      </div>
     </div>
     <div class="saved-drafts">
       <div class="saved-drafts-header">
@@ -5335,7 +5344,8 @@ async function renderAdmin() {
 async function loadAdminAccounts() {
   const summary = document.getElementById("adminSummary");
   const list = document.getElementById("adminAccountList");
-  if (!summary || !list) {
+  const sessionList = document.getElementById("adminSessionList");
+  if (!summary || !list || !sessionList) {
     return;
   }
   try {
@@ -5344,7 +5354,14 @@ async function loadAdminAccounts() {
       <div class="stat"><strong>${escapeHtml(data.accountCount || 0)}</strong><span>${t("web.admin.accounts", "Accounts")}</span></div>
       <div class="stat"><strong>${escapeHtml(data.draftCount || 0)}</strong><span>${t("web.admin.saved_drafts", "Saved Drafts")}</span></div>
       <div class="stat"><strong>${escapeHtml(data.lockedCount || 0)}</strong><span>${t("web.admin.locked", "Locked")}</span></div>
+      <div class="stat"><strong>${escapeHtml(data.activeSessionCount || 0)}</strong><span>${t("web.admin.active_sessions", "Active Sessions")}</span></div>
     `;
+    const sessions = data.activeSessions || [];
+    if (!sessions.length) {
+      sessionList.innerHTML = `<div class="field-hint">${t("web.admin.no_active_sessions", "No users are currently logged in.")}</div>`;
+    } else {
+      sessionList.innerHTML = sessions.map((session) => renderAdminSession(session)).join("");
+    }
     const accounts = data.accounts || [];
     if (!accounts.length) {
       list.innerHTML = `<div class="field-hint">${t("web.admin.no_accounts", "No accounts found.")}</div>`;
@@ -5403,6 +5420,30 @@ async function loadAdminAccounts() {
   } catch (error) {
     list.innerHTML = `<div class="field-hint">${escapeHtml(error.message)}</div>`;
   }
+}
+
+function renderAdminSession(session) {
+  const username = escapeHtml(session.username || "");
+  const userId = escapeHtml(session.userId || "");
+  const createdAt = escapeHtml(formatSavedDate(session.createdAt));
+  const lastAccessAt = escapeHtml(formatSavedDate(session.lastAccessAt));
+  const draftId = escapeHtml(session.draftId || "");
+  const badges = [
+    session.admin ? t("web.admin.badge_admin", "Admin") : "",
+    session.legacyGuest ? t("web.admin.badge_legacy_guest", "Legacy guest") : "",
+  ].filter(Boolean).map((label) => `<span class="badge">${escapeHtml(label)}</span>`).join(" ");
+  return `
+    <div class="list-item admin-account-item">
+      <div class="saved-draft-copy">
+        <strong>${username || t("web.home.saved_unknown", "Unknown")}</strong>
+        ${badges ? `<div class="field-hint">${badges}</div>` : ""}
+        <div class="field-hint">${t("web.admin.account_id", "Account ID")}: ${userId}</div>
+        <div class="field-hint">${t("web.admin.session_started", "Session Started")}: ${createdAt}</div>
+        <div class="field-hint">${t("web.admin.last_active", "Last Active")}: ${lastAccessAt}</div>
+        <div class="field-hint">${t("web.admin.current_draft", "Current Draft")}: ${draftId || t("common.none", "None")}</div>
+      </div>
+    </div>
+  `;
 }
 
 async function loadAdminBlocks() {

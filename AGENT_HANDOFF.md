@@ -27,7 +27,7 @@ This repo is the current closed-beta deploy release for GMRules.
 - Web entry point is `com.gamemaker.gmrules.web.WebMain`.
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-02 after the feedback-intake implementation pass.
 - `mvn test` passed again on 2026-07-02 after deleting the feedback-specific TODO file and fixing `EmailService` Closed Beta copy.
-- `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-04 after adding password reset.
+- `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-04 after adding password reset and admin active-session visibility.
 - There are currently no automated test sources, so successful Maven runs are compile/build verification, not behavioral coverage.
 - New continuity docs were added at the repo root: `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `AGENTS.md`, and `AGENT_HANDOFF.md`.
 
@@ -58,10 +58,12 @@ Implemented so far:
 - Admin smoke testing passed in production: account list, email/IP block and unblock, locked-account unlock, non-admin account deletion, and request log creation all worked.
 - Added `BlockedAccessStore` using `GMRULES_WEB_BLOCKEDACCESSFILE` with the default `server-data/blocked-access.properties`. Blocks persist outside live accounts so deleted accounts do not erase email/IP abuse controls.
 - Added `RequestLogStore` using `GMRULES_WEB_REQUESTLOGDIR` with the default `server-data/request-logs`. Request logs are append-only JSONL and include route templates, status, duration, IP, user agent, authenticated account metadata, and byte counts. They intentionally omit query strings, bearer tokens, passwords, verification tokens, request bodies, uploaded rulesets, feedback text, and secrets.
+- Added admin-only current logged-in user visibility. The admin account endpoint now includes active in-memory sessions with account email/id, session start, last active time, admin/legacy status, and current draft id; it does not return session tokens.
 - Added `GET /api/health`, which returns `200` when the app can answer and core runtime storage probes pass, or `503` with sanitized failing check names when storage is unavailable.
 - Added `docs/REVERSE_PROXY_SECURITY.md` as the Nginx/reverse-proxy and browser security-header runbook. Production Nginx still needs to be compared against it and the placeholder details filled in.
 - Changed new NDA audit filenames to `email-<sha256(normalized full email)>.csv` to avoid local-part collisions. `readAuditCsv` still includes legacy local-part CSVs if they exist, so old server data remains usable.
 - Closed-beta application now requires legal full name and writes `full_name` to new NDA audit CSV rows.
+- The closed-beta signup screen has been reviewed on desktop/mobile and accepted for beta.
 - Password reset was added to the sign-in flow. Users can request a reset email for the original account email; the emailed link verifies the reset request and opens the existing password-create screen. Existing passwords are not changed or deleted until the reset token is submitted with a valid new password. Password reset can clear a failed-login lock, but admin email/IP blocks still prevent reset requests and reset-token use.
 
 External setup completed:
@@ -105,7 +107,7 @@ Launch blockers are tracked in `TODO.md`. Most important:
 - Final domain is confirmed in production `.env`: `GMRULES_WEB_PUBLICBASEURL=https://gmrules.com`.
 - `deploy.sh` is confirmed correct for the current Digital Ocean server-side launcher flow.
 - Production env vars are now documented in `.env.example`; manual backup/restore for `server-data/`, `drafts/`, and `.env` has been implemented and tested.
-- Beta launch blockers are complete. Login locking, the account-admin panel, email/IP block controls, secure request logging, admin smoke testing, and password reset are implemented. Password setup mismatch attempts are intentionally not rate-limited for now. Next actionable TODO is hosted smoke testing for the new password reset flow.
+- Beta launch blockers are complete. Login locking, the account-admin panel, email/IP block controls, secure request logging, admin smoke testing, password reset, and admin active-session visibility are implemented. Password setup mismatch attempts are intentionally not rate-limited for now. Next actionable TODO is hosted smoke testing for the new password reset and active-session admin flows.
 
 ## Important Paths
 
@@ -245,5 +247,6 @@ It auto-selects the single `/tmp/gmrules-backup-*.tar.gz.gpg` file when only one
 ## Next Best Moves
 
 1. Deploy and smoke-test password reset in production: request reset, click the emailed link, set a new password, confirm login succeeds, and confirm old-password login still works before the reset token is consumed.
-2. Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md`, then fill in the production details section.
-3. Continue the small controlled beta cohort.
+2. Smoke-test admin active-session visibility in production with another logged-in account before relying on it for deploy timing.
+3. Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md`, then fill in the production details section.
+4. Continue the small controlled beta cohort.

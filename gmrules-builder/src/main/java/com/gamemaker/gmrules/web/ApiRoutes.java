@@ -629,7 +629,16 @@ public final class ApiRoutes {
             return;
         }
         BlockedAccessStore blockedAccessStore = new BlockedAccessStore(ctx.getConfig());
+        List<SessionStore.Session> activeSessions = ctx.getSessionStore().listActiveSessions();
+        Map<String, Integer> activeSessionsByUserId = new LinkedHashMap<>();
+        for (SessionStore.Session activeSession : activeSessions) {
+            String userId = Objects.toString(activeSession.getUserId(), "");
+            if (!userId.isEmpty()) {
+                activeSessionsByUserId.put(userId, activeSessionsByUserId.getOrDefault(userId, 0) + 1);
+            }
+        }
         List<Map<String, Object>> accounts = new ArrayList<>();
+        List<Map<String, Object>> sessions = new ArrayList<>();
         int draftCount = 0;
         int lockedCount = 0;
         for (AccountStore.AccountSummary account : ctx.getAccountStore().listAccounts()) {
@@ -653,13 +662,29 @@ public final class ApiRoutes {
             entry.put("admin", ctx.getConfig().isAdminEmail(account.getEmail()));
             entry.put("emailBlocked", blockedAccessStore.isEmailBlocked(account.getEmail()));
             entry.put("lastLoginIpBlocked", blockedAccessStore.isIpBlocked(account.getLastLoginIp()));
+            entry.put("activeSessionCount", activeSessionsByUserId.getOrDefault(account.getId(), 0));
             accounts.add(entry);
+        }
+        for (SessionStore.Session activeSession : activeSessions) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("userId", activeSession.getUserId());
+            entry.put("username", activeSession.getUsername());
+            entry.put("legacyGuest", activeSession.isLegacyGuest());
+            entry.put("createdAt", activeSession.getCreatedAt().toString());
+            entry.put("lastAccessAt", activeSession.getLastAccessAt().toString());
+            entry.put("draftId", activeSession.getDraftId());
+            entry.put("admin", ctx.getConfig().isAdminEmail(activeSession.getUsername()));
+            sessions.add(entry);
         }
         ctx.json(200, Map.of(
             "ok",
             true,
             "accounts",
             accounts,
+            "activeSessions",
+            sessions,
+            "activeSessionCount",
+            sessions.size(),
             "accountCount",
             accounts.size(),
             "draftCount",
