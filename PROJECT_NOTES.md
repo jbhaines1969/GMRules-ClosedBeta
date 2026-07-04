@@ -36,7 +36,7 @@ The web app is served from `gmrules-builder`:
 - Email: Resend-compatible HTTP API through `EmailService`
 - Discord feedback delivery: webhook-based forwarding through `DiscordWebhookService`
 - Admin access: configured by comma-separated `GMRULES_WEB_ADMINEMAILS`; matching logged-in accounts can use the in-app admin panel.
-- Admins can see current in-memory active sessions, including account email, account id, session start, last active time, admin/legacy status, and current draft id. Session tokens are never returned.
+- Admins can see current in-memory active sessions, including account email, account id, session start, last active time, admin/legacy status, and current draft id. Session tokens are never returned. Production smoke testing for the admin session viewer passed.
 - Signup/login blocking: admins can block or unblock emails and IP addresses; blocks persist outside live account records so deletion does not erase abuse controls.
 - Request logging records timestamp, request id, route template, status, duration, IP, user agent, authenticated account metadata, and byte counts. It does not log query strings, bearer tokens, passwords, verification tokens, request bodies, uploaded rulesets, feedback text, or secrets.
 - Health checks are available at `GET /api/health`; the endpoint returns `200` when core runtime storage is writable and `503` with sanitized failing check names when storage probes fail.

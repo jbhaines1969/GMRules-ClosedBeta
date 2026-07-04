@@ -5613,22 +5613,16 @@ function renderHome() {
         "web.home.question",
         "Choose whether to create a ruleset, edit an existing ruleset, or create a character."
       )}</p>
-      <div class="grid three">
+      <div class="grid">
         <div class="field">
           <label>${t("web.home.create_game", "Create New Game")}</label>
           <button class="btn" id="homeNewDraft" type="button">${t("web.splash.start", "Start New Ruleset")}</button>
         </div>
-        <div class="field">
-          <label for="homeEditFile">${t("web.home.edit_game", "Edit Existing Game")}</label>
-          <input class="hidden" type="file" id="homeEditFile" accept=".gmrf">
-          <button class="btn ghost" id="homeEditChoose" type="button">${t("web.home.choose_game", "Upload Game File")}</button>
-        </div>
-        <div class="field">
-          <label for="homeCharacterFile">${t("web.home.create_character", "Create Character")}</label>
-          <input class="hidden" type="file" id="homeCharacterFile" accept=".gmrf,.gmcf">
-          <button class="btn ghost" id="homeCharacterChoose" type="button">${t("web.home.choose_character", "Choose Ruleset or Character File")}</button>
-        </div>
       </div>
+      <p class="field-hint">${t(
+        "web.home.saved_or_upload_hint",
+        "You may continue working with a draft stored on your account, or upload a file from your computer to work with"
+      )}</p>
       <div class="saved-drafts" id="savedDraftsPanel">
         <div class="saved-drafts-header">
           <h2>${t("web.home.saved_title", "Saved on This Server")}</h2>
@@ -5636,6 +5630,18 @@ function renderHome() {
         </div>
         <div class="list saved-drafts-list" id="savedDraftsList">
           <div class="field-hint">${t("web.loading", "Loading...")}</div>
+        </div>
+      </div>
+      <div class="grid two">
+        <div class="field">
+          <label for="homeEditFile">${t("web.home.edit_game", "Upload Game File")}</label>
+          <input class="hidden" type="file" id="homeEditFile" accept=".gmrf">
+          <button class="btn ghost" id="homeEditChoose" type="button">${t("web.home.choose_game", "Choose Game File")}</button>
+        </div>
+        <div class="field">
+          <label for="homeCharacterFile">${t("web.home.create_character", "Upload Character File")}</label>
+          <input class="hidden" type="file" id="homeCharacterFile" accept=".gmrf,.gmcf">
+          <button class="btn ghost" id="homeCharacterChoose" type="button">${t("web.home.choose_character", "Choose Character File")}</button>
         </div>
       </div>
       <div class="account-danger-zone">
