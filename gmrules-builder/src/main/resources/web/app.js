@@ -23,6 +23,7 @@ const state = {
   chargenCharacterDraftId: "",
   chargenServerSaveInFlight: false,
   chargenServerSaveQueued: false,
+  canCreateCharacterDraft: true,
   lastAttributeTypeKey: "",
   lastSkillCategoryKey: "",
   lastEffectTypeKeys: [],
@@ -5272,15 +5273,23 @@ async function renderSavedDraftList() {
             </div>
             <div class="saved-draft-actions">
               <button class="btn small" type="button" data-open-draft="${id}">${t("web.home.open_saved", "Open")}</button>
+              <button class="btn ghost small" type="button" data-create-character="${id}">${t("web.home.create_character_from_saved", "Create Character")}</button>
               <button class="btn danger small" type="button" data-delete-draft="${id}" data-delete-draft-name="${name}">${t("web.home.delete_saved", "Delete Save")}</button>
             </div>
           </div>
         `;
       })
       .join("");
+    updateSavedDraftCharacterButtons();
   } catch (error) {
     list.innerHTML = `<div class="field-hint">${escapeHtml(error.message)}</div>`;
   }
+}
+
+function updateSavedDraftCharacterButtons() {
+  document.querySelectorAll("button[data-create-character]").forEach((button) => {
+    button.disabled = !state.canCreateCharacterDraft;
+  });
 }
 
 async function renderSavedCharacterList() {
@@ -5296,6 +5305,7 @@ async function renderSavedCharacterList() {
     const maxCharacters = data.maxCharacters || 4;
     const canCreate = data.canCreate !== false;
     const transientGuest = !!data.transientGuest;
+    state.canCreateCharacterDraft = canCreate;
     meta.textContent = `${characters.length}/${maxCharacters} ${t("web.home.character_save_slots", "character save slots used")}`;
     if (transientGuest) {
       meta.textContent = t("web.home.guest_badge", "Guest");
@@ -5304,6 +5314,7 @@ async function renderSavedCharacterList() {
     if (characterChooseButton) {
       characterChooseButton.disabled = !canCreate;
     }
+    updateSavedDraftCharacterButtons();
     if (transientGuest) {
       list.innerHTML = `<div class="field-hint">${t(
         "web.home.character_guest_transient",
@@ -5477,6 +5488,26 @@ async function openSavedCharacter(characterDraftId) {
     } else {
       renderCharGenIntro();
     }
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function startCharacterFromSavedDraft(draftId) {
+  const safeId = String(draftId || "").trim();
+  if (!safeId) {
+    return;
+  }
+  try {
+    resetCharGenState();
+    const result = await api("POST", `/api/drafts/${encodeURIComponent(safeId)}/open`, {});
+    state.draftId = result.draftId || safeId;
+    updateActions();
+    if (result.locale) {
+      state.locale = normalizeLocale(result.locale);
+      await loadLocalization(state.locale);
+    }
+    renderCharGenIntro();
   } catch (error) {
     showToast(error.message);
   }
@@ -5955,24 +5986,34 @@ function renderHome() {
       return;
     }
     const button = event.target.closest("button[data-open-draft]");
-    if (!button) {
+    if (button) {
+      try {
+        const result = await api("POST", `/api/drafts/${button.dataset.openDraft}/open`);
+        state.draftId = result.draftId;
+        updateActions();
+        if (result.locale) {
+          state.locale = normalizeLocale(result.locale);
+          await loadLocalization(state.locale);
+        }
+        applyCompletedStages(result.completedStages || []);
+        await loadSystemNames();
+        markSaved(t("web.toast.draft_opened", "Draft opened"));
+        renderSetup();
+      } catch (error) {
+        showToast(error.message);
+      }
       return;
     }
-    try {
-      const result = await api("POST", `/api/drafts/${button.dataset.openDraft}/open`);
-      state.draftId = result.draftId;
-      updateActions();
-      if (result.locale) {
-        state.locale = normalizeLocale(result.locale);
-        await loadLocalization(state.locale);
-      }
-      applyCompletedStages(result.completedStages || []);
-      await loadSystemNames();
-      markSaved(t("web.toast.draft_opened", "Draft opened"));
-      renderSetup();
-    } catch (error) {
-      showToast(error.message);
+
+    const characterButton = event.target.closest("button[data-create-character]");
+    if (!characterButton) {
+      return;
     }
+    if (!state.canCreateCharacterDraft) {
+      showToast(t("web.home.character_slots_full", "Character save slots are full."));
+      return;
+    }
+    await startCharacterFromSavedDraft(characterButton.dataset.createCharacter || "");
   });
 
   homeEditFile.addEventListener("change", async (event) => {
@@ -7155,7 +7196,7 @@ function saveCharGenDraftLocal() {
 
 function saveCharGenDraftServer(text) {
   const safeText = String(text || "");
-  if (!state.sessionToken || state.legacyGuest || !state.draftId || !state.chargenGameId || !state.chargenGameHash) {
+  if (!state.sessionToken || state.legacyGuest || !state.draftId || !state.chargenGameId) {
     return;
   }
   if (state.chargenServerSaveInFlight) {
@@ -7189,12 +7230,12 @@ function saveCharGenDraftServer(text) {
 }
 
 async function downloadCharGenDraft() {
-  if (!state.chargenGameId || !state.chargenGameHash) {
-    showToast(t("web.chargen.missing", "Upload a ruleset to save this character."));
+  if (!state.chargenGameId) {
+    showToast(t("web.chargen.missing", "Choose a ruleset before saving this character."));
     return;
   }
   if (!state.draftId) {
-    showToast(t("web.chargen.missing", "Upload a ruleset to save this character."));
+    showToast(t("web.chargen.missing", "Choose a ruleset before saving this character."));
     return;
   }
   const text = serializeCharGenDraft(buildCharGenDraft());

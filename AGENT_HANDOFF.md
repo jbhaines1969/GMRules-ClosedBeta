@@ -1,6 +1,6 @@
 # GMRules Closed Beta Agent Handoff
 
-Updated: 2026-07-04
+Updated: 2026-07-05
 Repo root: `C:\Users\John\IdeaProjects\GMRules-ClosedBeta`
 
 This is the start-here snapshot for recovering the project after context loss or a machine failure.
@@ -68,8 +68,10 @@ Implemented so far:
 - Closed-beta application now requires legal full name and writes `full_name` to new NDA audit CSV rows.
 - The closed-beta signup screen has been reviewed on desktop/mobile and accepted for beta.
 - Password reset was added to the sign-in flow. Users can request a reset email for the original account email; the emailed link verifies the reset request and opens the existing password-create screen. Existing passwords are not changed or deleted until the reset token is submitted with a valid new password. Password reset can clear a failed-login lock, but admin email/IP blocks still prevent reset requests and reset-token use.
+- Hosted password reset smoke testing passed on 2026-07-05, including both manual reset and failed-login lockout recovery reset UI.
 - Account-backed character draft saves were added for the current lightweight web `.gmcf` character flow. Character drafts are stored under `drafts/characters/`, listed on the home screen, and capped at four character drafts per account and two character drafts per saved ruleset.
 - Final character download now bridges the lightweight web `.gmcf` draft through server-side `CharacterFileIO` and the linked saved ruleset, returning an object-backed `.gmcf` from `POST /api/characters/export`.
+- Saved server-side rulesets now have a home-screen Create Character action, so logged-in users can start character creation without uploading a local `.gmrf` file. Character draft autosave/export now relies on the saved ruleset draft id instead of requiring an uploaded-file hash for server-started characters.
 
 External setup completed:
 
@@ -80,7 +82,6 @@ External setup completed:
 Next repo steps:
 
 - Verify and smoke-test the new character download flow: create/select attributes, race, and class, click Download, and confirm the returned `.gmcf` is accepted by `CharacterFileIO.readCharacterFile`.
-- Deploy and smoke-test the password reset flow in production: request reset from the password screen, click the email link, set a new password, confirm login succeeds, and confirm the old password still works before the reset token is consumed.
 - Compare the Droplet's Nginx config and response headers against `docs/REVERSE_PROXY_SECURITY.md`; fill in the production details section.
 - Do not commit unless the user explicitly asks.
 
@@ -94,6 +95,7 @@ Proof-of-concept functionality is present:
 - File-backed account storage.
 - Server-backed `.gmrf` draft creation/import/open/delete/export.
 - Server-backed lightweight `.gmcf` character draft save/open/delete for logged-in users, capped at four per account and two per saved ruleset.
+- Character creation can start from an account's saved server-side rulesets or from uploaded local `.gmrf/.gmcf` files.
 - Server-backed final `.gmcf` character export using the `CharacterFileIO` object format.
 - In-app feedback, bug report, and blocker/crash report intake with local storage and Discord forwarding.
 - Builder stages through setup, measurements, dice, attribute generation, attributes, hit points, armor class, currency, effects/statuses, equipment, weapons, skills, spells, races, and classes.
@@ -115,7 +117,7 @@ Launch blockers are tracked in `TODO.md`. Most important:
 - Final domain is confirmed in production `.env`: `GMRULES_WEB_PUBLICBASEURL=https://gmrules.com`.
 - `deploy.sh` is confirmed correct for the current Digital Ocean server-side launcher flow.
 - Production env vars are now documented in `.env.example`; manual backup/restore for `server-data/`, `drafts/`, and `.env` has been implemented and tested.
-- Beta launch blockers are complete. Login locking, the account-admin panel, email/IP block controls, secure request logging, admin smoke testing, password reset, and admin active-session visibility are implemented. Password setup mismatch attempts are intentionally not rate-limited for now. Next actionable TODO is hosted smoke testing for the new password reset flow.
+- Beta launch blockers are complete. Login locking, the account-admin panel, email/IP block controls, secure request logging, admin smoke testing, password reset, hosted password reset smoke testing, and admin active-session visibility are implemented. Password setup mismatch attempts are intentionally not rate-limited for now. Next actionable TODOs are character export smoke testing and reverse-proxy/security-header verification.
 
 ## Important Paths
 
@@ -264,6 +266,6 @@ It auto-selects the single `/tmp/gmrules-backup-*.tar.gz.gpg` file when only one
 
 ## Next Best Moves
 
-1. Deploy and smoke-test password reset in production: request reset, click the emailed link, set a new password, confirm login succeeds, and confirm old-password login still works before the reset token is consumed.
+1. Verify and smoke-test the new character download flow: create/select attributes, race, and class, click Download, and confirm the returned `.gmcf` is accepted by `CharacterFileIO.readCharacterFile`.
 2. Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md`, then fill in the production details section.
 3. Continue the small controlled beta cohort.

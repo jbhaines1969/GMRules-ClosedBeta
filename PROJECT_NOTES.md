@@ -1,6 +1,6 @@
 # GMRules Closed Beta Project Notes
 
-Updated: 2026-07-04
+Updated: 2026-07-05
 
 ## Current Status
 
@@ -53,6 +53,7 @@ Closed beta access:
 - Email verification tokens are generated and sent through Resend.
 - Password creation and login are implemented.
 - Password reset is available from the sign-in flow. It emails the original account address, routes through the existing password-create screen, and keeps the old password valid until the reset token is consumed by a successful new-password submission. It can clear a failed-login lock, but admin email/IP blocks still prevent reset requests and reset-token use.
+- Hosted password reset smoke testing passed on 2026-07-05 for both manual reset and failed-login lockout recovery reset UI.
 - Accounts are capped at 10 and saved rulesets are capped at 2 per account for the PoC.
 - NDA acceptance and account creation are audited.
 - Closed-beta application now requires legal full name, and NDA audit CSVs include `full_name`.
@@ -67,6 +68,7 @@ Ruleset builder:
 - Server-backed draft creation/import/open/delete/export.
 - Local `.gmrf` download.
 - Server-backed web character draft saves are stored as lightweight `.gmcf` text under `drafts/characters/`, associated with the account and saved ruleset draft. The closed-beta cap is four character drafts per account and two character drafts per saved ruleset.
+- Logged-in users can start character creation directly from a saved server-side ruleset without uploading a local `.gmrf` file.
 - Builder stages for setup, measurements, dice, attribute generation, standard arrays, dice rolling, point buy, attribute types, attributes, hit points, armor class, currency, effect types, statuses, effects, equipment, weapons, skills, spells, races, and classes.
 - Stage completion is tracked in the `Game` object.
 - Custom labels/system names are supported for some stage labels.
@@ -74,6 +76,7 @@ Ruleset builder:
 Character generation:
 
 - The web app has an early character flow for uploading `.gmrf` or `.gmcf`, selecting/generating attributes, choosing race, and choosing class.
+- The home screen also lets logged-in users start character creation from any saved ruleset on the server.
 - The current web `.gmcf` save/resume path remains a lightweight text draft format in `app.js`.
 - Logged-in character-generator progress now saves to the account automatically and appears on the home screen under Saved Characters. Download/upload of `.gmcf` remains available.
 - Downloading from the web character flow now posts the text draft to `POST /api/characters/export`; the server uses `CharacterFileIO` and the linked saved ruleset to return a final object-backed `.gmcf`.

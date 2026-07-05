@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-07-04
+Updated: 2026-07-05
 
 ## Beta Launch Blockers
 
@@ -26,6 +26,7 @@ Updated: 2026-07-04
 - [x] Change NDA audit filenames to include a full email hash or account id to avoid local-part collisions.
 - [x] Add an admin-only way to see account count, saved draft count, account lock status, and manage account unlock/deletion.
 - [x] Add lost password function to sign in page, use supplied email to reset password.
+- [x] Smoke-test hosted password reset for manual reset and failed-login lockout recovery.
 - [ ] Add admin-only recent feedback viewing if Discord triage becomes insufficient.
 - [x] Preserve tester context in feedback payloads: account email/id, draft id, current stage, browser user agent, timestamp, and severity.
 - [x] Decide whether sessions being invalidated on restart is acceptable for closed beta.
@@ -45,6 +46,7 @@ Updated: 2026-07-04
 
 - [ ] Choose beta scope: defer full character generation or integrate `gmrules-character`.
 - [x] Add account-backed lightweight web `.gmcf` character draft saves with closed-beta caps: four per account and two per saved ruleset.
+- [x] Add a way to start character creation from saved server-side rulesets without uploading a `.gmrf` file.
 - [ ] If integrating, add `gmrules-character` as a Maven module in this reactor.
 - [x] Bridge the browser-side `.gmcf` text draft format to `CharacterFileIO` for downloadable final character files.
 - [ ] Continue the web character flow after class selection: skills, equipment/weapons/armor, starting money, armor class, final `.gmcf` export.
