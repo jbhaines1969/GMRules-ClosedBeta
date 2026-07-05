@@ -73,6 +73,7 @@ Implemented so far:
 - Account-backed character draft saves were added for the current lightweight web `.gmcf` character flow. Character drafts are stored under `drafts/characters/`, listed on the home screen, and capped at four character drafts per account and two character drafts per saved ruleset.
 - Final character download now bridges the lightweight web `.gmcf` draft through server-side `CharacterFileIO` and the linked saved ruleset, returning an object-backed `.gmcf` from `POST /api/characters/export`.
 - Saved server-side rulesets now have a home-screen Create Character action, so logged-in users can start character creation without uploading a local `.gmrf` file. Character draft autosave/export now relies on the saved ruleset draft id instead of requiring an uploaded-file hash for server-started characters.
+- Uploaded object-backed `.gmcf` character files now go through `POST /api/characters/import`, which parses `CharacterFileIO`, matches the source game id to the user's saved rulesets, opens that server draft, and returns lightweight web draft text for the current character UI.
 
 External setup completed:
 
@@ -98,6 +99,7 @@ Proof-of-concept functionality is present:
 - Server-backed lightweight `.gmcf` character draft save/open/delete for logged-in users, capped at four per account and two per saved ruleset.
 - Character creation can start from an account's saved server-side rulesets or from uploaded local `.gmrf/.gmcf` files.
 - Server-backed final `.gmcf` character export using the `CharacterFileIO` object format.
+- Object-backed `.gmcf` uploads can resume in the lightweight web character flow when the matching ruleset is saved on the account.
 - In-app feedback, bug report, and blocker/crash report intake with local storage and Discord forwarding.
 - Builder stages through setup, measurements, dice, attribute generation, attributes, hit points, armor class, currency, effects/statuses, equipment, weapons, skills, spells, races, and classes.
 - Early web character-generation flow through attributes, race, and class.
@@ -191,6 +193,7 @@ Non-draft:
 - `POST /api/feedback`
 - `GET /api/characters`
 - `POST /api/characters`
+- `POST /api/characters/import`
 - `POST /api/characters/export`
 - `GET /api/characters/{id}`
 - `DELETE /api/characters/{id}`

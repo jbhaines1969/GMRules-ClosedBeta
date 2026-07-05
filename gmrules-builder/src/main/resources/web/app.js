@@ -5493,6 +5493,37 @@ async function openSavedCharacter(characterDraftId) {
   }
 }
 
+async function importServerCharacterFile(file) {
+  if (!file) {
+    return;
+  }
+  const buffer = await file.arrayBuffer();
+  const result = await apiBinary("POST", "/api/characters/import", buffer);
+  const text = String(result.text || "");
+  const draft = parseCharGenDraft(text);
+  state.draftId = result.draftId || draft.gameDraftId || "";
+  state.chargenCharacterDraftId = "";
+  applyCharGenDraft(draft);
+  state.chargenDraftText = text;
+  updateActions();
+  if (result.locale) {
+    state.locale = normalizeLocale(result.locale);
+    await loadLocalization(state.locale);
+  }
+  applyCompletedStages(result.completedStages || []);
+  await loadSystemNames();
+  const target = resolveCharGenResumeStage();
+  if (target === "classes") {
+    renderCharGenClasses();
+  } else if (target === "races") {
+    renderCharGenRaces();
+  } else if (target === "attributes") {
+    renderCharGenAttributes();
+  } else {
+    renderCharGenIntro();
+  }
+}
+
 async function startCharacterFromSavedDraft(draftId) {
   const safeId = String(draftId || "").trim();
   if (!safeId) {
@@ -5898,11 +5929,15 @@ function renderHome() {
       const filename = String(file.name || "").toLowerCase();
       if (filename.endsWith(".gmcf")) {
         const text = await file.text();
-        const draft = parseCharGenDraft(text);
-        applyCharGenDraft(draft);
-        state.chargenCharacterDraftId = "";
-        state.chargenDraftText = text;
-        renderCharGenResume();
+        try {
+          const draft = parseCharGenDraft(text);
+          applyCharGenDraft(draft);
+          state.chargenCharacterDraftId = "";
+          state.chargenDraftText = text;
+          renderCharGenResume();
+        } catch (parseError) {
+          await importServerCharacterFile(file);
+        }
         return;
       }
       resetCharGenState();
@@ -6156,10 +6191,14 @@ function renderCharGenUpload() {
       const filename = String(file.name || "").toLowerCase();
       if (filename.endsWith(".gmcf")) {
         const text = await file.text();
-        const draft = parseCharGenDraft(text);
-        applyCharGenDraft(draft);
-        state.chargenDraftText = text;
-        renderCharGenResume();
+        try {
+          const draft = parseCharGenDraft(text);
+          applyCharGenDraft(draft);
+          state.chargenDraftText = text;
+          renderCharGenResume();
+        } catch (parseError) {
+          await importServerCharacterFile(file);
+        }
         return;
       }
       resetCharGenState();

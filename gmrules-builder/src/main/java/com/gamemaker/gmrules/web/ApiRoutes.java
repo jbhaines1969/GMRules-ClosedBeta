@@ -37,6 +37,7 @@ import com.gamemaker.gmrules.SupportElements.AttributeModifiers;
 import com.gamemaker.gmrules.SupportElements.Effect;
 import com.gamemaker.gmrules.SupportElements.Status;
 import com.gamemaker.gmrules.character.CharacterDraft;
+import com.gamemaker.gmrules.character.CharacterFile;
 import com.gamemaker.gmrules.character.CharacterFileIO;
 
 import java.io.IOException;
@@ -135,6 +136,7 @@ public final class ApiRoutes {
         router.add("POST", "/api/drafts/{id}/system-names", ApiRoutes::updateSystemName);
         router.add("GET", "/api/characters", ApiRoutes::listCharacterDrafts);
         router.add("POST", "/api/characters", ApiRoutes::saveCharacterDraft);
+        router.add("POST", "/api/characters/import", ApiRoutes::importCharacterFile);
         router.add("POST", "/api/characters/export", ApiRoutes::exportCharacterFile);
         router.add("GET", "/api/characters/{id}", ApiRoutes::openCharacterDraft);
         router.add("DELETE", "/api/characters/{id}", ApiRoutes::deleteCharacterDraft);
@@ -1225,6 +1227,45 @@ public final class ApiRoutes {
             ctx.json(400, Map.of("error", e.getMessage()));
         } catch (IllegalStateException e) {
             ctx.json(400, Map.of("error", e.getMessage()));
+        }
+    }
+
+    private static void importCharacterFile(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        byte[] payload = ctx.readBody(96L * 1024);
+        Path tempFile = Files.createTempFile("gmrules-character-import-", ".gmcf");
+        try {
+            Files.write(tempFile, payload);
+            CharacterFile characterFile = new CharacterFileIO().readCharacterFile(tempFile);
+            String gameDraftId = resolveCharacterFileDraftId(ctx, session, characterFile);
+            if (gameDraftId.isEmpty()) {
+                ctx.json(400, Map.of("error", "Open or save the matching ruleset before importing this character."));
+                return;
+            }
+            if (!canAccessCharacterExportDraft(ctx, session, gameDraftId)) {
+                ctx.json(403, Map.of("error", "Character must be linked to one of your saved rulesets."));
+                return;
+            }
+            DraftStore.Draft draft = ctx.getDraftStore().openDraft(gameDraftId);
+            session.setDraftId(draft.getId());
+            String text = serializeCharacterFileDraft(characterFile, gameDraftId);
+            ctx.json(200, Map.of(
+                "draftId",
+                draft.getId(),
+                "text",
+                text,
+                "locale",
+                Objects.toString(draft.getGame().getUiLocale(), ""),
+                "completedStages",
+                draft.getGame().getCompletedStages()
+            ));
+        } catch (IOException | RuntimeException e) {
+            ctx.json(400, Map.of("error", "Invalid character file."));
+        } finally {
+            Files.deleteIfExists(tempFile);
         }
     }
 
@@ -4513,6 +4554,83 @@ public final class ApiRoutes {
         entry.put("classId", summary.getClassId());
         entry.put("lastSaved", summary.getLastSaved().toString());
         return entry;
+    }
+
+    private static String resolveCharacterFileDraftId(
+            RequestContext ctx,
+            SessionStore.Session session,
+            CharacterFile characterFile
+    ) throws IOException {
+        CharacterFile safeCharacterFile = Objects.requireNonNullElseGet(characterFile, CharacterFile::new);
+        String sourceGameId = Objects.toString(safeCharacterFile.getSourceGameId(), "").trim();
+        String sessionDraftId = Objects.toString(session.getDraftId(), "").trim();
+        if (!sessionDraftId.isEmpty()
+                && canAccessCharacterExportDraft(ctx, session, sessionDraftId)
+                && characterFileMatchesDraft(ctx, sessionDraftId, sourceGameId)) {
+            return sessionDraftId;
+        }
+        if (session.isLegacyGuest()) {
+            return "";
+        }
+        for (String draftId : ctx.getAccountStore().listDraftIds(session.getUserId())) {
+            if (characterFileMatchesDraft(ctx, draftId, sourceGameId)) {
+                return draftId;
+            }
+        }
+        return "";
+    }
+
+    private static boolean characterFileMatchesDraft(RequestContext ctx, String draftId, String sourceGameId) throws IOException {
+        String safeSourceGameId = Objects.toString(sourceGameId, "").trim();
+        if (safeSourceGameId.isEmpty()) {
+            return false;
+        }
+        try {
+            return ctx.getDraftStore().readDraft(draftId, game -> safeSourceGameId.equals(Objects.toString(game.getId(), "")));
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private static String serializeCharacterFileDraft(CharacterFile characterFile, String gameDraftId) {
+        CharacterFile safeCharacterFile = Objects.requireNonNullElseGet(characterFile, CharacterFile::new);
+        List<String> lines = new ArrayList<>();
+        lines.add("GMRulesCharacterFile v1");
+        lines.add("gameDraftId=" + Objects.toString(gameDraftId, "").trim());
+        lines.add("gameId=" + Objects.toString(safeCharacterFile.getSourceGameId(), "").trim());
+        lines.add("gameHash=" + Objects.toString(safeCharacterFile.getSourceGameHash(), "").trim());
+        lines.add("gameName=" + Objects.toString(safeCharacterFile.getSourceGameName(), "").trim());
+        String raceId = characterRaceId(safeCharacterFile);
+        if (!raceId.isEmpty()) {
+            lines.add("raceId=" + raceId);
+        }
+        String classId = characterClassId(safeCharacterFile);
+        if (!classId.isEmpty()) {
+            lines.add("classId=" + classId);
+        }
+        safeCharacterFile.getAttributeScores().entrySet().stream()
+            .sorted(Comparator.comparing(entry -> Objects.toString(entry.getKey().getId(), "")))
+            .forEach(entry -> {
+                String attributeId = Objects.toString(entry.getKey().getId(), "").trim();
+                if (!attributeId.isEmpty()) {
+                    lines.add("attr." + attributeId + "=" + Objects.requireNonNullElse(entry.getValue(), 0));
+                }
+            });
+        return String.join("\n", lines);
+    }
+
+    private static String characterRaceId(CharacterFile characterFile) {
+        Race race = Objects.requireNonNullElseGet(characterFile, CharacterFile::new).getRace();
+        return Objects.toString(race.getName(), "").trim().isEmpty()
+            ? ""
+            : Objects.toString(race.getId(), "").trim();
+    }
+
+    private static String characterClassId(CharacterFile characterFile) {
+        CharacterClass characterClass = Objects.requireNonNullElseGet(characterFile, CharacterFile::new).getCharacterClass();
+        return Objects.toString(characterClass.getName(), "").trim().isEmpty()
+            ? ""
+            : Objects.toString(characterClass.getId(), "").trim();
     }
 
     private static CharacterDraft parseCharacterDraft(String text) throws IOException {
