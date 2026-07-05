@@ -94,7 +94,7 @@ Beta mechanics:
 
 Deployment and operations:
 
-- The production systemd service currently launches Maven directly with `ExecStart=/usr/bin/mvn -pl gmrules-builder exec:java -Dexec.mainClass=com.gamemaker.gmrules.web.WebMain`. `deploy.sh` compiles with `mvn -q -pl gmrules-builder -am -DskipTests compile` before restart to match that launcher. The shaded jar still exists for package-based deploys but is not the current service entry point.
+- The production systemd service currently launches Maven directly with `ExecStart=/usr/bin/mvn -pl gmrules-builder exec:java -Dexec.mainClass=com.gamemaker.gmrules.web.WebMain`. `deploy.sh` clean-compiles with `mvn -q -pl gmrules-builder -am -DskipTests clean compile` before restart to match that launcher, then verifies compiled `ApiRoutes.class` contains the character import/export routes. The shaded jar still exists for package-based deploys but is not the current service entry point.
 - Production `.env` is confirmed to point `GMRULES_WEB_PUBLICBASEURL` at `https://gmrules.com`, so verification links use the user-facing domain.
 - `.env.example` now documents the current hosted service configuration, data paths, host/port, public base URL, Resend settings, NDA audit recipient, feedback storage, and Discord webhook variables.
 - Reverse-proxy and security-header expectations are documented in `docs/REVERSE_PROXY_SECURITY.md`; production values still need to be confirmed against the Droplet's actual Nginx config.
