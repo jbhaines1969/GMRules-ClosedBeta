@@ -20,6 +20,7 @@ public class CharacterDraft {
 // *** MEMBERS ***
     private String gameId = "";
     private String gameHash = "";
+    private String characterName = "";
     private String raceId = "";
     private String classId = "";
     private Map<String, Integer> attributeScores = new LinkedHashMap<>();
@@ -75,6 +76,14 @@ public class CharacterDraft {
 
     public void setGameHash(String gameHash) {
         this.gameHash = Objects.toString(gameHash, "");
+    }
+
+    public String getCharacterName() {
+        return characterName;
+    }
+
+    public void setCharacterName(String characterName) {
+        this.characterName = Objects.toString(characterName, "").trim();
     }
 
     public String getRaceId() {

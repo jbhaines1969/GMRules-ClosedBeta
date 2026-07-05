@@ -42,6 +42,7 @@ public class CharacterFileBuilder {
         Game safeGame = Objects.requireNonNullElseGet(game, () -> new Game(""));
         CharacterDraft safeDraft = Objects.requireNonNullElseGet(draft, CharacterDraft::new);
         CharacterFile character = new CharacterFile();
+        character.setCharacterName(safeDraft.getCharacterName());
         character.setSourceGameId(safeDraft.getGameId());
         character.setSourceGameHash(safeDraft.getGameHash());
         character.setSourceGameName(safeGame.getName());

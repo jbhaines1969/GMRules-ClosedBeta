@@ -99,6 +99,8 @@ public class CharacterFileIO {
                 draft.setGameId(value);
             } else if (key.equals("gameHash")) {
                 draft.setGameHash(value);
+            } else if (key.equals("characterName")) {
+                draft.setCharacterName(value);
             } else if (key.equals("raceId")) {
                 draft.setRaceId(value);
             } else if (key.equals("classId")) {
@@ -268,6 +270,7 @@ public class CharacterFileIO {
         lines.add(HEADER);
         lines.add("gameId=" + safeDraft.getGameId());
         lines.add("gameHash=" + safeDraft.getGameHash());
+        lines.add("characterName=" + safeDraft.getCharacterName());
         if (!safeDraft.getRaceId().isEmpty()) {
             lines.add("raceId=" + safeDraft.getRaceId());
         }

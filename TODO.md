@@ -50,6 +50,7 @@ Updated: 2026-07-05
 - [ ] If integrating, add `gmrules-character` as a Maven module in this reactor.
 - [x] Bridge the browser-side `.gmcf` text draft format to `CharacterFileIO` for downloadable final character files.
 - [x] Add upload/resume bridge for object-backed `.gmcf` files produced by server export.
+- [x] Require a character name before server character draft creation and name exported files `<Game name>-<Character name>.gmcf`.
 - [ ] Continue the web character flow after class selection: skills, equipment/weapons/armor, starting money, armor class, final `.gmcf` export.
 - [ ] Add compatibility tests for `.gmrf` plus `.gmcf` resume behavior.
 

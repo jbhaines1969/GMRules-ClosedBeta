@@ -74,6 +74,7 @@ Implemented so far:
 - Final character download now bridges the lightweight web `.gmcf` draft through server-side `CharacterFileIO` and the linked saved ruleset, returning an object-backed `.gmcf` from `POST /api/characters/export`.
 - Saved server-side rulesets now have a home-screen Create Character action, so logged-in users can start character creation without uploading a local `.gmrf` file. Character draft autosave/export now relies on the saved ruleset draft id instead of requiring an uploaded-file hash for server-started characters.
 - Uploaded object-backed `.gmcf` character files now go through `POST /api/characters/import`, which parses `CharacterFileIO`, matches the source game id to the user's saved rulesets, opens that server draft, and returns lightweight web draft text for the current character UI.
+- Character creation now prompts for a character name before the intro/save path. Server character drafts require `characterName`, object-backed `CharacterFile` exports carry it, saved-character lists display it, and exported filenames use `<Game name>-<Character name>.gmcf`.
 
 External setup completed:
 
@@ -100,6 +101,7 @@ Proof-of-concept functionality is present:
 - Character creation can start from an account's saved server-side rulesets or from uploaded local `.gmrf/.gmcf` files.
 - Server-backed final `.gmcf` character export using the `CharacterFileIO` object format.
 - Object-backed `.gmcf` uploads can resume in the lightweight web character flow when the matching ruleset is saved on the account.
+- Character files are named from the linked ruleset and character name, for example `Ruleset-Character.gmcf`.
 - In-app feedback, bug report, and blocker/crash report intake with local storage and Discord forwarding.
 - Builder stages through setup, measurements, dice, attribute generation, attributes, hit points, armor class, currency, effects/statuses, equipment, weapons, skills, spells, races, and classes.
 - Early web character-generation flow through attributes, race, and class.

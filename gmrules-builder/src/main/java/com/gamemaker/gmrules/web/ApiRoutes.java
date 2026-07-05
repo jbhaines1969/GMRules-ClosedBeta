@@ -1202,6 +1202,10 @@ public final class ApiRoutes {
             ctx.json(400, Map.of("error", "Character draft must be linked to a saved ruleset."));
             return;
         }
+        if (parseCharacterDraftField(text, "characterName").isEmpty()) {
+            ctx.json(400, Map.of("error", "Enter a character name before saving this character."));
+            return;
+        }
         if (!ctx.getAccountStore().userOwnsDraft(session.getUserId(), gameDraftId)) {
             ctx.json(403, Map.of("error", "Character draft must be linked to one of your saved rulesets."));
             return;
@@ -1305,7 +1309,7 @@ public final class ApiRoutes {
                     CharacterExport export = ctx.getDraftStore().readDraft(candidateDraftId, game -> {
                         try {
                             byte[] data = writeCharacterFileBytes(characterFileIO, game, characterDraft);
-                            String filename = characterFileIO.normalizeFilename(game.getName() + "_character");
+                            String filename = characterFileIO.normalizeFilename(buildCharacterExportFilename(game, characterDraft));
                             return new CharacterExport(data, filename);
                         } catch (IOException e) {
                             throw new CharacterExportException(e);
@@ -4544,12 +4548,14 @@ public final class ApiRoutes {
     private static Map<String, Object> characterDraftEntry(CharacterDraftStore.CharacterDraftSummary summary) {
         Map<String, Object> entry = new LinkedHashMap<>();
         String gameName = Objects.toString(summary.getGameName(), "").trim();
+        String characterName = Objects.toString(summary.getCharacterName(), "").trim();
         entry.put("id", summary.getId());
         entry.put("gameDraftId", summary.getGameDraftId());
         entry.put("gameId", summary.getGameId());
         entry.put("gameHash", summary.getGameHash());
+        entry.put("characterName", characterName);
         entry.put("gameName", gameName);
-        entry.put("name", gameName.isEmpty() ? "Character Draft" : gameName + " Character");
+        entry.put("name", characterName.isEmpty() ? "Character Draft" : characterName);
         entry.put("raceId", summary.getRaceId());
         entry.put("classId", summary.getClassId());
         entry.put("lastSaved", summary.getLastSaved().toString());
@@ -4599,6 +4605,7 @@ public final class ApiRoutes {
         lines.add("gameDraftId=" + Objects.toString(gameDraftId, "").trim());
         lines.add("gameId=" + Objects.toString(safeCharacterFile.getSourceGameId(), "").trim());
         lines.add("gameHash=" + Objects.toString(safeCharacterFile.getSourceGameHash(), "").trim());
+        lines.add("characterName=" + Objects.toString(safeCharacterFile.getCharacterName(), "").trim());
         lines.add("gameName=" + Objects.toString(safeCharacterFile.getSourceGameName(), "").trim());
         String raceId = characterRaceId(safeCharacterFile);
         if (!raceId.isEmpty()) {
@@ -4617,6 +4624,24 @@ public final class ApiRoutes {
                 }
             });
         return String.join("\n", lines);
+    }
+
+    private static String buildCharacterExportFilename(Game game, CharacterDraft characterDraft) {
+        String gameName = Objects.toString(Objects.requireNonNullElseGet(game, () -> new Game("")).getName(), "").trim();
+        String characterName = Objects.toString(
+            Objects.requireNonNullElseGet(characterDraft, CharacterDraft::new).getCharacterName(),
+            ""
+        ).trim();
+        if (gameName.isEmpty() && characterName.isEmpty()) {
+            return "character";
+        }
+        if (gameName.isEmpty()) {
+            return characterName;
+        }
+        if (characterName.isEmpty()) {
+            return gameName + "-character";
+        }
+        return gameName + "-" + characterName;
     }
 
     private static String characterRaceId(CharacterFile characterFile) {
@@ -4703,6 +4728,9 @@ public final class ApiRoutes {
         CharacterDraft safeDraft = Objects.requireNonNullElseGet(draft, CharacterDraft::new);
         if (safeDraft.getGameId().isEmpty() || (!hasServerDraftLink && safeDraft.getGameHash().isEmpty())) {
             throw new IllegalArgumentException("Character must be linked to a ruleset file.");
+        }
+        if (safeDraft.getCharacterName().isEmpty()) {
+            throw new IllegalArgumentException("Enter a character name before exporting this character.");
         }
     }
 

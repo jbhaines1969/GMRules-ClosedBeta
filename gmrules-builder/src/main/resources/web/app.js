@@ -19,6 +19,7 @@ const state = {
   chargenGameId: "",
   chargenGameHash: "",
   chargenGameName: "",
+  chargenCharacterName: "",
   chargenDraftText: "",
   chargenCharacterDraftId: "",
   chargenServerSaveInFlight: false,
@@ -5514,6 +5515,10 @@ async function openSavedCharacter(characterDraftId) {
       state.locale = normalizeLocale(openResult.locale);
       await loadLocalization(state.locale);
     }
+    if (!hasValidCharGenName()) {
+      renderCharGenName();
+      return;
+    }
     const target = resolveCharGenResumeStage();
     if (target === "classes") {
       renderCharGenClasses();
@@ -5547,6 +5552,10 @@ async function importServerCharacterFile(file) {
   }
   applyCompletedStages(result.completedStages || []);
   await loadSystemNames();
+  if (!hasValidCharGenName()) {
+    renderCharGenName();
+    return;
+  }
   const target = resolveCharGenResumeStage();
   if (target === "classes") {
     renderCharGenClasses();
@@ -5573,7 +5582,7 @@ async function startCharacterFromSavedDraft(draftId) {
       state.locale = normalizeLocale(result.locale);
       await loadLocalization(state.locale);
     }
-    renderCharGenIntro();
+    renderCharGenName();
   } catch (error) {
     showToast(error.message);
   }
@@ -6304,6 +6313,10 @@ function renderCharGenResume() {
       }
       state.chargenGameId = gameId;
       state.chargenGameName = String(setup.name || "");
+      if (!hasValidCharGenName()) {
+        renderCharGenName();
+        return;
+      }
       const target = resolveCharGenResumeStage();
       if (target === "classes") {
         renderCharGenClasses();
@@ -6320,9 +6333,76 @@ function renderCharGenResume() {
   });
 }
 
+function hasValidCharGenName() {
+  return String(state.chargenCharacterName || "").trim().length > 0;
+}
+
+async function renderCharGenName() {
+  if (!state.draftId) {
+    renderCharGenUpload();
+    return;
+  }
+  setMode("chargen");
+  setStep("chargen-name");
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const data = await api("GET", `/api/drafts/${state.draftId}/setup`);
+    state.chargenGameId = String(data.id || "");
+    state.chargenGameName = String(data.name || "");
+    const currentName = String(state.chargenCharacterName || "").trim();
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${t("web.chargen.name.title", "Character Name")}</h1>
+        <p>${t("web.chargen.name.body", "Enter a character name before starting this character.")}</p>
+        <div class="field">
+          <label for="chargenCharacterName">${t("web.chargen.name.label", "Character Name")}</label>
+          <input type="text" id="chargenCharacterName" maxlength="80" value="${escapeHtml(currentName)}">
+        </div>
+        <div class="actions-row">
+          <div class="left">
+            <button class="btn ghost" id="chargenNameBack" type="button">${t("setup.back", "Back")}</button>
+          </div>
+          <div class="right">
+            <button class="btn" id="chargenNameContinue" type="button">${t("common.continue", "Continue")}</button>
+          </div>
+        </div>
+      </section>
+    `;
+    const nameInput = document.getElementById("chargenCharacterName");
+    const submit = () => {
+      const name = String(nameInput.value || "").trim();
+      if (!name) {
+        showToast(t("web.chargen.name.required", "Enter a character name."));
+        nameInput.focus();
+        return;
+      }
+      state.chargenCharacterName = name;
+      saveCharGenDraftLocal();
+      renderCharGenIntro();
+    };
+    document.getElementById("chargenNameBack").addEventListener("click", renderHome);
+    document.getElementById("chargenNameContinue").addEventListener("click", submit);
+    nameInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        submit();
+      }
+    });
+    window.requestAnimationFrame(() => {
+      nameInput.focus();
+      nameInput.select();
+    });
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
 async function renderCharGenIntro() {
   if (!state.draftId) {
     renderCharGenUpload();
+    return;
+  }
+  if (!hasValidCharGenName()) {
+    renderCharGenName();
     return;
   }
   setMode("chargen");
@@ -7148,6 +7228,7 @@ function buildCharGenDraft() {
     gameId: String(state.chargenGameId || ""),
     gameHash: String(state.chargenGameHash || ""),
     gameName: String(state.chargenGameName || ""),
+    characterName: String(state.chargenCharacterName || ""),
     raceId: String(state.chargenRaceId || ""),
     classId: String(state.chargenClassId || ""),
     attributeScores: state.chargenAttributeScores || {},
@@ -7161,6 +7242,7 @@ function serializeCharGenDraft(draft) {
   lines.push(`gameId=${safeDraft.gameId || ""}`);
   lines.push(`gameHash=${safeDraft.gameHash || ""}`);
   lines.push(`gameName=${safeDraft.gameName || ""}`);
+  lines.push(`characterName=${safeDraft.characterName || ""}`);
   if (safeDraft.raceId) {
     lines.push(`raceId=${safeDraft.raceId}`);
   }
@@ -7187,6 +7269,7 @@ function parseCharGenDraft(text) {
     gameId: "",
     gameHash: "",
     gameName: "",
+    characterName: "",
     raceId: "",
     classId: "",
     attributeScores: {},
@@ -7210,6 +7293,8 @@ function parseCharGenDraft(text) {
       draft.gameHash = value;
     } else if (key === "gameName") {
       draft.gameName = value;
+    } else if (key === "characterName") {
+      draft.characterName = value;
     } else if (key === "raceId") {
       draft.raceId = value;
     } else if (key === "classId") {
@@ -7236,6 +7321,7 @@ function applyCharGenDraft(draft) {
   state.chargenGameId = String(safeDraft.gameId || "");
   state.chargenGameHash = String(safeDraft.gameHash || "");
   state.chargenGameName = String(safeDraft.gameName || "");
+  state.chargenCharacterName = String(safeDraft.characterName || "");
   state.chargenRaceId = String(safeDraft.raceId || "");
   state.chargenClassId = String(safeDraft.classId || "");
   state.chargenAttributeScores = safeDraft.attributeScores || {};
@@ -7250,6 +7336,7 @@ function resetCharGenState() {
   state.chargenGameId = "";
   state.chargenGameHash = "";
   state.chargenGameName = "";
+  state.chargenCharacterName = "";
   state.chargenDraftText = "";
   state.chargenCharacterDraftId = "";
   state.chargenServerSaveInFlight = false;
@@ -7270,7 +7357,7 @@ function saveCharGenDraftLocal() {
 
 function saveCharGenDraftServer(text) {
   const safeText = String(text || "");
-  if (!state.sessionToken || state.legacyGuest || !state.draftId || !state.chargenGameId) {
+  if (!state.sessionToken || state.legacyGuest || !state.draftId || !state.chargenGameId || !hasValidCharGenName()) {
     return;
   }
   if (state.chargenServerSaveInFlight) {
@@ -7304,6 +7391,11 @@ function saveCharGenDraftServer(text) {
 }
 
 async function downloadCharGenDraft() {
+  if (!hasValidCharGenName()) {
+    showToast(t("web.chargen.name.required", "Enter a character name."));
+    renderCharGenName();
+    return;
+  }
   if (!state.chargenGameId) {
     showToast(t("web.chargen.missing", "Choose a ruleset before saving this character."));
     return;
@@ -7364,8 +7456,10 @@ async function downloadCharGenDraft() {
 }
 
 function buildCharGenFilename() {
-  const base = state.chargenGameName || "character";
-  const safe = sanitizeFilename(`${base}_character`);
+  const game = String(state.chargenGameName || "").trim();
+  const character = String(state.chargenCharacterName || "").trim();
+  const base = game && character ? `${game}-${character}` : character || game || "character";
+  const safe = sanitizeFilename(base);
   return safe.toLowerCase().endsWith(".gmcf") ? safe : `${safe}.gmcf`;
 }
 
@@ -11024,6 +11118,7 @@ Object.assign(historyRoutes, {
   splash: renderBuilderSplash,
   "chargen-upload": renderCharGenUpload,
   "chargen-resume": renderCharGenResume,
+  "chargen-name": renderCharGenName,
   "chargen-intro": renderCharGenIntro,
   "chargen-attrgen": renderCharGenAttributes,
   "chargen-points-buy": renderCharGenPointsBuy,

@@ -89,6 +89,7 @@ public final class CharacterDraftStore {
             Objects.toString(fields.get("gameDraftId"), ""),
             Objects.toString(fields.get("gameId"), ""),
             Objects.toString(fields.get("gameHash"), ""),
+            Objects.toString(fields.get("characterName"), ""),
             Objects.toString(fields.get("gameName"), ""),
             Objects.toString(fields.get("raceId"), ""),
             Objects.toString(fields.get("classId"), ""),
@@ -188,6 +189,7 @@ public final class CharacterDraftStore {
         private final String gameDraftId;
         private final String gameId;
         private final String gameHash;
+        private final String characterName;
         private final String gameName;
         private final String raceId;
         private final String classId;
@@ -199,6 +201,7 @@ public final class CharacterDraftStore {
                 String gameDraftId,
                 String gameId,
                 String gameHash,
+                String characterName,
                 String gameName,
                 String raceId,
                 String classId,
@@ -208,6 +211,7 @@ public final class CharacterDraftStore {
             this.gameDraftId = Objects.toString(gameDraftId, "");
             this.gameId = Objects.toString(gameId, "");
             this.gameHash = Objects.toString(gameHash, "");
+            this.characterName = Objects.toString(characterName, "");
             this.gameName = Objects.toString(gameName, "");
             this.raceId = Objects.toString(raceId, "");
             this.classId = Objects.toString(classId, "");
@@ -229,6 +233,10 @@ public final class CharacterDraftStore {
 
         public String getGameHash() {
             return gameHash;
+        }
+
+        public String getCharacterName() {
+            return characterName;
         }
 
         public String getGameName() {
