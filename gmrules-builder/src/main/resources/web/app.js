@@ -924,6 +924,42 @@ async function apiBinary(method, path, buffer) {
   return data;
 }
 
+async function apiBinaryCharacterImport(file) {
+  const buffer = await file.arrayBuffer();
+  const headers = { "Content-Type": "application/octet-stream" };
+  if (state.sessionToken) {
+    headers.Authorization = `Bearer ${state.sessionToken}`;
+  }
+  const response = await fetch("/api/characters/import", {
+    method: "POST",
+    headers,
+    cache: "no-store",
+    body: buffer,
+  });
+  const text = await response.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (parseError) {
+    data = { error: text };
+  }
+  if (!response.ok) {
+    let message = data.error || t("web.error.request_failed", "Request failed");
+    if (response.status === 404 && String(message || "").trim().toLowerCase() === "not found") {
+      message = t(
+        "web.chargen.import_endpoint_missing",
+        "Character import is not available on this server yet. Redeploy the latest server build."
+      );
+    }
+    const error = new Error(message);
+    error.status = response.status;
+    error.code = data.code || "";
+    error.data = data;
+    throw error;
+  }
+  return data;
+}
+
 function setLoggedIn(isLoggedIn) {
   document.body.classList.toggle("logged-out", !isLoggedIn);
 }
@@ -5497,8 +5533,7 @@ async function importServerCharacterFile(file) {
   if (!file) {
     return;
   }
-  const buffer = await file.arrayBuffer();
-  const result = await apiBinary("POST", "/api/characters/import", buffer);
+  const result = await apiBinaryCharacterImport(file);
   const text = String(result.text || "");
   const draft = parseCharGenDraft(text);
   state.draftId = result.draftId || draft.gameDraftId || "";
