@@ -115,7 +115,7 @@ User-provided deployment context:
 Launch blockers are tracked in `TODO.md`. Most important:
 
 - Final domain is confirmed in production `.env`: `GMRULES_WEB_PUBLICBASEURL=https://gmrules.com`.
-- `deploy.sh` is confirmed correct for the current Digital Ocean server-side launcher flow.
+- `deploy.sh` now runs `mvn -q -DskipTests package` before restarting the service so `target/gmrules-app.jar` is refreshed for jar-based launches.
 - Production env vars are now documented in `.env.example`; manual backup/restore for `server-data/`, `drafts/`, and `.env` has been implemented and tested.
 - Beta launch blockers are complete. Login locking, the account-admin panel, email/IP block controls, secure request logging, admin smoke testing, password reset, hosted password reset smoke testing, and admin active-session visibility are implemented. Password setup mismatch attempts are intentionally not rate-limited for now. Next actionable TODOs are character export smoke testing and reverse-proxy/security-header verification.
 
@@ -267,5 +267,6 @@ It auto-selects the single `/tmp/gmrules-backup-*.tar.gz.gpg` file when only one
 ## Next Best Moves
 
 1. Verify and smoke-test the new character download flow: create/select attributes, race, and class, click Download, and confirm the returned `.gmcf` is accepted by `CharacterFileIO.readCharacterFile`.
-2. Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md`, then fill in the production details section.
-3. Continue the small controlled beta cohort.
+2. Redeploy once with the updated `deploy.sh`, then smoke-test character autosave and final `.gmcf` export from a saved server-side ruleset.
+3. Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md`, then fill in the production details section.
+4. Continue the small controlled beta cohort.

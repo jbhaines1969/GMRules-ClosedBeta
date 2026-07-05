@@ -6,8 +6,8 @@ cd /opt/gmrules
 echo "Pulling latest code..."
 git pull
 
-echo "Compiling..."
-mvn -q -DskipTests compile
+echo "Packaging..."
+mvn -q -DskipTests package
 
 echo "Restarting gmrules.service..."
 systemctl restart gmrules

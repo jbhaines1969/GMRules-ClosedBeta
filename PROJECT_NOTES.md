@@ -93,7 +93,7 @@ Beta mechanics:
 
 Deployment and operations:
 
-- `deploy.sh` is confirmed correct for the current Digital Ocean server-side launcher flow.
+- `deploy.sh` packages the app with `mvn -q -DskipTests package` before restart so the deployable `target/gmrules-app.jar` is refreshed for jar-based service launches.
 - Production `.env` is confirmed to point `GMRULES_WEB_PUBLICBASEURL` at `https://gmrules.com`, so verification links use the user-facing domain.
 - `.env.example` now documents the current hosted service configuration, data paths, host/port, public base URL, Resend settings, NDA audit recipient, feedback storage, and Discord webhook variables.
 - Reverse-proxy and security-header expectations are documented in `docs/REVERSE_PROXY_SECURITY.md`; production values still need to be confirmed against the Droplet's actual Nginx config.
