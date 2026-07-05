@@ -75,6 +75,7 @@ Implemented so far:
 - Saved server-side rulesets now have a home-screen Create Character action, so logged-in users can start character creation without uploading a local `.gmrf` file. Character draft autosave/export now relies on the saved ruleset draft id instead of requiring an uploaded-file hash for server-started characters.
 - Uploaded object-backed `.gmcf` character files now go through `POST /api/characters/import`, which parses `CharacterFileIO`, matches the source game id to the user's saved rulesets, opens that server draft, and returns lightweight web draft text for the current character UI.
 - Character creation now prompts for a character name before the intro/save path. Server character drafts require `characterName`, object-backed `CharacterFile` exports carry it, saved-character lists display it, and exported filenames use `<Game name>-<Character name>.gmcf`.
+- Hosted smoke passed for the character name requirement, final download filename, and object-backed `.gmcf` upload against a versioned saved game.
 
 External setup completed:
 
@@ -85,6 +86,7 @@ External setup completed:
 Next repo steps:
 
 - Verify and smoke-test the new character download flow: create/select attributes, race, and class, click Download, and confirm the returned `.gmcf` is accepted by `CharacterFileIO.readCharacterFile`.
+- Smoke-test character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older characters against the edited ruleset.
 - Compare the Droplet's Nginx config and response headers against `docs/REVERSE_PROXY_SECURITY.md`; fill in the production details section.
 - Do not commit unless the user explicitly asks.
 
@@ -272,7 +274,6 @@ It auto-selects the single `/tmp/gmrules-backup-*.tar.gz.gpg` file when only one
 
 ## Next Best Moves
 
-1. Verify and smoke-test the new character download flow: create/select attributes, race, and class, click Download, and confirm the returned `.gmcf` is accepted by `CharacterFileIO.readCharacterFile`.
-2. Smoke-test character autosave and final `.gmcf` export from a saved server-side ruleset now that production `/api/characters/export` returns `401` for unauthenticated requests instead of router `404`.
-3. Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md`, then fill in the production details section.
-4. Continue the small controlled beta cohort.
+1. Smoke-test character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older characters against the edited ruleset.
+2. Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md`, then fill in the production details section.
+3. Continue the small controlled beta cohort.

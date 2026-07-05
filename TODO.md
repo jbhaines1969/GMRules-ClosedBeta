@@ -51,6 +51,8 @@ Updated: 2026-07-05
 - [x] Bridge the browser-side `.gmcf` text draft format to `CharacterFileIO` for downloadable final character files.
 - [x] Add upload/resume bridge for object-backed `.gmcf` files produced by server export.
 - [x] Require a character name before server character draft creation and name exported files `<Game name>-<Character name>.gmcf`.
+- [x] Smoke-test character name requirement, final download filename, and object-backed `.gmcf` upload against a versioned saved game.
+- [ ] Smoke-test migration behavior: edit a saved server game, upload/download it, and load older characters against the edited ruleset.
 - [ ] Continue the web character flow after class selection: skills, equipment/weapons/armor, starting money, armor class, final `.gmcf` export.
 - [ ] Add compatibility tests for `.gmrf` plus `.gmcf` resume behavior.
 
