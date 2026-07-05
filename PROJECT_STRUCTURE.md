@@ -54,7 +54,7 @@ pom.xml
 ```text
 .env.example        # Hosted service env example, including storage, Resend, NDA audit, and Discord webhook variables.
 .gitignore          # Excludes build/runtime/secrets/data files and local-only USER.md.
-deploy.sh           # Pull, package, restart gmrules service, show status/logs.
+deploy.sh           # Pull, compile the Maven exec:java service classes, restart gmrules service, show status/logs.
 makebackup.sh       # Create encrypted droplet backup and remove unencrypted archive.
 restore.sh          # Restore runtime data from encrypted backup after confirmation.
 PROJECT_NOTES.md    # Current project status, risks, and launch path.

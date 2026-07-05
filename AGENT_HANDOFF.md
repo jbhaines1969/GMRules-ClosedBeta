@@ -30,6 +30,7 @@ This repo is the current closed-beta deploy release for GMRules.
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-04 after adding password reset and admin active-session visibility.
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-04 after adding account-backed character draft saves.
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-04 after adding the character file export bridge.
+- Production route-debugging on 2026-07-05 confirmed the service currently launches Maven directly with `ExecStart=/usr/bin/mvn -pl gmrules-builder exec:java -Dexec.mainClass=com.gamemaker.gmrules.web.WebMain`, not `target/gmrules-app.jar`. Running `mvn -q -pl gmrules-builder -am -DskipTests compile` restored the missing character API classes; `POST /api/characters/export` then returned `401` instead of router `404`.
 - There are currently no automated test sources, so successful Maven runs are compile/build verification, not behavioral coverage.
 - New continuity docs were added at the repo root: `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `AGENTS.md`, and `AGENT_HANDOFF.md`.
 
@@ -115,7 +116,7 @@ User-provided deployment context:
 Launch blockers are tracked in `TODO.md`. Most important:
 
 - Final domain is confirmed in production `.env`: `GMRULES_WEB_PUBLICBASEURL=https://gmrules.com`.
-- `deploy.sh` now runs `mvn -q -DskipTests package` before restarting the service so `target/gmrules-app.jar` is refreshed for jar-based launches.
+- `deploy.sh` now runs `mvn -q -pl gmrules-builder -am -DskipTests compile` before restarting the service to match the current systemd Maven `exec:java` launcher.
 - Production env vars are now documented in `.env.example`; manual backup/restore for `server-data/`, `drafts/`, and `.env` has been implemented and tested.
 - Beta launch blockers are complete. Login locking, the account-admin panel, email/IP block controls, secure request logging, admin smoke testing, password reset, hosted password reset smoke testing, and admin active-session visibility are implemented. Password setup mismatch attempts are intentionally not rate-limited for now. Next actionable TODOs are character export smoke testing and reverse-proxy/security-header verification.
 
@@ -267,6 +268,6 @@ It auto-selects the single `/tmp/gmrules-backup-*.tar.gz.gpg` file when only one
 ## Next Best Moves
 
 1. Verify and smoke-test the new character download flow: create/select attributes, race, and class, click Download, and confirm the returned `.gmcf` is accepted by `CharacterFileIO.readCharacterFile`.
-2. Redeploy once with the updated `deploy.sh`, then smoke-test character autosave and final `.gmcf` export from a saved server-side ruleset.
+2. Smoke-test character autosave and final `.gmcf` export from a saved server-side ruleset now that production `/api/characters/export` returns `401` for unauthenticated requests instead of router `404`.
 3. Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md`, then fill in the production details section.
 4. Continue the small controlled beta cohort.
