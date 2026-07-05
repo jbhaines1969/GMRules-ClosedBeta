@@ -4586,15 +4586,6 @@ public final class ApiRoutes {
         if (safeDraft.getGameId().isEmpty() || (!hasServerDraftLink && safeDraft.getGameHash().isEmpty())) {
             throw new IllegalArgumentException("Character must be linked to a ruleset file.");
         }
-        if (safeDraft.getRaceId().isEmpty()) {
-            throw new IllegalArgumentException("Choose a race before exporting this character.");
-        }
-        if (safeDraft.getClassId().isEmpty()) {
-            throw new IllegalArgumentException("Choose a class before exporting this character.");
-        }
-        if (safeDraft.getAttributeScores().isEmpty()) {
-            throw new IllegalArgumentException("Assign attribute scores before exporting this character.");
-        }
     }
 
     private static byte[] writeCharacterFileBytes(CharacterFileIO characterFileIO, Game game, CharacterDraft draft)
