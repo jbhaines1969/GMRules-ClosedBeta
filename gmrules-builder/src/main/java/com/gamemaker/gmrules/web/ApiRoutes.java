@@ -1236,36 +1236,49 @@ public final class ApiRoutes {
         Map<String, Object> body = ctx.readJsonMap(96L * 1024);
         String gameDraftId = getString(body, "gameDraftId").trim();
         String text = getString(body, "text");
-        if (gameDraftId.isEmpty()) {
+        List<String> candidateDraftIds = characterExportDraftCandidates(gameDraftId, text, session);
+        CharacterDraft characterDraft;
+        try {
+            characterDraft = parseCharacterDraft(text);
+            validateCharacterDraft(characterDraft, !candidateDraftIds.isEmpty());
+        } catch (IOException | IllegalArgumentException e) {
+            ctx.json(400, Map.of("error", e.getMessage()));
+            return;
+        }
+        if (candidateDraftIds.isEmpty()) {
             ctx.json(400, Map.of("error", "Character must be linked to a saved ruleset."));
             return;
         }
-        if (session.isLegacyGuest()) {
-            if (!Objects.equals(session.getDraftId(), gameDraftId)) {
-                ctx.json(403, Map.of("error", "Open the linked ruleset before exporting this character."));
-                return;
-            }
-        } else if (!ctx.getAccountStore().userOwnsDraft(session.getUserId(), gameDraftId)) {
+        if (!canAccessAnyCharacterExportDraft(ctx, session, candidateDraftIds)) {
             ctx.json(403, Map.of("error", "Character must be linked to one of your saved rulesets."));
             return;
         }
 
+        CharacterFileIO characterFileIO = new CharacterFileIO();
         try {
-            CharacterFileIO characterFileIO = new CharacterFileIO();
-            CharacterExport export = ctx.getDraftStore().readDraft(gameDraftId, game -> {
-                try {
-                    CharacterDraft draft = parseCharacterDraft(text);
-                    validateCharacterDraft(draft);
-                    byte[] data = writeCharacterFileBytes(characterFileIO, game, draft);
-                    String filename = characterFileIO.normalizeFilename(game.getName() + "_character");
-                    return new CharacterExport(data, filename);
-                } catch (IOException e) {
-                    throw new CharacterExportException(e);
+            for (String candidateDraftId : candidateDraftIds) {
+                if (!canAccessCharacterExportDraft(ctx, session, candidateDraftId)) {
+                    continue;
                 }
-            });
-            Map<String, String> headers = new LinkedHashMap<>();
-            headers.put("Content-Disposition", "attachment; filename=\"" + export.getFilename() + "\"");
-            ctx.bytes(200, export.getData(), "application/octet-stream", headers);
+                try {
+                    CharacterExport export = ctx.getDraftStore().readDraft(candidateDraftId, game -> {
+                        try {
+                            byte[] data = writeCharacterFileBytes(characterFileIO, game, characterDraft);
+                            String filename = characterFileIO.normalizeFilename(game.getName() + "_character");
+                            return new CharacterExport(data, filename);
+                        } catch (IOException e) {
+                            throw new CharacterExportException(e);
+                        }
+                    });
+                    Map<String, String> headers = new LinkedHashMap<>();
+                    headers.put("Content-Disposition", "attachment; filename=\"" + export.getFilename() + "\"");
+                    ctx.bytes(200, export.getData(), "application/octet-stream", headers);
+                    return;
+                } catch (IOException ignored) {
+                    // Try the next known source draft id before reporting a missing linked ruleset.
+                }
+            }
+            ctx.json(404, Map.of("error", "Linked ruleset not found."));
         } catch (CharacterExportException e) {
             Throwable cause = e.getCause();
             if (cause instanceof IllegalArgumentException) {
@@ -1275,8 +1288,6 @@ public final class ApiRoutes {
             } else {
                 ctx.json(400, Map.of("error", "Character file could not be exported."));
             }
-        } catch (IOException e) {
-            ctx.json(404, Map.of("error", "Linked ruleset not found."));
         }
     }
 
@@ -4514,9 +4525,65 @@ public final class ApiRoutes {
         }
     }
 
-    private static void validateCharacterDraft(CharacterDraft draft) {
+    private static List<String> characterExportDraftCandidates(String bodyGameDraftId, String text, SessionStore.Session session) {
+        List<String> candidateDraftIds = new ArrayList<>();
+        addCharacterExportDraftCandidate(candidateDraftIds, bodyGameDraftId);
+        addCharacterExportDraftCandidate(candidateDraftIds, parseCharacterDraftField(text, "gameDraftId"));
+        addCharacterExportDraftCandidate(candidateDraftIds, session.getDraftId());
+        return candidateDraftIds;
+    }
+
+    private static void addCharacterExportDraftCandidate(List<String> candidateDraftIds, String draftId) {
+        String safeDraftId = Objects.toString(draftId, "").trim();
+        if (!safeDraftId.isEmpty() && !candidateDraftIds.contains(safeDraftId)) {
+            candidateDraftIds.add(safeDraftId);
+        }
+    }
+
+    private static String parseCharacterDraftField(String text, String fieldName) {
+        String safeFieldName = Objects.toString(fieldName, "").trim();
+        if (safeFieldName.isEmpty()) {
+            return "";
+        }
+        String prefix = safeFieldName + "=";
+        String[] lines = Objects.toString(text, "").split("\\R");
+        for (String line : lines) {
+            String safeLine = Objects.toString(line, "").trim();
+            if (safeLine.startsWith(prefix)) {
+                return safeLine.substring(prefix.length()).trim();
+            }
+        }
+        return "";
+    }
+
+    private static boolean canAccessAnyCharacterExportDraft(
+            RequestContext ctx,
+            SessionStore.Session session,
+            List<String> candidateDraftIds
+    ) throws IOException {
+        for (String candidateDraftId : candidateDraftIds) {
+            if (canAccessCharacterExportDraft(ctx, session, candidateDraftId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean canAccessCharacterExportDraft(RequestContext ctx, SessionStore.Session session, String draftId)
+            throws IOException {
+        String safeDraftId = Objects.toString(draftId, "").trim();
+        if (safeDraftId.isEmpty()) {
+            return false;
+        }
+        if (session.isLegacyGuest()) {
+            return Objects.equals(session.getDraftId(), safeDraftId);
+        }
+        return ctx.getAccountStore().userOwnsDraft(session.getUserId(), safeDraftId);
+    }
+
+    private static void validateCharacterDraft(CharacterDraft draft, boolean hasServerDraftLink) {
         CharacterDraft safeDraft = Objects.requireNonNullElseGet(draft, CharacterDraft::new);
-        if (safeDraft.getGameId().isEmpty() || safeDraft.getGameHash().isEmpty()) {
+        if (safeDraft.getGameId().isEmpty() || (!hasServerDraftLink && safeDraft.getGameHash().isEmpty())) {
             throw new IllegalArgumentException("Character must be linked to a ruleset file.");
         }
         if (safeDraft.getRaceId().isEmpty()) {
