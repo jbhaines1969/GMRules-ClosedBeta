@@ -7255,8 +7255,21 @@ async function downloadCharGenDraft() {
       }),
     });
     if (!response.ok) {
-      const payload = await response.json();
-      throw new Error(payload.error || t("web.error.download_failed", "Download failed"));
+      const errorText = await response.text();
+      let message = errorText.trim();
+      try {
+        const payload = message ? JSON.parse(message) : {};
+        message = payload.error || message;
+      } catch (parseError) {
+        // Plain-text server errors are shown as-is.
+      }
+      if (response.status === 404 && message.toLowerCase() === "not found") {
+        message = t(
+          "web.chargen.export_endpoint_missing",
+          "Character export is not available on this server yet. Restart or redeploy the latest server build."
+        );
+      }
+      throw new Error(message || t("web.error.download_failed", "Download failed"));
     }
     const blob = await response.blob();
     const disposition = response.headers.get("Content-Disposition") || "";
