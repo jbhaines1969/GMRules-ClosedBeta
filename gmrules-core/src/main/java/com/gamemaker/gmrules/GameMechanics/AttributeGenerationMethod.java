@@ -60,6 +60,7 @@ public class AttributeGenerationMethod extends GameElement {
 
     // === STANDARD ARRAYS ===
     private String defaultArrayType = "standard";
+    private String standardArrayAssignmentMode = "assigned";
 
     // === ASSIGNMENT RULES ===
     private boolean assignInOrder = false;
@@ -250,6 +251,15 @@ public class AttributeGenerationMethod extends GameElement {
         this.defaultArrayType = Objects.toString(defaultArrayType, "");
     }
 
+    public String getStandardArrayAssignmentMode() { return standardArrayAssignmentMode; }
+    public void setStandardArrayAssignmentMode(String standardArrayAssignmentMode) {
+        String safeMode = Objects.toString(standardArrayAssignmentMode, "").trim().toLowerCase();
+        if (!safeMode.equals("open")) {
+            safeMode = "assigned";
+        }
+        this.standardArrayAssignmentMode = safeMode;
+    }
+
     // === ASSIGNMENT METHODS ===
     public boolean isAssignInOrder() { return assignInOrder; }
     public void setAssignInOrder(boolean assignInOrder) { this.assignInOrder = assignInOrder; }
@@ -362,6 +372,13 @@ public class AttributeGenerationMethod extends GameElement {
     public boolean isUsesRacialIntegration() { return usesRacialIntegration; }
     public void setUsesRacialIntegration(boolean usesRacialIntegration) {
         this.usesRacialIntegration = usesRacialIntegration;
+    }
+
+    private void readObject(java.io.ObjectInputStream stream) throws java.io.IOException, ClassNotFoundException {
+        stream.defaultReadObject();
+        if (standardArrayAssignmentMode == null || standardArrayAssignmentMode.isBlank()) {
+            standardArrayAssignmentMode = "assigned";
+        }
     }
 
     private ArrayList<DiceTerm> copyDiceTerms(Collection<DiceTerm> source) {

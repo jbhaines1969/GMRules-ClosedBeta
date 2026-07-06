@@ -20,6 +20,7 @@ const state = {
   chargenGameHash: "",
   chargenGameName: "",
   chargenCharacterName: "",
+  chargenRuleModeSelections: {},
   chargenDraftText: "",
   chargenCharacterDraftId: "",
   chargenServerSaveInFlight: false,
@@ -40,12 +41,12 @@ const steps = [
   { id: "setup", labelKey: "setup.title", fallback: "Game Setup" },
   { id: "measurements", labelKey: "measurements.title", fallback: "Measurements" },
   { id: "dice", labelKey: "dice.title", fallback: "Dice Options" },
+  { id: "attribute-types", labelKey: "attrtypes.title", fallback: "Attribute Categories" },
+  { id: "attributes", labelKey: "attributes.title", fallback: "Attributes" },
   { id: "attribute-generation", labelKey: "attrgen.title", fallback: "Attribute Generation" },
   { id: "standard-array", labelKey: "attrgen.standard.title", fallback: "Standard Arrays" },
   { id: "dice-rolling", labelKey: "attrgen.dice.title", fallback: "Dice Rolling" },
   { id: "points-buy", labelKey: "attrgen.point.title", fallback: "Points Buy" },
-  { id: "attribute-types", labelKey: "attrtypes.title", fallback: "Attribute Categories" },
-  { id: "attributes", labelKey: "attributes.title", fallback: "Attributes" },
   { id: "hit-points", labelKey: "hp.title", fallback: "Hit Points" },
   { id: "armor-class", labelKey: "armorclass.title", fallback: "Armor Class" },
   { id: "currency", labelKey: "currency.title", fallback: "Currency", systemNameKey: "currencies" },
@@ -56,6 +57,8 @@ const steps = [
   { id: "weapons", labelKey: "weapons.title", fallback: "Weapons" },
   { id: "skills", labelKey: "skills.title", fallback: "Skills" },
   { id: "spells", labelKey: "spells.title", fallback: "Spells" },
+  { id: "pantheons", labelKey: "pantheons.title", fallback: "Pantheons", systemNameKey: "pantheons" },
+  { id: "deities", labelKey: "deities.title", fallback: "Deities", systemNameKey: "deities" },
   { id: "races", labelKey: "races.title", fallback: "Races" },
   { id: "classes", labelKey: "classes.title", fallback: "Classes" },
 ];
@@ -7124,11 +7127,15 @@ function buildCharGenRules(method) {
   const diceText = terms.length
     ? terms.map((term) => term.notation || formatCharGenDiceTerm(term)).join(", ")
     : t("common.none", "None");
+  const arrayMode = isCharGenOpenStandardArray(method)
+    ? t("attrgen.arrays.mode.open", "Open Values")
+    : t("attrgen.arrays.mode.assigned", "Assigned to Attributes");
   return [
     `${t("attrgen.type", "Generation Type")}: ${type}`,
     `${t("attrgen.sets", "Attribute Sets")}: ${sets}`,
     `${t("attrgen.selection", "Set Selection")}: ${selection}`,
     `${t("attrgen.assign", "Assign In Order")}: ${assignInOrder}`,
+    `${t("attrgen.arrays.mode", "Array Assignment")}: ${arrayMode}`,
     `${t("attrgen.dice", "Dice Terms")}: ${diceText}`,
   ].join("\n");
 }
@@ -7368,6 +7375,7 @@ function buildCharGenDraft() {
     gameHash: String(state.chargenGameHash || ""),
     gameName: String(state.chargenGameName || ""),
     characterName: String(state.chargenCharacterName || ""),
+    ruleModeSelections: state.chargenRuleModeSelections || {},
     raceId: String(state.chargenRaceId || ""),
     classId: String(state.chargenClassId || ""),
     attributeScores: state.chargenAttributeScores || {},
@@ -7382,6 +7390,15 @@ function serializeCharGenDraft(draft) {
   lines.push(`gameHash=${safeDraft.gameHash || ""}`);
   lines.push(`gameName=${safeDraft.gameName || ""}`);
   lines.push(`characterName=${safeDraft.characterName || ""}`);
+  const ruleModes = safeDraft.ruleModeSelections || {};
+  Object.keys(ruleModes)
+    .sort()
+    .forEach((key) => {
+      const safeKey = String(key || "").trim();
+      if (safeKey) {
+        lines.push(`ruleMode.${safeKey}=${String(ruleModes[key] || "").trim()}`);
+      }
+    });
   if (safeDraft.raceId) {
     lines.push(`raceId=${safeDraft.raceId}`);
   }
@@ -7409,6 +7426,7 @@ function parseCharGenDraft(text) {
     gameHash: "",
     gameName: "",
     characterName: "",
+    ruleModeSelections: {},
     raceId: "",
     classId: "",
     attributeScores: {},
@@ -7434,6 +7452,11 @@ function parseCharGenDraft(text) {
       draft.gameName = value;
     } else if (key === "characterName") {
       draft.characterName = value;
+    } else if (key.startsWith("ruleMode.")) {
+      const modeKey = key.slice("ruleMode.".length).trim();
+      if (modeKey) {
+        draft.ruleModeSelections[modeKey] = value;
+      }
     } else if (key === "raceId") {
       draft.raceId = value;
     } else if (key === "classId") {
@@ -7461,6 +7484,7 @@ function applyCharGenDraft(draft) {
   state.chargenGameHash = String(safeDraft.gameHash || "");
   state.chargenGameName = String(safeDraft.gameName || "");
   state.chargenCharacterName = String(safeDraft.characterName || "");
+  state.chargenRuleModeSelections = safeDraft.ruleModeSelections || {};
   state.chargenRaceId = String(safeDraft.raceId || "");
   state.chargenClassId = String(safeDraft.classId || "");
   state.chargenAttributeScores = safeDraft.attributeScores || {};
@@ -7476,6 +7500,7 @@ function resetCharGenState() {
   state.chargenGameHash = "";
   state.chargenGameName = "";
   state.chargenCharacterName = "";
+  state.chargenRuleModeSelections = {};
   state.chargenDraftText = "";
   state.chargenCharacterDraftId = "";
   state.chargenServerSaveInFlight = false;
@@ -7855,6 +7880,28 @@ function buildCharGenArrayMap(entries) {
   return map;
 }
 
+function buildCharGenArrayValues(entries) {
+  const values = [];
+  const safeEntries = Array.isArray(entries) ? entries : [];
+  safeEntries.forEach((raw) => {
+    const entry = String(raw || "").trim();
+    if (!entry) {
+      return;
+    }
+    const idx = entry.indexOf("=");
+    const valueText = idx >= 0 ? entry.slice(idx + 1).trim() : entry;
+    const value = Number(valueText);
+    if (Number.isFinite(value)) {
+      values.push(Math.trunc(value));
+    }
+  });
+  return values;
+}
+
+function isCharGenOpenStandardArray(method) {
+  return String((method || {}).standardArrayAssignmentMode || "").trim().toLowerCase() === "open";
+}
+
 function resolveCharGenArrayValue(values, attribute) {
   const safeValues = values || {};
   const safeAttr = attribute || {};
@@ -7889,10 +7936,13 @@ function wireCharGenArrayUI(method, attributes, inputs, section, select, emptyLa
   if (!section || !select || !emptyLabel) {
     return;
   }
+  const openArray = isCharGenOpenStandardArray(method);
   const standardMap = buildCharGenArrayMap(method.standardArray);
   const eliteMap = buildCharGenArrayMap(method.eliteArray);
-  const hasStandard = Object.keys(standardMap).length > 0;
-  const hasElite = Object.keys(eliteMap).length > 0;
+  const standardValues = buildCharGenArrayValues(method.standardArray);
+  const eliteValues = buildCharGenArrayValues(method.eliteArray);
+  const hasStandard = openArray ? standardValues.length > 0 : Object.keys(standardMap).length > 0;
+  const hasElite = openArray ? eliteValues.length > 0 : Object.keys(eliteMap).length > 0;
   if (!hasStandard && !hasElite) {
     section.style.display = "none";
     return;
@@ -7921,6 +7971,14 @@ function wireCharGenArrayUI(method, attributes, inputs, section, select, emptyLa
 
   const updateHint = () => {
     const key = String(select.value || "");
+    const values = key === "elite" ? eliteValues : standardValues;
+    if (openArray && key) {
+      emptyLabel.textContent = t("attrgen.arrays.open.values", "Values: {values}").replace(
+        "{values}",
+        values.join(", ")
+      );
+      return;
+    }
     if (key === "standard") {
       emptyLabel.textContent = t("attrgen.type.standard_array", "Standard Array");
     } else if (key === "elite") {
@@ -7934,6 +7992,9 @@ function wireCharGenArrayUI(method, attributes, inputs, section, select, emptyLa
     updateHint();
     const key = String(select.value || "");
     if (!key) {
+      return;
+    }
+    if (openArray) {
       return;
     }
     const values = key === "elite" ? eliteMap : standardMap;
@@ -7951,6 +8012,9 @@ function maybeApplyCharGenDefaultArray(method, attributes, inputs) {
     return;
   }
   const safeMethod = method || {};
+  if (isCharGenOpenStandardArray(safeMethod)) {
+    return;
+  }
   const type = String(safeMethod.generationType || "").trim().toLowerCase();
   if (type !== "standard_array" && type !== "hybrid") {
     return;
@@ -8435,7 +8499,7 @@ async function renderDice() {
     });
 
     document.getElementById("backToSetup").addEventListener("click", navigateBackInApp);
-    document.getElementById("diceContinue").addEventListener("click", renderAttributeGeneration);
+    document.getElementById("diceContinue").addEventListener("click", renderAttributeTypes);
   } catch (error) {
     showToast(error.message);
   }
@@ -8638,7 +8702,7 @@ async function renderAttributes(openId = "") {
     });
 
     document.getElementById("backToTypes").addEventListener("click", navigateBackInApp);
-    document.getElementById("attributesContinue").addEventListener("click", renderHitPoints);
+    document.getElementById("attributesContinue").addEventListener("click", renderAttributeGeneration);
     wireSystemNameSave("attributes", () => renderAttributes());
     if (openId) {
       const target = attributeMap[openId];
@@ -8726,14 +8790,14 @@ async function ensureAttributeGenerationType() {
 function getNextAttributeGenerationStep(currentStep) {
   const order = getAttributeGenerationOrder(state.attributeGenerationType, state.attributeGenerationStages);
   if (!order.length) {
-    return "attribute-types";
+    return "hit-points";
   }
   const safeStep = String(currentStep || "");
   const currentIndex = order.indexOf(safeStep);
   if (currentIndex < 0) {
     return order[0];
   }
-  return order[currentIndex + 1] || "attribute-types";
+  return order[currentIndex + 1] || "hit-points";
 }
 
 function getPreviousAttributeGenerationStep(currentStep) {
@@ -8745,11 +8809,8 @@ function getPreviousAttributeGenerationStep(currentStep) {
   if (safeStep === "currency") {
     return "armor-class";
   }
-  if (safeStep === "attribute-types") {
-    return order[order.length - 1] || "attribute-generation";
-  }
   if (safeStep === "hit-points") {
-    return "attributes";
+    return order[order.length - 1] || "attribute-generation";
   }
   const currentIndex = order.indexOf(safeStep);
   if (currentIndex <= 0) {
@@ -8770,7 +8831,7 @@ function getNextAvailableAttributeGenerationStep(currentStep) {
       return fixedOrder[i];
     }
   }
-  return "attribute-types";
+  return "hit-points";
 }
 
 async function renderAttributeGeneration() {
@@ -9086,16 +9147,38 @@ async function renderStandardArray() {
     }
     const data = await api("GET", `/api/drafts/${state.draftId}/standard-array`);
     const attributes = data.attributes || [];
+    const assignmentMode = String(data.standardArrayAssignmentMode || "assigned").toLowerCase() === "open"
+      ? "open"
+      : "assigned";
+    const isOpenArray = assignmentMode === "open";
     const attributeOptions = attributes
       .map((attr) => `<option value="${attr.id}">${escapeHtml(attr.displayName)}</option>`)
       .join("");
+    const assignmentHelp = isOpenArray
+      ? t(
+          "attrgen.arrays.mode.open.help",
+          "Open arrays store values only. Players assign those values to whichever attributes they choose."
+        )
+      : t(
+          "attrgen.arrays.mode.assigned.help",
+          "Assigned arrays pair each value with a specific attribute."
+        );
+
+    const formatArrayEntry = (entry) => {
+      const text = String(entry || "").trim();
+      const idx = text.indexOf("=");
+      if (idx > 0 && idx < text.length - 1) {
+        return `${text.slice(0, idx).trim()}: ${text.slice(idx + 1).trim()}`;
+      }
+      return text;
+    };
 
     const renderList = (items, target) =>
       (items || [])
         .map(
           (entry) => `
         <div class="list-item">
-          <span>${escapeHtml(entry)}</span>
+          <span>${escapeHtml(formatArrayEntry(entry))}</span>
           <button class="btn danger small" data-${target}="${escapeHtml(entry)}">${t("common.remove", "Remove")}</button>
         </div>
       `
@@ -9109,9 +9192,23 @@ async function renderStandardArray() {
           "attrgen.standard.intro",
           "Define fixed attribute arrays and choose which one is the default option."
         )}</p>
+        <div class="field">
+          <label>${t("attrgen.arrays.mode", "Array Assignment")}</label>
+          <select id="standardAssignmentMode">
+            <option value="assigned" ${assignmentMode === "assigned" ? "selected" : ""}>${t(
+              "attrgen.arrays.mode.assigned",
+              "Assigned to Attributes"
+            )}</option>
+            <option value="open" ${assignmentMode === "open" ? "selected" : ""}>${t(
+              "attrgen.arrays.mode.open",
+              "Open Values"
+            )}</option>
+          </select>
+          <p class="field-hint">${escapeHtml(assignmentHelp)}</p>
+        </div>
         <h2>${t("attrgen.arrays.section", "Standard Arrays")}</h2>
         <div class="grid two">
-          <div class="field">
+          <div class="field" style="${isOpenArray ? "display:none" : ""}">
             <label>${t("attrgen.arrays.attribute", "Attribute")}</label>
             <select id="standardAttribute">${attributeOptions}</select>
           </div>
@@ -9125,7 +9222,7 @@ async function renderStandardArray() {
 
         <h2>${t("attrgen.arrays.elite.section", "Elite Arrays")}</h2>
         <div class="grid two">
-          <div class="field">
+          <div class="field" style="${isOpenArray ? "display:none" : ""}">
             <label>${t("attrgen.arrays.attribute", "Attribute")}</label>
             <select id="eliteAttribute">${attributeOptions}</select>
           </div>
@@ -9157,7 +9254,7 @@ async function renderStandardArray() {
     `;
 
     document.getElementById("addStandard").addEventListener("click", async () => {
-      const attributeId = document.getElementById("standardAttribute").value;
+      const attributeId = isOpenArray ? "" : document.getElementById("standardAttribute").value;
       const value = Number(document.getElementById("standardValue").value);
       try {
         await api("POST", `/api/drafts/${state.draftId}/standard-array/standard`, { attributeId, value });
@@ -9169,7 +9266,7 @@ async function renderStandardArray() {
     });
 
     document.getElementById("addElite").addEventListener("click", async () => {
-      const attributeId = document.getElementById("eliteAttribute").value;
+      const attributeId = isOpenArray ? "" : document.getElementById("eliteAttribute").value;
       const value = Number(document.getElementById("eliteValue").value);
       try {
         await api("POST", `/api/drafts/${state.draftId}/standard-array/elite`, { attributeId, value });
@@ -9218,6 +9315,18 @@ async function renderStandardArray() {
           showToast(error.message);
         }
       });
+    });
+
+    document.getElementById("standardAssignmentMode").addEventListener("change", async (event) => {
+      try {
+        await api("POST", `/api/drafts/${state.draftId}/standard-array/default`, {
+          standardArrayAssignmentMode: event.target.value,
+        });
+        markSaved(t("web.toast.standard_array_updated", "Standard array updated"));
+        renderStandardArray();
+      } catch (error) {
+        showToast(error.message);
+      }
     });
 
     document.getElementById("defaultArray").addEventListener("change", async (event) => {
@@ -11213,7 +11322,7 @@ async function renderSpells(openId = "") {
     document.getElementById("backToSkills").addEventListener("click", navigateBackInApp);
     document.getElementById("spellsContinue").addEventListener("click", () => {
       markSaved(t("web.toast.spells_saved", "Spells saved"));
-      renderRaces();
+      renderPantheons();
     });
     wireSystemNameSave("spells", () => renderSpells());
     if (openId) {
@@ -11225,16 +11334,419 @@ async function renderSpells(openId = "") {
   }
 }
 
+function getSelectedValues(select) {
+  return Array.from((select && select.selectedOptions) || []).map((option) => String(option.value || ""));
+}
+
+async function renderPantheons(openId = "") {
+  if (!ensureDraft()) {
+    return;
+  }
+  setStep("pantheons");
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const data = await api("GET", `/api/drafts/${state.draftId}/pantheons`);
+    const systemName = String(data.systemName || "");
+    const title = systemNameTitle(systemName, t("pantheons.title", "Pantheons"));
+    const pantheons = sortByLabel(data.pantheons || [], (pantheon) => pantheon.name || "");
+    const deities = sortByLabel(data.deities || [], (deity) => deity.name || "");
+    const pantheonMap = {};
+    const deityOptions = deities
+      .map((deity) => `<option value="${escapeHtml(deity.id)}">${escapeHtml(deity.name)}</option>`)
+      .join("");
+    const list = pantheons
+      .map((pantheon) => {
+        pantheonMap[pantheon.id] = pantheon;
+        const deityNames = deities
+          .filter((deity) => (pantheon.deityIds || []).includes(deity.id))
+          .map((deity) => deity.name)
+          .join(", ");
+        return `
+          <div class="list-item">
+            <div>
+              <strong>${escapeHtml(pantheon.name || t("pantheons.untitled", "Untitled Pantheon"))}</strong>
+              <div class="badge">${escapeHtml(deityNames || t("common.none", "None"))}</div>
+            </div>
+            <div class="actions">
+              <button class="btn ghost small" data-edit-pantheon="${escapeHtml(pantheon.id)}">${t("common.edit", "Edit")}</button>
+              <button class="btn danger small" data-remove-pantheon="${escapeHtml(pantheon.id)}">${t("common.remove", "Remove")}</button>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${escapeHtml(title)}</h1>
+        <p class="field-hint">${t(
+          "pantheons.intro",
+          "Pantheons organize related deities by culture, region, or theme."
+        )}</p>
+        ${renderSystemNameControls(systemName, t("pantheons.title", "Pantheons"))}
+        <div class="grid two">
+          <div class="field">
+            <label>${t("pantheons.name", "Pantheon Name")}</label>
+            <input type="text" id="pantheonName" maxlength="80">
+          </div>
+          <div class="field">
+            <label>${t("pantheons.deities", "Deities")}</label>
+            <select id="pantheonDeities" multiple size="5">${deityOptions}</select>
+          </div>
+        </div>
+        <div class="field">
+          <label>${t("common.description", "Description")}</label>
+          <textarea id="pantheonDescription"></textarea>
+        </div>
+        <div class="actions-row">
+          <div class="left">
+            <button class="btn ghost" id="pantheonClear" type="button">${t("common.cancel", "Cancel")}</button>
+          </div>
+          <div class="right">
+            <button class="btn" id="pantheonSave" type="button">${t("common.save", "Save")}</button>
+          </div>
+        </div>
+        <div class="list" id="pantheonList">${list || `<div class="list-item">${t("pantheons.none", "No pantheons yet.")}</div>`}</div>
+        <div class="actions-row">
+          <div class="left">
+            <button class="btn ghost" id="backToSpells" type="button">${t("setup.back", "Back")}</button>
+          </div>
+          <div class="right">
+            <button class="btn" id="pantheonsContinue" type="button">${t("common.continue", "Continue")}</button>
+          </div>
+        </div>
+      </section>
+    `;
+
+    const nameInput = document.getElementById("pantheonName");
+    const descriptionInput = document.getElementById("pantheonDescription");
+    const deitiesSelect = document.getElementById("pantheonDeities");
+    let editingId = "";
+    const clearForm = () => {
+      editingId = "";
+      nameInput.value = "";
+      descriptionInput.value = "";
+      Array.from(deitiesSelect.options || []).forEach((option) => {
+        option.selected = false;
+      });
+    };
+    const loadForm = (pantheon) => {
+      if (!pantheon) {
+        clearForm();
+        return;
+      }
+      editingId = String(pantheon.id || "");
+      nameInput.value = String(pantheon.name || "");
+      descriptionInput.value = String(pantheon.description || "");
+      const deityIds = new Set((pantheon.deityIds || []).map((id) => String(id || "")));
+      Array.from(deitiesSelect.options || []).forEach((option) => {
+        option.selected = deityIds.has(option.value);
+      });
+      nameInput.focus();
+    };
+
+    document.getElementById("pantheonClear").addEventListener("click", clearForm);
+    document.getElementById("pantheonSave").addEventListener("click", async () => {
+      const name = nameInput.value.trim();
+      if (!name) {
+        showToast(t("common.name.required", "Name is required."));
+        return;
+      }
+      try {
+        if (!editingId) {
+          const result = await api("POST", `/api/drafts/${state.draftId}/pantheons`, {
+            name,
+            description: descriptionInput.value.trim(),
+          });
+          editingId = String(result.id || "");
+        }
+        await api("POST", `/api/drafts/${state.draftId}/pantheons/update`, {
+          id: editingId,
+          name,
+          description: descriptionInput.value.trim(),
+          deityIds: getSelectedValues(deitiesSelect),
+        });
+        markSaved(t("web.toast.pantheon_saved", "Pantheon saved"));
+        renderPantheons(editingId);
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
+    document.querySelectorAll("[data-edit-pantheon]").forEach((button) => {
+      button.addEventListener("click", () => loadForm(pantheonMap[button.dataset.editPantheon]));
+    });
+    document.querySelectorAll("[data-remove-pantheon]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const confirmed = await showConfirm(
+          t("common.remove.confirm", "Remove selected item?"),
+          t("common.remove", "Remove")
+        );
+        if (!confirmed) {
+          return;
+        }
+        try {
+          await api("DELETE", `/api/drafts/${state.draftId}/pantheons`, { id: button.dataset.removePantheon });
+          markSaved(t("web.toast.pantheon_removed", "Pantheon removed"));
+          renderPantheons();
+        } catch (error) {
+          showToast(error.message);
+        }
+      });
+    });
+    document.getElementById("backToSpells").addEventListener("click", navigateBackInApp);
+    document.getElementById("pantheonsContinue").addEventListener("click", renderDeities);
+    wireSystemNameSave("pantheons", () => renderPantheons());
+    if (openId) {
+      loadForm(pantheonMap[openId]);
+    }
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function renderDeities(openId = "") {
+  if (!ensureDraft()) {
+    return;
+  }
+  setStep("deities");
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const data = await api("GET", `/api/drafts/${state.draftId}/deities`);
+    const systemName = String(data.systemName || "");
+    const title = systemNameTitle(systemName, t("deities.title", "Deities"));
+    const deities = sortByLabel(data.deities || [], (deity) => deity.name || "");
+    const pantheons = sortByLabel(data.pantheons || [], (pantheon) => pantheon.name || "");
+    const deityMap = {};
+    const pantheonOptions = pantheons
+      .map((pantheon) => `<option value="${escapeHtml(pantheon.id)}">${escapeHtml(pantheon.name)}</option>`)
+      .join("");
+    const list = deities
+      .map((deity) => {
+        deityMap[deity.id] = deity;
+        const pantheonNames = pantheons
+          .filter((pantheon) => (deity.pantheonIds || []).includes(pantheon.id))
+          .map((pantheon) => pantheon.name)
+          .join(", ");
+        return `
+          <div class="list-item">
+            <div>
+              <strong>${escapeHtml(deity.name || t("deities.untitled", "Untitled Deity"))}</strong>
+              <span class="badge">${escapeHtml(deity.primaryPortfolio || t("common.none", "None"))}</span>
+              <div class="badge">${escapeHtml(pantheonNames || t("common.none", "None"))}</div>
+            </div>
+            <div class="actions">
+              <button class="btn ghost small" data-edit-deity="${escapeHtml(deity.id)}">${t("common.edit", "Edit")}</button>
+              <button class="btn danger small" data-remove-deity="${escapeHtml(deity.id)}">${t("common.remove", "Remove")}</button>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${escapeHtml(title)}</h1>
+        <p class="field-hint">${t(
+          "deities.intro",
+          "Deities define divine figures, their portfolios, symbols, spell access, and pantheon membership."
+        )}</p>
+        ${renderSystemNameControls(systemName, t("deities.title", "Deities"))}
+        <div class="grid two">
+          <div class="field">
+            <label>${t("deities.name", "Deity Name")}</label>
+            <input type="text" id="deityName" maxlength="80">
+          </div>
+          <div class="field">
+            <label>${t("deities.type", "Deity Type")}</label>
+            <input type="text" id="deityType" maxlength="80">
+          </div>
+          <div class="field">
+            <label>${t("deities.rank", "Divine Rank")}</label>
+            <input type="text" id="deityRank" maxlength="80">
+          </div>
+          <div class="field">
+            <label>${t("deities.portfolio", "Primary Portfolio")}</label>
+            <input type="text" id="deityPortfolio" maxlength="120">
+          </div>
+          <div class="field">
+            <label>${t("deities.alignment", "Alignment")}</label>
+            <input type="text" id="deityAlignment" maxlength="80">
+          </div>
+          <div class="field">
+            <label>${t("deities.symbol", "Holy Symbol")}</label>
+            <input type="text" id="deitySymbol" maxlength="120">
+          </div>
+          <div class="field">
+            <label>${t("deities.worship", "Worship Style")}</label>
+            <input type="text" id="deityWorship" maxlength="160">
+          </div>
+          <div class="field">
+            <label>${t("deities.pantheons", "Pantheons")}</label>
+            <select id="deityPantheons" multiple size="5">${pantheonOptions}</select>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="deityCanGrantSpells" checked>
+            ${t("deities.can_grant_spells", "Can grant spells")}
+          </label>
+          <div class="field">
+            <label>${t("deities.max_spell_level", "Max Spell Level")}</label>
+            <input type="number" id="deityMaxSpellLevel" min="0" max="9" value="9">
+          </div>
+        </div>
+        <div class="field">
+          <label>${t("common.description", "Description")}</label>
+          <textarea id="deityDescription"></textarea>
+        </div>
+        <div class="actions-row">
+          <div class="left">
+            <button class="btn ghost" id="deityClear" type="button">${t("common.cancel", "Cancel")}</button>
+          </div>
+          <div class="right">
+            <button class="btn" id="deitySave" type="button">${t("common.save", "Save")}</button>
+          </div>
+        </div>
+        <div class="list" id="deityList">${list || `<div class="list-item">${t("deities.none", "No deities yet.")}</div>`}</div>
+        <div class="actions-row">
+          <div class="left">
+            <button class="btn ghost" id="backToPantheons" type="button">${t("setup.back", "Back")}</button>
+          </div>
+          <div class="right">
+            <button class="btn" id="deitiesContinue" type="button">${t("common.continue", "Continue")}</button>
+          </div>
+        </div>
+      </section>
+    `;
+
+    const fields = {
+      name: document.getElementById("deityName"),
+      description: document.getElementById("deityDescription"),
+      rank: document.getElementById("deityRank"),
+      type: document.getElementById("deityType"),
+      portfolio: document.getElementById("deityPortfolio"),
+      symbol: document.getElementById("deitySymbol"),
+      alignment: document.getElementById("deityAlignment"),
+      worship: document.getElementById("deityWorship"),
+      canGrantSpells: document.getElementById("deityCanGrantSpells"),
+      maxSpellLevel: document.getElementById("deityMaxSpellLevel"),
+      pantheons: document.getElementById("deityPantheons"),
+    };
+    let editingId = "";
+    const clearForm = () => {
+      editingId = "";
+      fields.name.value = "";
+      fields.description.value = "";
+      fields.rank.value = "";
+      fields.type.value = "";
+      fields.portfolio.value = "";
+      fields.symbol.value = "";
+      fields.alignment.value = "";
+      fields.worship.value = "";
+      fields.canGrantSpells.checked = true;
+      fields.maxSpellLevel.value = "9";
+      Array.from(fields.pantheons.options || []).forEach((option) => {
+        option.selected = false;
+      });
+    };
+    const loadForm = (deity) => {
+      if (!deity) {
+        clearForm();
+        return;
+      }
+      editingId = String(deity.id || "");
+      fields.name.value = String(deity.name || "");
+      fields.description.value = String(deity.description || "");
+      fields.rank.value = String(deity.divineRank || "");
+      fields.type.value = String(deity.deityType || "");
+      fields.portfolio.value = String(deity.primaryPortfolio || "");
+      fields.symbol.value = String(deity.holySymbol || "");
+      fields.alignment.value = String(deity.alignment || "");
+      fields.worship.value = String(deity.worshipStyle || "");
+      fields.canGrantSpells.checked = deity.canGrantSpells !== false;
+      fields.maxSpellLevel.value = String(Number(deity.maxSpellLevel ?? 9));
+      const pantheonIds = new Set((deity.pantheonIds || []).map((id) => String(id || "")));
+      Array.from(fields.pantheons.options || []).forEach((option) => {
+        option.selected = pantheonIds.has(option.value);
+      });
+      fields.name.focus();
+    };
+
+    document.getElementById("deityClear").addEventListener("click", clearForm);
+    document.getElementById("deitySave").addEventListener("click", async () => {
+      const name = fields.name.value.trim();
+      if (!name) {
+        showToast(t("common.name.required", "Name is required."));
+        return;
+      }
+      try {
+        if (!editingId) {
+          const result = await api("POST", `/api/drafts/${state.draftId}/deities`, {
+            name,
+            description: fields.description.value.trim(),
+          });
+          editingId = String(result.id || "");
+        }
+        await api("POST", `/api/drafts/${state.draftId}/deities/update`, {
+          id: editingId,
+          name,
+          description: fields.description.value.trim(),
+          divineRank: fields.rank.value.trim(),
+          deityType: fields.type.value.trim(),
+          primaryPortfolio: fields.portfolio.value.trim(),
+          holySymbol: fields.symbol.value.trim(),
+          alignment: fields.alignment.value.trim(),
+          worshipStyle: fields.worship.value.trim(),
+          canGrantSpells: fields.canGrantSpells.checked,
+          maxSpellLevel: Number(fields.maxSpellLevel.value || 0),
+          pantheonIds: getSelectedValues(fields.pantheons),
+        });
+        markSaved(t("web.toast.deity_saved", "Deity saved"));
+        renderDeities(editingId);
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
+    document.querySelectorAll("[data-edit-deity]").forEach((button) => {
+      button.addEventListener("click", () => loadForm(deityMap[button.dataset.editDeity]));
+    });
+    document.querySelectorAll("[data-remove-deity]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const confirmed = await showConfirm(
+          t("common.remove.confirm", "Remove selected item?"),
+          t("common.remove", "Remove")
+        );
+        if (!confirmed) {
+          return;
+        }
+        try {
+          await api("DELETE", `/api/drafts/${state.draftId}/deities`, { id: button.dataset.removeDeity });
+          markSaved(t("web.toast.deity_removed", "Deity removed"));
+          renderDeities();
+        } catch (error) {
+          showToast(error.message);
+        }
+      });
+    });
+    document.getElementById("backToPantheons").addEventListener("click", navigateBackInApp);
+    document.getElementById("deitiesContinue").addEventListener("click", renderRaces);
+    wireSystemNameSave("deities", () => renderDeities());
+    if (openId) {
+      loadForm(deityMap[openId]);
+    }
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
 Object.assign(stepRoutes, {
   setup: renderSetup,
   measurements: renderMeasurements,
   dice: renderDice,
+  "attribute-types": renderAttributeTypes,
+  attributes: renderAttributes,
   "attribute-generation": renderAttributeGeneration,
   "standard-array": renderStandardArray,
   "dice-rolling": renderDiceRolling,
   "points-buy": renderPointsBuy,
-  "attribute-types": renderAttributeTypes,
-  attributes: renderAttributes,
   "hit-points": renderHitPoints,
   "armor-class": renderArmorClass,
   currency: renderCurrency,
@@ -11245,6 +11757,8 @@ Object.assign(stepRoutes, {
   weapons: renderWeapons,
   skills: renderSkills,
   spells: renderSpells,
+  pantheons: renderPantheons,
+  deities: renderDeities,
   races: renderRaces,
   classes: renderClasses,
 });

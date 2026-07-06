@@ -58,6 +58,7 @@ public class CharacterFileIO {
     private static final String STARTING_MONEY_CURRENCY_ID = "startingMoneyCurrencyId";
     private static final String DICE_SUBSTITUTIONS_USED = "diceSubstitutionsUsed";
     private static final String RESOLVED_ARMOR_CLASS = "resolvedArmorClass";
+    private static final String RULE_MODE_PREFIX = "ruleMode.";
     private static final String SELECTED_WEAPON_PREFIX = "selectedWeapon.";
     private static final String SELECTED_ARMOR_PREFIX = "selectedArmor.";
     private static final String SELECTED_EQUIPMENT_PREFIX = "selectedEquipment.";
@@ -81,6 +82,7 @@ public class CharacterFileIO {
         List<String> selectedWeaponIds = new ArrayList<>();
         List<String> selectedArmorIds = new ArrayList<>();
         List<String> selectedEquipmentIds = new ArrayList<>();
+        Map<String, String> ruleModeSelections = new java.util.LinkedHashMap<>();
         Map<Integer, Integer> classSkillPointsByLevel = new java.util.LinkedHashMap<>();
         Map<Integer, Integer> globalSkillPointsByLevel = new java.util.LinkedHashMap<>();
         Map<Integer, Integer> resolvedSkillPointsByLevel = new java.util.LinkedHashMap<>();
@@ -171,6 +173,11 @@ public class CharacterFileIO {
                 } catch (NumberFormatException ignored) {
                     // Skip invalid value.
                 }
+            } else if (key.startsWith(RULE_MODE_PREFIX)) {
+                String modeKey = key.substring(RULE_MODE_PREFIX.length()).trim();
+                if (!modeKey.isEmpty()) {
+                    ruleModeSelections.put(modeKey, value);
+                }
             } else if (key.startsWith(RACIAL_SKILL_PREFIX)) {
                 putSkillRank(racialSkillRanks, value);
             } else if (key.startsWith(RACIAL_TRAIT_PREFIX)) {
@@ -257,6 +264,7 @@ public class CharacterFileIO {
         draft.setSelectedWeaponIds(selectedWeaponIds);
         draft.setSelectedArmorIds(selectedArmorIds);
         draft.setSelectedEquipmentIds(selectedEquipmentIds);
+        draft.setRuleModeSelections(ruleModeSelections);
         draft.setClassSkillPointsByLevel(classSkillPointsByLevel);
         draft.setGlobalSkillPointsByLevel(globalSkillPointsByLevel);
         draft.setResolvedSkillPointsByLevel(resolvedSkillPointsByLevel);
@@ -271,6 +279,11 @@ public class CharacterFileIO {
         lines.add("gameId=" + safeDraft.getGameId());
         lines.add("gameHash=" + safeDraft.getGameHash());
         lines.add("characterName=" + safeDraft.getCharacterName());
+        List<Map.Entry<String, String>> ruleModes = new ArrayList<>(safeDraft.getRuleModeSelections().entrySet());
+        ruleModes.sort(Map.Entry.comparingByKey());
+        for (Map.Entry<String, String> entry : ruleModes) {
+            lines.add(RULE_MODE_PREFIX + entry.getKey() + "=" + Objects.toString(entry.getValue(), ""));
+        }
         if (!safeDraft.getRaceId().isEmpty()) {
             lines.add("raceId=" + safeDraft.getRaceId());
         }

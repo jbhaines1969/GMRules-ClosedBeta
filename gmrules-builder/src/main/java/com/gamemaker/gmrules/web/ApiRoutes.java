@@ -29,7 +29,9 @@ import com.gamemaker.gmrules.GameMechanics.HPMethod;
 import com.gamemaker.gmrules.GameMechanics.LevelingMethod;
 import com.gamemaker.gmrules.GameSaveIO;
 import com.gamemaker.gmrules.GameElements.Currency;
+import com.gamemaker.gmrules.GameElements.Deity;
 import com.gamemaker.gmrules.GameElements.Equipment;
+import com.gamemaker.gmrules.GameElements.Pantheon;
 import com.gamemaker.gmrules.GameElements.Species;
 import com.gamemaker.gmrules.GameElements.Spell;
 import com.gamemaker.gmrules.GameElements.Weapon;
@@ -38,6 +40,7 @@ import com.gamemaker.gmrules.SupportElements.Effect;
 import com.gamemaker.gmrules.SupportElements.Status;
 import com.gamemaker.gmrules.character.CharacterDraft;
 import com.gamemaker.gmrules.character.CharacterFile;
+import com.gamemaker.gmrules.character.CharacterFileBuilder;
 import com.gamemaker.gmrules.character.CharacterFileIO;
 
 import java.io.IOException;
@@ -70,6 +73,7 @@ public final class ApiRoutes {
     private static final String STRINGS_BUNDLE = "i18n/strings";
     private static final String NDA_RESOURCE = "legal/nda/nda-v1-en.txt";
     private static final String ARRAY_HYBRID = "hybridStages";
+    private static final String CHARACTER_RULE_MODE_PREFIX = "ruleMode.";
     private static final long FEEDBACK_MAX_BODY_BYTES = 16L * 1024;
     private static final int FEEDBACK_TITLE_MAX_LENGTH = 120;
     private static final int FEEDBACK_MESSAGE_MAX_LENGTH = 4000;
@@ -237,6 +241,14 @@ public final class ApiRoutes {
         router.add("POST", "/api/drafts/{id}/spells", ApiRoutes::addSpell);
         router.add("DELETE", "/api/drafts/{id}/spells", ApiRoutes::removeSpell);
         router.add("POST", "/api/drafts/{id}/spells/update", ApiRoutes::updateSpell);
+        router.add("GET", "/api/drafts/{id}/pantheons", ApiRoutes::getPantheons);
+        router.add("POST", "/api/drafts/{id}/pantheons", ApiRoutes::addPantheon);
+        router.add("DELETE", "/api/drafts/{id}/pantheons", ApiRoutes::removePantheon);
+        router.add("POST", "/api/drafts/{id}/pantheons/update", ApiRoutes::updatePantheon);
+        router.add("GET", "/api/drafts/{id}/deities", ApiRoutes::getDeities);
+        router.add("POST", "/api/drafts/{id}/deities", ApiRoutes::addDeity);
+        router.add("DELETE", "/api/drafts/{id}/deities", ApiRoutes::removeDeity);
+        router.add("POST", "/api/drafts/{id}/deities/update", ApiRoutes::updateDeity);
 
         router.add("GET", "/api/drafts/{id}/races", ApiRoutes::getRaces);
         router.add("POST", "/api/drafts/{id}/races", ApiRoutes::addRace);
@@ -1258,6 +1270,7 @@ public final class ApiRoutes {
             ctx.json(403, Map.of("error", "Character draft must be linked to one of your saved rulesets."));
             return;
         }
+        text = withCurrentCharacterRuleModes(ctx, gameDraftId, text);
         boolean existing = !characterDraftId.isEmpty()
             && ctx.getAccountStore().userOwnsCharacterDraft(session.getUserId(), characterDraftId);
         if (!existing && !ctx.getAccountStore().canAddCharacterDraft(session.getUserId(), gameDraftId)) {
@@ -2255,6 +2268,10 @@ public final class ApiRoutes {
             response.put("standardArray", safeList(method.getArray("standardArrays")));
             response.put("eliteArray", safeList(method.getArray("eliteArrays")));
             response.put("defaultArrayType", Objects.toString(method.getDefaultArrayType(), ""));
+            response.put(
+                "standardArrayAssignmentMode",
+                Objects.toString(method.getStandardArrayAssignmentMode(), "assigned")
+            );
             response.put("defaultAttributeMinScore", game.getDefaultAttributeMinScore());
             response.put("defaultAttributeMaxScore", game.getDefaultAttributeMaxScore());
             response.put(
@@ -2330,6 +2347,10 @@ public final class ApiRoutes {
             response.put("standardArray", safeList(method.getArray("standardArrays")));
             response.put("eliteArray", safeList(method.getArray("eliteArrays")));
             response.put("defaultArrayType", Objects.toString(method.getDefaultArrayType(), ""));
+            response.put(
+                "standardArrayAssignmentMode",
+                Objects.toString(method.getStandardArrayAssignmentMode(), "assigned")
+            );
 
             List<Map<String, Object>> attributes = new ArrayList<>();
             for (Attribute attribute : getAttributes(game)) {
@@ -2358,16 +2379,18 @@ public final class ApiRoutes {
         String attributeId = getString(body, "attributeId");
         int value = getInt(body, "value", 0);
         ctx.getDraftStore().updateDraft(draftId, game -> {
-            Attribute attribute = game.getElement("attributes", attributeId);
-            if (attribute == null) {
-                return;
-            }
-            String name = Objects.toString(attribute.getName(), "").trim();
-            if (name.isEmpty()) {
-                return;
-            }
             AttributeGenerationMethod method = game.getAttributeGenerationMethod();
-            method.addToArray("standardArrays", name + "=" + value);
+            if (isOpenStandardArray(method)) {
+                method.addToArray("standardArrays", Integer.toString(value));
+                return;
+            }
+            Attribute attribute = game.getElement("attributes", attributeId);
+            if (attribute != null) {
+                String name = Objects.toString(attribute.getName(), "").trim();
+                if (!name.isEmpty()) {
+                    method.addToArray("standardArrays", name + "=" + value);
+                }
+            }
         });
         ctx.json(200, Map.of("ok", true));
     }
@@ -2403,16 +2426,18 @@ public final class ApiRoutes {
         String attributeId = getString(body, "attributeId");
         int value = getInt(body, "value", 0);
         ctx.getDraftStore().updateDraft(draftId, game -> {
-            Attribute attribute = game.getElement("attributes", attributeId);
-            if (attribute == null) {
-                return;
-            }
-            String name = Objects.toString(attribute.getName(), "").trim();
-            if (name.isEmpty()) {
-                return;
-            }
             AttributeGenerationMethod method = game.getAttributeGenerationMethod();
-            method.addToArray("eliteArrays", name + "=" + value);
+            if (isOpenStandardArray(method)) {
+                method.addToArray("eliteArrays", Integer.toString(value));
+                return;
+            }
+            Attribute attribute = game.getElement("attributes", attributeId);
+            if (attribute != null) {
+                String name = Objects.toString(attribute.getName(), "").trim();
+                if (!name.isEmpty()) {
+                    method.addToArray("eliteArrays", name + "=" + value);
+                }
+            }
         });
         ctx.json(200, Map.of("ok", true));
     }
@@ -2446,9 +2471,15 @@ public final class ApiRoutes {
         }
         Map<String, Object> body = ctx.readJsonMap();
         String defaultType = getString(body, "defaultArrayType");
+        String assignmentMode = getString(body, "standardArrayAssignmentMode");
         ctx.getDraftStore().updateDraft(draftId, game -> {
             AttributeGenerationMethod method = game.getAttributeGenerationMethod();
-            method.setDefaultArrayType(defaultType);
+            if (!defaultType.isEmpty()) {
+                method.setDefaultArrayType(defaultType);
+            }
+            if (!assignmentMode.isEmpty()) {
+                method.setStandardArrayAssignmentMode(assignmentMode);
+            }
         });
         ctx.json(200, Map.of("ok", true));
     }
@@ -4146,6 +4177,324 @@ public final class ApiRoutes {
         ctx.json(200, Map.of("ok", true));
     }
 
+    private static void getPantheons(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "pantheons");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> deities = new ArrayList<>();
+            for (Deity deity : getDeities(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(deity.getId(), ""));
+                entry.put("name", Objects.toString(deity.getName(), ""));
+                deities.add(entry);
+            }
+            List<Map<String, Object>> pantheons = new ArrayList<>();
+            for (Pantheon pantheon : getPantheons(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(pantheon.getId(), ""));
+                entry.put("name", Objects.toString(pantheon.getName(), ""));
+                entry.put("description", Objects.toString(pantheon.getDescription(), ""));
+                entry.put("deityIds", safeList(pantheon.getObjectArray("deities")));
+                pantheons.add(entry);
+            }
+            response.put("systemName", game.getSystemName("pantheons"));
+            response.put("pantheons", pantheons);
+            response.put("deities", deities);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addPantheon(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        Pantheon pantheon = new Pantheon(name, description);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Pantheon> registry = game.getElementRegistry(ElementRegistryKey.PANTHEONS);
+            if (!registry.hasName(name) && registry.add(pantheon)) {
+                added[0] = true;
+            }
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Pantheon already exists"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(pantheon.getId(), "")));
+    }
+
+    private static void removePantheon(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String pantheonId = getString(body, "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Pantheon> registry = game.getElementRegistry(ElementRegistryKey.PANTHEONS);
+            Pantheon pantheon = registry.getById(pantheonId);
+            if (pantheon != null) {
+                registry.remove(pantheon);
+            }
+            for (Deity deity : getDeities(game)) {
+                deity.removeFromArray("pantheon", pantheonId);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updatePantheon(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String pantheonId = getString(body, "id");
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        List<String> deityIds = getStringList(body, "deityIds");
+        if (pantheonId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Pantheon id is required"));
+            return;
+        }
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        boolean[] duplicate = new boolean[] { false };
+        boolean[] updated = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Pantheon> registry = game.getElementRegistry(ElementRegistryKey.PANTHEONS);
+            Pantheon pantheon = registry.getById(pantheonId);
+            if (pantheon == null) {
+                return;
+            }
+            String previousName = pantheon.getName();
+            if (!previousName.equalsIgnoreCase(name) && registry.hasName(name)) {
+                duplicate[0] = true;
+                return;
+            }
+            if (!previousName.equalsIgnoreCase(name)) {
+                registry.remove(pantheon);
+                pantheon.setName(name);
+                registry.add(pantheon);
+            }
+            pantheon.setDescription(description);
+            pantheon.clearArray("deities");
+            for (String deityId : deityIds) {
+                if (game.getElementRegistry(ElementRegistryKey.DEITIES).getById(deityId) != null) {
+                    pantheon.addToArray("deities", deityId);
+                }
+            }
+            for (Deity deity : getDeities(game)) {
+                deity.removeFromArray("pantheon", pantheonId);
+                if (deityIds.contains(Objects.toString(deity.getId(), ""))) {
+                    deity.addToArray("pantheon", pantheonId);
+                }
+            }
+            updated[0] = true;
+        });
+        if (duplicate[0]) {
+            ctx.json(400, Map.of("error", "Pantheon already exists"));
+            return;
+        }
+        if (!updated[0]) {
+            ctx.json(404, Map.of("error", "Pantheon not found"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getDeities(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "deities");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> pantheons = new ArrayList<>();
+            for (Pantheon pantheon : getPantheons(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(pantheon.getId(), ""));
+                entry.put("name", Objects.toString(pantheon.getName(), ""));
+                pantheons.add(entry);
+            }
+            List<Map<String, Object>> deities = new ArrayList<>();
+            for (Deity deity : getDeities(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(deity.getId(), ""));
+                entry.put("name", Objects.toString(deity.getName(), ""));
+                entry.put("description", Objects.toString(deity.getDescription(), ""));
+                entry.put("divineRank", Objects.toString(deity.getDivineRank(), ""));
+                entry.put("deityType", Objects.toString(deity.getDeityType(), ""));
+                entry.put("primaryPortfolio", Objects.toString(deity.getPrimaryPortfolio(), ""));
+                entry.put("holySymbol", Objects.toString(deity.getHolySymbol(), ""));
+                entry.put("alignment", Objects.toString(deity.getAlignment(), ""));
+                entry.put("worshipStyle", Objects.toString(deity.getWorshipStyle(), ""));
+                entry.put("canGrantSpells", deity.canGrantSpells());
+                entry.put("maxSpellLevel", deity.getMaxSpellLevel());
+                entry.put("pantheonIds", safeList(deity.getObjectArray("pantheon")));
+                deities.add(entry);
+            }
+            response.put("systemName", game.getSystemName("deities"));
+            response.put("deities", deities);
+            response.put("pantheons", pantheons);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addDeity(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        Deity deity = new Deity(name, description);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Deity> registry = game.getElementRegistry(ElementRegistryKey.DEITIES);
+            if (!registry.hasName(name) && registry.add(deity)) {
+                added[0] = true;
+            }
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Deity already exists"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(deity.getId(), "")));
+    }
+
+    private static void removeDeity(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String deityId = getString(body, "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Deity> registry = game.getElementRegistry(ElementRegistryKey.DEITIES);
+            Deity deity = registry.getById(deityId);
+            if (deity != null) {
+                registry.remove(deity);
+            }
+            for (Pantheon pantheon : getPantheons(game)) {
+                pantheon.removeFromArray("deities", deityId);
+            }
+            for (Deity other : getDeities(game)) {
+                other.removeFromArray("alliedDeities", deityId);
+                other.removeFromArray("enemyDeities", deityId);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateDeity(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String deityId = getString(body, "id");
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        String divineRank = getString(body, "divineRank").trim();
+        String deityType = getString(body, "deityType").trim();
+        String primaryPortfolio = getString(body, "primaryPortfolio").trim();
+        String holySymbol = getString(body, "holySymbol").trim();
+        String alignment = getString(body, "alignment").trim();
+        String worshipStyle = getString(body, "worshipStyle").trim();
+        boolean canGrantSpells = getBoolean(body, "canGrantSpells", true);
+        int maxSpellLevel = getInt(body, "maxSpellLevel", 9);
+        List<String> pantheonIds = getStringList(body, "pantheonIds");
+        if (deityId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Deity id is required"));
+            return;
+        }
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        boolean[] duplicate = new boolean[] { false };
+        boolean[] updated = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Deity> registry = game.getElementRegistry(ElementRegistryKey.DEITIES);
+            Deity deity = registry.getById(deityId);
+            if (deity == null) {
+                return;
+            }
+            String previousName = deity.getName();
+            if (!previousName.equalsIgnoreCase(name) && registry.hasName(name)) {
+                duplicate[0] = true;
+                return;
+            }
+            if (!previousName.equalsIgnoreCase(name)) {
+                registry.remove(deity);
+                deity.setName(name);
+                registry.add(deity);
+            }
+            deity.setDescription(description);
+            deity.setDivineRank(divineRank);
+            deity.setDeityType(deityType);
+            deity.setPrimaryPortfolio(primaryPortfolio);
+            deity.setHolySymbol(holySymbol);
+            deity.setAlignment(alignment);
+            deity.setWorshipStyle(worshipStyle);
+            deity.setCanGrantSpells(canGrantSpells);
+            deity.setMaxSpellLevel(maxSpellLevel);
+            deity.clearArray("pantheon");
+            for (String pantheonId : pantheonIds) {
+                if (game.getElementRegistry(ElementRegistryKey.PANTHEONS).getById(pantheonId) != null) {
+                    deity.addToArray("pantheon", pantheonId);
+                }
+            }
+            for (Pantheon pantheon : getPantheons(game)) {
+                pantheon.removeFromArray("deities", deityId);
+                if (pantheonIds.contains(Objects.toString(pantheon.getId(), ""))) {
+                    pantheon.addToArray("deities", deityId);
+                }
+            }
+            updated[0] = true;
+        });
+        if (duplicate[0]) {
+            ctx.json(400, Map.of("error", "Deity already exists"));
+            return;
+        }
+        if (!updated[0]) {
+            ctx.json(404, Map.of("error", "Deity not found"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
     private static void getRaces(RequestContext ctx) throws IOException {
         SessionStore.Session session = requireSession(ctx);
         if (session == null) {
@@ -4541,6 +4890,14 @@ public final class ApiRoutes {
         return isAttributeGenerationStageEnabled(method, "standard_array");
     }
 
+    private static boolean isOpenStandardArray(AttributeGenerationMethod method) {
+        AttributeGenerationMethod safeMethod = Objects.requireNonNullElseGet(
+            method,
+            () -> new AttributeGenerationMethod("")
+        );
+        return "open".equals(Objects.toString(safeMethod.getStandardArrayAssignmentMode(), "").trim().toLowerCase());
+    }
+
     private static boolean isDiceRollingEnabled(AttributeGenerationMethod method) {
         return isAttributeGenerationStageEnabled(method, "dice");
     }
@@ -4655,6 +5012,14 @@ public final class ApiRoutes {
         lines.add("gameHash=" + Objects.toString(safeCharacterFile.getSourceGameHash(), "").trim());
         lines.add("characterName=" + Objects.toString(safeCharacterFile.getCharacterName(), "").trim());
         lines.add("gameName=" + Objects.toString(safeCharacterFile.getSourceGameName(), "").trim());
+        safeCharacterFile.getRuleModeSelections().entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(entry -> lines.add(
+                CHARACTER_RULE_MODE_PREFIX
+                    + Objects.toString(entry.getKey(), "").trim()
+                    + "="
+                    + Objects.toString(entry.getValue(), "").trim()
+            ));
         String raceId = characterRaceId(safeCharacterFile);
         if (!raceId.isEmpty()) {
             lines.add("raceId=" + raceId);
@@ -4714,6 +5079,49 @@ public final class ApiRoutes {
         } finally {
             Files.deleteIfExists(tempFile);
         }
+    }
+
+    private static String withCurrentCharacterRuleModes(RequestContext ctx, String gameDraftId, String text) throws IOException {
+        if (hasCharacterRuleModeLines(text)) {
+            return Objects.toString(text, "");
+        }
+        Map<String, String> ruleModes = ctx.getDraftStore().readDraft(
+            gameDraftId,
+            CharacterFileBuilder::buildRuleModeSelections
+        );
+        return mergeCharacterRuleModeLines(text, ruleModes);
+    }
+
+    private static boolean hasCharacterRuleModeLines(String text) {
+        String[] rawLines = Objects.toString(text, "").split("\\R");
+        for (String rawLine : rawLines) {
+            if (Objects.toString(rawLine, "").trim().startsWith(CHARACTER_RULE_MODE_PREFIX)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String mergeCharacterRuleModeLines(String text, Map<String, String> ruleModes) {
+        String[] rawLines = Objects.toString(text, "").split("\\R");
+        List<String> lines = new ArrayList<>();
+        for (String rawLine : rawLines) {
+            String safeLine = Objects.toString(rawLine, "");
+            String trimmed = safeLine.trim();
+            if (!trimmed.startsWith(CHARACTER_RULE_MODE_PREFIX)) {
+                lines.add(safeLine);
+            }
+        }
+        Map<String, String> safeModes = Objects.requireNonNullElse(ruleModes, Map.of());
+        safeModes.entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(entry -> {
+                String key = Objects.toString(entry.getKey(), "").trim();
+                if (!key.isEmpty()) {
+                    lines.add(CHARACTER_RULE_MODE_PREFIX + key + "=" + Objects.toString(entry.getValue(), "").trim());
+                }
+            });
+        return String.join("\n", lines);
     }
 
     private static List<String> characterExportDraftCandidates(String bodyGameDraftId, String text, SessionStore.Session session) {
@@ -5335,6 +5743,18 @@ public final class ApiRoutes {
     private static List<Spell> getSpells(Game game) {
         List<Spell> spells = game.<Spell>getObjectArray("spells");
         return spells == null ? List.of() : spells;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Pantheon> getPantheons(Game game) {
+        List<Pantheon> pantheons = game.<Pantheon>getObjectArray("pantheons");
+        return pantheons == null ? List.of() : pantheons;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Deity> getDeities(Game game) {
+        List<Deity> deities = game.<Deity>getObjectArray("deities");
+        return deities == null ? List.of() : deities;
     }
 
     @SuppressWarnings("unchecked")

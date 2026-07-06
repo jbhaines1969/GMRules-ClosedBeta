@@ -39,6 +39,7 @@ public class CharacterFile implements Serializable {
     private String sourceGameId = "";
     private String sourceGameHash = "";
     private String sourceGameName = "";
+    private Map<String, String> ruleModeSelections = new LinkedHashMap<>();
     private Race race = new Race("");
     private CharacterClass characterClass = new CharacterClass("");
     private Map<Attribute, Integer> attributeScores = new LinkedHashMap<>();
@@ -93,6 +94,22 @@ public class CharacterFile implements Serializable {
 
     public void setSourceGameName(String sourceGameName) {
         this.sourceGameName = Objects.toString(sourceGameName, "").trim();
+    }
+
+    public Map<String, String> getRuleModeSelections() {
+        return new LinkedHashMap<>(Objects.requireNonNullElse(ruleModeSelections, Map.of()));
+    }
+
+    public void setRuleModeSelections(Map<String, String> ruleModeSelections) {
+        Map<String, String> safeValues = Objects.requireNonNullElse(ruleModeSelections, Map.of());
+        LinkedHashMap<String, String> copy = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : safeValues.entrySet()) {
+            String key = Objects.toString(entry.getKey(), "").trim();
+            if (!key.isEmpty()) {
+                copy.put(key, Objects.toString(entry.getValue(), "").trim());
+            }
+        }
+        this.ruleModeSelections = copy;
     }
 
     public Race getRace() {
@@ -213,6 +230,11 @@ public class CharacterFile implements Serializable {
 
     public void setDiceSubstitutionsUsed(int diceSubstitutionsUsed) {
         this.diceSubstitutionsUsed = Math.max(0, diceSubstitutionsUsed);
+    }
+
+    private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
+        stream.defaultReadObject();
+        ruleModeSelections = new LinkedHashMap<>(Objects.requireNonNullElse(ruleModeSelections, Map.of()));
     }
 
     private static <T extends Serializable> List<T> copyList(List<T> values) {

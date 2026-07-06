@@ -175,6 +175,7 @@ public class Game extends GameElement {
         arrayRegistry.put("effects", getElementRegistry(ElementRegistryKey.EFFECTS).getMutableItems());
         arrayRegistry.put("statuses", getElementRegistry(ElementRegistryKey.STATUSES).getMutableItems());
         arrayRegistry.put("pantheons", getElementRegistry(ElementRegistryKey.PANTHEONS).getMutableItems());
+        arrayRegistry.put("deities", getElementRegistry(ElementRegistryKey.DEITIES).getMutableItems());
         arrayRegistry.put("currencies", getElementRegistry(ElementRegistryKey.CURRENCIES).getMutableItems());
         arrayRegistry.put("materials", getElementRegistry(ElementRegistryKey.MATERIALS).getMutableItems());
 
@@ -226,6 +227,7 @@ public class Game extends GameElement {
         registerElementRegistry(ElementRegistryKey.EFFECTS, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.STATUSES, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.PANTHEONS, new ElementRegistry<>());
+        registerElementRegistry(ElementRegistryKey.DEITIES, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.CURRENCIES, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.MATERIALS, new ElementRegistry<>());
     }
@@ -1263,6 +1265,7 @@ public class Game extends GameElement {
         ArrayList<?> armor = getArray("armor");
         ArrayList<?> naturalWeapons = getArray("naturalWeapons");
         ArrayList<?> pantheons = getArray("pantheons");
+        ArrayList<?> deities = getArray("deities");
         ArrayList<?> currencies = getArray("currencies");
         List<MovementType> movementTypes = getRegistry(RegistryKey.MOVEMENT_TYPES).getAll();
 
@@ -1279,6 +1282,7 @@ public class Game extends GameElement {
         if (!naturalWeapons.isEmpty()) summary.append(String.format("Natural Weapons: %d\n", naturalWeapons.size()));
 
         if (!pantheons.isEmpty()) summary.append(String.format("Pantheons: %d, ", pantheons.size()));
+        if (!deities.isEmpty()) summary.append(String.format("Deities: %d, ", deities.size()));
         if (!currencies.isEmpty()) summary.append(String.format("Currencies: %d\n", currencies.size()));
 
         if (!movementTypes.isEmpty()) summary.append(String.format("Movement Types: %d\n", movementTypes.size()));

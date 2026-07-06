@@ -17,6 +17,12 @@ import com.gamemaker.gmrules.ElementRegistryKey;
 import com.gamemaker.gmrules.Game;
 import com.gamemaker.gmrules.GameElement;
 import com.gamemaker.gmrules.GameElements.Currency;
+import com.gamemaker.gmrules.GameMechanics.ArmorClassMethod;
+import com.gamemaker.gmrules.GameMechanics.AttributeGenerationMethod;
+import com.gamemaker.gmrules.GameMechanics.CombatMethod;
+import com.gamemaker.gmrules.GameMechanics.HPMethod;
+import com.gamemaker.gmrules.GameMechanics.LevelingMethod;
+import com.gamemaker.gmrules.GameMechanics.SaveMethod;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -46,6 +52,8 @@ public class CharacterFileBuilder {
         character.setSourceGameId(safeDraft.getGameId());
         character.setSourceGameHash(safeDraft.getGameHash());
         character.setSourceGameName(safeGame.getName());
+        Map<String, String> draftRuleModes = safeDraft.getRuleModeSelections();
+        character.setRuleModeSelections(draftRuleModes.isEmpty() ? buildRuleModeSelections(safeGame) : draftRuleModes);
         character.setRace(resolveElement(safeGame, ElementRegistryKey.RACES, safeDraft.getRaceId(), new Race("")));
         character.setCharacterClass(resolveElement(
             safeGame,
@@ -75,6 +83,67 @@ public class CharacterFileBuilder {
         character.setResolvedArmorClass(safeDraft.getResolvedArmorClass());
         character.setDiceSubstitutionsUsed(safeDraft.getDiceSubstitutionsUsed());
         return character;
+    }
+
+    public static Map<String, String> buildRuleModeSelections(Game game) {
+        Game safeGame = Objects.requireNonNullElseGet(game, () -> new Game(""));
+        LinkedHashMap<String, String> modes = new LinkedHashMap<>();
+        AttributeGenerationMethod attributes = safeGame.getAttributeGenerationMethod();
+        putMode(modes, "attributeGeneration.generationType", attributes.getGenerationType());
+        putMode(modes, "attributeGeneration.hybridStages", String.join(",", attributes.getArray("hybridStages")));
+        putMode(modes, "attributeGeneration.defaultArrayType", attributes.getDefaultArrayType());
+        putMode(modes, "attributeGeneration.standardArrayAssignmentMode", attributes.getStandardArrayAssignmentMode());
+        putMode(modes, "attributeGeneration.assignInOrder", attributes.isAssignInOrder());
+        putMode(modes, "attributeGeneration.allowReassignment", attributes.isAllowReassignment());
+        putMode(modes, "attributeGeneration.setSelectionMethod", attributes.getSetSelectionMethod());
+        putMode(modes, "attributeGeneration.allowDiceSubstitution", attributes.isAllowDiceSubstitution());
+        putMode(modes, "attributeGeneration.allowNegativeAttributes", attributes.isAllowNegativeAttributes());
+
+        HPMethod hp = safeGame.getHpMethod();
+        putMode(modes, "hitPoints.hpGainMethod", hp.getHpGainMethod());
+        putMode(modes, "hitPoints.averageRoundingMethod", hp.getAverageRoundingMethod());
+        putMode(modes, "hitPoints.firstLevelMethod", hp.getFirstLevelMethod());
+        putMode(modes, "hitPoints.firstLevelMaxHP", hp.isFirstLevelMaxHP());
+        putMode(modes, "hitPoints.appliesConstitutionModifier", hp.isAppliesConstitutionModifier());
+        putMode(modes, "hitPoints.allowNegativeConModifier", hp.isAllowNegativeConModifier());
+        putMode(modes, "hitPoints.multiclassHPMethod", hp.getMulticlassHPMethod());
+
+        ArmorClassMethod armorClass = safeGame.getArmorClassMethod();
+        putMode(modes, "armorClass.gearBased", armorClass.isGearBased());
+        putMode(modes, "armorClass.basePlusModifier", armorClass.isBasePlusModifier());
+        putMode(modes, "armorClass.abilityBased", armorClass.isAbilityBased());
+        putMode(modes, "armorClass.acAbilityAttributeId", armorClass.getAcAbilityAttributeId());
+
+        LevelingMethod leveling = safeGame.getLevelingMethod();
+        putMode(modes, "leveling.skillPointProgression", leveling.getSkillPointProgression());
+        putMode(modes, "leveling.skillPointsSameAllLevels", leveling.isSkillPointsSameAllLevels());
+        putMode(modes, "leveling.skillPointsModifiedByInt", leveling.isSkillPointsModifiedByInt());
+        putMode(modes, "leveling.usesSkillRankCaps", leveling.isUsesSkillRankCaps());
+        putMode(modes, "leveling.skillRankCapFormula", leveling.getSkillRankCapFormula());
+        putMode(modes, "leveling.crossClassRankCapFormula", leveling.getCrossClassRankCapFormula());
+
+        SaveMethod saves = safeGame.getSaveMethod();
+        putMode(modes, "saves.baseCalculationMethod", saves.getBaseCalculationMethod());
+        putMode(modes, "saves.successMethod", saves.getSuccessMethod());
+        putMode(modes, "saves.groupSaveMethod", saves.getGroupSaveMethod());
+
+        CombatMethod combat = safeGame.getCombatMethod();
+        putMode(modes, "combat.usesAttackRolls", combat.isUsesAttackRolls());
+        putMode(modes, "combat.attacksRollUnder", combat.isAttacksRollUnder());
+        putMode(modes, "combat.usesArmorClassAsDefense", combat.isUsesArmorClassAsDefense());
+        putMode(modes, "combat.criticalsEnabled", combat.isCriticalsEnabled());
+        putMode(modes, "combat.criticalOnNatural20", combat.isCriticalOnNatural20());
+        putMode(modes, "combat.natural1AutoMiss", combat.isNatural1AutoMiss());
+
+        putMode(modes, "startingMoney.method", safeGame.getStartingMoneyMethod());
+        return modes;
+    }
+
+    private static void putMode(Map<String, String> modes, String key, Object value) {
+        String safeKey = Objects.toString(key, "").trim();
+        if (!safeKey.isEmpty()) {
+            modes.put(safeKey, Objects.toString(value, "").trim());
+        }
     }
 
     private Map<Attribute, Integer> resolveAttributeScores(Game game, CharacterDraft draft) {

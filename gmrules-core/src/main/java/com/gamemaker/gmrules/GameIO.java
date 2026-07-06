@@ -265,6 +265,9 @@ public class GameIO {
         java.util.Set<String> validSkillCategoryKeys = buildSkillCategoryKeys(game);
         java.util.Set<String> validEquipmentIds = buildEquipmentIds(game);
         java.util.Set<String> validSpellIds = buildSpellIds(game);
+        java.util.Set<String> validPantheonIds = buildPantheonIds(game);
+        java.util.Set<String> validDeityIds = buildDeityIds(game);
+        java.util.Set<String> validWeaponIds = buildWeaponIds(game);
 
         // Clean up all effects
         java.util.ArrayList<Effect> effects = game.getObjectArray("effects");
@@ -372,6 +375,16 @@ public class GameIO {
         for (NaturalWeapon naturalWeapon : naturalWeapons) {
             int removed = naturalWeapon.cleanupOrphanedReferences(validEffectIds, validRaceIds);
             report.recordNaturalWeaponCleanup(naturalWeapon.getName(), removed);
+        }
+
+        java.util.ArrayList<Pantheon> pantheons = game.getObjectArray("pantheons");
+        for (Pantheon pantheon : pantheons) {
+            pantheon.cleanupOrphanedReferences(validDeityIds);
+        }
+
+        java.util.ArrayList<Deity> deities = game.getObjectArray("deities");
+        for (Deity deity : deities) {
+            deity.cleanupOrphanedReferences(validClassIds, validDeityIds, validPantheonIds, validWeaponIds);
         }
 
         game.cleanupStartingMoneyReferences(validClassIds, validRaceIds, validSkillIds);
@@ -615,6 +628,27 @@ public class GameIO {
         java.util.ArrayList<Spell> spells = game.getObjectArray("spells");
         return spells.stream()
             .map(Spell::getId)
+            .collect(java.util.stream.Collectors.toSet());
+    }
+
+    private java.util.Set<String> buildPantheonIds(Game game) {
+        java.util.ArrayList<Pantheon> pantheons = game.getObjectArray("pantheons");
+        return pantheons.stream()
+            .map(Pantheon::getId)
+            .collect(java.util.stream.Collectors.toSet());
+    }
+
+    private java.util.Set<String> buildDeityIds(Game game) {
+        java.util.ArrayList<Deity> deities = game.getObjectArray("deities");
+        return deities.stream()
+            .map(Deity::getId)
+            .collect(java.util.stream.Collectors.toSet());
+    }
+
+    private java.util.Set<String> buildWeaponIds(Game game) {
+        java.util.ArrayList<Weapon> weapons = game.getObjectArray("weapons");
+        return weapons.stream()
+            .map(Weapon::getId)
             .collect(java.util.stream.Collectors.toSet());
     }
     

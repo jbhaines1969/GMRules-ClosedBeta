@@ -21,6 +21,7 @@ public class CharacterDraft {
     private String gameId = "";
     private String gameHash = "";
     private String characterName = "";
+    private Map<String, String> ruleModeSelections = new LinkedHashMap<>();
     private String raceId = "";
     private String classId = "";
     private Map<String, Integer> attributeScores = new LinkedHashMap<>();
@@ -84,6 +85,22 @@ public class CharacterDraft {
 
     public void setCharacterName(String characterName) {
         this.characterName = Objects.toString(characterName, "").trim();
+    }
+
+    public Map<String, String> getRuleModeSelections() {
+        return new LinkedHashMap<>(ruleModeSelections);
+    }
+
+    public void setRuleModeSelections(Map<String, String> ruleModeSelections) {
+        Map<String, String> safeValues = Objects.requireNonNullElse(ruleModeSelections, Map.of());
+        LinkedHashMap<String, String> copy = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : safeValues.entrySet()) {
+            String key = Objects.toString(entry.getKey(), "").trim();
+            if (!key.isEmpty()) {
+                copy.put(key, Objects.toString(entry.getValue(), "").trim());
+            }
+        }
+        this.ruleModeSelections = copy;
     }
 
     public String getRaceId() {

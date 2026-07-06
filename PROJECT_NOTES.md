@@ -69,7 +69,7 @@ Ruleset builder:
 - Local `.gmrf` download.
 - Server-backed web character draft saves are stored as lightweight `.gmcf` text under `drafts/characters/`, associated with the account and saved ruleset draft. The closed-beta cap is four character drafts per account and two character drafts per saved ruleset.
 - Logged-in users can start character creation directly from a saved server-side ruleset without uploading a local `.gmrf` file.
-- Builder stages for setup, measurements, dice, attribute generation, standard arrays, dice rolling, point buy, attribute types, attributes, hit points, armor class, currency, effect types, statuses, effects, equipment, weapons, skills, spells, races, and classes.
+- Builder stages for setup, measurements, dice, attribute types, attributes, attribute generation, standard arrays, dice rolling, point buy, hit points, armor class, currency, effect types, statuses, effects, equipment, weapons, skills, spells, pantheons, deities, races, and classes.
 - Stage completion is tracked in the `Game` object.
 - Custom labels/system names are supported for some stage labels.
 
@@ -82,6 +82,7 @@ Character generation:
 - Downloading from the web character flow now posts the text draft to `POST /api/characters/export`; the server uses `CharacterFileIO` and the linked saved ruleset to return a final object-backed `.gmcf`.
 - Uploading an object-backed `.gmcf` now posts to `POST /api/characters/import`; the server parses it, matches the source game id to a saved account ruleset, and returns lightweight web draft text so the current UI can resume it.
 - Character creation requires a name before the server character draft is created. The name is stored in lightweight draft text and object-backed `CharacterFile` exports, appears in the saved-character list, and exported files use `<Game name>-<Character name>.gmcf`.
+- Lightweight character drafts and object-backed `CharacterFile` exports now preserve source ruleset mode selections as `ruleMode.*` entries so later migration logic can compare the character baseline against changed rules.
 - Hosted smoke passed for character name requirement, final download filename, and object-backed `.gmcf` upload against a versioned saved game. Next character smoke focus is migration behavior after editing saved server games and loading older characters against the edited ruleset.
 - A richer `gmrules-character` module exists outside this repo with Swing character stages, but the file model pieces needed for export are now present in `gmrules-builder`.
 

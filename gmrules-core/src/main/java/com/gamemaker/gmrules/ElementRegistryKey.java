@@ -18,6 +18,7 @@ import com.gamemaker.gmrules.CharacterElements.Skill;
 import com.gamemaker.gmrules.GameElements.Armor;
 import com.gamemaker.gmrules.GameElements.Creature;
 import com.gamemaker.gmrules.GameElements.Currency;
+import com.gamemaker.gmrules.GameElements.Deity;
 import com.gamemaker.gmrules.GameElements.Equipment;
 import com.gamemaker.gmrules.GameElements.Material;
 import com.gamemaker.gmrules.GameElements.NaturalWeapon;
@@ -81,6 +82,8 @@ public final class ElementRegistryKey<T extends GameElement> implements Serializ
         new ElementRegistryKey<>("statuses", Status.class, ElementRegistry::new);
     public static final ElementRegistryKey<Pantheon> PANTHEONS =
         new ElementRegistryKey<>("pantheons", Pantheon.class, ElementRegistry::new);
+    public static final ElementRegistryKey<Deity> DEITIES =
+        new ElementRegistryKey<>("deities", Deity.class, ElementRegistry::new);
     public static final ElementRegistryKey<Currency> CURRENCIES =
         new ElementRegistryKey<>("currencies", Currency.class, ElementRegistry::new);
     public static final ElementRegistryKey<Material> MATERIALS =
@@ -127,6 +130,7 @@ public final class ElementRegistryKey<T extends GameElement> implements Serializ
         registerKey(keys, EFFECTS);
         registerKey(keys, STATUSES);
         registerKey(keys, PANTHEONS);
+        registerKey(keys, DEITIES);
         registerKey(keys, CURRENCIES);
         registerKey(keys, MATERIALS);
         return keys;
