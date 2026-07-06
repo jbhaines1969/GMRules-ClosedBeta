@@ -21,6 +21,7 @@ const state = {
   chargenGameName: "",
   chargenCharacterName: "",
   chargenRuleModeSelections: {},
+  chargenDiceSubstitutionsUsed: 0,
   chargenDraftText: "",
   chargenCharacterDraftId: "",
   chargenServerSaveInFlight: false,
@@ -6622,6 +6623,20 @@ async function renderCharGenAttributes() {
           </div>
           <div class="list" id="chargenRollList"></div>
           <p id="chargenRollEmpty">${t("attrgen.rolls.empty", "No rolls yet.")}</p>
+          <div class="grid two" id="chargenSubstitutionSection">
+            <div class="field">
+              <label for="chargenSubstitutionIndex">${t("attrgen.dice.substitution.replace", "Replace Roll")}</label>
+              <select id="chargenSubstitutionIndex"></select>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button class="btn ghost" id="chargenSubstituteBtn" type="button">${t(
+                "attrgen.dice.substitution.use",
+                "Use Substitution"
+              )}</button>
+            </div>
+          </div>
+          <p class="field-hint" id="chargenSubstitutionHint"></p>
         </div>
         <div class="field">
           <label>${t("attrgen.attributes", "Attributes")}</label>
@@ -6645,6 +6660,10 @@ async function renderCharGenAttributes() {
     const rollEmpty = document.getElementById("chargenRollEmpty");
     const rollBtn = document.getElementById("chargenRollBtn");
     const applyBtn = document.getElementById("chargenApplyBtn");
+    const substitutionSection = document.getElementById("chargenSubstitutionSection");
+    const substitutionSelect = document.getElementById("chargenSubstitutionIndex");
+    const substituteBtn = document.getElementById("chargenSubstituteBtn");
+    const substitutionHint = document.getElementById("chargenSubstitutionHint");
     const arraySection = document.getElementById("chargenArraySection");
     const arraySelect = document.getElementById("chargenArraySelect");
     const arrayEmpty = document.getElementById("chargenArrayEmpty");
@@ -6664,8 +6683,13 @@ async function renderCharGenAttributes() {
     attributesEmpty.style.display = attributes.length ? "none" : "";
 
     const diceEnabled = isCharGenDiceEnabled(method, attributes);
+    const substitutionEnabled = isCharGenDiceSubstitutionEnabled(method);
+    const substitutionValue = Math.max(0, Math.trunc(Number(method.diceSubstitutionValue || 0)));
+    const maxSubstitutions = Math.max(0, Math.trunc(Number(method.maxDiceSubstitutions || 0)));
     rollBtn.disabled = !diceEnabled;
     applyBtn.disabled = true;
+    substitutionSection.style.display = substitutionEnabled ? "" : "none";
+    substitutionHint.style.display = substitutionEnabled ? "" : "none";
 
     let rollBaselineValues = captureCharGenAttributeValues(attributeInputs);
 
@@ -6677,6 +6701,9 @@ async function renderCharGenAttributes() {
       });
     });
     const renderRolls = () => {
+      const selectedRoll = selectedIndex >= 0 && selectedIndex < rolls.length ? rolls[selectedIndex] : [];
+      const usedSubstitutions = Math.max(0, Math.trunc(Number(state.chargenDiceSubstitutionsUsed || 0)));
+      const remainingSubstitutions = Math.max(0, maxSubstitutions - usedSubstitutions);
       rollList.innerHTML = rolls
         .map((values, index) => {
           const label = formatRollSet(index, values);
@@ -6693,6 +6720,24 @@ async function renderCharGenAttributes() {
         .join("");
       rollEmpty.style.display = rolls.length ? "none" : "";
       applyBtn.disabled = selectedIndex < 0;
+      if (substitutionEnabled) {
+        substitutionSelect.innerHTML = selectedRoll
+          .map((value, index) => {
+            const label = t("attrgen.dice.substitution.option", "Roll {number}: {value}")
+              .replace("{number}", String(index + 1))
+              .replace("{value}", String(value));
+            return `<option value="${index}">${escapeHtml(label)}</option>`;
+          })
+          .join("");
+        substituteBtn.disabled = selectedIndex < 0 || !selectedRoll.length || remainingSubstitutions <= 0;
+        substitutionHint.textContent = t(
+          "attrgen.dice.substitution.remaining",
+          "Substitution value: {value}. Remaining: {remaining} of {max}."
+        )
+          .replace("{value}", String(substitutionValue))
+          .replace("{remaining}", String(remainingSubstitutions))
+          .replace("{max}", String(maxSubstitutions));
+      }
     };
 
     rollBtn.addEventListener("click", () => {
@@ -6730,6 +6775,28 @@ async function renderCharGenAttributes() {
       const values = rolls[selectedIndex];
       const addToBase = shouldAddCharGenRollToBase(method);
       applyCharGenValues(attributeInputs, values, addToBase ? rollBaselineValues : null);
+    });
+
+    substituteBtn.addEventListener("click", () => {
+      if (!substitutionEnabled || selectedIndex < 0 || selectedIndex >= rolls.length) {
+        return;
+      }
+      const usedSubstitutions = Math.max(0, Math.trunc(Number(state.chargenDiceSubstitutionsUsed || 0)));
+      if (usedSubstitutions >= maxSubstitutions) {
+        showToast(t("attrgen.dice.substitution.none_remaining", "No substitutions remain."));
+        return;
+      }
+      const values = rolls[selectedIndex];
+      const replacementIndex = Number(substitutionSelect.value);
+      if (!Array.isArray(values) || !Number.isInteger(replacementIndex) || replacementIndex < 0 || replacementIndex >= values.length) {
+        return;
+      }
+      values[replacementIndex] = substitutionValue;
+      state.chargenDiceSubstitutionsUsed = usedSubstitutions + 1;
+      state.chargenAttributeScores = collectCharGenAttributeScores(attributeInputs);
+      state.chargenAttributes = attributes.slice();
+      saveCharGenDraftLocal();
+      renderRolls();
     });
 
     document.getElementById("chargenBackToIntro").addEventListener("click", () => {
@@ -7130,12 +7197,18 @@ function buildCharGenRules(method) {
   const arrayMode = isCharGenOpenStandardArray(method)
     ? t("attrgen.arrays.mode.open", "Open Values")
     : t("attrgen.arrays.mode.assigned", "Assigned to Attributes");
+  const substitutionText = method.allowDiceSubstitution
+    ? t("attrgen.dice.substitution.summary", "{value}, up to {count}")
+        .replace("{value}", String(Math.max(0, Number(method.diceSubstitutionValue || 0))))
+        .replace("{count}", String(Math.max(0, Number(method.maxDiceSubstitutions || 0))))
+    : t("common.no", "No");
   return [
     `${t("attrgen.type", "Generation Type")}: ${type}`,
     `${t("attrgen.sets", "Attribute Sets")}: ${sets}`,
     `${t("attrgen.selection", "Set Selection")}: ${selection}`,
     `${t("attrgen.assign", "Assign In Order")}: ${assignInOrder}`,
     `${t("attrgen.arrays.mode", "Array Assignment")}: ${arrayMode}`,
+    `${t("attrgen.dice.substitution.enable", "Allow substitution")}: ${substitutionText}`,
     `${t("attrgen.dice", "Dice Terms")}: ${diceText}`,
   ].join("\n");
 }
@@ -7376,6 +7449,7 @@ function buildCharGenDraft() {
     gameName: String(state.chargenGameName || ""),
     characterName: String(state.chargenCharacterName || ""),
     ruleModeSelections: state.chargenRuleModeSelections || {},
+    diceSubstitutionsUsed: Number(state.chargenDiceSubstitutionsUsed || 0),
     raceId: String(state.chargenRaceId || ""),
     classId: String(state.chargenClassId || ""),
     attributeScores: state.chargenAttributeScores || {},
@@ -7390,6 +7464,7 @@ function serializeCharGenDraft(draft) {
   lines.push(`gameHash=${safeDraft.gameHash || ""}`);
   lines.push(`gameName=${safeDraft.gameName || ""}`);
   lines.push(`characterName=${safeDraft.characterName || ""}`);
+  lines.push(`diceSubstitutionsUsed=${Math.max(0, Number(safeDraft.diceSubstitutionsUsed || 0))}`);
   const ruleModes = safeDraft.ruleModeSelections || {};
   Object.keys(ruleModes)
     .sort()
@@ -7427,6 +7502,7 @@ function parseCharGenDraft(text) {
     gameName: "",
     characterName: "",
     ruleModeSelections: {},
+    diceSubstitutionsUsed: 0,
     raceId: "",
     classId: "",
     attributeScores: {},
@@ -7452,6 +7528,9 @@ function parseCharGenDraft(text) {
       draft.gameName = value;
     } else if (key === "characterName") {
       draft.characterName = value;
+    } else if (key === "diceSubstitutionsUsed") {
+      const used = Number(value);
+      draft.diceSubstitutionsUsed = Number.isFinite(used) ? Math.max(0, Math.trunc(used)) : 0;
     } else if (key.startsWith("ruleMode.")) {
       const modeKey = key.slice("ruleMode.".length).trim();
       if (modeKey) {
@@ -7485,6 +7564,7 @@ function applyCharGenDraft(draft) {
   state.chargenGameName = String(safeDraft.gameName || "");
   state.chargenCharacterName = String(safeDraft.characterName || "");
   state.chargenRuleModeSelections = safeDraft.ruleModeSelections || {};
+  state.chargenDiceSubstitutionsUsed = Math.max(0, Number(safeDraft.diceSubstitutionsUsed || 0));
   state.chargenRaceId = String(safeDraft.raceId || "");
   state.chargenClassId = String(safeDraft.classId || "");
   state.chargenAttributeScores = safeDraft.attributeScores || {};
@@ -7501,6 +7581,7 @@ function resetCharGenState() {
   state.chargenGameName = "";
   state.chargenCharacterName = "";
   state.chargenRuleModeSelections = {};
+  state.chargenDiceSubstitutionsUsed = 0;
   state.chargenDraftText = "";
   state.chargenCharacterDraftId = "";
   state.chargenServerSaveInFlight = false;
@@ -8040,6 +8121,14 @@ function isCharGenDiceEnabled(method, attributes) {
   const isDice = type === "dice" || type === "hybrid";
   const terms = Array.isArray(method.diceTerms) ? method.diceTerms : [];
   return isDice && terms.length > 0 && attributes.length > 0;
+}
+
+function isCharGenDiceSubstitutionEnabled(method) {
+  const safeMethod = method || {};
+  const type = String(safeMethod.generationType || "").trim().toLowerCase();
+  const isDice = type === "dice" || type === "hybrid";
+  const maxSubstitutions = Number(safeMethod.maxDiceSubstitutions || 0);
+  return isDice && Boolean(safeMethod.allowDiceSubstitution) && maxSubstitutions > 0;
 }
 
 async function renderSetup() {

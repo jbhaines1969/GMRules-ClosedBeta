@@ -97,6 +97,8 @@ public class CharacterFileBuilder {
         putMode(modes, "attributeGeneration.allowReassignment", attributes.isAllowReassignment());
         putMode(modes, "attributeGeneration.setSelectionMethod", attributes.getSetSelectionMethod());
         putMode(modes, "attributeGeneration.allowDiceSubstitution", attributes.isAllowDiceSubstitution());
+        putMode(modes, "attributeGeneration.diceSubstitutionValue", attributes.getDiceSubstitutionValue());
+        putMode(modes, "attributeGeneration.maxDiceSubstitutions", attributes.getMaxDiceSubstitutions());
         putMode(modes, "attributeGeneration.allowNegativeAttributes", attributes.isAllowNegativeAttributes());
 
         HPMethod hp = safeGame.getHpMethod();

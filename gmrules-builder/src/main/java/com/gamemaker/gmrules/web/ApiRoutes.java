@@ -5012,6 +5012,7 @@ public final class ApiRoutes {
         lines.add("gameHash=" + Objects.toString(safeCharacterFile.getSourceGameHash(), "").trim());
         lines.add("characterName=" + Objects.toString(safeCharacterFile.getCharacterName(), "").trim());
         lines.add("gameName=" + Objects.toString(safeCharacterFile.getSourceGameName(), "").trim());
+        lines.add("diceSubstitutionsUsed=" + safeCharacterFile.getDiceSubstitutionsUsed());
         safeCharacterFile.getRuleModeSelections().entrySet().stream()
             .sorted(Map.Entry.comparingByKey())
             .forEach(entry -> lines.add(
