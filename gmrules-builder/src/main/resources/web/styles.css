@@ -82,6 +82,7 @@ body {
 .topbar-home {
   display: flex;
   justify-content: center;
+  gap: 10px;
 }
 
 .status {

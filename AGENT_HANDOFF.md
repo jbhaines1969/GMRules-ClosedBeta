@@ -77,6 +77,7 @@ Implemented so far:
 - Character creation now prompts for a character name before the intro/save path. Server character drafts require `characterName`, object-backed `CharacterFile` exports carry it, saved-character lists display it, and exported filenames use `<Game name>-<Character name>.gmcf`.
 - Hosted smoke passed for the character name requirement, final download filename, and object-backed `.gmcf` upload against a versioned saved game.
 - A centered topbar Home button was added for logged-in web screens. It appears in the shared header, works from the rules builder and character creator, and returns directly to the user home screen. `node --check gmrules-builder/src/main/resources/web/app.js` passed locally on 2026-07-06 after this change.
+- Account-backed tutorial visited-screen tracking is now wired for logged-in users. The client records first visits to screen keys through `POST /api/tutorial/visited`, reads the set from `/api/session` and `GET /api/tutorial/visited`, and intentionally does not expose this data in admin views. A temporary reusable tutorial modal appears with "The tutorial explanations are triggering this popup"; it uses versioned `placeholder-20260706:<screen>` acknowledgement keys so accounts that were tracked before the popup existed can still smoke-test the placeholder once. A centered topbar Info button sits next to Home and reopens the current screen's tutorial modal on demand. `node --check gmrules-builder/src/main/resources/web/app.js` and `mvn test` passed locally on 2026-07-06 after this change.
 
 External setup completed:
 
@@ -195,6 +196,8 @@ Non-draft:
 - `POST /api/login`
 - `POST /api/logout`
 - `GET /api/session`
+- `GET /api/tutorial/visited`
+- `POST /api/tutorial/visited`
 - `POST /api/feedback`
 - `GET /api/characters`
 - `POST /api/characters`

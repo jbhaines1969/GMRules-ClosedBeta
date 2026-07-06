@@ -115,6 +115,8 @@ public final class ApiRoutes {
         router.add("POST", "/api/login", ApiRoutes::login);
         router.add("POST", "/api/logout", ApiRoutes::logout);
         router.add("GET", "/api/session", ApiRoutes::sessionInfo);
+        router.add("GET", "/api/tutorial/visited", ApiRoutes::listTutorialVisitedScreens);
+        router.add("POST", "/api/tutorial/visited", ApiRoutes::markTutorialVisitedScreens);
         router.add("POST", "/api/feedback", ApiRoutes::submitFeedback);
         router.add("GET", "/api/admin/accounts", ApiRoutes::adminListAccounts);
         router.add("POST", "/api/admin/accounts/unlock", ApiRoutes::adminUnlockAccount);
@@ -534,7 +536,9 @@ public final class ApiRoutes {
                 "legacyGuest",
                 account.isLegacyGuest(),
                 "admin",
-                admin
+                admin,
+                "tutorialVisitedScreens",
+                ctx.getAccountStore().listTutorialVisitedScreens(account.getId())
             ));
         } catch (IllegalArgumentException e) {
             ctx.json(400, Map.of("error", e.getMessage()));
@@ -611,7 +615,9 @@ public final class ApiRoutes {
             "legacyGuest",
             account.isLegacyGuest(),
             "admin",
-            admin
+            admin,
+            "tutorialVisitedScreens",
+            ctx.getAccountStore().listTutorialVisitedScreens(account.getId())
         ));
     }
 
@@ -635,7 +641,49 @@ public final class ApiRoutes {
         payload.put("draftId", session.getDraftId());
         payload.put("draftLocale", resolveDraftLocale(ctx, session.getDraftId()));
         payload.put("completedStages", resolveCompletedStages(ctx, session.getDraftId()));
+        payload.put("tutorialVisitedScreens", session.isLegacyGuest()
+            ? List.of()
+            : ctx.getAccountStore().listTutorialVisitedScreens(session.getUserId()));
         ctx.json(200, payload);
+    }
+
+    private static void listTutorialVisitedScreens(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        List<String> visitedScreens = session.isLegacyGuest()
+            ? List.of()
+            : ctx.getAccountStore().listTutorialVisitedScreens(session.getUserId());
+        ctx.json(200, Map.of(
+            "ok",
+            true,
+            "tutorialVisitedScreens",
+            visitedScreens
+        ));
+    }
+
+    private static void markTutorialVisitedScreens(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap(4096);
+        ArrayList<String> screens = new ArrayList<>();
+        String screen = getString(body, "screen").trim();
+        if (!screen.isEmpty()) {
+            screens.add(screen);
+        }
+        screens.addAll(getStringList(body, "screens"));
+        List<String> visitedScreens = session.isLegacyGuest()
+            ? List.of()
+            : ctx.getAccountStore().markTutorialScreensVisited(session.getUserId(), screens);
+        ctx.json(200, Map.of(
+            "ok",
+            true,
+            "tutorialVisitedScreens",
+            visitedScreens
+        ));
     }
 
     private static void adminListAccounts(RequestContext ctx) throws IOException {

@@ -63,8 +63,11 @@ const steps = [
 const stepRoutes = {};
 const historyRoutes = {};
 const visitedSteps = new Set();
+const tutorialVisitedScreens = new Set();
 const appBackStack = [];
 const SESSION_TOKEN_KEY = "gmrules.web.sessionToken";
+const TUTORIAL_SCREEN_KEY_PATTERN = /^[a-z0-9][a-z0-9._:-]{0,79}$/;
+const TUTORIAL_PLACEHOLDER_VERSION = "placeholder-20260706";
 
 let historyReady = false;
 let historyLocked = false;
@@ -74,6 +77,7 @@ const view = document.getElementById("view");
 const stepIndicator = document.getElementById("stepIndicator");
 const saveStatus = document.getElementById("saveStatus");
 const homeBtn = document.getElementById("homeBtn");
+const tutorialInfoBtn = document.getElementById("tutorialInfoBtn");
 const adminBtn = document.getElementById("adminBtn");
 const feedbackBtn = document.getElementById("feedbackBtn");
 const downloadBtn = document.getElementById("downloadBtn");
@@ -87,6 +91,11 @@ const confirmTitle = document.getElementById("confirmTitle");
 const confirmMessage = document.getElementById("confirmMessage");
 const confirmCancel = document.getElementById("confirmCancel");
 const confirmOk = document.getElementById("confirmOk");
+
+const tutorialModal = document.getElementById("tutorialModal");
+const tutorialTitle = document.getElementById("tutorialTitle");
+const tutorialMessage = document.getElementById("tutorialMessage");
+const tutorialOk = document.getElementById("tutorialOk");
 
 const typeModal = document.getElementById("typeModal");
 const typeTitle = document.getElementById("typeTitle");
@@ -457,6 +466,9 @@ function applyStaticLabels() {
   if (homeBtn) {
     homeBtn.textContent = t("web.home.button", "Home");
   }
+  if (tutorialInfoBtn) {
+    tutorialInfoBtn.textContent = t("web.tutorial.info_button", "Info");
+  }
   if (adminBtn) {
     adminBtn.textContent = t("web.admin.button", "Admin");
   }
@@ -464,6 +476,18 @@ function applyStaticLabels() {
   logoutBtn.textContent = t("web.logout", "Logout");
   confirmTitle.textContent = t("web.confirm.title", "Confirm");
   confirmCancel.textContent = t("common.cancel", "Cancel");
+  if (tutorialTitle) {
+    tutorialTitle.textContent = t("web.tutorial.title", "Tutorial");
+  }
+  if (tutorialMessage) {
+    tutorialMessage.textContent = t(
+      "web.tutorial.placeholder",
+      "The tutorial explanations are triggering this popup"
+    );
+  }
+  if (tutorialOk) {
+    tutorialOk.textContent = t("common.ok", "OK");
+  }
   typeTitle.textContent = t("web.type_modal.title", "Change Attribute Category");
   typeLabel.textContent = t("web.type_modal.type", "Type");
   typeCancel.textContent = t("common.cancel", "Cancel");
@@ -1052,6 +1076,7 @@ function setStep(stepId) {
   }
   state.step = safeStep;
   markVisited(safeStep);
+  markTutorialScreenVisited(safeStep);
   updateStepIndicator();
   renderSidebar();
   if (isSameStep || historyLocked || !historyReady) {
@@ -1108,6 +1133,94 @@ function applyCompletedStages(stageKeys) {
     }
   }
   renderSidebar();
+}
+
+function normalizeTutorialScreenKey(value) {
+  const safeValue = String(value || "").trim().toLowerCase();
+  if (!TUTORIAL_SCREEN_KEY_PATTERN.test(safeValue)) {
+    return "";
+  }
+  return safeValue;
+}
+
+function tutorialSeenKey(screenKey) {
+  const safeKey = normalizeTutorialScreenKey(screenKey);
+  if (!safeKey) {
+    return "";
+  }
+  return `${TUTORIAL_PLACEHOLDER_VERSION}:${safeKey}`;
+}
+
+function applyTutorialVisitedScreens(screenKeys) {
+  tutorialVisitedScreens.clear();
+  const safeKeys = Array.isArray(screenKeys) ? screenKeys : [];
+  safeKeys.forEach((screenKey) => {
+    const safeKey = normalizeTutorialScreenKey(screenKey);
+    if (safeKey) {
+      tutorialVisitedScreens.add(safeKey);
+    }
+  });
+}
+
+function markTutorialScreenVisited(screenKey) {
+  const safeKey = normalizeTutorialScreenKey(screenKey);
+  if (!safeKey || safeKey === "admin") {
+    return;
+  }
+  const shouldPersistTutorial = Boolean(state.sessionToken) && !state.legacyGuest;
+  const safeSeenKey = tutorialSeenKey(safeKey);
+  const alreadyVisited = tutorialVisitedScreens.has(safeKey);
+  const alreadySawTutorial = safeSeenKey ? tutorialVisitedScreens.has(safeSeenKey) : true;
+  if (alreadyVisited && (!shouldPersistTutorial || alreadySawTutorial)) {
+    return;
+  }
+  const screensToRecord = [];
+  if (!alreadyVisited) {
+    tutorialVisitedScreens.add(safeKey);
+    screensToRecord.push(safeKey);
+  }
+  if (shouldPersistTutorial && !alreadySawTutorial && safeSeenKey) {
+    tutorialVisitedScreens.add(safeSeenKey);
+    screensToRecord.push(safeSeenKey);
+    openTutorialPopup();
+  }
+  if (!shouldPersistTutorial || !screensToRecord.length) {
+    return;
+  }
+  api("POST", "/api/tutorial/visited", { screens: screensToRecord })
+    .then((result) => {
+      const visited = result.tutorialVisitedScreens;
+      if (!Array.isArray(visited)) {
+        return;
+      }
+      visited.forEach((entry) => {
+        const normalized = normalizeTutorialScreenKey(entry);
+        if (normalized) {
+          tutorialVisitedScreens.add(normalized);
+        }
+      });
+    })
+    .catch(() => {
+      // Tutorial tracking must not interrupt the builder or character flow.
+    });
+}
+
+function openTutorialPopup() {
+  if (!tutorialModal) {
+    return;
+  }
+  tutorialModal.classList.remove("hidden");
+  window.requestAnimationFrame(() => {
+    if (tutorialOk) {
+      tutorialOk.focus();
+    }
+  });
+}
+
+function closeTutorialPopup() {
+  if (tutorialModal) {
+    tutorialModal.classList.add("hidden");
+  }
 }
 
 function renderSidebar() {
@@ -1208,6 +1321,9 @@ function updateActions() {
   }
   if (homeBtn) {
     homeBtn.style.display = state.sessionToken ? "" : "none";
+  }
+  if (tutorialInfoBtn) {
+    tutorialInfoBtn.style.display = state.sessionToken ? "" : "none";
   }
   if (feedbackBtn) {
     feedbackBtn.style.display = state.sessionToken ? "" : "none";
@@ -1457,6 +1573,10 @@ confirmOk.addEventListener("click", () => {
   }
 });
 
+if (tutorialOk) {
+  tutorialOk.addEventListener("click", closeTutorialPopup);
+}
+
 deleteAccountCancel.addEventListener("click", closeDeleteAccountModal);
 deleteAccountOk.addEventListener("click", submitDeleteAccount);
 deleteAccountPassword.addEventListener("keypress", (event) => {
@@ -1473,6 +1593,9 @@ if (adminBtn) {
 }
 if (homeBtn) {
   homeBtn.addEventListener("click", renderHome);
+}
+if (tutorialInfoBtn) {
+  tutorialInfoBtn.addEventListener("click", openTutorialPopup);
 }
 
 feedbackCancel.addEventListener("click", closeFeedbackModal);
@@ -4725,6 +4848,7 @@ logoutBtn.addEventListener("click", async () => {
   state.admin = false;
   state.draftId = "";
   state.systemNames = {};
+  applyTutorialVisitedScreens([]);
   resetVisited();
   setStep("beta-application");
   setLoggedIn(false);
@@ -4811,6 +4935,7 @@ async function boot() {
     state.accountName = "";
     state.legacyGuest = false;
     state.admin = false;
+    applyTutorialVisitedScreens([]);
     setLoggedIn(false);
     renderCreatePassword(passwordReset.email, passwordReset.token);
     showToast(t("web.login.reset_verified", "Password reset verified. Create a new password to finish."));
@@ -4824,6 +4949,7 @@ async function boot() {
       state.accountName = session.username || "";
       state.legacyGuest = !!session.legacyGuest;
       state.admin = !!session.admin;
+      applyTutorialVisitedScreens(session.tutorialVisitedScreens || []);
       if (session.draftLocale) {
         state.locale = normalizeLocale(session.draftLocale);
         await loadLocalization(state.locale);
@@ -4845,6 +4971,7 @@ async function boot() {
       state.accountName = "";
       state.legacyGuest = false;
       state.admin = false;
+      applyTutorialVisitedScreens([]);
       setLoggedIn(false);
       if (verifiedEmail) {
         clearVerifiedEmailFromUrl();
@@ -4861,6 +4988,7 @@ async function boot() {
     state.accountName = "";
     state.legacyGuest = false;
     state.admin = false;
+    applyTutorialVisitedScreens([]);
     setLoggedIn(false);
     if (verifiedEmail) {
       clearVerifiedEmailFromUrl();
@@ -5261,6 +5389,7 @@ function finishLogin(result) {
   state.accountName = result.username || "";
   state.legacyGuest = !!result.legacyGuest;
   state.admin = !!result.admin;
+  applyTutorialVisitedScreens(result.tutorialVisitedScreens || []);
   setLoggedIn(true);
   state.step = "splash";
   renderHome();

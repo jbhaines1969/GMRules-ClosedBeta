@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
@@ -49,11 +50,14 @@ public final class AccountStore {
     private static final int MAX_CHARACTER_DRAFTS_PER_ACCOUNT = 4;
     private static final int MAX_CHARACTER_DRAFTS_PER_GAME_DRAFT = 2;
     private static final int MAX_FAILED_LOGIN_ATTEMPTS = 3;
+    private static final int MAX_TUTORIAL_VISITED_SCREENS = 200;
+    private static final Pattern TUTORIAL_SCREEN_PATTERN = Pattern.compile("[a-z0-9][a-z0-9._:-]{0,79}");
     private static final String USER_PREFIX = "users.";
     private static final String PENDING_PREFIX = "pending.";
     private static final String DRAFT_PREFIX = "drafts.";
     private static final String CHARACTER_DRAFT_PREFIX = "characterDrafts.";
     private static final String CHARACTER_DRAFT_META_PREFIX = "characterDraft.";
+    private static final String TUTORIAL_VISITED_PREFIX = "tutorialVisited.";
     private static final String PENDING_PURPOSE_CREATE = "create";
     private static final String PENDING_PURPOSE_PASSWORD_RESET = "password-reset";
 
@@ -582,6 +586,45 @@ public final class AccountStore {
         }
     }
 
+    public List<String> listTutorialVisitedScreens(String userId) throws IOException {
+        String safeUserId = normalizeId(userId);
+        if (safeUserId.isEmpty()) {
+            return List.of();
+        }
+        synchronized (lock) {
+            return readTutorialVisitedScreens(loadProperties(), safeUserId);
+        }
+    }
+
+    public List<String> markTutorialScreensVisited(String userId, List<String> screens) throws IOException {
+        String safeUserId = normalizeId(userId);
+        List<String> safeScreens = Objects.requireNonNullElseGet(screens, List::of);
+        if (safeUserId.isEmpty() || safeScreens.isEmpty()) {
+            return safeUserId.isEmpty() ? List.of() : listTutorialVisitedScreens(safeUserId);
+        }
+        synchronized (lock) {
+            Properties properties = loadProperties();
+            Set<String> visitedScreens = new LinkedHashSet<>(readTutorialVisitedScreens(properties, safeUserId));
+            boolean changed = false;
+            for (String screen : safeScreens) {
+                String safeScreen = normalizeTutorialScreenKey(screen);
+                if (safeScreen.isEmpty() || visitedScreens.contains(safeScreen)) {
+                    continue;
+                }
+                if (visitedScreens.size() >= MAX_TUTORIAL_VISITED_SCREENS) {
+                    break;
+                }
+                visitedScreens.add(safeScreen);
+                changed = true;
+            }
+            if (changed) {
+                properties.setProperty(tutorialVisitedKey(safeUserId), String.join(",", visitedScreens));
+                saveProperties(properties);
+            }
+            return List.copyOf(visitedScreens);
+        }
+    }
+
     private void validateEmail(String email) {
         if (!EMAIL_PATTERN.matcher(email).matches()) {
             throw new IllegalArgumentException("Enter a valid email address.");
@@ -609,6 +652,22 @@ public final class AccountStore {
             }
         }
         return ids;
+    }
+
+    private List<String> readTutorialVisitedScreens(Properties properties, String userId) {
+        String raw = Objects.toString(properties.getProperty(tutorialVisitedKey(userId)), "");
+        if (raw.isBlank()) {
+            return List.of();
+        }
+        ArrayList<String> screens = new ArrayList<>();
+        String[] parts = raw.split(",");
+        for (String part : parts) {
+            String safePart = normalizeTutorialScreenKey(part);
+            if (!safePart.isEmpty() && !screens.contains(safePart)) {
+                screens.add(safePart);
+            }
+        }
+        return screens;
     }
 
     private List<String> readCharacterDraftIds(Properties properties, String userId) {
@@ -694,6 +753,7 @@ public final class AccountStore {
         }
         properties.remove(draftKey(userId));
         properties.remove(characterDraftKey(userId));
+        properties.remove(tutorialVisitedKey(userId));
         for (String characterDraftId : characterDraftIds) {
             removeCharacterDraftMetadata(properties, characterDraftId);
         }
@@ -873,6 +933,14 @@ public final class AccountStore {
         return Objects.toString(value, "").trim();
     }
 
+    private String normalizeTutorialScreenKey(String value) {
+        String safeValue = Objects.toString(value, "").trim().toLowerCase(Locale.ROOT);
+        if (!TUTORIAL_SCREEN_PATTERN.matcher(safeValue).matches()) {
+            return "";
+        }
+        return safeValue;
+    }
+
     private String userKey(String username, String suffix) {
         return USER_PREFIX + normalizeEmail(username) + "." + Objects.toString(suffix, "");
     }
@@ -891,6 +959,10 @@ public final class AccountStore {
 
     private String characterDraftMetaKey(String characterDraftId, String suffix) {
         return CHARACTER_DRAFT_META_PREFIX + normalizeId(characterDraftId) + "." + Objects.toString(suffix, "");
+    }
+
+    private String tutorialVisitedKey(String userId) {
+        return TUTORIAL_VISITED_PREFIX + normalizeId(userId);
     }
 
     public static final class Account {
