@@ -1,6 +1,6 @@
 # GMRules Closed Beta Agent Handoff
 
-Updated: 2026-07-05
+Updated: 2026-07-06
 Repo root: `C:\Users\John\IdeaProjects\GMRules-ClosedBeta`
 
 This is the start-here snapshot for recovering the project after context loss or a machine failure.
@@ -76,6 +76,7 @@ Implemented so far:
 - Uploaded object-backed `.gmcf` character files now go through `POST /api/characters/import`, which parses `CharacterFileIO`, matches the source game id to the user's saved rulesets, opens that server draft, and returns lightweight web draft text for the current character UI.
 - Character creation now prompts for a character name before the intro/save path. Server character drafts require `characterName`, object-backed `CharacterFile` exports carry it, saved-character lists display it, and exported filenames use `<Game name>-<Character name>.gmcf`.
 - Hosted smoke passed for the character name requirement, final download filename, and object-backed `.gmcf` upload against a versioned saved game.
+- A centered topbar Home button was added for logged-in web screens. It appears in the shared header, works from the rules builder and character creator, and returns directly to the user home screen. `node --check gmrules-builder/src/main/resources/web/app.js` passed locally on 2026-07-06 after this change.
 
 External setup completed:
 

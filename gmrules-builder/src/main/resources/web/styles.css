@@ -46,7 +46,7 @@ body {
 
 .topbar {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(200px, 2fr) minmax(160px, 1fr) minmax(200px, 1fr);
+  grid-template-columns: minmax(160px, 1.1fr) minmax(160px, 1fr) auto minmax(140px, 1fr) minmax(220px, 1.1fr);
   gap: 12px;
   align-items: center;
   padding: 20px 32px;
@@ -77,6 +77,11 @@ body {
 .step-indicator {
   font-size: 14px;
   color: var(--ink-soft);
+}
+
+.topbar-home {
+  display: flex;
+  justify-content: center;
 }
 
 .status {

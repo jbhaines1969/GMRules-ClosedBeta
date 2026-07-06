@@ -73,6 +73,7 @@ let appBackLocked = false;
 const view = document.getElementById("view");
 const stepIndicator = document.getElementById("stepIndicator");
 const saveStatus = document.getElementById("saveStatus");
+const homeBtn = document.getElementById("homeBtn");
 const adminBtn = document.getElementById("adminBtn");
 const feedbackBtn = document.getElementById("feedbackBtn");
 const downloadBtn = document.getElementById("downloadBtn");
@@ -452,6 +453,9 @@ function applyStaticLabels() {
   saveStatus.textContent = t("web.save.empty", "Not saved yet");
   if (feedbackBtn) {
     feedbackBtn.textContent = t("web.feedback.button", "Report");
+  }
+  if (homeBtn) {
+    homeBtn.textContent = t("web.home.button", "Home");
   }
   if (adminBtn) {
     adminBtn.textContent = t("web.admin.button", "Admin");
@@ -1202,6 +1206,9 @@ function updateActions() {
   if (!downloadBtn) {
     return;
   }
+  if (homeBtn) {
+    homeBtn.style.display = state.sessionToken ? "" : "none";
+  }
   if (feedbackBtn) {
     feedbackBtn.style.display = state.sessionToken ? "" : "none";
   }
@@ -1463,6 +1470,9 @@ if (feedbackBtn) {
 }
 if (adminBtn) {
   adminBtn.addEventListener("click", renderAdmin);
+}
+if (homeBtn) {
+  homeBtn.addEventListener("click", renderHome);
 }
 
 feedbackCancel.addEventListener("click", closeFeedbackModal);
