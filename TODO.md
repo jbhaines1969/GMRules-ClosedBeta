@@ -31,16 +31,19 @@ Updated: 2026-07-05
 - [x] Preserve tester context in feedback payloads: account email/id, draft id, current stage, browser user agent, timestamp, and severity.
 - [x] Decide whether sessions being invalidated on restart is acceptable for closed beta.
 - [x] Add admin-only current logged-in user/session visibility for deploy timing.
+- 
 
 ## UI Polish
 
 - [x] Review the closed-beta signup screen on desktop and mobile.
-- [ ] Make the account/home screen clearer for new users choosing builder vs character generation after beta feedback identifies awkward spots.
+- [x] Make the account/home screen clearer for new users choosing builder vs character generation after beta feedback identifies awkward spots.
+- [ ] Create button for user to navigate help/tutorial popups for non-current screen]
 - [ ] Tighten modal layout for dense edit forms.
 - [ ] Review button hierarchy and action color usage.
 - [ ] Verify mobile behavior for the stage sidebar, lists, long labels, and form grids.
 - [ ] Review all user-facing copy for beta tone and consistency.
-- [ ] Verify French strings are either complete enough for beta or intentionally hidden.
+- [x] Verify French strings are either complete enough for beta or intentionally hidden.
+- 
 
 ## Character Generation
 

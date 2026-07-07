@@ -5725,7 +5725,7 @@ async function startCharacterFromSavedDraft(draftId) {
       state.locale = normalizeLocale(result.locale);
       await loadLocalization(state.locale);
     }
-    renderCharGenName();
+    renderCharGenIntro();
   } catch (error) {
     showToast(error.message);
   }
@@ -6480,6 +6480,32 @@ function hasValidCharGenName() {
   return String(state.chargenCharacterName || "").trim().length > 0;
 }
 
+function renderCharGenLoadError(error, retry) {
+  const message = String(error && error.message ? error.message : error || "").trim()
+    || t("web.error.request_failed", "Request failed");
+  view.innerHTML = `
+    <section class="panel">
+      <h1>${t("web.chargen.load_failed.title", "Character Generator")}</h1>
+      <p>${escapeHtml(message)}</p>
+      <div class="actions-row">
+        <div class="left">
+          <button class="btn ghost" id="chargenErrorHome" type="button">${t("web.home.button", "Home")}</button>
+        </div>
+        <div class="right">
+          <button class="btn" id="chargenErrorRetry" type="button">${t("common.retry", "Try Again")}</button>
+        </div>
+      </div>
+    </section>
+  `;
+  document.getElementById("chargenErrorHome").addEventListener("click", renderHome);
+  document.getElementById("chargenErrorRetry").addEventListener("click", () => {
+    if (typeof retry === "function") {
+      retry();
+    }
+  });
+  showToast(message);
+}
+
 async function renderCharGenName() {
   if (!state.draftId) {
     renderCharGenUpload();
@@ -6521,9 +6547,9 @@ async function renderCharGenName() {
       }
       state.chargenCharacterName = name;
       saveCharGenDraftLocal();
-      renderCharGenIntro();
+      renderCharGenAttributes();
     };
-    document.getElementById("chargenNameBack").addEventListener("click", renderHome);
+    document.getElementById("chargenNameBack").addEventListener("click", renderCharGenIntro);
     document.getElementById("chargenNameContinue").addEventListener("click", submit);
     nameInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
@@ -6535,17 +6561,13 @@ async function renderCharGenName() {
       nameInput.select();
     });
   } catch (error) {
-    showToast(error.message);
+    renderCharGenLoadError(error, renderCharGenName);
   }
 }
 
 async function renderCharGenIntro() {
   if (!state.draftId) {
     renderCharGenUpload();
-    return;
-  }
-  if (!hasValidCharGenName()) {
-    renderCharGenName();
     return;
   }
   setMode("chargen");
@@ -6578,9 +6600,15 @@ async function renderCharGenIntro() {
     `;
 
     document.getElementById("chargenCancel").addEventListener("click", renderHome);
-    document.getElementById("chargenContinue").addEventListener("click", renderCharGenAttributes);
+    document.getElementById("chargenContinue").addEventListener("click", () => {
+      if (!hasValidCharGenName()) {
+        renderCharGenName();
+        return;
+      }
+      renderCharGenAttributes();
+    });
   } catch (error) {
-    showToast(error.message);
+    renderCharGenLoadError(error, renderCharGenIntro);
   }
 }
 
@@ -6820,7 +6848,7 @@ async function renderCharGenAttributes() {
 
     renderRolls();
   } catch (error) {
-    showToast(error.message);
+    renderCharGenLoadError(error, renderCharGenAttributes);
   }
 }
 
@@ -7006,7 +7034,7 @@ async function renderCharGenPointsBuy() {
       renderCharGenRaces();
     });
   } catch (error) {
-    showToast(error.message);
+    renderCharGenLoadError(error, renderCharGenPointsBuy);
   }
 }
 
@@ -7098,7 +7126,7 @@ async function renderCharGenRaces() {
       renderCharGenClasses();
     });
   } catch (error) {
-    showToast(error.message);
+    renderCharGenLoadError(error, renderCharGenRaces);
   }
 }
 
@@ -7181,7 +7209,7 @@ async function renderCharGenClasses() {
       showToast(t("web.chargen.next", "Character creation screens coming next."));
     });
   } catch (error) {
-    showToast(error.message);
+    renderCharGenLoadError(error, renderCharGenClasses);
   }
 }
 
