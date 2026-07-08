@@ -14,6 +14,8 @@ javap -classpath gmrules-builder/target/classes:gmrules-core/target/classes -ver
   | grep -q '/api/characters/import'
 javap -classpath gmrules-builder/target/classes:gmrules-core/target/classes -verbose com.gamemaker.gmrules.web.ApiRoutes \
   | grep -q '/api/characters/export'
+javap -classpath gmrules-builder/target/classes:gmrules-core/target/classes -verbose com.gamemaker.gmrules.web.ApiRoutes \
+  | grep -q '/api/drafts/{id}/chargen/attribute-generation'
 
 echo "Restarting gmrules.service..."
 systemctl restart gmrules
