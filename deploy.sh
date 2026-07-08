@@ -7,7 +7,7 @@ echo "Pulling latest code..."
 git pull
 
 echo "Compiling..."
-mvn -q -pl gmrules-builder -am -DskipTests clean compile
+mvn -q -DskipTests clean install
 
 echo "Verifying compiled API routes..."
 javap -classpath gmrules-builder/target/classes:gmrules-core/target/classes -verbose com.gamemaker.gmrules.web.ApiRoutes \
@@ -16,6 +16,9 @@ javap -classpath gmrules-builder/target/classes:gmrules-core/target/classes -ver
   | grep -q '/api/characters/export'
 javap -classpath gmrules-builder/target/classes:gmrules-core/target/classes -verbose com.gamemaker.gmrules.web.ApiRoutes \
   | grep -q '/api/drafts/{id}/chargen/attribute-generation'
+javap -classpath ~/.m2/repository/com/gamemaker/gmrules/gmrules-core/1.0-SNAPSHOT/gmrules-core-1.0-SNAPSHOT.jar \
+  com.gamemaker.gmrules.GameMechanics.AttributeGenerationMethod \
+  | grep -q 'getStandardArrayAssignmentMode'
 
 echo "Restarting gmrules.service..."
 systemctl restart gmrules

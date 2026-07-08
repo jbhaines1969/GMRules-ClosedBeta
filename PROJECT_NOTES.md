@@ -1,6 +1,6 @@
 # GMRules Closed Beta Project Notes
 
-Updated: 2026-07-05
+Updated: 2026-07-08
 
 ## Current Status
 
@@ -98,7 +98,8 @@ Beta mechanics:
 
 Deployment and operations:
 
-- The production systemd service currently launches Maven directly with `ExecStart=/usr/bin/mvn -pl gmrules-builder exec:java -Dexec.mainClass=com.gamemaker.gmrules.web.WebMain`. `deploy.sh` clean-compiles with `mvn -q -pl gmrules-builder -am -DskipTests clean compile` before restart to match that launcher, then verifies compiled `ApiRoutes.class` contains the character import/export routes and the character-generation attribute route. The shaded jar still exists for package-based deploys but is not the current service entry point.
+- The production systemd service currently launches Maven directly with `ExecStart=/usr/bin/mvn -pl gmrules-builder exec:java -Dexec.mainClass=com.gamemaker.gmrules.web.WebMain`. `deploy.sh` now runs `mvn -q -DskipTests clean install` before restart so both compiled classes and the local Maven snapshot used by `exec:java` are current, then verifies compiled character routes and the installed core method needed by character generation. The shaded jar still exists for package-based deploys but is not the current service entry point.
+- Hosted diagnostics on 2026-07-08 confirmed the previous character-generation `504` shifted to a fast Java `500` caused by a stale installed `gmrules-core` snapshot. After installing the reactor, older saved `.gmrf` rulesets exposed a legacy deserialization issue where newly added `pantheons`/`deities` registries could be absent. `Game.readObject` now repairs missing element registries during load.
 - Production `.env` is confirmed to point `GMRULES_WEB_PUBLICBASEURL` at `https://gmrules.com`, so verification links use the user-facing domain.
 - `.env.example` now documents the current hosted service configuration, data paths, host/port, public base URL, Resend settings, NDA audit recipient, feedback storage, and Discord webhook variables.
 - Reverse-proxy and security-header expectations are documented in `docs/REVERSE_PROXY_SECURITY.md`; production values still need to be confirmed against the Droplet's actual Nginx config.

@@ -300,6 +300,16 @@ public class Game extends GameElement {
         elementRegistryByName.put(key.getName(), key);
     }
 
+    private void ensureElementRegistry(ElementRegistryKey<?> key) {
+        ElementRegistry<? extends GameElement> registry = elementRegistries.get(key);
+        if (registry == null) {
+            registry = key.createDefault();
+            elementRegistries.put(key, registry);
+        }
+        elementRegistryByName.put(key.getName(), key);
+        arrayRegistry.put(key.getName(), registry.getMutableItems());
+    }
+
     private ElementRegistryKey<?> getElementRegistryKey(String arrayName) {
         return elementRegistryByName.get(Objects.toString(arrayName, ""));
     }
@@ -1201,6 +1211,49 @@ public class Game extends GameElement {
 
     private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
         stream.defaultReadObject();
+        if (arrayRegistry == null) {
+            arrayRegistry = new HashMap<>();
+        }
+        if (systemConfig == null) {
+            systemConfig = new HashMap<>();
+        }
+        if (systemNames == null) {
+            systemNames = new HashMap<>();
+        }
+        if (timeUnits == null) {
+            timeUnits = new LinkedHashMap<>();
+        }
+        if (registries == null) {
+            registries = new HashMap<>();
+        }
+        if (elementRegistries == null) {
+            elementRegistries = new HashMap<>();
+        }
+        if (elementRegistryByName == null) {
+            elementRegistryByName = new HashMap<>();
+        }
+        arrayHandler = new ArrayHandler(arrayRegistry);
+        ensureElementRegistry(ElementRegistryKey.ATTRIBUTES);
+        ensureElementRegistry(ElementRegistryKey.DIFFICULTY_SYSTEMS);
+        ensureElementRegistry(ElementRegistryKey.SPELL_COMPONENTS);
+        ensureElementRegistry(ElementRegistryKey.SKILLS);
+        ensureElementRegistry(ElementRegistryKey.CHARACTER_CLASSES);
+        ensureElementRegistry(ElementRegistryKey.RACES);
+        ensureElementRegistry(ElementRegistryKey.ADVANTAGES);
+        ensureElementRegistry(ElementRegistryKey.FLAWS);
+        ensureElementRegistry(ElementRegistryKey.CREATURES);
+        ensureElementRegistry(ElementRegistryKey.SPELLS);
+        ensureElementRegistry(ElementRegistryKey.SOFTWARE);
+        ensureElementRegistry(ElementRegistryKey.EQUIPMENT);
+        ensureElementRegistry(ElementRegistryKey.WEAPONS);
+        ensureElementRegistry(ElementRegistryKey.ARMOR);
+        ensureElementRegistry(ElementRegistryKey.NATURAL_WEAPONS);
+        ensureElementRegistry(ElementRegistryKey.EFFECTS);
+        ensureElementRegistry(ElementRegistryKey.STATUSES);
+        ensureElementRegistry(ElementRegistryKey.PANTHEONS);
+        ensureElementRegistry(ElementRegistryKey.DEITIES);
+        ensureElementRegistry(ElementRegistryKey.CURRENCIES);
+        ensureElementRegistry(ElementRegistryKey.MATERIALS);
         if (completedStages == null) {
             completedStages = new ArrayList<>();
         }

@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-07-05
+Updated: 2026-07-08
 
 ## Beta Launch Blockers
 
@@ -59,6 +59,7 @@ Updated: 2026-07-05
 - [x] Avoid server character autosave from the Character Name screen until the attribute screen has loaded.
 - [x] Improve frontend API error handling so HTML error pages are reported with the endpoint/status instead of `Unexpected token '<'`.
 - [x] Diagnose hosted character load failure as a `504` on `/api/drafts/{id}/chargen/attribute-generation`; avoid server autosave from the Game Setup intro screen and make draft file saves atomic under the draft lock.
+- [x] Diagnose follow-up hosted `GET /api/drafts` server error after installing the reactor: legacy `.gmrf` files can deserialize without newly added pantheon/deity registries.
 - [ ] Deploy and hosted-smoke the current character loading fix; if HTML still appears, use the new endpoint/status message to identify the server or reverse-proxy route returning it.
 - [ ] Smoke-test migration behavior: edit a saved server game, upload/download it, and load older characters against the edited ruleset.
 - [ ] Continue the web character flow after class selection: skills, equipment/weapons/armor, starting money, armor class, final `.gmcf` export.
