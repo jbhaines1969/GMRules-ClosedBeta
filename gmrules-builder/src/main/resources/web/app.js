@@ -6610,7 +6610,7 @@ async function renderCharGenIntro() {
     const safeDescription = description || t("common.no_data", "No data available.");
     state.chargenGameId = String(data.id || "");
     state.chargenGameName = String(data.name || "");
-    saveCharGenDraftLocal();
+    saveCharGenDraftLocal({ server: false });
     view.innerHTML = `
       <section class="panel">
         <h1>${t("setup.title", "Game Setup")}</h1>

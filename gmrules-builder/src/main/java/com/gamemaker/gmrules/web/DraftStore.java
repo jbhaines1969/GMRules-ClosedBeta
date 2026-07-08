@@ -13,12 +13,12 @@ import com.gamemaker.gmrules.Game;
 import com.gamemaker.gmrules.GameIO;
 
 import java.io.ByteArrayOutputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -146,9 +146,13 @@ public final class DraftStore {
     private void saveDraft(Draft draft) throws IOException {
         Path path = draft.getPath();
         ensureDraftDirectory();
-        try (ObjectOutputStream outputStream = new ObjectOutputStream(new FileOutputStream(path.toFile()))) {
-            outputStream.writeObject(draft.getGame());
-        }
+        draft.withLock(() -> {
+            byte[] data = serializeGame(draft.getGame());
+            Path tempFile = path.resolveSibling(path.getFileName() + ".tmp");
+            Files.write(tempFile, data);
+            Files.move(tempFile, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            return null;
+        });
     }
 
     private byte[] serializeGame(Game game) throws IOException {
