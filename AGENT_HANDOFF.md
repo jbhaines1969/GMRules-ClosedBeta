@@ -84,7 +84,7 @@ Implemented so far:
 - Character generator loading failures after the name/intro/attribute/point-buy/race/class screens now render an inline Character Generator error panel with Home and Try Again actions instead of leaving the main content stuck on "Loading...". Local reproduction against the current code did not find a frontend or backend exception for the intro-to-attributes transition; the backend `/api/drafts/{id}/chargen/attribute-generation` route returned successfully for a configured dice/substitution/attribute ruleset, and a headless Chrome smoke confirmed the normal intro Continue path still reaches Attribute Generation. `node --check gmrules-builder/src/main/resources/web/app.js` and `mvn test` passed locally on 2026-07-07 after this change. `git diff --check` was blocked only by pre-existing trailing whitespace in the already-modified `TODO.md`.
 - New character creation now confirms the selected game before prompting for the character name. The saved-ruleset Create Character path opens the Game Setup confirmation first; Continue opens Character Name when no name exists, and name submission proceeds to Attribute Generation. A headless Chrome smoke with stubbed API responses confirmed Game Setup -> Character Name -> Attribute Generation with no runtime errors on 2026-07-07.
 - Current interrupted bug state on 2026-07-07: production showed `Unexpected token '<', "<html> <h"... is not valid JSON` while working on the character creation loading bug. Local `app.js` now avoids server autosave from Character Name until Attribute Generation loads, saves the character draft after Attribute Generation renders, and wraps shared API JSON parsing so HTML responses report the endpoint/status instead of a raw JSON syntax error. `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `git diff --check` passed locally after this parser hardening; `git diff --check` only emitted the existing line-ending warning for `app.js`. This change has not been deployed or hosted-smoked yet.
-- Follow-up hosted smoke exposed the specific server-side symptom: `GET /api/drafts/{id}/chargen/attribute-generation` returned an HTML `504` page through the proxy. Local fixes now also avoid server autosave from the Game Setup intro screen and make `DraftStore.saveDraft` serialize/replace `.gmrf` files atomically under the draft lock. `deploy.sh` now verifies the compiled `ApiRoutes.class` contains `/api/drafts/{id}/chargen/attribute-generation` as well as the character import/export routes. `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `git diff --check` passed locally after this 504 mitigation; `git diff --check` only emitted line-ending warnings.
+- Follow-up hosted smoke exposed the specific server-side symptom: `GET /api/drafts/{id}/chargen/attribute-generation` returned an HTML `504` page through the proxy. Local fixes now also avoid server autosave from the Game Setup intro screen and make `DraftStore.saveDraft` serialize/replace `.gmrf` files atomically under the draft lock. `deploy.sh` now verifies the compiled `ApiRoutes.class` contains `/api/drafts/{id}/chargen/attribute-generation` as well as the character import/export routes. `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `git diff --check` passed locally after this 504 mitigation; `git diff --check` only emitted line-ending warnings. User pushed and deployed these changes before leaving, but the post-deploy 504 diagnostics below still need to be run.
 
 External setup completed:
 
@@ -94,6 +94,7 @@ External setup completed:
 
 Next repo steps:
 
+- Run the post-deploy 504 diagnostics for the character-generation attribute route. In the Droplet console, the user is root; do not add `sudo`.
 - Verify and smoke-test the new character download flow: create/select attributes, race, and class, click Download, and confirm the returned `.gmcf` is accepted by `CharacterFileIO.readCharacterFile`.
 - Smoke-test character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older characters against the edited ruleset.
 - Compare the Droplet's Nginx config and response headers against `docs/REVERSE_PROXY_SECURITY.md`; fill in the production details section.
@@ -285,7 +286,29 @@ It auto-selects the single `/tmp/gmrules-backup-*.tar.gz.gpg` file when only one
 
 ## Next Best Moves
 
-1. Deploy and hosted-smoke the current character loading fix. Re-test saved-ruleset Create Character -> Game Setup -> Character Name -> Attribute Generation. If the site still reports an HTML response, use the new endpoint/status message to identify the server or reverse-proxy route returning HTML.
-2. Smoke-test character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older characters against the edited ruleset.
-3. Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md`, then fill in the production details section.
-4. Continue the small controlled beta cohort.
+1. Run the post-deploy 504 diagnostics for the character-generation attribute route:
+
+```bash
+cd /opt/gmrules
+git pull
+mvn -q -pl gmrules-builder -am -DskipTests clean compile
+
+javap -classpath gmrules-builder/target/classes:gmrules-core/target/classes -verbose com.gamemaker.gmrules.web.ApiRoutes \
+  | grep -F '/api/drafts/{id}/chargen/attribute-generation'
+
+systemctl show -p ExecStart --value gmrules
+systemctl restart gmrules
+journalctl -u gmrules -n 80 --no-pager
+```
+
+After reproducing the 504 once, check request logging:
+
+```bash
+grep 'chargen/attribute-generation' server-data/request-logs/$(date -u +%F).jsonl | tail -n 10
+```
+
+Interpretation: if `javap` finds nothing, compile/deploy is stale or wrong; if the request log has no entry after the 504, Java did not finish before Nginx timed out or Nginx did not reach the app; if request log shows a long `durationMs`, the backend route is hanging/slow; if request log shows a fast `200`, proxy/browser may be hitting a different service/process than the one restarted.
+2. Deploy and hosted-smoke the current character loading fix. Re-test saved-ruleset Create Character -> Game Setup -> Character Name -> Attribute Generation. If the site still reports an HTML response, use the new endpoint/status message to identify the server or reverse-proxy route returning HTML.
+3. Smoke-test character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older characters against the edited ruleset.
+4. Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md`, then fill in the production details section.
+5. Continue the small controlled beta cohort.
