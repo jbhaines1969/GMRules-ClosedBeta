@@ -84,7 +84,8 @@ Implemented so far:
 - Character generator loading failures after the name/intro/attribute/point-buy/race/class screens now render an inline Character Generator error panel with Home and Try Again actions instead of leaving the main content stuck on "Loading...". Local reproduction against the current code did not find a frontend or backend exception for the intro-to-attributes transition; the backend `/api/drafts/{id}/chargen/attribute-generation` route returned successfully for a configured dice/substitution/attribute ruleset, and a headless Chrome smoke confirmed the normal intro Continue path still reaches Attribute Generation. `node --check gmrules-builder/src/main/resources/web/app.js` and `mvn test` passed locally on 2026-07-07 after this change. `git diff --check` was blocked only by pre-existing trailing whitespace in the already-modified `TODO.md`.
 - New character creation now confirms the selected game before prompting for the character name. The saved-ruleset Create Character path opens the Game Setup confirmation first; Continue opens Character Name when no name exists, and name submission proceeds to Attribute Generation. A headless Chrome smoke with stubbed API responses confirmed Game Setup -> Character Name -> Attribute Generation with no runtime errors on 2026-07-07.
 - Current interrupted bug state on 2026-07-07: production showed `Unexpected token '<', "<html> <h"... is not valid JSON` while working on the character creation loading bug. Local `app.js` now avoids server autosave from Character Name until Attribute Generation loads, saves the character draft after Attribute Generation renders, and wraps shared API JSON parsing so HTML responses report the endpoint/status instead of a raw JSON syntax error. `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `git diff --check` passed locally after this parser hardening; `git diff --check` only emitted the existing line-ending warning for `app.js`. This change has not been deployed or hosted-smoked yet.
-- Follow-up hosted smoke exposed the specific server-side symptom: `GET /api/drafts/{id}/chargen/attribute-generation` returned an HTML `504` page through the proxy. Local fixes now also avoid server autosave from the Game Setup intro screen and make `DraftStore.saveDraft` serialize/replace `.gmrf` files atomically under the draft lock. Hosted diagnostics on 2026-07-08 found the route existed but Java returned fast `500` because the Maven `exec:java` launcher loaded a stale installed `gmrules-core` snapshot missing `AttributeGenerationMethod.getStandardArrayAssignmentMode()`. Running `mvn -q -DskipTests install` updated the installed snapshot. After that, `GET /api/drafts` failed on a legacy saved `.gmrf` because newly added `deities`/`pantheons` element registries were absent after deserialization. `Game.readObject` now repairs missing registry maps and element registry keys without clearing saved content. Local `mvn test` passed after this fix. This fix still needs to be pushed/deployed and hosted-smoked.
+- Follow-up hosted smoke exposed the specific server-side symptom: `GET /api/drafts/{id}/chargen/attribute-generation` returned an HTML `504` page through the proxy. Local fixes now also avoid server autosave from the Game Setup intro screen and make `DraftStore.saveDraft` serialize/replace `.gmrf` files atomically under the draft lock. Hosted diagnostics on 2026-07-08 found the route existed but Java returned fast `500` because the Maven `exec:java` launcher loaded a stale installed `gmrules-core` snapshot missing `AttributeGenerationMethod.getStandardArrayAssignmentMode()`. Running `mvn -q -DskipTests install` updated the installed snapshot. After that, `GET /api/drafts` failed on a legacy saved `.gmrf` because newly added `deities`/`pantheons` element registries were absent after deserialization. `Game.readObject` now repairs missing registry maps and element registry keys without clearing saved content. Local `mvn test` passed after this fix, and hosted smoke passed after deploy: saved draft listing works again and saved-ruleset character creation reaches Attribute Generation.
+- Source-of-truth warning: changes to `Game.java`, `ElementRegistryKey`, serialized fields, registry-backed game content, or character draft/file formats need explicit old-save migration/default handling before deploy. At minimum, update `Game.readObject` defaults and add/refresh compatibility smoke tests or fixtures for older `.gmrf` rulesets, account-backed lightweight character drafts, and object-backed `.gmcf` files.
 
 External setup completed:
 
@@ -94,9 +95,9 @@ External setup completed:
 
 Next repo steps:
 
-- Deploy the `Game.readObject` legacy registry repair and updated `deploy.sh`, then confirm `GET /api/drafts` lists older saved rulesets and saved-ruleset Create Character reaches Attribute Generation. In the Droplet console, the user is root; do not add `sudo`.
 - Verify and smoke-test the new character download flow: create/select attributes, race, and class, click Download, and confirm the returned `.gmcf` is accepted by `CharacterFileIO.readCharacterFile`.
-- Smoke-test character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older characters against the edited ruleset.
+- Smoke-test ruleset and character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older saved character drafts plus object-backed `.gmcf` files against the edited ruleset.
+- Add compatibility coverage for older `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` files before future `Game.java`, registry, or character-format changes.
 - Compare the Droplet's Nginx config and response headers against `docs/REVERSE_PROXY_SECURITY.md`; fill in the production details section.
 - Do not commit unless the user explicitly asks.
 
@@ -286,24 +287,8 @@ It auto-selects the single `/tmp/gmrules-backup-*.tar.gz.gpg` file when only one
 
 ## Next Best Moves
 
-1. Deploy and hosted-smoke the legacy registry repair:
-
-```bash
-cd /opt/gmrules
-git pull
-MAVEN_OPTS="-Xmx256m" mvn -q -DskipTests clean install
-systemctl restart gmrules
-```
-
-Then verify the saved ruleset list and character attribute route:
-
-```bash
-grep '"/api/drafts"' server-data/request-logs/$(date -u +%F).jsonl | tail -n 5
-grep 'chargen/attribute-generation' server-data/request-logs/$(date -u +%F).jsonl | tail -n 10
-```
-
-Re-test saved-ruleset list loading and saved-ruleset Create Character -> Game Setup -> Character Name -> Attribute Generation. If either path still reports `Server error`, inspect `journalctl -u gmrules --since "<time>" --no-pager` and the matching request-log route.
+1. Add compatibility coverage for older `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` files, especially around `Game.readObject`, `ElementRegistryKey`, newly added registry-backed content, `CharacterDraft`, `CharacterFileIO`, and rule-mode snapshot migration.
 2. Verify and smoke-test the new character download flow: create/select attributes, race, and class, click Download, and confirm the returned `.gmcf` is accepted by `CharacterFileIO.readCharacterFile`.
-3. Smoke-test character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older characters against the edited ruleset.
+3. Smoke-test ruleset and character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older saved character drafts plus object-backed `.gmcf` files against the edited ruleset.
 4. Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md`, then fill in the production details section.
 5. Continue the small controlled beta cohort.
