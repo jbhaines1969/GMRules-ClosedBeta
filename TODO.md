@@ -55,6 +55,10 @@ Updated: 2026-07-05
 - [x] Add upload/resume bridge for object-backed `.gmcf` files produced by server export.
 - [x] Require a character name before server character draft creation and name exported files `<Game name>-<Character name>.gmcf`.
 - [x] Smoke-test character name requirement, final download filename, and object-backed `.gmcf` upload against a versioned saved game.
+- [x] Add inline Character Generator error handling so load failures after Game Setup, Character Name, attributes, race, or class do not leave the UI stuck on Loading.
+- [x] Avoid server character autosave from the Character Name screen until the attribute screen has loaded.
+- [x] Improve frontend API error handling so HTML error pages are reported with the endpoint/status instead of `Unexpected token '<'`.
+- [ ] Deploy and hosted-smoke the current character loading fix; if HTML still appears, use the new endpoint/status message to identify the server or reverse-proxy route returning it.
 - [ ] Smoke-test migration behavior: edit a saved server game, upload/download it, and load older characters against the edited ruleset.
 - [ ] Continue the web character flow after class selection: skills, equipment/weapons/armor, starting money, armor class, final `.gmcf` export.
 - [ ] Add compatibility tests for `.gmrf` plus `.gmcf` resume behavior.

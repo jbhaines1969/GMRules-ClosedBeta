@@ -922,8 +922,7 @@ async function api(method, path, body) {
     options.body = JSON.stringify(body);
   }
   const response = await fetch(path, options);
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
+  const data = await readApiJson(response, path);
   if (!response.ok) {
     const error = new Error(data.error || t("web.error.request_failed", "Request failed"));
     error.status = response.status;
@@ -945,8 +944,7 @@ async function apiBinary(method, path, buffer) {
     cache: "no-store",
     body: buffer,
   });
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
+  const data = await readApiJson(response, path);
   if (!response.ok) {
     const error = new Error(data.error || t("web.error.request_failed", "Request failed"));
     error.status = response.status;
@@ -955,6 +953,39 @@ async function apiBinary(method, path, buffer) {
     throw error;
   }
   return data;
+}
+
+async function readApiJson(response, path) {
+  const text = await response.text();
+  if (!text) {
+    return {};
+  }
+  try {
+    return JSON.parse(text);
+  } catch (parseError) {
+    const error = new Error(buildNonJsonApiMessage(response, path, text));
+    error.status = response.status;
+    error.code = "non_json_response";
+    error.data = {};
+    throw error;
+  }
+}
+
+function buildNonJsonApiMessage(response, path, text) {
+  const status = response.status ? ` (${response.status})` : "";
+  const contentType = String(response.headers.get("Content-Type") || "").toLowerCase();
+  const trimmed = String(text || "").trim();
+  if (contentType.includes("html") || trimmed.toLowerCase().startsWith("<!doctype") || trimmed.toLowerCase().startsWith("<html")) {
+    return t(
+      "web.error.non_json_html",
+      "Server returned an HTML page for {path}{status}. Refresh and try again; if it repeats, the deployed server or proxy may be serving the wrong route."
+    )
+      .replace("{path}", path)
+      .replace("{status}", status);
+  }
+  return t("web.error.non_json", "Server returned an unexpected response for {path}{status}.")
+    .replace("{path}", path)
+    .replace("{status}", status);
 }
 
 async function apiBinaryCharacterImport(file) {
@@ -4904,7 +4935,7 @@ async function downloadDraft() {
       cache: "no-store",
     });
     if (!response.ok) {
-      const payload = await response.json();
+      const payload = await readApiJson(response, `/api/drafts/${state.draftId}/export`);
       throw new Error(payload.error || t("web.error.download_failed", "Download failed"));
     }
     const blob = await response.blob();
@@ -6546,7 +6577,7 @@ async function renderCharGenName() {
         return;
       }
       state.chargenCharacterName = name;
-      saveCharGenDraftLocal();
+      saveCharGenDraftLocal({ server: false });
       renderCharGenAttributes();
     };
     document.getElementById("chargenNameBack").addEventListener("click", renderCharGenIntro);
@@ -6847,6 +6878,7 @@ async function renderCharGenAttributes() {
     });
 
     renderRolls();
+    saveCharGenDraftLocal();
   } catch (error) {
     renderCharGenLoadError(error, renderCharGenAttributes);
   }
@@ -7616,7 +7648,7 @@ function resetCharGenState() {
   state.chargenServerSaveQueued = false;
 }
 
-function saveCharGenDraftLocal() {
+function saveCharGenDraftLocal(options = {}) {
   const draft = buildCharGenDraft();
   const text = serializeCharGenDraft(draft);
   state.chargenDraftText = text;
@@ -7625,7 +7657,9 @@ function saveCharGenDraftLocal() {
   } catch (error) {
     // Ignore storage failures.
   }
-  saveCharGenDraftServer(text);
+  if (options.server !== false) {
+    saveCharGenDraftServer(text);
+  }
 }
 
 function saveCharGenDraftServer(text) {
