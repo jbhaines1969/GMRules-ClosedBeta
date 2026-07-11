@@ -17,6 +17,7 @@ import com.gamemaker.gmrules.Game;
 import com.gamemaker.gmrules.GameElements.Armor;
 import com.gamemaker.gmrules.GameElements.Currency;
 import com.gamemaker.gmrules.GameElements.Equipment;
+import com.gamemaker.gmrules.GameElements.Spell;
 import com.gamemaker.gmrules.GameElements.Weapon;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -47,6 +48,7 @@ public class CharacterFile implements Serializable {
     private List<String> racialTraitNames = new ArrayList<>();
     private Map<Skill, Integer> classSkills = new LinkedHashMap<>();
     private Map<Skill, Integer> selectedSkills = new LinkedHashMap<>();
+    private List<Spell> selectedSpells = new ArrayList<>();
     private List<Weapon> selectedWeapons = new ArrayList<>();
     private List<Armor> selectedArmor = new ArrayList<>();
     private List<Equipment> selectedEquipment = new ArrayList<>();
@@ -176,6 +178,14 @@ public class CharacterFile implements Serializable {
         this.selectedSkills = copySkillMap(Objects.requireNonNullElse(selectedSkills, Map.of()));
     }
 
+    public List<Spell> getSelectedSpells() {
+        return copyList(selectedSpells);
+    }
+
+    public void setSelectedSpells(List<Spell> selectedSpells) {
+        this.selectedSpells = copyList(Objects.requireNonNullElse(selectedSpells, List.of()));
+    }
+
     public List<Weapon> getSelectedWeapons() {
         return copyList(selectedWeapons);
     }
@@ -235,6 +245,7 @@ public class CharacterFile implements Serializable {
     private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
         stream.defaultReadObject();
         ruleModeSelections = new LinkedHashMap<>(Objects.requireNonNullElse(ruleModeSelections, Map.of()));
+        selectedSpells = new ArrayList<>(Objects.requireNonNullElse(selectedSpells, List.of()));
     }
 
     private static <T extends Serializable> List<T> copyList(List<T> values) {

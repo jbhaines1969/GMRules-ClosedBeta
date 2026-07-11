@@ -16,6 +16,16 @@ const state = {
   chargenPointBuyBaselineScores: {},
   chargenRaceId: "",
   chargenClassId: "",
+  chargenClassSkillRanks: {},
+  chargenSelectedSkillRanks: {},
+  chargenSelectedSpellIds: [],
+  chargenSelectedEquipmentIds: [],
+  chargenSelectedWeaponIds: [],
+  chargenSelectedArmorIds: [],
+  chargenStartingMoneyMethod: "base",
+  chargenStartingMoneyAmount: 0,
+  chargenStartingMoneyCurrencyId: "",
+  chargenResolvedArmorClass: 0,
   chargenGameId: "",
   chargenGameHash: "",
   chargenGameName: "",
@@ -6492,7 +6502,17 @@ function renderCharGenResume() {
         return;
       }
       const target = resolveCharGenResumeStage();
-      if (target === "classes") {
+      if (target === "armor") {
+        renderCharGenArmor();
+      } else if (target === "weapons") {
+        renderCharGenWeapons();
+      } else if (target === "equipment") {
+        renderCharGenEquipment();
+      } else if (target === "spells") {
+        renderCharGenSpells();
+      } else if (target === "skills") {
+        renderCharGenSkills();
+      } else if (target === "classes") {
         renderCharGenClasses();
       } else if (target === "races") {
         renderCharGenRaces();
@@ -7081,13 +7101,19 @@ async function renderCharGenRaces() {
   try {
     const data = await api("GET", `/api/drafts/${state.draftId}/races`);
     const races = Array.isArray(data.races) ? data.races : [];
+    const hasRaces = races.length > 0;
+    const emptyNotice = t(
+      "web.chargen.races.empty_system",
+      "This game system does not use races, proceed to next screen."
+    );
 
     view.innerHTML = `
       <section class="panel">
         <h1>${t("races.title", "Races")}</h1>
+        ${hasRaces ? "" : `<p class="field-hint">${emptyNotice}</p>`}
         <div class="field">
           <label for="chargenRaceSelect">${t("races.select", "Select Race")}</label>
-          <select id="chargenRaceSelect"></select>
+          <select id="chargenRaceSelect" ${hasRaces ? "" : "disabled"}></select>
         </div>
         <div class="field">
           <label for="chargenRaceDescription">${t("common.description", "Description")}</label>
@@ -7173,13 +7199,19 @@ async function renderCharGenClasses() {
   try {
     const data = await api("GET", `/api/drafts/${state.draftId}/classes`);
     const classes = Array.isArray(data.classes) ? data.classes : [];
+    const hasClasses = classes.length > 0;
+    const emptyNotice = t(
+      "web.chargen.classes.empty_system",
+      "This game system does not use classes, proceed to next screen."
+    );
 
     view.innerHTML = `
       <section class="panel">
         <h1>${t("classes.title", "Classes")}</h1>
+        ${hasClasses ? "" : `<p class="field-hint">${emptyNotice}</p>`}
         <div class="field">
           <label for="chargenClassSelect">${t("classes.select", "Select Class")}</label>
-          <select id="chargenClassSelect"></select>
+          <select id="chargenClassSelect" ${hasClasses ? "" : "disabled"}></select>
         </div>
         <div class="field">
           <label for="chargenClassDescription">${t("common.description", "Description")}</label>
@@ -7237,11 +7269,430 @@ async function renderCharGenClasses() {
     });
     document.getElementById("chargenClassContinue").addEventListener("click", () => {
       state.chargenClassId = String(select.value || "");
+      const characterClass = classes.find((entry) => String(entry.id || "") === state.chargenClassId);
+      state.chargenClassSkillRanks = buildCharGenClassSkillRanks(characterClass);
       saveCharGenDraftLocal();
-      showToast(t("web.chargen.next", "Character creation screens coming next."));
+      renderCharGenSkills();
     });
   } catch (error) {
     renderCharGenLoadError(error, renderCharGenClasses);
+  }
+}
+
+async function renderCharGenSkills() {
+  if (!state.draftId) {
+    renderCharGenUpload();
+    return;
+  }
+  setMode("chargen");
+  setStep("chargen-skills");
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const [skillData, classData] = await Promise.all([
+      api("GET", `/api/drafts/${state.draftId}/skills`),
+      api("GET", `/api/drafts/${state.draftId}/classes`),
+    ]);
+    const skills = sortByLabel(skillData.skills || [], (skill) => skill.displayName || skill.name || "");
+    const classes = Array.isArray(classData.classes) ? classData.classes : [];
+    const characterClass = classes.find((entry) => String(entry.id || "") === String(state.chargenClassId || ""));
+    if (!Object.keys(state.chargenClassSkillRanks || {}).length) {
+      state.chargenClassSkillRanks = buildCharGenClassSkillRanks(characterClass);
+    }
+    const classSkillRanks = state.chargenClassSkillRanks || {};
+    const selectedRanks = state.chargenSelectedSkillRanks || {};
+    const progression = skillData.progression || {};
+    const skillPointText = buildCharGenSkillPointSummary(characterClass, progression);
+    const list = skills
+      .map((skill, index) => {
+        const id = String(skill.id || "").trim();
+        const label = skill.displayName || skill.name || t("skills.untitled", "Untitled");
+        const classBadge = classSkillRanks[id] !== undefined
+          ? ` <span class="badge">${t("classes.skills", "Class Skills")}</span>`
+          : "";
+        const category = skill.category ? ` <span class="badge">${escapeHtml(skill.category)}</span>` : "";
+        const rank = Math.max(0, Number(selectedRanks[id] || 0));
+        return `
+          <div class="list-item">
+            <div>
+              <strong>${escapeHtml(label)}</strong>${classBadge}${category}
+              ${skill.description ? `<div>${escapeHtml(skill.description)}</div>` : ""}
+            </div>
+            <div class="field inline-field">
+              <label for="chargenSkillRank${index}">${t("skills.rank", "Rank")}</label>
+              <input type="number" id="chargenSkillRank${index}" min="0" max="99" step="1"
+                value="${rank}" data-chargen-skill-rank="${escapeHtml(id)}">
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${t("skills.title", "Skills")}</h1>
+        <p class="field-hint">${escapeHtml(skillPointText)}</p>
+        <div class="list">
+          ${list || `<div class="list-item">${t("skills.none", "No skills yet.")}</div>`}
+        </div>
+        <div class="actions-row">
+          <div class="left">
+            <button class="btn ghost" id="chargenSkillsBack" type="button">${t("setup.back", "Back")}</button>
+          </div>
+          <div class="right">
+            <button class="btn" id="chargenSkillsContinue" type="button">${t("common.continue", "Continue")}</button>
+          </div>
+        </div>
+      </section>
+    `;
+
+    const save = () => {
+      state.chargenSelectedSkillRanks = collectCharGenSkillRanks();
+      state.chargenClassSkillRanks = classSkillRanks;
+      saveCharGenDraftLocal();
+    };
+    document.querySelectorAll("[data-chargen-skill-rank]").forEach((input) => {
+      input.addEventListener("change", save);
+    });
+    document.getElementById("chargenSkillsBack").addEventListener("click", () => {
+      save();
+      renderCharGenClasses();
+    });
+    document.getElementById("chargenSkillsContinue").addEventListener("click", () => {
+      save();
+      renderCharGenSpells();
+    });
+  } catch (error) {
+    renderCharGenLoadError(error, renderCharGenSkills);
+  }
+}
+
+async function renderCharGenSpells() {
+  if (!state.draftId) {
+    renderCharGenUpload();
+    return;
+  }
+  setMode("chargen");
+  setStep("chargen-spells");
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const spellData = await api("GET", `/api/drafts/${state.draftId}/spells`);
+    const spells = sortByLabel(spellData.spells || [], (spell) => spell.displayName || spell.name || "");
+    const hasSpells = spells.length > 0;
+    const emptyNotice = t(
+      "web.chargen.spells.empty_system",
+      "This game system does not use spells, proceed to next screen."
+    );
+    const selected = new Set(normalizeCharGenIdList(state.chargenSelectedSpellIds));
+    const list = spells
+      .map((spell) => {
+        const id = String(spell.id || "").trim();
+        const level = Number(spell.level || 0);
+        const school = spell.school ? ` <span class="badge">${escapeHtml(spell.school)}</span>` : "";
+        const checked = selected.has(id) ? "checked" : "";
+        return `
+          <div class="list-item">
+            <label>
+              <input type="checkbox" data-chargen-spell="${escapeHtml(id)}" ${checked}>
+              <strong>${escapeHtml(spell.name || t("spells.untitled", "Untitled"))}</strong>
+              <span class="badge">L${level}</span>${school}
+              ${spell.description ? `<div>${escapeHtml(spell.description)}</div>` : ""}
+            </label>
+          </div>
+        `;
+      })
+      .join("");
+
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${t("spells.title", "Spells")}</h1>
+        <div class="list">
+          ${list || `<div class="list-item">${emptyNotice}</div>`}
+        </div>
+        <div class="actions-row">
+          <div class="left">
+            <button class="btn ghost" id="chargenSpellsBack" type="button">${t("setup.back", "Back")}</button>
+          </div>
+          <div class="right">
+            <button class="btn" id="chargenSpellsContinue" type="button">${t("common.continue", "Continue")}</button>
+          </div>
+        </div>
+      </section>
+    `;
+
+    const save = () => {
+      state.chargenSelectedSpellIds = collectCheckedIds("[data-chargen-spell]");
+      saveCharGenDraftLocal();
+    };
+    document.querySelectorAll("[data-chargen-spell]").forEach((input) => input.addEventListener("change", save));
+    document.getElementById("chargenSpellsBack").addEventListener("click", () => {
+      save();
+      renderCharGenSkills();
+    });
+    document.getElementById("chargenSpellsContinue").addEventListener("click", () => {
+      save();
+      renderCharGenEquipment();
+    });
+  } catch (error) {
+    renderCharGenLoadError(error, renderCharGenSpells);
+  }
+}
+
+async function renderCharGenEquipment() {
+  if (!state.draftId) {
+    renderCharGenUpload();
+    return;
+  }
+  setMode("chargen");
+  setStep("chargen-equipment");
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const [equipmentData, currencyData, classData] = await Promise.all([
+      api("GET", `/api/drafts/${state.draftId}/equipment`),
+      api("GET", `/api/drafts/${state.draftId}/currency`),
+      api("GET", `/api/drafts/${state.draftId}/classes`),
+    ]);
+    const equipment = sortByLabel(equipmentData.equipment || [], (item) => item.displayName || item.name || "");
+    const currencies = sortByLabel(currencyData.currencies || [], (currency) => currency.name || "");
+    const classes = Array.isArray(classData.classes) ? classData.classes : [];
+    const characterClass = classes.find((entry) => String(entry.id || "") === String(state.chargenClassId || ""));
+    applyCharGenStartingMoneyDefaults(currencyData.startingMoney || {}, characterClass);
+    const selected = new Set(normalizeCharGenIdList(state.chargenSelectedEquipmentIds));
+    const currencyOptions = [`<option value="">${t("common.none", "None")}</option>`]
+      .concat(
+        currencies.map((currency) => {
+          const id = String(currency.id || "").trim();
+          const selectedAttr = id === String(state.chargenStartingMoneyCurrencyId || "") ? "selected" : "";
+          return `<option value="${escapeHtml(id)}" ${selectedAttr}>${escapeHtml(currency.name || id)}</option>`;
+        })
+      )
+      .join("");
+    const list = equipment
+      .map((item) => {
+        const id = String(item.id || "").trim();
+        const checked = selected.has(id) ? "checked" : "";
+        const weight = Number(item.weightValue || 0) > 0
+          ? ` <span class="badge">${escapeHtml(String(item.weightValue))} ${escapeHtml(item.weightUnit || "")}</span>`
+          : "";
+        return `
+          <div class="list-item">
+            <label>
+              <input type="checkbox" data-chargen-equipment="${escapeHtml(id)}" ${checked}>
+              <strong>${escapeHtml(item.name || t("equipment.untitled", "Untitled"))}</strong>${weight}
+              ${item.description ? `<div>${escapeHtml(item.description)}</div>` : ""}
+            </label>
+          </div>
+        `;
+      })
+      .join("");
+
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${t("equipment.title", "Equipment")}</h1>
+        <div class="grid two">
+          <div class="field">
+            <label for="chargenStartingMoneyAmount">${t("money.starting.amount", "Starting Money")}</label>
+            <input type="number" id="chargenStartingMoneyAmount" min="0" step="1"
+              value="${Math.max(0, Number(state.chargenStartingMoneyAmount || 0))}">
+          </div>
+          <div class="field">
+            <label for="chargenStartingMoneyCurrency">${t("money.currency", "Currency")}</label>
+            <select id="chargenStartingMoneyCurrency">${currencyOptions}</select>
+          </div>
+        </div>
+        <div class="list">
+          ${list || `<div class="list-item">${t("equipment.none", "No equipment yet.")}</div>`}
+        </div>
+        <div class="actions-row">
+          <div class="left">
+            <button class="btn ghost" id="chargenEquipmentBack" type="button">${t("setup.back", "Back")}</button>
+          </div>
+          <div class="right">
+            <button class="btn" id="chargenEquipmentContinue" type="button">${t("common.continue", "Continue")}</button>
+          </div>
+        </div>
+      </section>
+    `;
+
+    const save = () => {
+      state.chargenSelectedEquipmentIds = collectCheckedIds("[data-chargen-equipment]");
+      state.chargenStartingMoneyAmount = Math.max(0, Math.trunc(Number(document.getElementById("chargenStartingMoneyAmount").value || 0)));
+      state.chargenStartingMoneyCurrencyId = String(document.getElementById("chargenStartingMoneyCurrency").value || "");
+      saveCharGenDraftLocal();
+    };
+    document.querySelectorAll("[data-chargen-equipment]").forEach((input) => input.addEventListener("change", save));
+    document.getElementById("chargenStartingMoneyAmount").addEventListener("change", save);
+    document.getElementById("chargenStartingMoneyCurrency").addEventListener("change", save);
+    document.getElementById("chargenEquipmentBack").addEventListener("click", () => {
+      save();
+      renderCharGenSpells();
+    });
+    document.getElementById("chargenEquipmentContinue").addEventListener("click", () => {
+      save();
+      renderCharGenWeapons();
+    });
+  } catch (error) {
+    renderCharGenLoadError(error, renderCharGenEquipment);
+  }
+}
+
+async function renderCharGenWeapons() {
+  if (!state.draftId) {
+    renderCharGenUpload();
+    return;
+  }
+  setMode("chargen");
+  setStep("chargen-weapons");
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const weaponData = await api("GET", `/api/drafts/${state.draftId}/weapons`);
+    const weapons = sortByLabel(weaponData.weapons || [], (weapon) => weapon.displayName || weapon.name || "");
+    const selected = new Set(normalizeCharGenIdList(state.chargenSelectedWeaponIds));
+    const list = weapons
+      .map((weapon) => {
+        const id = String(weapon.id || "").trim();
+        const checked = selected.has(id) ? "checked" : "";
+        const damage = weapon.damageRoll ? ` <span class="badge">${escapeHtml(weapon.damageRoll)}</span>` : "";
+        return `
+          <div class="list-item">
+            <label>
+              <input type="checkbox" data-chargen-weapon="${escapeHtml(id)}" ${checked}>
+              <strong>${escapeHtml(weapon.name || t("weapons.untitled", "Untitled"))}</strong>${damage}
+              ${weapon.description ? `<div>${escapeHtml(weapon.description)}</div>` : ""}
+            </label>
+          </div>
+        `;
+      })
+      .join("");
+
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${t("weapons.title", "Weapons")}</h1>
+        <div class="list">
+          ${list || `<div class="list-item">${t("weapons.none", "No weapons yet.")}</div>`}
+        </div>
+        <div class="actions-row">
+          <div class="left">
+            <button class="btn ghost" id="chargenWeaponsBack" type="button">${t("setup.back", "Back")}</button>
+          </div>
+          <div class="right">
+            <button class="btn" id="chargenWeaponsContinue" type="button">${t("common.continue", "Continue")}</button>
+          </div>
+        </div>
+      </section>
+    `;
+
+    const save = () => {
+      state.chargenSelectedWeaponIds = collectCheckedIds("[data-chargen-weapon]");
+      saveCharGenDraftLocal();
+    };
+    document.querySelectorAll("[data-chargen-weapon]").forEach((input) => input.addEventListener("change", save));
+    document.getElementById("chargenWeaponsBack").addEventListener("click", () => {
+      save();
+      renderCharGenEquipment();
+    });
+    document.getElementById("chargenWeaponsContinue").addEventListener("click", () => {
+      save();
+      renderCharGenArmor();
+    });
+  } catch (error) {
+    renderCharGenLoadError(error, renderCharGenWeapons);
+  }
+}
+
+async function renderCharGenArmor() {
+  if (!state.draftId) {
+    renderCharGenUpload();
+    return;
+  }
+  setMode("chargen");
+  setStep("chargen-armor");
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const [armorData, armorClassData] = await Promise.all([
+      api("GET", `/api/drafts/${state.draftId}/armor`),
+      api("GET", `/api/drafts/${state.draftId}/armor-class`),
+    ]);
+    const armor = sortByLabel(armorData.armor || [], (item) => item.displayName || item.name || "");
+    const selected = new Set(normalizeCharGenIdList(state.chargenSelectedArmorIds));
+    const initialAc = state.chargenResolvedArmorClass > 0
+      ? state.chargenResolvedArmorClass
+      : calculateCharGenArmorClass(armorClassData, armor, selected);
+    const list = armor
+      .map((item) => {
+        const id = String(item.id || "").trim();
+        const checked = selected.has(id) ? "checked" : "";
+        const acParts = [];
+        if (Number(item.armorClass || 0) > 0) {
+          acParts.push(`${t("armorclass.title", "Armor Class")} ${Number(item.armorClass || 0)}`);
+        }
+        if (Number(item.armorBonus || 0) > 0) {
+          acParts.push(`+${Number(item.armorBonus || 0)}`);
+        }
+        if (Number(item.shieldBonus || 0) > 0) {
+          acParts.push(`+${Number(item.shieldBonus || 0)} ${t("armor.shield", "Shield")}`);
+        }
+        const detail = acParts.length ? ` <span class="badge">${escapeHtml(acParts.join(" "))}</span>` : "";
+        return `
+          <div class="list-item">
+            <label>
+              <input type="checkbox" data-chargen-armor="${escapeHtml(id)}" ${checked}>
+              <strong>${escapeHtml(item.name || t("armor.untitled", "Untitled"))}</strong>${detail}
+              ${item.description ? `<div>${escapeHtml(item.description)}</div>` : ""}
+            </label>
+          </div>
+        `;
+      })
+      .join("");
+
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${t("armor.title", "Armor")}</h1>
+        <div class="field">
+          <label for="chargenResolvedArmorClass">${t("armorclass.title", "Armor Class")}</label>
+          <input type="number" id="chargenResolvedArmorClass" min="0" step="1" value="${Math.max(0, Number(initialAc || 0))}">
+        </div>
+        <div class="list">
+          ${list || `<div class="list-item">${t("armor.none", "No armor yet.")}</div>`}
+        </div>
+        <div class="actions-row">
+          <div class="left">
+            <button class="btn ghost" id="chargenArmorBack" type="button">${t("setup.back", "Back")}</button>
+          </div>
+          <div class="right">
+            <button class="btn ghost" id="chargenArmorSave" type="button">${t("common.save", "Save")}</button>
+            <button class="btn" id="chargenArmorDownload" type="button">${t("web.download.character", "Download .gmcf")}</button>
+          </div>
+        </div>
+      </section>
+    `;
+
+    const acInput = document.getElementById("chargenResolvedArmorClass");
+    const save = () => {
+      state.chargenSelectedArmorIds = collectCheckedIds("[data-chargen-armor]");
+      state.chargenResolvedArmorClass = Math.max(0, Math.trunc(Number(acInput.value || 0)));
+      saveCharGenDraftLocal();
+    };
+    const recalculate = () => {
+      const ids = new Set(collectCheckedIds("[data-chargen-armor]"));
+      acInput.value = String(calculateCharGenArmorClass(armorClassData, armor, ids));
+      save();
+    };
+    document.querySelectorAll("[data-chargen-armor]").forEach((input) => input.addEventListener("change", recalculate));
+    acInput.addEventListener("change", save);
+    document.getElementById("chargenArmorBack").addEventListener("click", () => {
+      save();
+      renderCharGenWeapons();
+    });
+    document.getElementById("chargenArmorSave").addEventListener("click", () => {
+      save();
+      markSaved(t("web.toast.character_saved", "Character saved"));
+    });
+    document.getElementById("chargenArmorDownload").addEventListener("click", () => {
+      save();
+      downloadCharGenDraft();
+    });
+  } catch (error) {
+    renderCharGenLoadError(error, renderCharGenArmor);
   }
 }
 
@@ -7379,6 +7830,163 @@ function resolveCharGenAttributeName(attributeId) {
   return safeId;
 }
 
+function buildCharGenClassSkillRanks(characterClass) {
+  const ranks = {};
+  const ids = characterClass && Array.isArray(characterClass.classSkillIds) ? characterClass.classSkillIds : [];
+  ids.forEach((id) => {
+    const safeId = String(id || "").trim();
+    if (safeId) {
+      ranks[safeId] = 0;
+    }
+  });
+  return ranks;
+}
+
+function buildCharGenSkillPointSummary(characterClass, progression) {
+  const className = characterClass && characterClass.name ? characterClass.name : t("classes.select", "Select Class");
+  const classPoints = characterClass ? Math.max(0, Number(characterClass.skillPointsPerLevel || 0)) : 0;
+  const progressionType = String(progression && progression.skillPointProgression ? progression.skillPointProgression : "byClass");
+  if (progressionType === "byClass") {
+    return t("web.chargen.skills.points.class", "{class}: {points} skill points per level.")
+      .replace("{class}", className)
+      .replace("{points}", String(classPoints));
+  }
+  const base = Math.max(0, Number(progression && progression.baseSkillPointsPerLevel || 0));
+  const minimum = Math.max(0, Number(progression && progression.minimumSkillPointsPerLevel || 0));
+  return t("web.chargen.skills.points.global", "Skill points: {points} per level, minimum {minimum}.")
+    .replace("{points}", String(base))
+    .replace("{minimum}", String(minimum));
+}
+
+function collectCharGenSkillRanks() {
+  const ranks = {};
+  document.querySelectorAll("[data-chargen-skill-rank]").forEach((input) => {
+    const id = String(input.dataset.chargenSkillRank || "").trim();
+    const rank = Math.max(0, Math.trunc(Number(input.value || 0)));
+    if (id && rank > 0) {
+      ranks[id] = rank;
+    }
+  });
+  return ranks;
+}
+
+function normalizeCharGenIdList(values) {
+  const list = Array.isArray(values) ? values : [];
+  const results = [];
+  list.forEach((value) => {
+    const safe = String(value || "").trim();
+    if (safe && !results.includes(safe)) {
+      results.push(safe);
+    }
+  });
+  return results;
+}
+
+function normalizeCharGenRankMap(values) {
+  const source = values && typeof values === "object" ? values : {};
+  const ranks = {};
+  Object.keys(source).forEach((key) => {
+    const safeKey = String(key || "").trim();
+    const rank = Math.max(0, Math.trunc(Number(source[key] || 0)));
+    if (safeKey) {
+      ranks[safeKey] = rank;
+    }
+  });
+  return ranks;
+}
+
+function putCharGenRank(target, value) {
+  const safeValue = String(value || "").trim();
+  if (!safeValue) {
+    return;
+  }
+  const separator = safeValue.lastIndexOf("|");
+  const id = separator >= 0 ? safeValue.slice(0, separator).trim() : safeValue;
+  const rankText = separator >= 0 ? safeValue.slice(separator + 1).trim() : "0";
+  const rank = Math.max(0, Math.trunc(Number(rankText || 0)));
+  if (id) {
+    target[id] = rank;
+  }
+}
+
+function pushCharGenId(target, value) {
+  const safeValue = String(value || "").trim();
+  if (safeValue && !target.includes(safeValue)) {
+    target.push(safeValue);
+  }
+}
+
+function collectCheckedIds(selector) {
+  const ids = [];
+  document.querySelectorAll(selector).forEach((input) => {
+    if (!input.checked) {
+      return;
+    }
+    const value = String(input.dataset.chargenSpell || input.dataset.chargenEquipment || input.dataset.chargenWeapon || input.dataset.chargenArmor || "").trim();
+    if (value && !ids.includes(value)) {
+      ids.push(value);
+    }
+  });
+  return ids;
+}
+
+function applyCharGenStartingMoneyDefaults(startingMoney, characterClass) {
+  const method = String(startingMoney.method || "base").trim() || "base";
+  state.chargenStartingMoneyMethod = method;
+  if (!state.chargenStartingMoneyCurrencyId) {
+    state.chargenStartingMoneyCurrencyId = String(startingMoney.currencyId || "");
+  }
+  if (Number(state.chargenStartingMoneyAmount || 0) > 0) {
+    return;
+  }
+  if (method === "class" && characterClass) {
+    state.chargenStartingMoneyAmount = Math.max(0, Number(characterClass.startingMoney || 0));
+    return;
+  }
+  state.chargenStartingMoneyAmount = Math.max(0, Number(startingMoney.baseAmount || 0));
+}
+
+function calculateCharGenArmorClass(armorClassData, armor, selectedIds) {
+  const data = armorClassData || {};
+  const selected = selectedIds instanceof Set ? selectedIds : new Set(normalizeCharGenIdList(selectedIds));
+  const base = Math.max(0, Math.trunc(Number(data.baseArmorClass || 0)));
+  let total = base;
+  if (data.gearBased !== false) {
+    (armor || []).forEach((item) => {
+      const id = String(item.id || "").trim();
+      if (!selected.has(id)) {
+        return;
+      }
+      const armorClass = Math.max(0, Math.trunc(Number(item.armorClass || 0)));
+      const armorBonus = Math.max(0, Math.trunc(Number(item.armorBonus || 0)));
+      const shieldBonus = Math.max(0, Math.trunc(Number(item.shieldBonus || 0)));
+      if (data.basePlusModifier && armorBonus > 0) {
+        total += armorBonus + shieldBonus;
+      } else if (armorClass > 0) {
+        total = Math.max(total, armorClass + shieldBonus);
+      } else {
+        total += armorBonus + shieldBonus;
+      }
+    });
+  }
+  if (data.abilityBased !== false) {
+    total += resolveCharGenAbilityModifier(data.acAbilityAttributeId);
+  }
+  return Math.max(0, Math.trunc(total));
+}
+
+function resolveCharGenAbilityModifier(attributeId) {
+  const safeId = String(attributeId || "").trim();
+  if (!safeId) {
+    return 0;
+  }
+  const score = Number((state.chargenAttributeScores || {})[safeId] || 0);
+  if (!Number.isFinite(score)) {
+    return 0;
+  }
+  return Math.floor((score - 10) / 2);
+}
+
 async function hashBuffer(buffer) {
   if (crypto && crypto.subtle && crypto.subtle.digest) {
     const digest = await crypto.subtle.digest("SHA-256", buffer);
@@ -7512,6 +8120,16 @@ function buildCharGenDraft() {
     diceSubstitutionsUsed: Number(state.chargenDiceSubstitutionsUsed || 0),
     raceId: String(state.chargenRaceId || ""),
     classId: String(state.chargenClassId || ""),
+    classSkillRanks: normalizeCharGenRankMap(state.chargenClassSkillRanks),
+    selectedSkillRanks: normalizeCharGenRankMap(state.chargenSelectedSkillRanks),
+    selectedSpellIds: normalizeCharGenIdList(state.chargenSelectedSpellIds),
+    selectedEquipmentIds: normalizeCharGenIdList(state.chargenSelectedEquipmentIds),
+    selectedWeaponIds: normalizeCharGenIdList(state.chargenSelectedWeaponIds),
+    selectedArmorIds: normalizeCharGenIdList(state.chargenSelectedArmorIds),
+    startingMoneyMethod: String(state.chargenStartingMoneyMethod || "base"),
+    startingMoneyAmount: Math.max(0, Math.trunc(Number(state.chargenStartingMoneyAmount || 0))),
+    startingMoneyCurrencyId: String(state.chargenStartingMoneyCurrencyId || ""),
+    resolvedArmorClass: Math.max(0, Math.trunc(Number(state.chargenResolvedArmorClass || 0))),
     attributeScores: state.chargenAttributeScores || {},
   };
 }
@@ -7540,6 +8158,44 @@ function serializeCharGenDraft(draft) {
   if (safeDraft.classId) {
     lines.push(`classId=${safeDraft.classId}`);
   }
+  const classSkillRanks = normalizeCharGenRankMap(safeDraft.classSkillRanks);
+  Object.keys(classSkillRanks)
+    .sort()
+    .forEach((key, index) => {
+      lines.push(`classSkill.${index}=${key}|${classSkillRanks[key]}`);
+    });
+  const selectedSkillRanks = normalizeCharGenRankMap(safeDraft.selectedSkillRanks);
+  Object.keys(selectedSkillRanks)
+    .sort()
+    .forEach((key, index) => {
+      lines.push(`selectedSkill.${index}=${key}|${selectedSkillRanks[key]}`);
+    });
+  normalizeCharGenIdList(safeDraft.selectedSpellIds)
+    .sort()
+    .forEach((id, index) => {
+      lines.push(`selectedSpell.${index}=${id}`);
+    });
+  normalizeCharGenIdList(safeDraft.selectedEquipmentIds)
+    .sort()
+    .forEach((id, index) => {
+      lines.push(`selectedEquipment.${index}=${id}`);
+    });
+  normalizeCharGenIdList(safeDraft.selectedWeaponIds)
+    .sort()
+    .forEach((id, index) => {
+      lines.push(`selectedWeapon.${index}=${id}`);
+    });
+  normalizeCharGenIdList(safeDraft.selectedArmorIds)
+    .sort()
+    .forEach((id, index) => {
+      lines.push(`selectedArmor.${index}=${id}`);
+    });
+  lines.push(`startingMoneyMethod=${safeDraft.startingMoneyMethod || "base"}`);
+  lines.push(`startingMoneyAmount=${Math.max(0, Number(safeDraft.startingMoneyAmount || 0))}`);
+  if (safeDraft.startingMoneyCurrencyId) {
+    lines.push(`startingMoneyCurrencyId=${safeDraft.startingMoneyCurrencyId}`);
+  }
+  lines.push(`resolvedArmorClass=${Math.max(0, Number(safeDraft.resolvedArmorClass || 0))}`);
   const scores = safeDraft.attributeScores || {};
   Object.keys(scores)
     .sort()
@@ -7565,6 +8221,16 @@ function parseCharGenDraft(text) {
     diceSubstitutionsUsed: 0,
     raceId: "",
     classId: "",
+    classSkillRanks: {},
+    selectedSkillRanks: {},
+    selectedSpellIds: [],
+    selectedEquipmentIds: [],
+    selectedWeaponIds: [],
+    selectedArmorIds: [],
+    startingMoneyMethod: "base",
+    startingMoneyAmount: 0,
+    startingMoneyCurrencyId: "",
+    resolvedArmorClass: 0,
     attributeScores: {},
   };
   for (let i = 1; i < lines.length; i += 1) {
@@ -7600,6 +8266,28 @@ function parseCharGenDraft(text) {
       draft.raceId = value;
     } else if (key === "classId") {
       draft.classId = value;
+    } else if (key.startsWith("classSkill.")) {
+      putCharGenRank(draft.classSkillRanks, value);
+    } else if (key.startsWith("selectedSkill.")) {
+      putCharGenRank(draft.selectedSkillRanks, value);
+    } else if (key.startsWith("selectedSpell.")) {
+      pushCharGenId(draft.selectedSpellIds, value);
+    } else if (key.startsWith("selectedEquipment.")) {
+      pushCharGenId(draft.selectedEquipmentIds, value);
+    } else if (key.startsWith("selectedWeapon.")) {
+      pushCharGenId(draft.selectedWeaponIds, value);
+    } else if (key.startsWith("selectedArmor.")) {
+      pushCharGenId(draft.selectedArmorIds, value);
+    } else if (key === "startingMoneyMethod") {
+      draft.startingMoneyMethod = value || "base";
+    } else if (key === "startingMoneyAmount") {
+      const amount = Number(value);
+      draft.startingMoneyAmount = Number.isFinite(amount) ? Math.max(0, Math.trunc(amount)) : 0;
+    } else if (key === "startingMoneyCurrencyId") {
+      draft.startingMoneyCurrencyId = value;
+    } else if (key === "resolvedArmorClass") {
+      const armorClass = Number(value);
+      draft.resolvedArmorClass = Number.isFinite(armorClass) ? Math.max(0, Math.trunc(armorClass)) : 0;
     } else if (key.startsWith("attr.")) {
       const attrId = key.slice(5).trim();
       if (!attrId) {
@@ -7627,6 +8315,16 @@ function applyCharGenDraft(draft) {
   state.chargenDiceSubstitutionsUsed = Math.max(0, Number(safeDraft.diceSubstitutionsUsed || 0));
   state.chargenRaceId = String(safeDraft.raceId || "");
   state.chargenClassId = String(safeDraft.classId || "");
+  state.chargenClassSkillRanks = normalizeCharGenRankMap(safeDraft.classSkillRanks);
+  state.chargenSelectedSkillRanks = normalizeCharGenRankMap(safeDraft.selectedSkillRanks);
+  state.chargenSelectedSpellIds = normalizeCharGenIdList(safeDraft.selectedSpellIds);
+  state.chargenSelectedEquipmentIds = normalizeCharGenIdList(safeDraft.selectedEquipmentIds);
+  state.chargenSelectedWeaponIds = normalizeCharGenIdList(safeDraft.selectedWeaponIds);
+  state.chargenSelectedArmorIds = normalizeCharGenIdList(safeDraft.selectedArmorIds);
+  state.chargenStartingMoneyMethod = String(safeDraft.startingMoneyMethod || "base");
+  state.chargenStartingMoneyAmount = Math.max(0, Math.trunc(Number(safeDraft.startingMoneyAmount || 0)));
+  state.chargenStartingMoneyCurrencyId = String(safeDraft.startingMoneyCurrencyId || "");
+  state.chargenResolvedArmorClass = Math.max(0, Math.trunc(Number(safeDraft.resolvedArmorClass || 0)));
   state.chargenAttributeScores = safeDraft.attributeScores || {};
 }
 
@@ -7636,6 +8334,16 @@ function resetCharGenState() {
   state.chargenPointBuyBaselineScores = {};
   state.chargenRaceId = "";
   state.chargenClassId = "";
+  state.chargenClassSkillRanks = {};
+  state.chargenSelectedSkillRanks = {};
+  state.chargenSelectedSpellIds = [];
+  state.chargenSelectedEquipmentIds = [];
+  state.chargenSelectedWeaponIds = [];
+  state.chargenSelectedArmorIds = [];
+  state.chargenStartingMoneyMethod = "base";
+  state.chargenStartingMoneyAmount = 0;
+  state.chargenStartingMoneyCurrencyId = "";
+  state.chargenResolvedArmorClass = 0;
   state.chargenGameId = "";
   state.chargenGameHash = "";
   state.chargenGameName = "";
@@ -7777,6 +8485,24 @@ function sanitizeFilename(value) {
 }
 
 function resolveCharGenResumeStage() {
+  if (state.chargenResolvedArmorClass || normalizeCharGenIdList(state.chargenSelectedArmorIds).length) {
+    return "armor";
+  }
+  if (normalizeCharGenIdList(state.chargenSelectedWeaponIds).length) {
+    return "weapons";
+  }
+  if (
+    normalizeCharGenIdList(state.chargenSelectedEquipmentIds).length
+    || Number(state.chargenStartingMoneyAmount || 0) > 0
+  ) {
+    return "equipment";
+  }
+  if (normalizeCharGenIdList(state.chargenSelectedSpellIds).length) {
+    return "spells";
+  }
+  if (Object.keys(state.chargenSelectedSkillRanks || {}).length) {
+    return "skills";
+  }
   if (state.chargenClassId) {
     return "classes";
   }
@@ -11928,6 +12654,11 @@ Object.assign(historyRoutes, {
   "chargen-points-buy": renderCharGenPointsBuy,
   "chargen-races": renderCharGenRaces,
   "chargen-classes": renderCharGenClasses,
+  "chargen-skills": renderCharGenSkills,
+  "chargen-spells": renderCharGenSpells,
+  "chargen-equipment": renderCharGenEquipment,
+  "chargen-weapons": renderCharGenWeapons,
+  "chargen-armor": renderCharGenArmor,
 });
 
 function systemNameTitle(systemName, fallback) {

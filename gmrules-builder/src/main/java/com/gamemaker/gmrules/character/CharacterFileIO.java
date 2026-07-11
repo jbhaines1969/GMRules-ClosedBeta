@@ -59,6 +59,7 @@ public class CharacterFileIO {
     private static final String DICE_SUBSTITUTIONS_USED = "diceSubstitutionsUsed";
     private static final String RESOLVED_ARMOR_CLASS = "resolvedArmorClass";
     private static final String RULE_MODE_PREFIX = "ruleMode.";
+    private static final String SELECTED_SPELL_PREFIX = "selectedSpell.";
     private static final String SELECTED_WEAPON_PREFIX = "selectedWeapon.";
     private static final String SELECTED_ARMOR_PREFIX = "selectedArmor.";
     private static final String SELECTED_EQUIPMENT_PREFIX = "selectedEquipment.";
@@ -79,6 +80,7 @@ public class CharacterFileIO {
         List<String> racialTraitNames = new ArrayList<>();
         Map<String, Integer> classSkillRanks = new java.util.LinkedHashMap<>();
         Map<String, Integer> selectedSkillRanks = new java.util.LinkedHashMap<>();
+        List<String> selectedSpellIds = new ArrayList<>();
         List<String> selectedWeaponIds = new ArrayList<>();
         List<String> selectedArmorIds = new ArrayList<>();
         List<String> selectedEquipmentIds = new ArrayList<>();
@@ -188,6 +190,10 @@ public class CharacterFileIO {
                 putSkillRank(classSkillRanks, value);
             } else if (key.startsWith(SELECTED_SKILL_PREFIX)) {
                 putSkillRank(selectedSkillRanks, value);
+            } else if (key.startsWith(SELECTED_SPELL_PREFIX)) {
+                if (!value.isEmpty() && !selectedSpellIds.contains(value)) {
+                    selectedSpellIds.add(value);
+                }
             } else if (key.startsWith(SELECTED_WEAPON_PREFIX)) {
                 if (!value.isEmpty() && !selectedWeaponIds.contains(value)) {
                     selectedWeaponIds.add(value);
@@ -261,6 +267,7 @@ public class CharacterFileIO {
         draft.setRacialTraitNames(racialTraitNames);
         draft.setClassSkillRanks(classSkillRanks);
         draft.setSelectedSkillRanks(selectedSkillRanks);
+        draft.setSelectedSpellIds(selectedSpellIds);
         draft.setSelectedWeaponIds(selectedWeaponIds);
         draft.setSelectedArmorIds(selectedArmorIds);
         draft.setSelectedEquipmentIds(selectedEquipmentIds);
@@ -299,6 +306,11 @@ public class CharacterFileIO {
         selectedSkillRanks.sort(Map.Entry.comparingByKey());
         for (int index = 0; index < selectedSkillRanks.size(); index++) {
             lines.add(SELECTED_SKILL_PREFIX + index + "=" + formatSkillRank(selectedSkillRanks.get(index)));
+        }
+        List<String> selectedSpellIds = new ArrayList<>(safeDraft.getSelectedSpellIds());
+        selectedSpellIds.sort(String::compareTo);
+        for (int index = 0; index < selectedSpellIds.size(); index++) {
+            lines.add(SELECTED_SPELL_PREFIX + index + "=" + selectedSpellIds.get(index));
         }
         List<String> selectedWeaponIds = new ArrayList<>(safeDraft.getSelectedWeaponIds());
         selectedWeaponIds.sort(String::compareTo);

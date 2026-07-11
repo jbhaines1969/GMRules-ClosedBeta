@@ -48,6 +48,7 @@ public class CharacterDraft {
     private int startingMoneyAmount = 0;
     private String startingMoneyCurrencyId = "";
     private int diceSubstitutionsUsed = 0;
+    private List<String> selectedSpellIds = new ArrayList<>();
     private List<String> selectedWeaponIds = new ArrayList<>();
     private List<String> selectedArmorIds = new ArrayList<>();
     private List<String> selectedEquipmentIds = new ArrayList<>();
@@ -403,6 +404,14 @@ public class CharacterDraft {
 
     public void setDiceSubstitutionsUsed(int diceSubstitutionsUsed) {
         this.diceSubstitutionsUsed = Math.max(0, diceSubstitutionsUsed);
+    }
+
+    public List<String> getSelectedSpellIds() {
+        return new ArrayList<>(selectedSpellIds);
+    }
+
+    public void setSelectedSpellIds(List<String> selectedSpellIds) {
+        this.selectedSpellIds = normalizeIdList(selectedSpellIds);
     }
 
     public List<String> getSelectedWeaponIds() {

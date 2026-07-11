@@ -1,6 +1,6 @@
 # GMRules Closed Beta Project Notes
 
-Updated: 2026-07-08
+Updated: 2026-07-11
 
 ## Current Status
 
@@ -84,6 +84,8 @@ Character generation:
 - Character creation requires a name before the server character draft is created. The name is stored in lightweight draft text and object-backed `CharacterFile` exports, appears in the saved-character list, and exported files use `<Game name>-<Character name>.gmcf`.
 - Lightweight character drafts and object-backed `CharacterFile` exports now preserve source ruleset mode selections as `ruleMode.*` entries so later migration logic can compare the character baseline against changed rules.
 - Attribute-generation dice substitution is wired in character generation: when enabled by the ruleset, players can replace a selected rolled value with the configured substitution value, and the used substitution count is preserved in character drafts and exports.
+- The web character generator now continues after class selection through skills, spells, equipment, weapons, and armor. It persists skill ranks, selected spells, selected equipment, selected weapons, selected armor, starting money, and resolved armor class into the lightweight web `.gmcf` draft and object-backed `CharacterFile` export.
+- Character Race, Class, and Spell screens now show an explicit empty-system message when the ruleset has no entries. Later UI polish should consider skipping those screens entirely when empty.
 - Hosted smoke passed for character name requirement, final download filename, and object-backed `.gmcf` upload against a versioned saved game. Next character smoke focus is migration behavior after editing saved server games and loading older characters against the edited ruleset.
 - A richer `gmrules-character` module exists outside this repo with Swing character stages, but the file model pieces needed for export are now present in `gmrules-builder`.
 
@@ -102,7 +104,7 @@ Deployment and operations:
 - Hosted diagnostics on 2026-07-08 confirmed the previous character-generation `504` shifted to a fast Java `500` caused by a stale installed `gmrules-core` snapshot. After installing the reactor, older saved `.gmrf` rulesets exposed a legacy deserialization issue where newly added `pantheons`/`deities` registries could be absent. `Game.readObject` now repairs missing element registries during load.
 - Production `.env` is confirmed to point `GMRULES_WEB_PUBLICBASEURL` at `https://gmrules.com`, so verification links use the user-facing domain.
 - `.env.example` now documents the current hosted service configuration, data paths, host/port, public base URL, Resend settings, NDA audit recipient, feedback storage, and Discord webhook variables.
-- Reverse-proxy and security-header expectations are documented in `docs/REVERSE_PROXY_SECURITY.md`; production values still need to be confirmed against the Droplet's actual Nginx config.
+- Reverse-proxy and security-header expectations are documented in `docs/REVERSE_PROXY_SECURITY.md`; production values still need to be confirmed against the Droplet's actual Nginx config when John is next on the Digital Ocean console.
 - Accounts, drafts, NDA audits, feedback records, request logs, and blocked-access records live on the droplet filesystem. Backups are required before widening the beta.
 - Sessions are in-memory, so deploys/restarts log users out. This is acceptable for closed beta; the admin panel now exposes current active sessions so deploys can be timed when no one is active.
 
@@ -127,20 +129,20 @@ UX and copy:
 
 The fastest beta-launch path is to keep this as a small, controlled closed beta and avoid broad product hardening until real tester feedback validates the builder workflow.
 
-1. Stabilize the hosted service.
-   Confirm domain, HTTPS, reverse proxy, service startup command, environment variables, persistent data directories, backups, and rollback.
+1. Hosted-smoke character-generator functionality.
+   Verify the completed web flow after class selection with skills, spells, equipment, weapons, armor, starting money, armor class, and final `.gmcf` export.
 
-2. Add beta feedback intake.
-   The in-app feedback/report control, local feedback storage, and Discord forwarding are implemented and smoke-tested on the hosted Droplet.
+2. Smoke-test migration behavior.
+   Edit saved server games, upload/download the changed rulesets, and load older saved character drafts plus object-backed `.gmcf` files against the edited rulesets.
 
-3. Fix beta-facing copy and obvious polish.
-   Closed Beta email language, opt-out copy, and the save-status separator are fixed. Next polish pass should focus on mobile layout, modal density, button hierarchy, and onboarding copy.
+3. Add compatibility coverage.
+   Cover older `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` resume/export behavior before future model or character-format changes.
 
-4. Add launch smoke tests.
-   Hosted smoke tests now cover account verification, login, draft create/delete/export/import/open, saved-draft limit counting, and feedback webhook formatting.
+4. Return to UI layout polish.
+   Focus on mobile layout, modal density, button hierarchy, and beta copy consistency after generator functionality and migration risk are addressed.
 
-5. Launch with a small cohort.
-   Keep the current account/draft caps for the first wave, invite a handful of testers, monitor Discord and server logs, and manually review saved data/backups.
+5. Defer Nginx console work.
+   Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md` when John is next on the Digital Ocean console.
 
-6. Continue character-generator scope.
-   Final `.gmcf` export is now bridged through `CharacterFileIO`; the remaining decision is whether to keep expanding the web flow or bring in the full `gmrules-character` module.
+6. Continue the small controlled beta cohort.
+   Keep the current account/draft caps for the first wave, monitor Discord and server logs, and manually review saved data/backups.

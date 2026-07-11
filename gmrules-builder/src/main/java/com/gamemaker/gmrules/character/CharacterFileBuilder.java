@@ -17,6 +17,7 @@ import com.gamemaker.gmrules.ElementRegistryKey;
 import com.gamemaker.gmrules.Game;
 import com.gamemaker.gmrules.GameElement;
 import com.gamemaker.gmrules.GameElements.Currency;
+import com.gamemaker.gmrules.GameElements.Spell;
 import com.gamemaker.gmrules.GameMechanics.ArmorClassMethod;
 import com.gamemaker.gmrules.GameMechanics.AttributeGenerationMethod;
 import com.gamemaker.gmrules.GameMechanics.CombatMethod;
@@ -66,6 +67,7 @@ public class CharacterFileBuilder {
         character.setRacialTraitNames(safeDraft.getRacialTraitNames());
         character.setClassSkills(resolveSkillRanks(safeGame, safeDraft.getClassSkillRanks()));
         character.setSelectedSkills(resolveSkillRanks(safeGame, safeDraft.getSelectedSkillRanks()));
+        character.setSelectedSpells(resolveElements(safeGame, ElementRegistryKey.SPELLS, safeDraft.getSelectedSpellIds()));
         character.setSelectedWeapons(resolveElements(safeGame, ElementRegistryKey.WEAPONS, safeDraft.getSelectedWeaponIds()));
         character.setSelectedArmor(resolveElements(safeGame, ElementRegistryKey.ARMOR, safeDraft.getSelectedArmorIds()));
         character.setSelectedEquipment(resolveElements(

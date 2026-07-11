@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-07-08
+Updated: 2026-07-11
 
 ## Beta Launch Blockers
 
@@ -37,7 +37,7 @@ Updated: 2026-07-08
 
 - [x] Review the closed-beta signup screen on desktop and mobile.
 - [x] Make the account/home screen clearer for new users choosing builder vs character generation after beta feedback identifies awkward spots.
-- [ ] Create button for user to navigate help/tutorial popups for non-current screen]
+- [ ] Create a way for users to navigate help/tutorial popups for non-current screens.
 - [ ] Tighten modal layout for dense edit forms.
 - [ ] Review button hierarchy and action color usage.
 - [ ] Verify mobile behavior for the stage sidebar, lists, long labels, and form grids.
@@ -61,8 +61,11 @@ Updated: 2026-07-08
 - [x] Diagnose hosted character load failure as a `504` on `/api/drafts/{id}/chargen/attribute-generation`; avoid server autosave from the Game Setup intro screen and make draft file saves atomic under the draft lock.
 - [x] Diagnose follow-up hosted `GET /api/drafts` server error after installing the reactor: legacy `.gmrf` files can deserialize without newly added pantheon/deity registries.
 - [x] Deploy and hosted-smoke the current character loading fix; saved draft listing and saved-ruleset character creation are behaving again.
+- [x] Continue the web character flow after class selection: skills, spells, equipment, weapons, armor, starting money, armor class, final `.gmcf` export.
+- [x] Show explicit empty-system messages on character Race, Class, and Spell screens when the ruleset has no entries.
+- [ ] Consider hiding character Race, Class, and Spell screens entirely when the ruleset has no entries, instead of showing an informational screen.
+- [ ] Hosted-smoke the completed character flow from class selection through skills, spells, equipment, weapons, armor, and final `.gmcf` export.
 - [ ] Smoke-test ruleset and character migration behavior: edit a saved server game, upload/download it, and load older saved character drafts plus object-backed `.gmcf` files against the edited ruleset.
-- [ ] Continue the web character flow after class selection: skills, equipment/weapons/armor, starting money, armor class, final `.gmcf` export.
 - [ ] Add compatibility tests for `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` resume/export behavior.
 
 ## Core And Builder Quality
@@ -75,6 +78,7 @@ Updated: 2026-07-08
 
 ## Later Product Work
 
+- [ ] Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md` when John is next on the Digital Ocean console.
 - [ ] Replace flat-file account storage with a database if beta usage grows.
 - [ ] Add persistent sessions or refresh-token behavior if restart logouts become painful.
 - [ ] Add admin-only feedback report viewing if Discord triage becomes insufficient.

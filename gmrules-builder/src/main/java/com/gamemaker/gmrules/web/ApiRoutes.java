@@ -28,6 +28,7 @@ import com.gamemaker.gmrules.GameMechanics.AttributeGenerationMethod;
 import com.gamemaker.gmrules.GameMechanics.HPMethod;
 import com.gamemaker.gmrules.GameMechanics.LevelingMethod;
 import com.gamemaker.gmrules.GameSaveIO;
+import com.gamemaker.gmrules.GameElements.Armor;
 import com.gamemaker.gmrules.GameElements.Currency;
 import com.gamemaker.gmrules.GameElements.Deity;
 import com.gamemaker.gmrules.GameElements.Equipment;
@@ -198,6 +199,7 @@ public final class ApiRoutes {
         router.add("POST", "/api/drafts/{id}/hit-points", ApiRoutes::updateHitPoints);
         router.add("GET", "/api/drafts/{id}/armor-class", ApiRoutes::getArmorClass);
         router.add("POST", "/api/drafts/{id}/armor-class", ApiRoutes::updateArmorClass);
+        router.add("GET", "/api/drafts/{id}/armor", ApiRoutes::getArmor);
 
         router.add("GET", "/api/drafts/{id}/currencies", ApiRoutes::getCurrencies);
         router.add("POST", "/api/drafts/{id}/currencies", ApiRoutes::addCurrency);
@@ -2791,6 +2793,33 @@ public final class ApiRoutes {
         ctx.json(200, Map.of("ok", true));
     }
 
+    private static void getArmor(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> armor = new ArrayList<>();
+            for (Armor item : getArmor(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(item.getId(), ""));
+                entry.put("name", Objects.toString(item.getName(), ""));
+                entry.put("description", Objects.toString(item.getDescription(), ""));
+                entry.put("armorType", Objects.toString(item.getArmorType(), ""));
+                entry.put("armorClass", Math.max(0, item.getArmorClass()));
+                entry.put("armorBonus", Math.max(0, item.getArmorBonus()));
+                entry.put("shieldBonus", Math.max(0, item.getShieldBonus()));
+                entry.put("armorCheckPenalty", item.getArmorCheckPenalty());
+                armor.add(entry);
+            }
+            response.put("armor", armor);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
     private static List<Map<String, Object>> getAttributesForSelect(Game game) {
         List<Map<String, Object>> attributes = new ArrayList<>();
         for (Attribute attribute : game.getElementRegistry(ElementRegistryKey.ATTRIBUTES).getAll()) {
@@ -5037,6 +5066,60 @@ public final class ApiRoutes {
                     lines.add("attr." + attributeId + "=" + Objects.requireNonNullElse(entry.getValue(), 0));
                 }
             });
+        safeCharacterFile.getClassSkills().entrySet().stream()
+            .sorted(Comparator.comparing(entry -> Objects.toString(entry.getKey().getId(), "")))
+            .forEach(entry -> {
+                String skillId = Objects.toString(entry.getKey().getId(), "").trim();
+                if (!skillId.isEmpty()) {
+                    lines.add("classSkill." + skillId + "=" + skillId + "|" + Math.max(0, Objects.requireNonNullElse(entry.getValue(), 0)));
+                }
+            });
+        safeCharacterFile.getSelectedSkills().entrySet().stream()
+            .sorted(Comparator.comparing(entry -> Objects.toString(entry.getKey().getId(), "")))
+            .forEach(entry -> {
+                String skillId = Objects.toString(entry.getKey().getId(), "").trim();
+                if (!skillId.isEmpty()) {
+                    lines.add("selectedSkill." + skillId + "=" + skillId + "|" + Math.max(0, Objects.requireNonNullElse(entry.getValue(), 0)));
+                }
+            });
+        List<String> selectedSpellIds = safeCharacterFile.getSelectedSpells().stream()
+            .map(spell -> characterSpellId(spell))
+            .filter(id -> !id.isEmpty())
+            .sorted()
+            .toList();
+        for (int index = 0; index < selectedSpellIds.size(); index++) {
+            lines.add("selectedSpell." + index + "=" + selectedSpellIds.get(index));
+        }
+        List<String> selectedEquipmentIds = safeCharacterFile.getSelectedEquipment().stream()
+            .map(item -> characterEquipmentId(item))
+            .filter(id -> !id.isEmpty())
+            .sorted()
+            .toList();
+        for (int index = 0; index < selectedEquipmentIds.size(); index++) {
+            lines.add("selectedEquipment." + index + "=" + selectedEquipmentIds.get(index));
+        }
+        List<String> selectedWeaponIds = safeCharacterFile.getSelectedWeapons().stream()
+            .map(weapon -> characterWeaponId(weapon))
+            .filter(id -> !id.isEmpty())
+            .sorted()
+            .toList();
+        for (int index = 0; index < selectedWeaponIds.size(); index++) {
+            lines.add("selectedWeapon." + index + "=" + selectedWeaponIds.get(index));
+        }
+        List<String> selectedArmorIds = safeCharacterFile.getSelectedArmor().stream()
+            .map(item -> characterArmorId(item))
+            .filter(id -> !id.isEmpty())
+            .sorted()
+            .toList();
+        for (int index = 0; index < selectedArmorIds.size(); index++) {
+            lines.add("selectedArmor." + index + "=" + selectedArmorIds.get(index));
+        }
+        String currencyId = characterCurrencyId(safeCharacterFile);
+        lines.add("startingMoneyAmount=" + safeCharacterFile.getStartingMoneyAmount());
+        if (!currencyId.isEmpty()) {
+            lines.add("startingMoneyCurrencyId=" + currencyId);
+        }
+        lines.add("resolvedArmorClass=" + safeCharacterFile.getResolvedArmorClass());
         return String.join("\n", lines);
     }
 
@@ -5070,6 +5153,41 @@ public final class ApiRoutes {
         return Objects.toString(characterClass.getName(), "").trim().isEmpty()
             ? ""
             : Objects.toString(characterClass.getId(), "").trim();
+    }
+
+    private static String characterSpellId(Spell spell) {
+        Spell safeSpell = Objects.requireNonNullElseGet(spell, () -> new Spell(""));
+        return Objects.toString(safeSpell.getName(), "").trim().isEmpty()
+            ? ""
+            : Objects.toString(safeSpell.getId(), "").trim();
+    }
+
+    private static String characterEquipmentId(Equipment equipment) {
+        Equipment safeEquipment = Objects.requireNonNullElseGet(equipment, () -> new Equipment(""));
+        return Objects.toString(safeEquipment.getName(), "").trim().isEmpty()
+            ? ""
+            : Objects.toString(safeEquipment.getId(), "").trim();
+    }
+
+    private static String characterWeaponId(Weapon weapon) {
+        Weapon safeWeapon = Objects.requireNonNullElseGet(weapon, () -> new Weapon(""));
+        return Objects.toString(safeWeapon.getName(), "").trim().isEmpty()
+            ? ""
+            : Objects.toString(safeWeapon.getId(), "").trim();
+    }
+
+    private static String characterArmorId(Armor armor) {
+        Armor safeArmor = Objects.requireNonNullElseGet(armor, () -> new Armor(""));
+        return Objects.toString(safeArmor.getName(), "").trim().isEmpty()
+            ? ""
+            : Objects.toString(safeArmor.getId(), "").trim();
+    }
+
+    private static String characterCurrencyId(CharacterFile characterFile) {
+        Currency currency = Objects.requireNonNullElseGet(characterFile, CharacterFile::new).getStartingMoneyCurrency();
+        return Objects.toString(currency.getName(), "").trim().isEmpty()
+            ? ""
+            : Objects.toString(currency.getId(), "").trim();
     }
 
     private static CharacterDraft parseCharacterDraft(String text) throws IOException {
@@ -5726,6 +5844,12 @@ public final class ApiRoutes {
     private static List<Weapon> getWeapons(Game game) {
         List<Weapon> weapons = game.<Weapon>getObjectArray("weapons");
         return weapons == null ? List.of() : weapons;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Armor> getArmor(Game game) {
+        List<Armor> armor = game.<Armor>getObjectArray("armor");
+        return armor == null ? List.of() : armor;
     }
 
     @SuppressWarnings("unchecked")

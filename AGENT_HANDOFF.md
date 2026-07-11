@@ -1,6 +1,6 @@
 # GMRules Closed Beta Agent Handoff
 
-Updated: 2026-07-08
+Updated: 2026-07-11
 Repo root: `C:\Users\John\IdeaProjects\GMRules-ClosedBeta`
 
 This is the start-here snapshot for recovering the project after context loss or a machine failure.
@@ -85,6 +85,8 @@ Implemented so far:
 - New character creation now confirms the selected game before prompting for the character name. The saved-ruleset Create Character path opens the Game Setup confirmation first; Continue opens Character Name when no name exists, and name submission proceeds to Attribute Generation. A headless Chrome smoke with stubbed API responses confirmed Game Setup -> Character Name -> Attribute Generation with no runtime errors on 2026-07-07.
 - Current interrupted bug state on 2026-07-07: production showed `Unexpected token '<', "<html> <h"... is not valid JSON` while working on the character creation loading bug. Local `app.js` now avoids server autosave from Character Name until Attribute Generation loads, saves the character draft after Attribute Generation renders, and wraps shared API JSON parsing so HTML responses report the endpoint/status instead of a raw JSON syntax error. `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `git diff --check` passed locally after this parser hardening; `git diff --check` only emitted the existing line-ending warning for `app.js`. This change has not been deployed or hosted-smoked yet.
 - Follow-up hosted smoke exposed the specific server-side symptom: `GET /api/drafts/{id}/chargen/attribute-generation` returned an HTML `504` page through the proxy. Local fixes now also avoid server autosave from the Game Setup intro screen and make `DraftStore.saveDraft` serialize/replace `.gmrf` files atomically under the draft lock. Hosted diagnostics on 2026-07-08 found the route existed but Java returned fast `500` because the Maven `exec:java` launcher loaded a stale installed `gmrules-core` snapshot missing `AttributeGenerationMethod.getStandardArrayAssignmentMode()`. Running `mvn -q -DskipTests install` updated the installed snapshot. After that, `GET /api/drafts` failed on a legacy saved `.gmrf` because newly added `deities`/`pantheons` element registries were absent after deserialization. `Game.readObject` now repairs missing registry maps and element registry keys without clearing saved content. Local `mvn test` passed after this fix, and hosted smoke passed after deploy: saved draft listing works again and saved-ruleset character creation reaches Attribute Generation.
+- The web character generator now continues after Class through Skills, Spells, Equipment, Weapons, and Armor. Skill ranks, selected spells, selected equipment, selected weapons, selected armor, starting money, and resolved armor class are stored in the lightweight `.gmcf` draft text and bridged into object-backed `CharacterFile` exports. Object-backed `.gmcf` imports now serialize those fields back into the web draft text. A read-only `GET /api/drafts/{id}/armor` endpoint exposes existing/imported armor for character selection; there is still no web armor authoring stage. `node --check gmrules-builder/src/main/resources/web/app.js` and `mvn test` passed locally on 2026-07-11 after this change. This has not been deployed or hosted-smoked yet.
+- Character Race, Class, and Spell screens now show "This game system does not use ..." empty-system messages when the ruleset has no entries. Later UI polish should consider skipping those screens entirely when empty instead of showing an informational step.
 - Source-of-truth warning: changes to `Game.java`, `ElementRegistryKey`, serialized fields, registry-backed game content, or character draft/file formats need explicit old-save migration/default handling before deploy. At minimum, update `Game.readObject` defaults and add/refresh compatibility smoke tests or fixtures for older `.gmrf` rulesets, account-backed lightweight character drafts, and object-backed `.gmcf` files.
 
 External setup completed:
@@ -95,10 +97,11 @@ External setup completed:
 
 Next repo steps:
 
-- Verify and smoke-test the new character download flow: create/select attributes, race, and class, click Download, and confirm the returned `.gmcf` is accepted by `CharacterFileIO.readCharacterFile`.
-- Smoke-test ruleset and character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older saved character drafts plus object-backed `.gmcf` files against the edited ruleset.
-- Add compatibility coverage for older `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` files before future `Game.java`, registry, or character-format changes.
-- Compare the Droplet's Nginx config and response headers against `docs/REVERSE_PROXY_SECURITY.md`; fill in the production details section.
+- Hosted-smoke the completed character generator flow after class selection: skills, spells, equipment, weapons, armor, and final `.gmcf` export.
+- Then smoke-test ruleset and character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older saved character drafts plus object-backed `.gmcf` files against the edited ruleset.
+- Then add compatibility coverage for older `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` files before future `Game.java`, registry, or character-format changes.
+- Then return to UI layout polish.
+- Defer comparing the Droplet's Nginx config and response headers against `docs/REVERSE_PROXY_SECURITY.md` until John is next on the Digital Ocean console.
 - Do not commit unless the user explicitly asks.
 
 ## Product Status
@@ -287,8 +290,8 @@ It auto-selects the single `/tmp/gmrules-backup-*.tar.gz.gpg` file when only one
 
 ## Next Best Moves
 
-1. Add compatibility coverage for older `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` files, especially around `Game.readObject`, `ElementRegistryKey`, newly added registry-backed content, `CharacterDraft`, `CharacterFileIO`, and rule-mode snapshot migration.
-2. Verify and smoke-test the new character download flow: create/select attributes, race, and class, click Download, and confirm the returned `.gmcf` is accepted by `CharacterFileIO.readCharacterFile`.
-3. Smoke-test ruleset and character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older saved character drafts plus object-backed `.gmcf` files against the edited ruleset.
-4. Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md`, then fill in the production details section.
-5. Continue the small controlled beta cohort.
+1. Hosted-smoke the completed character generator flow after class selection: skills, spells, equipment, weapons, armor, and final `.gmcf` export.
+2. Smoke-test ruleset and character migration behavior after editing saved server games and loading older character drafts/files.
+3. Add compatibility coverage for older `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` files, especially around `Game.readObject`, `ElementRegistryKey`, registry-backed content, `CharacterDraft`, `CharacterFileIO`, and rule-mode snapshot migration.
+4. Return to UI layout polish.
+5. Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md` when John is next on the Digital Ocean console.
