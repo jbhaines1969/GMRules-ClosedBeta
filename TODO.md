@@ -65,6 +65,7 @@ Updated: 2026-07-18
 - [x] Show explicit empty-system messages on character Race, Class, and Spell screens when the ruleset has no entries.
 - [x] Add player-choice handling for rulesets that allow multiple attribute generation methods, such as Dice Rolling or Standard Array.
 - [x] Add Attribute Generation player-option recipes so creators can model either/or options and additive sequences like Standard Array plus Dice or Standard Array plus Point Buy.
+- [x] Confirm the Attribute Generation player-option recipe controls record the intended builder mechanics; UI cleanup remains deferred until after character-generation smoke testing.
 - [ ] Consider hiding character Race, Class, and Spell screens entirely when the ruleset has no entries, instead of showing an informational screen.
 - [ ] Manually enter the Cities Without Number ruleset from the included CL-Open SRD and note builder workflow weaknesses found during entry.
 - [ ] Hosted-smoke the completed character flow from class selection through skills, spells, equipment, weapons, armor, and final `.gmcf` export.
