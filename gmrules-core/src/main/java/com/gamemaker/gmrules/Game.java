@@ -72,6 +72,8 @@ public class Game extends GameElement {
 
     // Rule Methods
     private AttributeGenerationMethod attributeGenerationMethod = new AttributeGenerationMethod("Attribute Generation");
+    private ArrayList<AttributeGenerationOption> attributeGenerationOptions = new ArrayList<>();
+    private boolean customAttributeGenerationOptions = false;
     private SaveMethod saveMethod = new SaveMethod("Saves");
     private HPMethod hpMethod = new HPMethod("Hit Points");
     private ArmorClassMethod armorClassMethod = new ArmorClassMethod("Armor Class");
@@ -1169,7 +1171,46 @@ public class Game extends GameElement {
             attributeGenerationMethod,
             () -> new AttributeGenerationMethod("Attribute Generation")
         );
+        ensureAttributeGenerationOptions();
         updateLastModified();
+    }
+
+    public List<AttributeGenerationOption> getAttributeGenerationOptions() {
+        ensureAttributeGenerationOptions();
+        ArrayList<AttributeGenerationOption> copy = new ArrayList<>();
+        for (AttributeGenerationOption option : attributeGenerationOptions) {
+            copy.add(new AttributeGenerationOption(option));
+        }
+        return copy;
+    }
+
+    public void setAttributeGenerationOptions(Collection<AttributeGenerationOption> options) {
+        attributeGenerationOptions = copyAttributeGenerationOptions(options);
+        customAttributeGenerationOptions = true;
+        ensureAttributeGenerationOptions();
+        updateLastModified();
+    }
+
+    public void addAttributeGenerationOption(AttributeGenerationOption option) {
+        AttributeGenerationOption safeOption = new AttributeGenerationOption(option);
+        if (safeOption.getSteps().isEmpty()) {
+            return;
+        }
+        ensureAttributeGenerationOptions();
+        customAttributeGenerationOptions = true;
+        attributeGenerationOptions.add(safeOption);
+        updateLastModified();
+    }
+
+    public void clearAttributeGenerationOptions() {
+        attributeGenerationOptions.clear();
+        customAttributeGenerationOptions = false;
+        ensureAttributeGenerationOptions();
+        updateLastModified();
+    }
+
+    public boolean hasCustomAttributeGenerationOptions() {
+        return customAttributeGenerationOptions;
     }
 
     public SaveMethod getSaveMethod() { return saveMethod; }
@@ -1279,11 +1320,116 @@ public class Game extends GameElement {
             attributeGenerationMethod,
             () -> new AttributeGenerationMethod("Attribute Generation")
         );
+        if (!customAttributeGenerationOptions) {
+            attributeGenerationOptions = new ArrayList<>();
+        }
+        attributeGenerationOptions = copyAttributeGenerationOptions(attributeGenerationOptions);
+        ensureAttributeGenerationOptions();
         saveMethod = Objects.requireNonNullElseGet(saveMethod, () -> new SaveMethod("Saves"));
         hpMethod = Objects.requireNonNullElseGet(hpMethod, () -> new HPMethod("Hit Points"));
         armorClassMethod = Objects.requireNonNullElseGet(armorClassMethod, () -> new ArmorClassMethod("Armor Class"));
         combatMethod = Objects.requireNonNullElseGet(combatMethod, () -> new CombatMethod("Combat"));
         levelingMethod = Objects.requireNonNullElseGet(levelingMethod, () -> new LevelingMethod("Leveling"));
+    }
+
+    private void ensureAttributeGenerationOptions() {
+        if (attributeGenerationOptions == null) {
+            attributeGenerationOptions = new ArrayList<>();
+        }
+        if (!customAttributeGenerationOptions) {
+            attributeGenerationOptions = buildDefaultAttributeGenerationOptions(attributeGenerationMethod);
+            return;
+        }
+        if (!attributeGenerationOptions.isEmpty()) {
+            attributeGenerationOptions = copyAttributeGenerationOptions(attributeGenerationOptions);
+            return;
+        }
+        attributeGenerationOptions = buildDefaultAttributeGenerationOptions(attributeGenerationMethod);
+    }
+
+    private ArrayList<AttributeGenerationOption> copyAttributeGenerationOptions(
+        Collection<AttributeGenerationOption> options
+    ) {
+        Collection<AttributeGenerationOption> safeOptions = Objects.requireNonNullElse(options, List.of());
+        ArrayList<AttributeGenerationOption> copy = new ArrayList<>();
+        for (AttributeGenerationOption option : safeOptions) {
+            AttributeGenerationOption safeOption = new AttributeGenerationOption(option);
+            if (!safeOption.getSteps().isEmpty()) {
+                copy.add(safeOption);
+            }
+        }
+        return copy;
+    }
+
+    private ArrayList<AttributeGenerationOption> buildDefaultAttributeGenerationOptions(
+        AttributeGenerationMethod method
+    ) {
+        AttributeGenerationMethod safeMethod = Objects.requireNonNullElseGet(
+            method,
+            () -> new AttributeGenerationMethod("Attribute Generation")
+        );
+        ArrayList<String> methodTypes = resolveAttributeGenerationMethodTypes(safeMethod);
+        ArrayList<AttributeGenerationOption> options = new ArrayList<>();
+        for (String methodType : methodTypes) {
+            String safeType = AttributeGenerationStep.normalizeMethodType(methodType);
+            if (safeType.isEmpty()) {
+                continue;
+            }
+            AttributeGenerationOption option = new AttributeGenerationOption(
+                defaultAttributeGenerationOptionId(safeType),
+                defaultAttributeGenerationOptionName(safeType)
+            );
+            option.addStep(new AttributeGenerationStep(safeType, AttributeGenerationStep.APPLICATION_SET));
+            options.add(option);
+        }
+        return options;
+    }
+
+    private ArrayList<String> resolveAttributeGenerationMethodTypes(AttributeGenerationMethod method) {
+        String generationType = AttributeGenerationStep.normalizeMethodType(method.getGenerationType());
+        ArrayList<String> methodTypes = new ArrayList<>();
+        if (!generationType.isEmpty()) {
+            methodTypes.add(generationType);
+            return methodTypes;
+        }
+        String rawType = Objects.toString(method.getGenerationType(), "").trim().toLowerCase();
+        if (!rawType.equals("hybrid")) {
+            return methodTypes;
+        }
+        List<String> stages = Objects.requireNonNullElse(method.<String>getArray("hybridStages"), new ArrayList<>());
+        if (stages.isEmpty()) {
+            stages = List.of(
+                AttributeGenerationStep.METHOD_STANDARD_ARRAY,
+                AttributeGenerationStep.METHOD_DICE,
+                AttributeGenerationStep.METHOD_POINT_BUY
+            );
+        }
+        for (String stage : stages) {
+            String safeStage = AttributeGenerationStep.normalizeMethodType(stage);
+            if (!safeStage.isEmpty() && !methodTypes.contains(safeStage)) {
+                methodTypes.add(safeStage);
+            }
+        }
+        return methodTypes;
+    }
+
+    private String defaultAttributeGenerationOptionId(String methodType) {
+        String safeType = AttributeGenerationStep.normalizeMethodType(methodType);
+        return safeType.isEmpty() ? "" : "option-" + safeType;
+    }
+
+    private String defaultAttributeGenerationOptionName(String methodType) {
+        String safeType = AttributeGenerationStep.normalizeMethodType(methodType);
+        if (safeType.equals(AttributeGenerationStep.METHOD_STANDARD_ARRAY)) {
+            return "Standard Array";
+        }
+        if (safeType.equals(AttributeGenerationStep.METHOD_DICE)) {
+            return "Dice Rolling";
+        }
+        if (safeType.equals(AttributeGenerationStep.METHOD_POINT_BUY)) {
+            return "Point Buy";
+        }
+        return "";
     }
 
     /**
@@ -1387,6 +1533,153 @@ public class Game extends GameElement {
         @Override
         public String toString() {
             return minValue + "-" + maxValue;
+        }
+    }
+
+    public static final class AttributeGenerationOption implements java.io.Serializable {
+        private static final long serialVersionUID = 1L;
+        private String id = "";
+        private String name = "";
+        private ArrayList<AttributeGenerationStep> steps = new ArrayList<>();
+
+        public AttributeGenerationOption() {
+        }
+
+        public AttributeGenerationOption(String id, String name) {
+            setId(id);
+            setName(name);
+        }
+
+        public AttributeGenerationOption(AttributeGenerationOption source) {
+            AttributeGenerationOption safeSource = Objects.requireNonNullElseGet(
+                source,
+                AttributeGenerationOption::new
+            );
+            setId(safeSource.id);
+            setName(safeSource.name);
+            setSteps(safeSource.steps);
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public void setId(String id) {
+            this.id = Objects.toString(id, "").trim();
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = Objects.toString(name, "").trim();
+        }
+
+        public List<AttributeGenerationStep> getSteps() {
+            ArrayList<AttributeGenerationStep> copy = new ArrayList<>();
+            for (AttributeGenerationStep step : steps) {
+                copy.add(new AttributeGenerationStep(step));
+            }
+            return copy;
+        }
+
+        public void setSteps(Collection<AttributeGenerationStep> steps) {
+            Collection<AttributeGenerationStep> safeSteps = Objects.requireNonNullElse(steps, List.of());
+            ArrayList<AttributeGenerationStep> copy = new ArrayList<>();
+            for (AttributeGenerationStep step : safeSteps) {
+                AttributeGenerationStep safeStep = new AttributeGenerationStep(step);
+                if (!safeStep.getMethodType().isEmpty()) {
+                    copy.add(safeStep);
+                }
+            }
+            this.steps = copy;
+        }
+
+        public void addStep(AttributeGenerationStep step) {
+            AttributeGenerationStep safeStep = new AttributeGenerationStep(step);
+            if (!safeStep.getMethodType().isEmpty()) {
+                steps.add(safeStep);
+            }
+        }
+
+        private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
+            stream.defaultReadObject();
+            if (id == null) {
+                id = "";
+            }
+            if (name == null) {
+                name = "";
+            }
+            setSteps(steps);
+        }
+    }
+
+    public static final class AttributeGenerationStep implements java.io.Serializable {
+        private static final long serialVersionUID = 1L;
+        public static final String METHOD_STANDARD_ARRAY = "standard_array";
+        public static final String METHOD_DICE = "dice";
+        public static final String METHOD_POINT_BUY = "point_buy";
+        public static final String APPLICATION_SET = "set";
+        public static final String APPLICATION_ADD = "add";
+        public static final String APPLICATION_SPEND = "spend";
+
+        private String methodType = "";
+        private String applicationMode = APPLICATION_SET;
+
+        public AttributeGenerationStep() {
+        }
+
+        public AttributeGenerationStep(String methodType, String applicationMode) {
+            setMethodType(methodType);
+            setApplicationMode(applicationMode);
+        }
+
+        public AttributeGenerationStep(AttributeGenerationStep source) {
+            AttributeGenerationStep safeSource = Objects.requireNonNullElseGet(
+                source,
+                AttributeGenerationStep::new
+            );
+            setMethodType(safeSource.methodType);
+            setApplicationMode(safeSource.applicationMode);
+        }
+
+        public String getMethodType() {
+            return methodType;
+        }
+
+        public void setMethodType(String methodType) {
+            this.methodType = normalizeMethodType(methodType);
+        }
+
+        public String getApplicationMode() {
+            return applicationMode;
+        }
+
+        public void setApplicationMode(String applicationMode) {
+            this.applicationMode = normalizeApplicationMode(applicationMode);
+        }
+
+        public static String normalizeMethodType(String methodType) {
+            String safeType = Objects.toString(methodType, "").trim().toLowerCase();
+            if (safeType.equals(METHOD_STANDARD_ARRAY) || safeType.equals(METHOD_DICE) || safeType.equals(METHOD_POINT_BUY)) {
+                return safeType;
+            }
+            return "";
+        }
+
+        public static String normalizeApplicationMode(String applicationMode) {
+            String safeMode = Objects.toString(applicationMode, "").trim().toLowerCase();
+            if (safeMode.equals(APPLICATION_ADD) || safeMode.equals(APPLICATION_SPEND)) {
+                return safeMode;
+            }
+            return APPLICATION_SET;
+        }
+
+        private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
+            stream.defaultReadObject();
+            setMethodType(methodType);
+            setApplicationMode(applicationMode);
         }
     }
 }

@@ -4,6 +4,7 @@ const state = {
   mode: "home",
   attributeGenerationType: "",
   attributeGenerationStages: [],
+  attributeGenerationOptions: [],
   locale: "",
   strings: {},
   sessionToken: "",
@@ -30,6 +31,7 @@ const state = {
   chargenGameHash: "",
   chargenGameName: "",
   chargenCharacterName: "",
+  chargenAttributeGenerationChoice: "",
   chargenRuleModeSelections: {},
   chargenDiceSubstitutionsUsed: 0,
   chargenDraftText: "",
@@ -6676,7 +6678,20 @@ async function renderCharGenAttributes() {
     const attributes = Array.isArray(data.attributes) ? data.attributes : [];
     const method = data || {};
     const rulesText = buildCharGenRules(method);
+    const generationChoices = getCharGenGenerationChoices(method);
+    const initialGenerationChoice = resolveCharGenGenerationChoice(method);
+    const generationChoiceOptions = [`<option value="">${t("attrgen.choice.placeholder", "Choose a method")}</option>`]
+      .concat(
+        generationChoices.map((choice) => {
+          const selected = choice.key === initialGenerationChoice ? " selected" : "";
+          return `<option value="${choice.key}"${selected}>${escapeHtml(choice.label)}</option>`;
+        })
+      )
+      .join("");
     state.chargenAttributes = attributes.slice();
+    if (generationChoices.length === 1) {
+      state.chargenAttributeGenerationChoice = generationChoices[0].key;
+    }
 
     view.innerHTML = `
       <section class="panel">
@@ -6685,12 +6700,18 @@ async function renderCharGenAttributes() {
           <label for="chargenRules">${t("attrgen.rules", "Rules")}</label>
           <textarea id="chargenRules" readonly>${escapeHtml(rulesText)}</textarea>
         </div>
+        ${generationChoices.length > 1 ? `
+          <div class="field">
+            <label for="chargenGenerationChoice">${t("attrgen.choice", "Choose Attribute Method")}</label>
+            <select id="chargenGenerationChoice">${generationChoiceOptions}</select>
+          </div>
+        ` : ""}
         <div class="field" id="chargenArraySection">
           <label>${t("attrgen.type.standard_array", "Standard Array")}</label>
           <select id="chargenArraySelect"></select>
           <p class="field-hint" id="chargenArrayEmpty">${t("common.none", "None")}</p>
         </div>
-        <div class="field">
+        <div class="field" id="chargenDiceSection">
           <label>${t("attrgen.rolls", "Rolled Sets")}</label>
           <div class="actions-row">
             <div class="left">
@@ -6746,6 +6767,8 @@ async function renderCharGenAttributes() {
     const arraySection = document.getElementById("chargenArraySection");
     const arraySelect = document.getElementById("chargenArraySelect");
     const arrayEmpty = document.getElementById("chargenArrayEmpty");
+    const diceSection = document.getElementById("chargenDiceSection");
+    const generationChoiceSelect = document.getElementById("chargenGenerationChoice");
     const attributesGrid = document.getElementById("chargenAttributes");
     const attributesEmpty = document.getElementById("chargenAttributesEmpty");
 
@@ -6757,20 +6780,14 @@ async function renderCharGenAttributes() {
       rollBaselineValues = captureCharGenAttributeValues(attributeInputs);
       renderRolls();
     });
-    maybeApplyCharGenDefaultArray(method, attributes, attributeInputs);
-    const baseAttributeValues = captureCharGenAttributeValues(attributeInputs);
     attributesEmpty.style.display = attributes.length ? "none" : "";
 
-    const diceEnabled = isCharGenDiceEnabled(method, attributes);
-    const substitutionEnabled = isCharGenDiceSubstitutionEnabled(method);
     const substitutionValue = Math.max(0, Math.trunc(Number(method.diceSubstitutionValue || 0)));
     const maxSubstitutions = Math.max(0, Math.trunc(Number(method.maxDiceSubstitutions || 0)));
-    rollBtn.disabled = !diceEnabled;
     applyBtn.disabled = true;
-    substitutionSection.style.display = substitutionEnabled ? "" : "none";
-    substitutionHint.style.display = substitutionEnabled ? "" : "none";
 
     let rollBaselineValues = captureCharGenAttributeValues(attributeInputs);
+    let activeGenerationChoice = initialGenerationChoice;
 
     attributeInputs.forEach((entry) => {
       entry.input.addEventListener("change", () => {
@@ -6780,6 +6797,8 @@ async function renderCharGenAttributes() {
       });
     });
     const renderRolls = () => {
+      const diceActive = isCharGenGenerationChoiceActive(method, activeGenerationChoice, "dice");
+      const substitutionEnabled = diceActive && isCharGenDiceSubstitutionEnabled(method);
       const selectedRoll = selectedIndex >= 0 && selectedIndex < rolls.length ? rolls[selectedIndex] : [];
       const usedSubstitutions = Math.max(0, Math.trunc(Number(state.chargenDiceSubstitutionsUsed || 0)));
       const remainingSubstitutions = Math.max(0, maxSubstitutions - usedSubstitutions);
@@ -6798,7 +6817,10 @@ async function renderCharGenAttributes() {
         })
         .join("");
       rollEmpty.style.display = rolls.length ? "none" : "";
-      applyBtn.disabled = selectedIndex < 0;
+      rollBtn.disabled = !diceActive || !isCharGenDiceEnabled(method, attributes);
+      applyBtn.disabled = !diceActive || selectedIndex < 0;
+      substitutionSection.style.display = substitutionEnabled ? "" : "none";
+      substitutionHint.style.display = substitutionEnabled ? "" : "none";
       if (substitutionEnabled) {
         substitutionSelect.innerHTML = selectedRoll
           .map((value, index) => {
@@ -6819,8 +6841,35 @@ async function renderCharGenAttributes() {
       }
     };
 
+    const updateGenerationChoiceUi = () => {
+      activeGenerationChoice = resolveCharGenGenerationChoice(method);
+      const standardActive = isCharGenGenerationChoiceActive(method, activeGenerationChoice, "standard_array");
+      const diceActive = isCharGenGenerationChoiceActive(method, activeGenerationChoice, "dice");
+      arraySection.classList.toggle("hidden", !standardActive);
+      diceSection.classList.toggle("hidden", !diceActive);
+      if (standardActive) {
+        maybeApplyCharGenDefaultArray(method, attributes, attributeInputs);
+        state.chargenAttributeScores = collectCharGenAttributeScores(attributeInputs);
+      }
+      renderRolls();
+    };
+
+    if (generationChoiceSelect) {
+      generationChoiceSelect.addEventListener("change", () => {
+        state.chargenAttributeGenerationChoice = normalizeCharGenGenerationChoice(generationChoiceSelect.value);
+        state.chargenAttributeScores = {};
+        state.chargenDiceSubstitutionsUsed = 0;
+        rolls.length = 0;
+        selectedIndex = -1;
+        resetCharGenAttributeInputs(attributeInputs, method);
+        rollBaselineValues = captureCharGenAttributeValues(attributeInputs);
+        updateGenerationChoiceUi();
+        saveCharGenDraftLocal();
+      });
+    }
+
     rollBtn.addEventListener("click", () => {
-      if (!diceEnabled) {
+      if (!isCharGenGenerationChoiceActive(method, activeGenerationChoice, "dice") || !isCharGenDiceEnabled(method, attributes)) {
         return;
       }
       const maxSets = Number(method.numberOfSets || 0);
@@ -6885,18 +6934,23 @@ async function renderCharGenAttributes() {
       renderCharGenIntro();
     });
     document.getElementById("chargenAttrContinue").addEventListener("click", () => {
+      if (generationChoices.length > 1 && !resolveCharGenGenerationChoice(method)) {
+        showToast(t("attrgen.choice.required", "Choose an attribute generation method."));
+        return;
+      }
       const scores = collectCharGenAttributeScores(attributeInputs);
       state.chargenAttributeScores = scores;
       state.chargenAttributes = attributes.slice();
       state.chargenPointBuyBaselineScores = { ...scores };
       saveCharGenDraftLocal();
-      if (isCharGenPointBuySelected(method)) {
+      if (isCharGenGenerationChoiceActive(method, resolveCharGenGenerationChoice(method), "point_buy")) {
         renderCharGenPointsBuy();
         return;
       }
       renderCharGenRaces();
     });
 
+    updateGenerationChoiceUi();
     renderRolls();
     saveCharGenDraftLocal();
   } catch (error) {
@@ -7724,6 +7778,104 @@ function buildCharGenRules(method) {
   ].join("\n");
 }
 
+function normalizeCharGenGenerationChoice(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "")
+    .slice(0, 80);
+}
+
+function getCharGenGenerationChoiceEntries(method) {
+  const safeMethod = method || {};
+  const options = normalizeAttributeGenerationOptions(safeMethod.attributeGenerationOptions || []);
+  if (options.length) {
+    return options.map((option) => ({
+      key: option.id,
+      label: option.name || t("attrgen.options.default_name", "Option"),
+      steps: option.steps,
+    }));
+  }
+  const type = normalizeCharGenGenerationChoice(safeMethod.generationType);
+  if (["standard_array", "dice", "point_buy"].includes(type)) {
+    return [{
+      key: type,
+      label: formatCharGenType(type),
+      steps: [{ methodType: type, applicationMode: "set" }],
+    }];
+  }
+  if (String(safeMethod.generationType || "").trim().toLowerCase() !== "hybrid") {
+    return [];
+  }
+  const stages = normalizeHybridStages(safeMethod.hybridStages)
+    .map((stage) => normalizeCharGenGenerationChoice(stage))
+    .filter((stage) => stage.length > 0);
+  const resolved = stages.length ? stages : ["standard_array", "dice", "point_buy"];
+  const choices = [];
+  resolved.forEach((stage) => {
+    if (!choices.includes(stage)) {
+      choices.push(stage);
+    }
+  });
+  return choices.map((key) => ({
+    key,
+    label: formatCharGenType(key),
+    steps: [{ methodType: key, applicationMode: "set" }],
+  }));
+}
+
+function getCharGenGenerationChoiceKeys(method) {
+  return getCharGenGenerationChoiceEntries(method).map((entry) => entry.key);
+}
+
+function getCharGenGenerationChoices(method) {
+  return getCharGenGenerationChoiceEntries(method).map((entry) => ({
+    key: entry.key,
+    label: entry.label,
+  }));
+}
+
+function resolveCharGenGenerationChoice(method) {
+  const choices = getCharGenGenerationChoiceKeys(method);
+  const selected = normalizeCharGenGenerationChoice(state.chargenAttributeGenerationChoice);
+  if (selected && choices.includes(selected)) {
+    return selected;
+  }
+  return choices.length === 1 ? choices[0] : "";
+}
+
+function isCharGenGenerationChoiceActive(method, selectedChoice, methodKey) {
+  const target = normalizeCharGenGenerationChoice(methodKey);
+  if (!target) {
+    return false;
+  }
+  const choices = getCharGenGenerationChoiceEntries(method);
+  const selected = normalizeCharGenGenerationChoice(selectedChoice);
+  const selectedEntry = choices.length === 1
+    ? choices[0]
+    : choices.find((entry) => normalizeCharGenGenerationChoice(entry.key) === selected);
+  if (!selectedEntry) {
+    return false;
+  }
+  return selectedEntry.steps.some((step) => normalizeAttributeGenerationMethodType(step.methodType) === target);
+}
+
+function getCharGenSelectedGenerationStep(method, methodType) {
+  const target = normalizeAttributeGenerationMethodType(methodType);
+  if (!target) {
+    return null;
+  }
+  const choices = getCharGenGenerationChoiceEntries(method);
+  const selected = normalizeCharGenGenerationChoice(resolveCharGenGenerationChoice(method));
+  const selectedEntry = choices.length === 1
+    ? choices[0]
+    : choices.find((entry) => normalizeCharGenGenerationChoice(entry.key) === selected);
+  if (!selectedEntry) {
+    return null;
+  }
+  return selectedEntry.steps.find((step) => normalizeAttributeGenerationMethodType(step.methodType) === target) || null;
+}
+
 function buildCharGenAttributes(attributes, method, container) {
   const inputs = [];
   container.innerHTML = "";
@@ -7750,6 +7902,13 @@ function buildCharGenAttributes(attributes, method, container) {
   return inputs;
 }
 
+function resetCharGenAttributeInputs(inputs, method) {
+  const base = resolveCharGenBase(method);
+  inputs.forEach((entry) => {
+    entry.input.value = String(clampCharGen(base, entry.min, entry.max));
+  });
+}
+
 function applyCharGenValues(inputs, values, baseValues = null) {
   inputs.forEach((entry, index) => {
     const rolled = Number(values[index] || 0);
@@ -7764,6 +7923,10 @@ function captureCharGenAttributeValues(inputs) {
 }
 
 function shouldAddCharGenRollToBase(method) {
+  const selectedStep = getCharGenSelectedGenerationStep(method, "dice");
+  if (selectedStep) {
+    return normalizeAttributeGenerationApplicationMode(selectedStep.applicationMode) === "add";
+  }
   const safeMethod = method || {};
   const generationType = String(safeMethod.generationType || "").trim().toLowerCase();
   if (generationType !== "hybrid") {
@@ -8116,6 +8279,7 @@ function buildCharGenDraft() {
     gameHash: String(state.chargenGameHash || ""),
     gameName: String(state.chargenGameName || ""),
     characterName: String(state.chargenCharacterName || ""),
+    attributeGenerationChoice: normalizeCharGenGenerationChoice(state.chargenAttributeGenerationChoice),
     ruleModeSelections: state.chargenRuleModeSelections || {},
     diceSubstitutionsUsed: Number(state.chargenDiceSubstitutionsUsed || 0),
     raceId: String(state.chargenRaceId || ""),
@@ -8142,6 +8306,10 @@ function serializeCharGenDraft(draft) {
   lines.push(`gameHash=${safeDraft.gameHash || ""}`);
   lines.push(`gameName=${safeDraft.gameName || ""}`);
   lines.push(`characterName=${safeDraft.characterName || ""}`);
+  const attributeGenerationChoice = normalizeCharGenGenerationChoice(safeDraft.attributeGenerationChoice);
+  if (attributeGenerationChoice) {
+    lines.push(`attributeGenerationChoice=${attributeGenerationChoice}`);
+  }
   lines.push(`diceSubstitutionsUsed=${Math.max(0, Number(safeDraft.diceSubstitutionsUsed || 0))}`);
   const ruleModes = safeDraft.ruleModeSelections || {};
   Object.keys(ruleModes)
@@ -8217,6 +8385,7 @@ function parseCharGenDraft(text) {
     gameHash: "",
     gameName: "",
     characterName: "",
+    attributeGenerationChoice: "",
     ruleModeSelections: {},
     diceSubstitutionsUsed: 0,
     raceId: "",
@@ -8254,6 +8423,8 @@ function parseCharGenDraft(text) {
       draft.gameName = value;
     } else if (key === "characterName") {
       draft.characterName = value;
+    } else if (key === "attributeGenerationChoice") {
+      draft.attributeGenerationChoice = normalizeCharGenGenerationChoice(value);
     } else if (key === "diceSubstitutionsUsed") {
       const used = Number(value);
       draft.diceSubstitutionsUsed = Number.isFinite(used) ? Math.max(0, Math.trunc(used)) : 0;
@@ -8311,6 +8482,7 @@ function applyCharGenDraft(draft) {
   state.chargenGameHash = String(safeDraft.gameHash || "");
   state.chargenGameName = String(safeDraft.gameName || "");
   state.chargenCharacterName = String(safeDraft.characterName || "");
+  state.chargenAttributeGenerationChoice = normalizeCharGenGenerationChoice(safeDraft.attributeGenerationChoice);
   state.chargenRuleModeSelections = safeDraft.ruleModeSelections || {};
   state.chargenDiceSubstitutionsUsed = Math.max(0, Number(safeDraft.diceSubstitutionsUsed || 0));
   state.chargenRaceId = String(safeDraft.raceId || "");
@@ -8348,6 +8520,7 @@ function resetCharGenState() {
   state.chargenGameHash = "";
   state.chargenGameName = "";
   state.chargenCharacterName = "";
+  state.chargenAttributeGenerationChoice = "";
   state.chargenRuleModeSelections = {};
   state.chargenDiceSubstitutionsUsed = 0;
   state.chargenDraftText = "";
@@ -8657,6 +8830,10 @@ function clampCharGen(value, min, max) {
 }
 
 function isCharGenPointBuySelected(method) {
+  const selected = normalizeCharGenGenerationChoice(state.chargenAttributeGenerationChoice);
+  if (["standard_array", "dice", "point_buy"].includes(selected)) {
+    return selected === "point_buy";
+  }
   const safeMethod = method || {};
   const type = String(safeMethod.generationType || "").trim().toLowerCase();
   if (type === "point_buy") {
@@ -8670,6 +8847,10 @@ function isCharGenPointBuySelected(method) {
 }
 
 function shouldAddCharGenPointBuyToBaseScores(method) {
+  const selectedStep = getCharGenSelectedGenerationStep(method, "point_buy");
+  if (selectedStep) {
+    return normalizeAttributeGenerationApplicationMode(selectedStep.applicationMode) === "spend";
+  }
   const safeMethod = method || {};
   const type = String(safeMethod.generationType || "").trim().toLowerCase();
   if (type !== "hybrid") {
@@ -9619,6 +9800,68 @@ function normalizeHybridStages(stages) {
   return resolved;
 }
 
+function normalizeAttributeGenerationMethodType(value) {
+  const safeValue = String(value || "").trim().toLowerCase();
+  if (["standard_array", "dice", "point_buy"].includes(safeValue)) {
+    return safeValue;
+  }
+  return "";
+}
+
+function normalizeAttributeGenerationApplicationMode(value) {
+  const safeValue = String(value || "").trim().toLowerCase();
+  if (["add", "spend"].includes(safeValue)) {
+    return safeValue;
+  }
+  return "set";
+}
+
+function formatAttributeGenerationApplicationMode(value) {
+  const safeValue = normalizeAttributeGenerationApplicationMode(value);
+  if (safeValue === "add") {
+    return t("attrgen.options.mode.add.short", "add");
+  }
+  if (safeValue === "spend") {
+    return t("attrgen.options.mode.spend.short", "spend");
+  }
+  return t("attrgen.options.mode.set.short", "set");
+}
+
+function normalizeAttributeGenerationOptions(options) {
+  const safeOptions = Array.isArray(options) ? options : [];
+  const normalized = [];
+  safeOptions.forEach((option, index) => {
+    const steps = Array.isArray(option.steps) ? option.steps : [];
+    const normalizedSteps = steps
+      .map((step) => ({
+        methodType: normalizeAttributeGenerationMethodType(step.methodType),
+        applicationMode: normalizeAttributeGenerationApplicationMode(step.applicationMode),
+      }))
+      .filter((step) => step.methodType);
+    if (!normalizedSteps.length) {
+      return;
+    }
+    normalized.push({
+      id: String(option.id || `option-${index + 1}`).trim() || `option-${index + 1}`,
+      name: String(option.name || "").trim() || formatCharGenType(normalizedSteps[0].methodType),
+      steps: normalizedSteps,
+    });
+  });
+  return normalized;
+}
+
+function buildDefaultAttributeGenerationOptions(methodTypes) {
+  const selected = Array.isArray(methodTypes) ? methodTypes : [];
+  return selected
+    .map((methodType) => normalizeAttributeGenerationMethodType(methodType))
+    .filter((methodType, index, values) => methodType && values.indexOf(methodType) === index)
+    .map((methodType) => ({
+      id: `option-${methodType}`,
+      name: formatCharGenType(methodType),
+      steps: [{ methodType, applicationMode: "set" }],
+    }));
+}
+
 function getAttributeGenerationOrder(generationType, hybridStages) {
   const safeType = String(generationType || "").toLowerCase();
   const order = [];
@@ -9752,6 +9995,8 @@ async function renderAttributeGeneration() {
     const standardChecked = selection.standard;
     const defaultScoreRangeChecked = usesDefaultAttributeScoreRange();
     let defaultModifiers = getStandardAttributeModifiers();
+    let generationOptionsCustomized = Boolean(data.customAttributeGenerationOptions);
+    let generationOptions = normalizeAttributeGenerationOptions(data.attributeGenerationOptions || []);
 
     view.innerHTML = `
       <section class="panel">
@@ -9764,6 +10009,37 @@ async function renderAttributeGeneration() {
           <label class="toggle"><input type="checkbox" id="genStandard" ${standardChecked ? "checked" : ""}> ${t("attrgen.type.standard_array", "Standard Array")}</label>
           <label class="toggle"><input type="checkbox" id="genDice" ${diceChecked ? "checked" : ""}> ${t("attrgen.type.dice", "Dice Rolling")}</label>
           <label class="toggle"><input type="checkbox" id="genPoint" ${pointChecked ? "checked" : ""}> ${t("attrgen.type.point_buy", "Point Buy")}</label>
+        </div>
+        <div class="edit-section">
+          <h2>${t("attrgen.options.title", "Player Options")}</h2>
+          <p class="field-hint">${t(
+            "attrgen.options.help",
+            "Each option is a player-facing choice. Steps inside one option happen in order, so later steps can add to or spend from earlier scores."
+          )}</p>
+          <div class="list" id="generationOptionList"></div>
+          <div class="grid two">
+            <div class="field">
+              <label for="generationOptionName">${t("attrgen.options.name", "Option Name")}</label>
+              <input type="text" id="generationOptionName" maxlength="80">
+            </div>
+            <div class="field">
+              <label for="generationOptionStep1">${t("attrgen.options.step1", "First Step")}</label>
+              <select id="generationOptionStep1"></select>
+            </div>
+            <div class="field">
+              <label for="generationOptionStep2">${t("attrgen.options.step2", "Second Step")}</label>
+              <select id="generationOptionStep2"></select>
+            </div>
+            <div class="field">
+              <label for="generationOptionStep2Mode">${t("attrgen.options.step2_mode", "Second Step Applies")}</label>
+              <select id="generationOptionStep2Mode">
+                <option value="add">${t("attrgen.options.mode.add", "Add to existing scores")}</option>
+                <option value="spend">${t("attrgen.options.mode.spend", "Spend from existing scores")}</option>
+                <option value="set">${t("attrgen.options.mode.set", "Replace existing scores")}</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn ghost" id="addGenerationOption" type="button">${t("attrgen.options.add", "Add Option")}</button>
         </div>
         <div class="edit-section">
           <h2>${t("attrgen.score_limits.title", "Score Limits")}</h2>
@@ -9850,6 +10126,74 @@ async function renderAttributeGeneration() {
         .join("");
     };
 
+    const getSelectedGenerationMethods = () => {
+      const selected = [];
+      if (document.getElementById("genStandard").checked) {
+        selected.push("standard_array");
+      }
+      if (document.getElementById("genDice").checked) {
+        selected.push("dice");
+      }
+      if (document.getElementById("genPoint").checked) {
+        selected.push("point_buy");
+      }
+      return selected;
+    };
+
+    const buildMethodSelectOptions = (includeEmpty = false) => {
+      const options = includeEmpty
+        ? [`<option value="">${t("common.none", "None")}</option>`]
+        : [];
+      getSelectedGenerationMethods().forEach((methodType) => {
+        options.push(`<option value="${methodType}">${escapeHtml(formatCharGenType(methodType))}</option>`);
+      });
+      return options.join("");
+    };
+
+    const ensureGenerationOptionsForSelection = () => {
+      const selected = getSelectedGenerationMethods();
+      if (generationOptionsCustomized) {
+        generationOptions = generationOptions
+          .map((option) => ({
+            ...option,
+            steps: option.steps.filter((step) => selected.includes(step.methodType)),
+          }))
+          .filter((option) => option.steps.length > 0);
+        return;
+      }
+      generationOptions = buildDefaultAttributeGenerationOptions(selected);
+    };
+
+    const renderGenerationOptions = () => {
+      ensureGenerationOptionsForSelection();
+      state.attributeGenerationOptions = generationOptions.slice();
+      const list = document.getElementById("generationOptionList");
+      const step1 = document.getElementById("generationOptionStep1");
+      const step2 = document.getElementById("generationOptionStep2");
+      step1.innerHTML = buildMethodSelectOptions(false);
+      step2.innerHTML = buildMethodSelectOptions(true);
+      if (!generationOptions.length) {
+        list.innerHTML = `<div class="list-item">${t("attrgen.options.none", "No player options yet.")}</div>`;
+        return;
+      }
+      list.innerHTML = generationOptions
+        .map((option, index) => {
+          const steps = option.steps
+            .map((step) => `${formatCharGenType(step.methodType)} (${formatAttributeGenerationApplicationMode(step.applicationMode)})`)
+            .join(" -> ");
+          return `
+            <div class="list-item">
+              <div>
+                <div>${escapeHtml(option.name || t("attrgen.options.default_name", "Option"))}</div>
+                <div class="badge">${escapeHtml(steps)}</div>
+              </div>
+              <button class="btn danger small" data-remove-generation-option="${index}">${t("common.remove", "Remove")}</button>
+            </div>
+          `;
+        })
+        .join("");
+    };
+
     const readDefaultScoreRange = () => {
       const enabled = document.getElementById("defaultScoreRange").checked;
       if (!enabled) {
@@ -9912,17 +10256,23 @@ async function renderAttributeGeneration() {
         generationType = "hybrid";
         hybridStages = selected;
       }
+      ensureGenerationOptionsForSelection();
       try {
-        await api("POST", `/api/drafts/${state.draftId}/attribute-generation`, {
+        const payload = {
           generationType,
           hybridStages,
           defaultAttributeMinScore: defaultScoreRange.defaultAttributeMinScore,
           defaultAttributeMaxScore: defaultScoreRange.defaultAttributeMaxScore,
           applyAttributeModifiersToAllAttributes: applyAttributeModifiers,
           attributeModifiers: defaultModifiers,
-        });
+        };
+        if (generationOptionsCustomized) {
+          payload.attributeGenerationOptions = generationOptions;
+        }
+        await api("POST", `/api/drafts/${state.draftId}/attribute-generation`, payload);
         state.attributeGenerationType = generationType;
         state.attributeGenerationStages = normalizeHybridStages(hybridStages);
+        state.attributeGenerationOptions = generationOptions.slice();
         state.defaultAttributeMinScore = defaultScoreRange.defaultAttributeMinScore;
         state.defaultAttributeMaxScore = defaultScoreRange.defaultAttributeMaxScore;
         state.applyAttributeModifiersToAllAttributes = applyAttributeModifiers;
@@ -9937,9 +10287,51 @@ async function renderAttributeGeneration() {
 
     updateDefaultScoreControls();
     renderDefaultModifiers();
-    document.getElementById("genDice").addEventListener("change", syncSelection);
-    document.getElementById("genPoint").addEventListener("change", syncSelection);
-    document.getElementById("genStandard").addEventListener("change", syncSelection);
+    renderGenerationOptions();
+    const generationMethodChanged = async () => {
+      renderGenerationOptions();
+      await syncSelection();
+    };
+    document.getElementById("genDice").addEventListener("change", generationMethodChanged);
+    document.getElementById("genPoint").addEventListener("change", generationMethodChanged);
+    document.getElementById("genStandard").addEventListener("change", generationMethodChanged);
+    document.getElementById("addGenerationOption").addEventListener("click", async () => {
+      const name = String(document.getElementById("generationOptionName").value || "").trim();
+      const firstStep = normalizeAttributeGenerationMethodType(document.getElementById("generationOptionStep1").value);
+      const secondStep = normalizeAttributeGenerationMethodType(document.getElementById("generationOptionStep2").value);
+      const secondMode = normalizeAttributeGenerationApplicationMode(document.getElementById("generationOptionStep2Mode").value);
+      if (!firstStep) {
+        showToast(t("attrgen.options.step_required", "Choose at least one option step."));
+        return;
+      }
+      const steps = [{ methodType: firstStep, applicationMode: "set" }];
+      if (secondStep) {
+        steps.push({ methodType: secondStep, applicationMode: secondMode });
+      }
+      generationOptionsCustomized = true;
+      generationOptions.push({
+        id: `option-${Date.now()}`,
+        name: name || t("attrgen.options.default_name", "Option"),
+        steps,
+      });
+      document.getElementById("generationOptionName").value = "";
+      renderGenerationOptions();
+      await syncSelection();
+    });
+    document.getElementById("generationOptionList").addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-remove-generation-option]");
+      if (!button) {
+        return;
+      }
+      const index = Number(button.dataset.removeGenerationOption);
+      if (!Number.isInteger(index) || index < 0 || index >= generationOptions.length) {
+        return;
+      }
+      generationOptionsCustomized = true;
+      generationOptions.splice(index, 1);
+      renderGenerationOptions();
+      await syncSelection();
+    });
     document.getElementById("defaultScoreRange").addEventListener("change", async () => {
       if (!document.getElementById("defaultScoreRange").checked) {
         document.getElementById("defaultModifiersEnabled").checked = false;

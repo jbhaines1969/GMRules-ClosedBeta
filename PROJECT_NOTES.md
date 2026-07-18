@@ -70,6 +70,7 @@ Ruleset builder:
 - Server-backed web character draft saves are stored as lightweight `.gmcf` text under `drafts/characters/`, associated with the account and saved ruleset draft. The closed-beta cap is four character drafts per account and two character drafts per saved ruleset.
 - Logged-in users can start character creation directly from a saved server-side ruleset without uploading a local `.gmrf` file.
 - Builder stages for setup, measurements, dice, attribute generation, attribute types, attributes, standard arrays, dice rolling, point buy, hit points, armor class, currency, effect types, statuses, effects, equipment, weapons, skills, spells, pantheons, deities, races, and classes. Attribute Generation appears before Attribute Types/Attributes so default score limits and shared modifiers can guide attribute creation; the selected generation detail screens remain after Attributes because they can depend on the finished attribute list.
+- Attribute Generation now has player-option recipes on `Game`: each option is exclusive, and each option can contain ordered steps that set, add to, or spend from attribute scores. Existing legacy settings still derive default options until custom options are saved.
 - Stage completion is tracked in the `Game` object.
 - Custom labels/system names are supported for some stage labels.
 
@@ -83,6 +84,8 @@ Character generation:
 - Uploading an object-backed `.gmcf` now posts to `POST /api/characters/import`; the server parses it, matches the source game id to a saved account ruleset, and returns lightweight web draft text so the current UI can resume it.
 - Character creation requires a name before the server character draft is created. The name is stored in lightweight draft text and object-backed `CharacterFile` exports, appears in the saved-character list, and exported files use `<Game name>-<Character name>.gmcf`.
 - Lightweight character drafts and object-backed `CharacterFile` exports now preserve source ruleset mode selections as `ruleMode.*` entries so later migration logic can compare the character baseline against changed rules.
+- Lightweight character drafts can also store `attributeGenerationChoice` for player-choice rulesets that allow more than one attribute generation method, such as Dice Rolling or Standard Array. Older drafts without this line still load.
+- Character generation reads the ruleset's player-option recipes, so a choice can be a single method or a sequence such as Standard Array plus Dice.
 - Attribute-generation dice substitution is wired in character generation: when enabled by the ruleset, players can replace a selected rolled value with the configured substitution value, and the used substitution count is preserved in character drafts and exports.
 - The web character generator now continues after class selection through skills, spells, equipment, weapons, and armor. It persists skill ranks, selected spells, selected equipment, selected weapons, selected armor, starting money, and resolved armor class into the lightweight web `.gmcf` draft and object-backed `CharacterFile` export.
 - Character Race, Class, and Spell screens now show an explicit empty-system message when the ruleset has no entries. Later UI polish should consider skipping those screens entirely when empty.

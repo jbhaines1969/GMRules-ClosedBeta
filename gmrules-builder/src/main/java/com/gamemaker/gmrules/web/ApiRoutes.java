@@ -2172,6 +2172,55 @@ public final class ApiRoutes {
         return modifiers;
     }
 
+    private static List<Map<String, Object>> serializeAttributeGenerationOptions(
+        List<Game.AttributeGenerationOption> options
+    ) {
+        List<Map<String, Object>> serialized = new ArrayList<>();
+        for (Game.AttributeGenerationOption option : options) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("id", Objects.toString(option.getId(), ""));
+            entry.put("name", Objects.toString(option.getName(), ""));
+            List<Map<String, Object>> steps = new ArrayList<>();
+            for (Game.AttributeGenerationStep step : option.getSteps()) {
+                Map<String, Object> stepEntry = new LinkedHashMap<>();
+                stepEntry.put("methodType", Objects.toString(step.getMethodType(), ""));
+                stepEntry.put("applicationMode", Objects.toString(step.getApplicationMode(), ""));
+                steps.add(stepEntry);
+            }
+            entry.put("steps", steps);
+            serialized.add(entry);
+        }
+        return serialized;
+    }
+
+    private static List<Game.AttributeGenerationOption> parseAttributeGenerationOptions(
+        List<Map<String, Object>> values
+    ) {
+        List<Game.AttributeGenerationOption> options = new ArrayList<>();
+        int index = 1;
+        for (Map<String, Object> entry : values) {
+            String id = getString(entry, "id");
+            String name = getString(entry, "name");
+            List<Map<String, Object>> rawSteps = getMapList(entry, "steps");
+            Game.AttributeGenerationOption option = new Game.AttributeGenerationOption(
+                id.isEmpty() ? "option-" + index : id,
+                name.isEmpty() ? "Option " + index : name
+            );
+            for (Map<String, Object> rawStep : rawSteps) {
+                Game.AttributeGenerationStep step = new Game.AttributeGenerationStep(
+                    getString(rawStep, "methodType"),
+                    getString(rawStep, "applicationMode")
+                );
+                option.addStep(step);
+            }
+            if (!option.getSteps().isEmpty()) {
+                options.add(option);
+                index++;
+            }
+        }
+        return options;
+    }
+
     private static void getAttributeGeneration(RequestContext ctx) throws IOException {
         SessionStore.Session session = requireSession(ctx);
         if (session == null) {
@@ -2194,7 +2243,11 @@ public final class ApiRoutes {
                 "applyAttributeModifiersToAllAttributes",
                 game.isApplyAttributeModifiersToAllAttributes(),
                 "attributeModifiers",
-                serializeAttributeModifiers(game.getAttributeModifiers())
+                serializeAttributeModifiers(game.getAttributeModifiers()),
+                "customAttributeGenerationOptions",
+                game.hasCustomAttributeGenerationOptions(),
+                "attributeGenerationOptions",
+                serializeAttributeGenerationOptions(game.getAttributeGenerationOptions())
             );
         });
         ctx.json(200, payload);
@@ -2216,6 +2269,10 @@ public final class ApiRoutes {
         boolean applyModifiersToAllAttributes = useDefaultScoreRange
             && getBoolean(body, "applyAttributeModifiersToAllAttributes", false);
         List<Map<String, Object>> modifiers = getMapList(body, "attributeModifiers");
+        boolean hasAttributeGenerationOptions = body.get("attributeGenerationOptions") instanceof List<?>;
+        List<Game.AttributeGenerationOption> attributeGenerationOptions = parseAttributeGenerationOptions(
+            getMapList(body, "attributeGenerationOptions")
+        );
         if (defaultMinScore > defaultMaxScore) {
             ctx.json(400, Map.of("error", "Minimum score cannot exceed maximum"));
             return;
@@ -2243,6 +2300,9 @@ public final class ApiRoutes {
                     method.addToArray(ARRAY_HYBRID, stage);
                 }
             }
+            if (hasAttributeGenerationOptions) {
+                game.setAttributeGenerationOptions(attributeGenerationOptions);
+            }
         });
         ctx.json(200, Map.of("ok", true));
     }
@@ -2258,6 +2318,7 @@ public final class ApiRoutes {
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("generationType", Objects.toString(method.getGenerationType(), ""));
             response.put("hybridStages", safeList(method.getArray(ARRAY_HYBRID)));
+            response.put("attributeGenerationOptions", serializeAttributeGenerationOptions(game.getAttributeGenerationOptions()));
             response.put("numberOfSets", method.getNumberOfSets());
             response.put("setSelectionMethod", Objects.toString(method.getSetSelectionMethod(), ""));
             response.put("assignInOrder", method.isAssignInOrder());

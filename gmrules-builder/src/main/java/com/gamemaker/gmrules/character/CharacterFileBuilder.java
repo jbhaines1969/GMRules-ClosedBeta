@@ -93,6 +93,7 @@ public class CharacterFileBuilder {
         AttributeGenerationMethod attributes = safeGame.getAttributeGenerationMethod();
         putMode(modes, "attributeGeneration.generationType", attributes.getGenerationType());
         putMode(modes, "attributeGeneration.hybridStages", String.join(",", attributes.getArray("hybridStages")));
+        putMode(modes, "attributeGeneration.options", formatAttributeGenerationOptions(safeGame.getAttributeGenerationOptions()));
         putMode(modes, "attributeGeneration.defaultArrayType", attributes.getDefaultArrayType());
         putMode(modes, "attributeGeneration.standardArrayAssignmentMode", attributes.getStandardArrayAssignmentMode());
         putMode(modes, "attributeGeneration.assignInOrder", attributes.isAssignInOrder());
@@ -148,6 +149,23 @@ public class CharacterFileBuilder {
         if (!safeKey.isEmpty()) {
             modes.put(safeKey, Objects.toString(value, "").trim());
         }
+    }
+
+    private static String formatAttributeGenerationOptions(List<Game.AttributeGenerationOption> options) {
+        List<String> values = new ArrayList<>();
+        for (Game.AttributeGenerationOption option : options) {
+            List<String> steps = new ArrayList<>();
+            for (Game.AttributeGenerationStep step : option.getSteps()) {
+                String methodType = Objects.toString(step.getMethodType(), "").trim();
+                if (!methodType.isEmpty()) {
+                    steps.add(methodType + ":" + Objects.toString(step.getApplicationMode(), "").trim());
+                }
+            }
+            if (!steps.isEmpty()) {
+                values.add(Objects.toString(option.getName(), "").trim() + "[" + String.join(">", steps) + "]");
+            }
+        }
+        return String.join("|", values);
     }
 
     private Map<Attribute, Integer> resolveAttributeScores(Game game, CharacterDraft draft) {
