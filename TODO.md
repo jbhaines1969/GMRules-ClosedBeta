@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-07-11
+Updated: 2026-07-18
 
 ## Beta Launch Blockers
 
@@ -64,6 +64,7 @@ Updated: 2026-07-11
 - [x] Continue the web character flow after class selection: skills, spells, equipment, weapons, armor, starting money, armor class, final `.gmcf` export.
 - [x] Show explicit empty-system messages on character Race, Class, and Spell screens when the ruleset has no entries.
 - [ ] Consider hiding character Race, Class, and Spell screens entirely when the ruleset has no entries, instead of showing an informational screen.
+- [ ] Manually enter the Cities Without Number ruleset from the included CL-Open SRD and note builder workflow weaknesses found during entry.
 - [ ] Hosted-smoke the completed character flow from class selection through skills, spells, equipment, weapons, armor, and final `.gmcf` export.
 - [ ] Smoke-test ruleset and character migration behavior: edit a saved server game, upload/download it, and load older saved character drafts plus object-backed `.gmcf` files against the edited ruleset.
 - [ ] Add compatibility tests for `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` resume/export behavior.

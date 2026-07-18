@@ -1,6 +1,6 @@
 # GMRules Closed Beta Agent Handoff
 
-Updated: 2026-07-11
+Updated: 2026-07-18
 Repo root: `C:\Users\John\IdeaProjects\GMRules-ClosedBeta`
 
 This is the start-here snapshot for recovering the project after context loss or a machine failure.
@@ -97,7 +97,8 @@ External setup completed:
 
 Next repo steps:
 
-- Hosted-smoke the completed character generator flow after class selection: skills, spells, equipment, weapons, armor, and final `.gmcf` export.
+- John is manually entering a complete Cities Without Number ruleset from the included CL-Open SRD first, both to create a realistic smoke-test `.gmrf` and to identify builder workflow weaknesses during real data entry.
+- Then hosted-smoke the completed character generator flow after class selection: skills, spells, equipment, weapons, armor, and final `.gmcf` export using that complete ruleset.
 - Then smoke-test ruleset and character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older saved character drafts plus object-backed `.gmcf` files against the edited ruleset.
 - Then add compatibility coverage for older `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` files before future `Game.java`, registry, or character-format changes.
 - Then return to UI layout polish.
@@ -290,8 +291,9 @@ It auto-selects the single `/tmp/gmrules-backup-*.tar.gz.gpg` file when only one
 
 ## Next Best Moves
 
-1. Hosted-smoke the completed character generator flow after class selection: skills, spells, equipment, weapons, armor, and final `.gmcf` export.
-2. Smoke-test ruleset and character migration behavior after editing saved server games and loading older character drafts/files.
-3. Add compatibility coverage for older `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` files, especially around `Game.readObject`, `ElementRegistryKey`, registry-backed content, `CharacterDraft`, `CharacterFileIO`, and rule-mode snapshot migration.
-4. Return to UI layout polish.
-5. Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md` when John is next on the Digital Ocean console.
+1. Support John's manual Cities Without Number ruleset entry from the included CL-Open SRD, and capture builder workflow weaknesses found during real entry.
+2. Hosted-smoke the completed character generator flow after class selection: skills, spells, equipment, weapons, armor, and final `.gmcf` export using the complete CWN ruleset.
+3. Smoke-test ruleset and character migration behavior after editing saved server games and loading older character drafts/files.
+4. Add compatibility coverage for older `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` files, especially around `Game.readObject`, `ElementRegistryKey`, registry-backed content, `CharacterDraft`, `CharacterFileIO`, and rule-mode snapshot migration.
+5. Return to UI layout polish.
+6. Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md` when John is next on the Digital Ocean console.

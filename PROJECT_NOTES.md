@@ -1,6 +1,6 @@
 # GMRules Closed Beta Project Notes
 
-Updated: 2026-07-11
+Updated: 2026-07-18
 
 ## Current Status
 
@@ -129,20 +129,23 @@ UX and copy:
 
 The fastest beta-launch path is to keep this as a small, controlled closed beta and avoid broad product hardening until real tester feedback validates the builder workflow.
 
-1. Hosted-smoke character-generator functionality.
-   Verify the completed web flow after class selection with skills, spells, equipment, weapons, armor, starting money, armor class, and final `.gmcf` export.
+1. Complete a realistic ruleset for character smoke testing.
+   John is manually entering the Cities Without Number ruleset from the included CL-Open SRD, both to create a complete `.gmrf` for character generation and to identify builder workflow weaknesses during real data entry.
 
-2. Smoke-test migration behavior.
+2. Hosted-smoke character-generator functionality.
+   Verify the completed web flow after class selection with skills, spells, equipment, weapons, armor, starting money, armor class, and final `.gmcf` export using the complete Cities Without Number ruleset.
+
+3. Smoke-test migration behavior.
    Edit saved server games, upload/download the changed rulesets, and load older saved character drafts plus object-backed `.gmcf` files against the edited rulesets.
 
-3. Add compatibility coverage.
+4. Add compatibility coverage.
    Cover older `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` resume/export behavior before future model or character-format changes.
 
-4. Return to UI layout polish.
+5. Return to UI layout polish.
    Focus on mobile layout, modal density, button hierarchy, and beta copy consistency after generator functionality and migration risk are addressed.
 
-5. Defer Nginx console work.
+6. Defer Nginx console work.
    Compare production Nginx and response headers against `docs/REVERSE_PROXY_SECURITY.md` when John is next on the Digital Ocean console.
 
-6. Continue the small controlled beta cohort.
+7. Continue the small controlled beta cohort.
    Keep the current account/draft caps for the first wave, monitor Discord and server logs, and manually review saved data/backups.
