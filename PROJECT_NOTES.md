@@ -69,7 +69,7 @@ Ruleset builder:
 - Local `.gmrf` download.
 - Server-backed web character draft saves are stored as lightweight `.gmcf` text under `drafts/characters/`, associated with the account and saved ruleset draft. The closed-beta cap is four character drafts per account and two character drafts per saved ruleset.
 - Logged-in users can start character creation directly from a saved server-side ruleset without uploading a local `.gmrf` file.
-- Builder stages for setup, measurements, dice, attribute types, attributes, attribute generation, standard arrays, dice rolling, point buy, hit points, armor class, currency, effect types, statuses, effects, equipment, weapons, skills, spells, pantheons, deities, races, and classes.
+- Builder stages for setup, measurements, dice, attribute generation, attribute types, attributes, standard arrays, dice rolling, point buy, hit points, armor class, currency, effect types, statuses, effects, equipment, weapons, skills, spells, pantheons, deities, races, and classes. Attribute Generation appears before Attribute Types/Attributes so default score limits and shared modifiers can guide attribute creation; the selected generation detail screens remain after Attributes because they can depend on the finished attribute list.
 - Stage completion is tracked in the `Game` object.
 - Custom labels/system names are supported for some stage labels.
 

@@ -253,7 +253,7 @@ public class DiceChooserStage extends JPanel implements StageView {
 
     private void saveAndContinue() {
         saveGame();
-        mainStage.showContent(new AttributeTypesStage(mainStage, game));
+        mainStage.showContent(new AttributeGenerationStage(mainStage, game));
     }
 
     private void saveGame() {

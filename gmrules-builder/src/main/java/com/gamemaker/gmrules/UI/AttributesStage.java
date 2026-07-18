@@ -184,7 +184,11 @@ public class AttributesStage extends JPanel implements StageView {
         backButton.addActionListener(event -> mainStage.navigateBack());
         continueButton.addActionListener(event -> {
             saveGame();
-            mainStage.showContent(new AttributeGenerationStage(mainStage, game));
+            StageId nextStage = AttributeGenerationStage.getNextGenerationStage(
+                game.getAttributeGenerationMethod(),
+                StageId.ATTRIBUTES
+            );
+            mainStage.navigateToStage(nextStage);
         });
         attributeList.addMouseListener(new MouseAdapter() {
             @Override

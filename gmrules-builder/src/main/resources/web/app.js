@@ -52,9 +52,9 @@ const steps = [
   { id: "setup", labelKey: "setup.title", fallback: "Game Setup" },
   { id: "measurements", labelKey: "measurements.title", fallback: "Measurements" },
   { id: "dice", labelKey: "dice.title", fallback: "Dice Options" },
+  { id: "attribute-generation", labelKey: "attrgen.title", fallback: "Attribute Generation" },
   { id: "attribute-types", labelKey: "attrtypes.title", fallback: "Attribute Categories" },
   { id: "attributes", labelKey: "attributes.title", fallback: "Attributes" },
-  { id: "attribute-generation", labelKey: "attrgen.title", fallback: "Attribute Generation" },
   { id: "standard-array", labelKey: "attrgen.standard.title", fallback: "Standard Arrays" },
   { id: "dice-rolling", labelKey: "attrgen.dice.title", fallback: "Dice Rolling" },
   { id: "points-buy", labelKey: "attrgen.point.title", fallback: "Points Buy" },
@@ -9376,7 +9376,7 @@ async function renderDice() {
     });
 
     document.getElementById("backToSetup").addEventListener("click", navigateBackInApp);
-    document.getElementById("diceContinue").addEventListener("click", renderAttributeTypes);
+    document.getElementById("diceContinue").addEventListener("click", renderAttributeGeneration);
   } catch (error) {
     showToast(error.message);
   }
@@ -9579,7 +9579,14 @@ async function renderAttributes(openId = "") {
     });
 
     document.getElementById("backToTypes").addEventListener("click", navigateBackInApp);
-    document.getElementById("attributesContinue").addEventListener("click", renderAttributeGeneration);
+    document.getElementById("attributesContinue").addEventListener("click", async () => {
+      try {
+        await ensureAttributeGenerationType();
+        navigateToStep(getNextAttributeGenerationStep("attributes"));
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
     wireSystemNameSave("attributes", () => renderAttributes());
     if (openId) {
       const target = attributeMap[openId];
@@ -9680,18 +9687,18 @@ function getNextAttributeGenerationStep(currentStep) {
 function getPreviousAttributeGenerationStep(currentStep) {
   const order = getAttributeGenerationOrder(state.attributeGenerationType, state.attributeGenerationStages);
   if (!order.length) {
-    return "attribute-generation";
+    return "attributes";
   }
   const safeStep = String(currentStep || "");
   if (safeStep === "currency") {
     return "armor-class";
   }
   if (safeStep === "hit-points") {
-    return order[order.length - 1] || "attribute-generation";
+    return order[order.length - 1] || "attributes";
   }
   const currentIndex = order.indexOf(safeStep);
   if (currentIndex <= 0) {
-    return "attribute-generation";
+    return "attributes";
   }
   return order[currentIndex - 1];
 }
@@ -9982,7 +9989,7 @@ async function renderAttributeGeneration() {
     document.getElementById("generationContinue").addEventListener("click", async () => {
       const saved = await syncSelection();
       if (saved) {
-        navigateToStep(getNextAttributeGenerationStep("attribute-generation"));
+        navigateToStep("attribute-types");
       }
     });
   } catch (error) {

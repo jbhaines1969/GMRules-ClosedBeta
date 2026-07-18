@@ -138,8 +138,7 @@ public class AttributeGenerationStage extends JPanel implements StageView {
         backButton.addActionListener(event -> mainStage.navigateBack());
         continueButton.addActionListener(event -> {
             saveGame();
-            StageId nextStage = getNextGenerationStage(method, StageId.ATTRIBUTE_GENERATION);
-            mainStage.navigateToStage(nextStage);
+            mainStage.navigateToStage(StageId.ATTRIBUTE_TYPES);
         });
     }
 
@@ -167,9 +166,12 @@ public class AttributeGenerationStage extends JPanel implements StageView {
     public static StageId getNextGenerationStage(AttributeGenerationMethod method, StageId currentStage) {
         List<StageId> stages = buildGenerationStages(method);
         if (stages.isEmpty()) {
-            return StageId.HIT_POINTS;
+            return currentStage == StageId.ATTRIBUTE_GENERATION ? StageId.ATTRIBUTE_TYPES : StageId.HIT_POINTS;
         }
         StageId safeStage = Objects.requireNonNullElse(currentStage, StageId.ATTRIBUTE_GENERATION);
+        if (safeStage == StageId.ATTRIBUTE_GENERATION) {
+            return StageId.ATTRIBUTE_TYPES;
+        }
         int currentIndex = stages.indexOf(safeStage);
         if (currentIndex < 0) {
             return stages.get(0);
@@ -183,7 +185,7 @@ public class AttributeGenerationStage extends JPanel implements StageView {
     public static StageId getPreviousGenerationStage(AttributeGenerationMethod method, StageId currentStage) {
         List<StageId> stages = buildGenerationStages(method);
         if (stages.isEmpty()) {
-            return StageId.ATTRIBUTE_GENERATION;
+            return StageId.ATTRIBUTES;
         }
         StageId safeStage = Objects.requireNonNullElse(currentStage, StageId.ATTRIBUTE_GENERATION);
         if (safeStage == StageId.HIT_POINTS) {
@@ -191,7 +193,7 @@ public class AttributeGenerationStage extends JPanel implements StageView {
         }
         int currentIndex = stages.indexOf(safeStage);
         if (currentIndex <= 0) {
-            return StageId.ATTRIBUTE_GENERATION;
+            return StageId.ATTRIBUTES;
         }
         return stages.get(currentIndex - 1);
     }
