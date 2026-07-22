@@ -1937,6 +1937,7 @@ public final class ApiRoutes {
                     mod.put("modifier", modEntry.getValue());
                     modifiers.add(mod);
                 }
+                modifiers.sort(Comparator.comparingDouble(modifier -> ((Number) modifier.get("score")).doubleValue()));
                 entry.put("modifiers", modifiers);
 
                 List<Map<String, Object>> bonuses = new ArrayList<>();

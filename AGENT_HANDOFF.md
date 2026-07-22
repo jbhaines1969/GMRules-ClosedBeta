@@ -125,7 +125,7 @@ Proof-of-concept functionality is present:
 - Object-backed `.gmcf` uploads can resume in the lightweight web character flow when the matching ruleset is saved on the account.
 - Character files are named from the linked ruleset and character name, for example `Ruleset-Character.gmcf`.
 - In-app feedback, bug report, and blocker/crash report intake with local storage and Discord forwarding.
-- Builder stages through setup, measurements, dice, attribute generation, attribute types, attributes, hit points, armor class, currency, effects/statuses, equipment, weapons, skills, spells, pantheons, deities, races, and classes.
+- Builder stages through setup, measurements, dice, attribute generation, attribute types, attributes, hit points, armor class, currency, effect types, damage types, statuses, effects, equipment, weapons, skills, spells, pantheons, deities, races, and classes.
 - Early web character-generation flow through attributes, race, and class.
 
 User-provided deployment context:

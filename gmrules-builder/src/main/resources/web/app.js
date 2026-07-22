@@ -64,8 +64,8 @@ const steps = [
   { id: "armor-class", labelKey: "armorclass.title", fallback: "Armor Class" },
   { id: "currency", labelKey: "currency.title", fallback: "Currency", systemNameKey: "currencies" },
   { id: "effect-types", labelKey: "effecttypes.title", fallback: "Effect Types" },
-  { id: "statuses", labelKey: "statuses.title", fallback: "Statuses" },
   { id: "damage-types", labelKey: "damagetypes.title", fallback: "Damage Types", systemNameKey: "damage-types" },
+  { id: "statuses", labelKey: "statuses.title", fallback: "Statuses" },
   { id: "effects", labelKey: "effects.title", fallback: "Effects" },
   { id: "equipment", labelKey: "equipment.title", fallback: "Equipment" },
   { id: "weapons", labelKey: "weapons.title", fallback: "Weapons" },
@@ -2297,7 +2297,8 @@ function normalizeModifierEntries(entries) {
       score: Number(entry.score || 0),
       modifier: Number(entry.modifier || 0),
     }))
-    .filter((entry) => Number.isFinite(entry.score) && Number.isFinite(entry.modifier));
+    .filter((entry) => Number.isFinite(entry.score) && Number.isFinite(entry.modifier))
+    .sort((left, right) => left.score - right.score);
 }
 
 function getStandardAttributeModifiers() {
@@ -3237,6 +3238,7 @@ function renderEditModifiers() {
     editModifierList.innerHTML = `<div class="list-item">${t("attributes.edit.modifiers.none", "No modifiers yet.")}</div>`;
     return;
   }
+  editModifiers = normalizeModifierEntries(editModifiers);
   editModifierList.innerHTML = editModifiers
     .map(
       (entry, index) => `
@@ -10311,6 +10313,7 @@ async function renderAttributeGeneration() {
         list.innerHTML = `<div class="list-item">${t("attributes.edit.modifiers.none", "No modifiers yet.")}</div>`;
         return;
       }
+      defaultModifiers = normalizeModifierEntries(defaultModifiers);
       list.innerHTML = defaultModifiers
         .map(
           (entry, index) => `
@@ -11781,7 +11784,7 @@ async function renderEffectTypes(openKey = "") {
     document.getElementById("backToCurrency").addEventListener("click", navigateBackInApp);
     document.getElementById("effectTypesContinue").addEventListener("click", () => {
       markSaved(t("web.toast.effect_types_saved", "Effect types saved"));
-      renderStatuses();
+      renderDamageTypes();
     });
     wireSystemNameSave("effect-types", () => renderEffectTypes());
     if (openKey) {
@@ -11842,7 +11845,7 @@ async function renderStatuses(openId = "") {
         </div>
         <div class="actions-row">
           <div class="left">
-            <button class="btn ghost" id="backToEffectTypes" type="button">${t("setup.back", "Back")}</button>
+            <button class="btn ghost" id="backToDamageTypes" type="button">${t("setup.back", "Back")}</button>
           </div>
           <div class="right">
             <button class="btn ghost" id="statusesContinue" type="button">${t("common.continue", "Continue")}</button>
@@ -11883,10 +11886,10 @@ async function renderStatuses(openId = "") {
       });
     });
 
-    document.getElementById("backToEffectTypes").addEventListener("click", navigateBackInApp);
+    document.getElementById("backToDamageTypes").addEventListener("click", navigateBackInApp);
     document.getElementById("statusesContinue").addEventListener("click", () => {
       markSaved(t("web.toast.statuses_saved", "Statuses saved"));
-      renderDamageTypes();
+      renderEffects();
     });
     wireSystemNameSave("statuses", () => renderStatuses());
     if (openId) {
@@ -11941,7 +11944,7 @@ async function renderDamageTypes(openId = "") {
         </div>
         <div class="actions-row">
           <div class="left">
-            <button class="btn ghost" id="backToStatuses" type="button">${t("setup.back", "Back")}</button>
+            <button class="btn ghost" id="backToEffectTypes" type="button">${t("setup.back", "Back")}</button>
           </div>
           <div class="right">
             <button class="btn ghost" id="damageTypesContinue" type="button">${t("common.continue", "Continue")}</button>
@@ -11980,10 +11983,10 @@ async function renderDamageTypes(openId = "") {
         }
       });
     });
-    document.getElementById("backToStatuses").addEventListener("click", navigateBackInApp);
+    document.getElementById("backToEffectTypes").addEventListener("click", navigateBackInApp);
     document.getElementById("damageTypesContinue").addEventListener("click", () => {
       markSaved(t("web.toast.damage_types_saved", "Damage types saved"));
-      renderEffects();
+      renderStatuses();
     });
     wireSystemNameSave("damage-types", () => renderDamageTypes());
     if (openId) {
@@ -12047,7 +12050,7 @@ async function renderEffects(openId = "") {
         </div>
         <div class="actions-row">
           <div class="left">
-            <button class="btn ghost" id="backToDamageTypes" type="button">${t("setup.back", "Back")}</button>
+            <button class="btn ghost" id="backToStatuses" type="button">${t("setup.back", "Back")}</button>
           </div>
           <div class="right">
             <button class="btn ghost" id="effectsContinue" type="button">${t("common.continue", "Continue")}</button>
@@ -12088,7 +12091,7 @@ async function renderEffects(openId = "") {
       });
     });
 
-    document.getElementById("backToDamageTypes").addEventListener("click", navigateBackInApp);
+    document.getElementById("backToStatuses").addEventListener("click", navigateBackInApp);
     document.getElementById("effectsContinue").addEventListener("click", () => {
       markSaved(t("web.toast.effects_saved", "Effects saved"));
       renderEquipment();
@@ -13319,8 +13322,8 @@ Object.assign(stepRoutes, {
   "armor-class": renderArmorClass,
   currency: renderCurrency,
   "effect-types": renderEffectTypes,
-  statuses: renderStatuses,
   "damage-types": renderDamageTypes,
+  statuses: renderStatuses,
   effects: renderEffects,
   equipment: renderEquipment,
   weapons: renderWeapons,

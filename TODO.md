@@ -40,7 +40,7 @@ Updated: 2026-07-21
 - [ ] Create a way for users to navigate help/tutorial popups for non-current screens.
 - [ ] Add Hit Points explanation/help copy showing how to model a static health track with fixed first-level HP, zero per-level gain, zero minimum per-level gain, and no Constitution modifier; gear-based HP can be modeled for beta as gear modifiers on top of `(0,0,0,0)` base HP.
 - [x] Simplify Armor Class method entry to required base AC plus optional AC attribute; remove gear-based/base-plus method selections from the web screen, Swing screen, API, and core model.
-- [x] Add Damage Types before Effects/Equipment so effects, spells, equipment, weapons, and armor can carry an optional damage type reference.
+- [x] Add Damage Types before Statuses/Effects/Equipment so effects, spells, equipment, weapons, and armor can carry an optional damage type reference.
 - [ ] Tighten modal layout for dense edit forms.
 - [ ] Review button hierarchy and action color usage.
 - [ ] Verify mobile behavior for the stage sidebar, lists, long labels, and form grids.
