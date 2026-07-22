@@ -47,6 +47,7 @@ public class Weapon extends GameElement implements Serializable {
 
     // Damage System
     private String damageRoll = "";
+    private String damageTypeId = "";
     private int damageDiceCount = 0;
     private int damageDiceSides = 0;
     private int damageDiceModifier = 0;
@@ -279,6 +280,11 @@ public class Weapon extends GameElement implements Serializable {
         }
     }
 
+    public String getDamageTypeId() { return Objects.toString(damageTypeId, "").trim(); }
+    public void setDamageTypeId(String damageTypeId) {
+        this.damageTypeId = Objects.toString(damageTypeId, "").trim();
+    }
+
     public String getCriticalRange() { return criticalRange; }
     public void setCriticalRange(String criticalRange) { this.criticalRange = criticalRange; }
 
@@ -472,7 +478,7 @@ public class Weapon extends GameElement implements Serializable {
      * @param validClassIds Set of valid CharacterClass ids currently in the game
      * @return number of orphaned references removed
      */
-    public int cleanupOrphanedReferences(Set<String> validClassIds) {
+    public int cleanupOrphanedReferences(Set<String> validClassIds, Set<String> validDamageTypeIds) {
         int removedCount = 0;
 
         // Clean up restrictedClasses ArrayList (CharacterClass ids)
@@ -499,6 +505,12 @@ public class Weapon extends GameElement implements Serializable {
                 favoredIter.remove();
                 removedCount++;
             }
+        }
+
+        damageTypeId = getDamageTypeId();
+        if (!damageTypeId.isEmpty() && !validDamageTypeIds.contains(damageTypeId)) {
+            damageTypeId = "";
+            removedCount++;
         }
 
         return removedCount;

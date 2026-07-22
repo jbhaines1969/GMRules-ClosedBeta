@@ -12,7 +12,7 @@ package com.gamemaker.gmrules.GameMechanics;
 import com.gamemaker.gmrules.GameElement;
 
 /**
- * Simple armor class method flags for hybrid AC systems.
+ * Base armor class configuration with an optional ability modifier.
  */
 public class ArmorClassMethod extends GameElement {
 
@@ -20,9 +20,6 @@ public class ArmorClassMethod extends GameElement {
     private static final long serialVersionUID = 1L;
     private int baseArmorClass = 10;
     private String acAbilityAttributeId = "";
-    private boolean gearBased = true;
-    private boolean basePlusModifier = true;
-    private boolean abilityBased = true;
 
 // *** CONSTRUCTORS ***
     public ArmorClassMethod(String name) {
@@ -41,13 +38,4 @@ public class ArmorClassMethod extends GameElement {
     public void setAcAbilityAttributeId(String acAbilityAttributeId) {
         this.acAbilityAttributeId = java.util.Objects.toString(acAbilityAttributeId, "").trim();
     }
-
-    public boolean isGearBased() { return gearBased; }
-    public void setGearBased(boolean gearBased) { this.gearBased = gearBased; }
-
-    public boolean isBasePlusModifier() { return basePlusModifier; }
-    public void setBasePlusModifier(boolean basePlusModifier) { this.basePlusModifier = basePlusModifier; }
-
-    public boolean isAbilityBased() { return abilityBased; }
-    public void setAbilityBased(boolean abilityBased) { this.abilityBased = abilityBased; }
 }

@@ -30,6 +30,7 @@ import com.gamemaker.gmrules.GameMechanics.LevelingMethod;
 import com.gamemaker.gmrules.GameSaveIO;
 import com.gamemaker.gmrules.GameElements.Armor;
 import com.gamemaker.gmrules.GameElements.Currency;
+import com.gamemaker.gmrules.GameElements.DamageType;
 import com.gamemaker.gmrules.GameElements.Deity;
 import com.gamemaker.gmrules.GameElements.Equipment;
 import com.gamemaker.gmrules.GameElements.Pantheon;
@@ -207,6 +208,11 @@ public final class ApiRoutes {
         router.add("POST", "/api/drafts/{id}/currencies/denominations", ApiRoutes::addCurrencyDenomination);
         router.add("DELETE", "/api/drafts/{id}/currencies/denominations", ApiRoutes::removeCurrencyDenomination);
         router.add("POST", "/api/drafts/{id}/currencies/starting-money", ApiRoutes::updateStartingMoney);
+
+        router.add("GET", "/api/drafts/{id}/damage-types", ApiRoutes::getDamageTypes);
+        router.add("POST", "/api/drafts/{id}/damage-types", ApiRoutes::addDamageType);
+        router.add("DELETE", "/api/drafts/{id}/damage-types", ApiRoutes::removeDamageType);
+        router.add("POST", "/api/drafts/{id}/damage-types/update", ApiRoutes::updateDamageType);
 
         router.add("GET", "/api/drafts/{id}/effects", ApiRoutes::getEffects);
         router.add("POST", "/api/drafts/{id}/effects", ApiRoutes::addEffect);
@@ -2823,9 +2829,6 @@ public final class ApiRoutes {
             response.put("baseArmorClass", Math.max(0, method.getBaseArmorClass()));
             response.put("acAbilityAttributeId", Objects.toString(method.getAcAbilityAttributeId(), ""));
             response.put("attributes", getAttributesForSelect(game));
-            response.put("gearBased", method.isGearBased());
-            response.put("basePlusModifier", method.isBasePlusModifier());
-            response.put("abilityBased", method.isAbilityBased());
             return response;
         });
         ctx.json(200, payload);
@@ -2840,16 +2843,10 @@ public final class ApiRoutes {
         Map<String, Object> body = ctx.readJsonMap();
         int baseArmorClass = getInt(body, "baseArmorClass", 10);
         String acAbilityAttributeId = getString(body, "acAbilityAttributeId").trim();
-        boolean gearBased = getBoolean(body, "gearBased", false);
-        boolean basePlusModifier = getBoolean(body, "basePlusModifier", false);
-        boolean abilityBased = !acAbilityAttributeId.isEmpty();
         ctx.getDraftStore().updateDraft(draftId, game -> {
             ArmorClassMethod method = game.getArmorClassMethod();
             method.setBaseArmorClass(Math.max(0, baseArmorClass));
             method.setAcAbilityAttributeId(acAbilityAttributeId);
-            method.setGearBased(gearBased);
-            method.setBasePlusModifier(basePlusModifier);
-            method.setAbilityBased(abilityBased);
         });
         ctx.json(200, Map.of("ok", true));
     }
@@ -2872,6 +2869,7 @@ public final class ApiRoutes {
                 entry.put("armorClass", Math.max(0, item.getArmorClass()));
                 entry.put("armorBonus", Math.max(0, item.getArmorBonus()));
                 entry.put("shieldBonus", Math.max(0, item.getShieldBonus()));
+                entry.put("damageTypeId", Objects.toString(item.getDamageTypeId(), ""));
                 entry.put("armorCheckPenalty", item.getArmorCheckPenalty());
                 armor.add(entry);
             }
@@ -3041,6 +3039,131 @@ public final class ApiRoutes {
         ctx.json(200, Map.of("ok", true));
     }
 
+    private static void getDamageTypes(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "damage-types");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> damageTypes = new ArrayList<>();
+            for (DamageType damageType : getDamageTypes(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(damageType.getId(), ""));
+                entry.put("name", Objects.toString(damageType.getName(), ""));
+                entry.put("description", Objects.toString(damageType.getDescription(), ""));
+                damageTypes.add(entry);
+            }
+            response.put("systemName", game.getSystemName("damage-types"));
+            response.put("damageTypes", damageTypes);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addDamageType(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        DamageType damageType = new DamageType(name, description);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<DamageType> registry = game.getElementRegistry(ElementRegistryKey.DAMAGE_TYPES);
+            if (registry.hasName(name)) {
+                return;
+            }
+            if (registry.add(damageType)) {
+                added[0] = true;
+            }
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Damage type already exists"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(damageType.getId(), "")));
+    }
+
+    private static void removeDamageType(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String damageTypeId = getString(body, "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<DamageType> registry = game.getElementRegistry(ElementRegistryKey.DAMAGE_TYPES);
+            DamageType damageType = registry.getById(damageTypeId);
+            if (damageType == null) {
+                return;
+            }
+            registry.remove(damageType);
+            clearDamageTypeReferences(game, damageTypeId);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateDamageType(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String damageTypeId = getString(body, "id");
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        if (damageTypeId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Damage type id is required"));
+            return;
+        }
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        boolean[] duplicate = new boolean[] { false };
+        boolean[] updated = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<DamageType> registry = game.getElementRegistry(ElementRegistryKey.DAMAGE_TYPES);
+            DamageType damageType = registry.getById(damageTypeId);
+            if (damageType == null) {
+                return;
+            }
+            String previousName = damageType.getName();
+            if (!previousName.equalsIgnoreCase(name) && registry.hasName(name)) {
+                duplicate[0] = true;
+                return;
+            }
+            if (!previousName.equalsIgnoreCase(name)) {
+                registry.remove(damageType);
+                damageType.setName(name);
+                registry.add(damageType);
+            }
+            damageType.setDescription(description);
+            updated[0] = true;
+        });
+        if (duplicate[0]) {
+            ctx.json(400, Map.of("error", "Damage type already exists"));
+            return;
+        }
+        if (!updated[0]) {
+            ctx.json(404, Map.of("error", "Damage type not found"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
     private static void getEffects(RequestContext ctx) throws IOException {
         SessionStore.Session session = requireSession(ctx);
         if (session == null) {
@@ -3056,6 +3179,7 @@ public final class ApiRoutes {
                 entry.put("id", Objects.toString(effect.getId(), ""));
                 entry.put("name", Objects.toString(effect.getName(), ""));
                 entry.put("description", Objects.toString(effect.getDescription(), ""));
+                entry.put("damageTypeId", Objects.toString(effect.getDamageTypeId(), ""));
                 List<String> typeKeys = effect.getEffectTypeKeys();
                 entry.put("effectTypeKeys", typeKeys == null ? List.of() : new ArrayList<>(typeKeys));
                 effects.add(entry);
@@ -3077,6 +3201,7 @@ public final class ApiRoutes {
         String name = getString(body, "name").trim();
         String description = getString(body, "description").trim();
         List<String> effectTypeKeys = getStringList(body, "effectTypeKeys");
+        String damageTypeId = getString(body, "damageTypeId").trim();
         if (name.isEmpty()) {
             ctx.json(400, Map.of("error", "Name is required"));
             return;
@@ -3089,6 +3214,7 @@ public final class ApiRoutes {
             if (registry.hasName(name)) {
                 return;
             }
+            effect.setDamageTypeId(resolveDamageTypeId(game, damageTypeId));
             if (registry.add(effect)) {
                 added[0] = true;
             }
@@ -3131,6 +3257,7 @@ public final class ApiRoutes {
         String name = getString(body, "name").trim();
         String description = getString(body, "description").trim();
         List<String> effectTypeKeys = getStringList(body, "effectTypeKeys");
+        String damageTypeId = getString(body, "damageTypeId").trim();
         if (effectId.isEmpty()) {
             ctx.json(400, Map.of("error", "Effect id is required"));
             return;
@@ -3160,6 +3287,7 @@ public final class ApiRoutes {
             }
             effect.setDescription(description);
             effect.setEffectTypeKeys(effectTypeKeys);
+            effect.setDamageTypeId(resolveDamageTypeId(game, damageTypeId));
             updated[0] = true;
         });
         if (duplicate[0]) {
@@ -3319,6 +3447,7 @@ public final class ApiRoutes {
                 entry.put("description", Objects.toString(item.getDescription(), ""));
                 entry.put("weightValue", Math.max(0, (int) Math.round(item.getWeight())));
                 entry.put("weightUnit", Objects.toString(item.getWeightUnit(), ""));
+                entry.put("damageTypeId", Objects.toString(item.getDamageTypeId(), ""));
                 equipment.add(entry);
             }
             response.put("systemName", game.getSystemName("equipment"));
@@ -3341,6 +3470,7 @@ public final class ApiRoutes {
         String description = getString(body, "description").trim();
         int weightValue = getInt(body, "weightValue", 0);
         String weightUnit = getString(body, "weightUnit").trim();
+        String damageTypeId = getString(body, "damageTypeId").trim();
         if (name.isEmpty()) {
             ctx.json(400, Map.of("error", "Name is required"));
             return;
@@ -3354,6 +3484,7 @@ public final class ApiRoutes {
             if (registry.hasName(name)) {
                 return;
             }
+            item.setDamageTypeId(resolveDamageTypeId(game, damageTypeId));
             if (registry.add(item)) {
                 added[0] = true;
             }
@@ -3395,6 +3526,7 @@ public final class ApiRoutes {
         String description = getString(body, "description").trim();
         int weightValue = getInt(body, "weightValue", 0);
         String weightUnit = getString(body, "weightUnit").trim();
+        String damageTypeId = getString(body, "damageTypeId").trim();
         if (itemId.isEmpty()) {
             ctx.json(400, Map.of("error", "Equipment id is required"));
             return;
@@ -3424,6 +3556,7 @@ public final class ApiRoutes {
             item.setDescription(description);
             item.setWeight(Math.max(0, weightValue));
             item.setWeightUnit(weightUnit);
+            item.setDamageTypeId(resolveDamageTypeId(game, damageTypeId));
             updated[0] = true;
         });
         if (duplicate[0]) {
@@ -3457,6 +3590,7 @@ public final class ApiRoutes {
                 entry.put("damageDiceModifier", weapon.getDamageDiceModifier());
                 entry.put("weightValue", Math.max(0, (int) Math.round(weapon.getWeight())));
                 entry.put("weightUnit", Objects.toString(weapon.getWeightUnit(), ""));
+                entry.put("damageTypeId", Objects.toString(weapon.getDamageTypeId(), ""));
                 List<Effect> effects = weapon.getObjectArray("effects");
                 List<String> effectIds = new ArrayList<>();
                 if (effects != null) {
@@ -3496,6 +3630,7 @@ public final class ApiRoutes {
         String damageRoll = getString(body, "damageRoll").trim();
         int weightValue = getInt(body, "weightValue", 0);
         String weightUnit = getString(body, "weightUnit").trim();
+        String damageTypeId = getString(body, "damageTypeId").trim();
         List<String> effectIds = getStringList(body, "effectIds");
         if (name.isEmpty()) {
             ctx.json(400, Map.of("error", "Name is required"));
@@ -3517,6 +3652,7 @@ public final class ApiRoutes {
             if (registry.hasName(name)) {
                 return;
             }
+            weapon.setDamageTypeId(resolveDamageTypeId(game, damageTypeId));
             applyWeaponEffects(game, weapon, effectIds);
             if (registry.add(weapon)) {
                 added[0] = true;
@@ -3563,6 +3699,7 @@ public final class ApiRoutes {
         String damageRoll = getString(body, "damageRoll").trim();
         int weightValue = getInt(body, "weightValue", 0);
         String weightUnit = getString(body, "weightUnit").trim();
+        String damageTypeId = getString(body, "damageTypeId").trim();
         List<String> effectIds = getStringList(body, "effectIds");
         if (weaponId.isEmpty()) {
             ctx.json(400, Map.of("error", "Weapon id is required"));
@@ -3600,6 +3737,7 @@ public final class ApiRoutes {
             }
             weapon.setWeight(Math.max(0, weightValue));
             weapon.setWeightUnit(weightUnit);
+            weapon.setDamageTypeId(resolveDamageTypeId(game, damageTypeId));
             applyWeaponEffects(game, weapon, effectIds);
             updated[0] = true;
         });
@@ -4130,6 +4268,7 @@ public final class ApiRoutes {
                 entry.put("castingTime", Objects.toString(spell.getCastingTime(), ""));
                 entry.put("range", Objects.toString(spell.getRange(), ""));
                 entry.put("duration", Objects.toString(spell.getDuration(), ""));
+                entry.put("damageTypeId", Objects.toString(spell.getDamageTypeId(), ""));
                 entry.put("effectNames", getSpellEffectNames(spell));
                 entry.put("effect", Objects.toString(spell.getEffect(), ""));
                 entry.put("secondaryEffect", Objects.toString(spell.getSecondaryEffect(), ""));
@@ -4207,6 +4346,7 @@ public final class ApiRoutes {
         String duration = getString(body, "duration").trim();
         String effect = getString(body, "effect").trim();
         String secondaryEffect = getString(body, "secondaryEffect").trim();
+        String damageTypeId = getString(body, "damageTypeId").trim();
         List<String> effectNames = getStringList(body, "effectNames");
         if (effectNames.isEmpty()) {
             if (!effect.isEmpty()) {
@@ -4248,6 +4388,7 @@ public final class ApiRoutes {
             spell.setCastingTime(castingTime);
             spell.setRange(range);
             spell.setDuration(duration);
+            spell.setDamageTypeId(resolveDamageTypeId(game, damageTypeId));
             spell.clearArray("effectNames");
             for (String effectName : effectNames) {
                 spell.addToArray("effectNames", effectName);
@@ -4885,6 +5026,47 @@ public final class ApiRoutes {
                         typeKeys.set(index, safeNewName);
                     }
                 }
+            }
+        }
+    }
+
+    private static String resolveDamageTypeId(Game game, String damageTypeId) {
+        String safeId = Objects.toString(damageTypeId, "").trim();
+        if (safeId.isEmpty()) {
+            return "";
+        }
+        DamageType damageType = game.getElementRegistry(ElementRegistryKey.DAMAGE_TYPES).getById(safeId);
+        return damageType == null ? "" : safeId;
+    }
+
+    private static void clearDamageTypeReferences(Game game, String damageTypeId) {
+        String safeId = Objects.toString(damageTypeId, "").trim();
+        if (safeId.isEmpty()) {
+            return;
+        }
+        for (Effect effect : getEffects(game)) {
+            if (safeId.equals(effect.getDamageTypeId())) {
+                effect.setDamageTypeId("");
+            }
+        }
+        for (Equipment item : getEquipment(game)) {
+            if (safeId.equals(item.getDamageTypeId())) {
+                item.setDamageTypeId("");
+            }
+        }
+        for (Weapon weapon : getWeapons(game)) {
+            if (safeId.equals(weapon.getDamageTypeId())) {
+                weapon.setDamageTypeId("");
+            }
+        }
+        for (Armor armor : getArmor(game)) {
+            if (safeId.equals(armor.getDamageTypeId())) {
+                armor.setDamageTypeId("");
+            }
+        }
+        for (Spell spell : getSpells(game)) {
+            if (safeId.equals(spell.getDamageTypeId())) {
+                spell.setDamageTypeId("");
             }
         }
     }
@@ -5881,6 +6063,12 @@ public final class ApiRoutes {
     private static List<Currency> getCurrencies(Game game) {
         List<Currency> currencies = game.<Currency>getObjectArray("currencies");
         return currencies == null ? List.of() : currencies;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<DamageType> getDamageTypes(Game game) {
+        List<DamageType> damageTypes = game.<DamageType>getObjectArray("damageTypes");
+        return damageTypes == null ? List.of() : damageTypes;
     }
 
     @SuppressWarnings("unchecked")

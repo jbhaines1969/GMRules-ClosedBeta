@@ -114,9 +114,7 @@ public class CharacterFileBuilder {
         putMode(modes, "hitPoints.multiclassHPMethod", hp.getMulticlassHPMethod());
 
         ArmorClassMethod armorClass = safeGame.getArmorClassMethod();
-        putMode(modes, "armorClass.gearBased", armorClass.isGearBased());
-        putMode(modes, "armorClass.basePlusModifier", armorClass.isBasePlusModifier());
-        putMode(modes, "armorClass.abilityBased", armorClass.isAbilityBased());
+        putMode(modes, "armorClass.baseArmorClass", armorClass.getBaseArmorClass());
         putMode(modes, "armorClass.acAbilityAttributeId", armorClass.getAcAbilityAttributeId());
 
         LevelingMethod leveling = safeGame.getLevelingMethod();

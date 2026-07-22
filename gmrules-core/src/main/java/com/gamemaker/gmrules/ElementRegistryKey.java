@@ -18,6 +18,7 @@ import com.gamemaker.gmrules.CharacterElements.Skill;
 import com.gamemaker.gmrules.GameElements.Armor;
 import com.gamemaker.gmrules.GameElements.Creature;
 import com.gamemaker.gmrules.GameElements.Currency;
+import com.gamemaker.gmrules.GameElements.DamageType;
 import com.gamemaker.gmrules.GameElements.Deity;
 import com.gamemaker.gmrules.GameElements.Equipment;
 import com.gamemaker.gmrules.GameElements.Material;
@@ -86,6 +87,8 @@ public final class ElementRegistryKey<T extends GameElement> implements Serializ
         new ElementRegistryKey<>("deities", Deity.class, ElementRegistry::new);
     public static final ElementRegistryKey<Currency> CURRENCIES =
         new ElementRegistryKey<>("currencies", Currency.class, ElementRegistry::new);
+    public static final ElementRegistryKey<DamageType> DAMAGE_TYPES =
+        new ElementRegistryKey<>("damageTypes", DamageType.class, ElementRegistry::new);
     public static final ElementRegistryKey<Material> MATERIALS =
         new ElementRegistryKey<>("materials", Material.class, ElementRegistry::new);
     private static final Map<String, ElementRegistryKey<?>> KEYS_BY_NAME = buildKeyMap();
@@ -132,6 +135,7 @@ public final class ElementRegistryKey<T extends GameElement> implements Serializ
         registerKey(keys, PANTHEONS);
         registerKey(keys, DEITIES);
         registerKey(keys, CURRENCIES);
+        registerKey(keys, DAMAGE_TYPES);
         registerKey(keys, MATERIALS);
         return keys;
     }

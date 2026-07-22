@@ -53,6 +53,7 @@ public class Equipment extends GameElement implements Serializable {
 
     // Physical Properties
     private String material = "";
+    private String damageTypeId = "";
     private String durability = "";
     private int hitPoints = 0;
     private int hardness = 0;
@@ -215,6 +216,11 @@ public class Equipment extends GameElement implements Serializable {
     // Physical Properties
     public String getMaterial() { return material; }
     public void setMaterial(String material) { this.material = material; }
+
+    public String getDamageTypeId() { return Objects.toString(damageTypeId, "").trim(); }
+    public void setDamageTypeId(String damageTypeId) {
+        this.damageTypeId = Objects.toString(damageTypeId, "").trim();
+    }
 
     public String getDurability() { return durability; }
     public void setDurability(String durability) { this.durability = durability; }
@@ -411,7 +417,8 @@ public class Equipment extends GameElement implements Serializable {
         Set<String> validSkillIds,
         Set<String> validClassIds,
         Set<String> validRaceIds,
-        Set<String> validEquipmentTypeKeys
+        Set<String> validEquipmentTypeKeys,
+        Set<String> validDamageTypeIds
     ) {
         int removedCount = 0;
 
@@ -482,6 +489,12 @@ public class Equipment extends GameElement implements Serializable {
                 equipmentTypeKey = "";
                 removedCount++;
             }
+        }
+
+        damageTypeId = getDamageTypeId();
+        if (!damageTypeId.isEmpty() && !validDamageTypeIds.contains(damageTypeId)) {
+            damageTypeId = "";
+            removedCount++;
         }
 
         return removedCount;

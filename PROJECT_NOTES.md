@@ -1,6 +1,6 @@
 # GMRules Closed Beta Project Notes
 
-Updated: 2026-07-18
+Updated: 2026-07-21
 
 ## Current Status
 
@@ -17,7 +17,8 @@ The application is functional enough for proof of concept: account signup, NDA a
 
 - `mvn test` completed successfully on 2026-07-02.
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` completed successfully on 2026-07-04 after adding character draft saves and final `.gmcf` export.
-- The current build compiles `60` core Java source files and `62` builder Java source files.
+- `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` completed successfully on 2026-07-21 after adding Damage Types and simplifying Armor Class entry.
+- The current build compiles `61` core Java source files and `62` builder Java source files.
 - There are currently no automated test sources, so the successful Maven run is a compile/build verification, not behavioral coverage.
 
 ## Web Architecture
@@ -69,8 +70,10 @@ Ruleset builder:
 - Local `.gmrf` download.
 - Server-backed web character draft saves are stored as lightweight `.gmcf` text under `drafts/characters/`, associated with the account and saved ruleset draft. The closed-beta cap is four character drafts per account and two character drafts per saved ruleset.
 - Logged-in users can start character creation directly from a saved server-side ruleset without uploading a local `.gmrf` file.
-- Builder stages for setup, measurements, dice, attribute generation, attribute types, attributes, standard arrays, dice rolling, point buy, hit points, armor class, currency, effect types, statuses, effects, equipment, weapons, skills, spells, pantheons, deities, races, and classes. Attribute Generation appears before Attribute Types/Attributes so default score limits and shared modifiers can guide attribute creation; the selected generation detail screens remain after Attributes because they can depend on the finished attribute list.
+- Builder stages for setup, measurements, dice, attribute generation, attribute types, attributes, standard arrays, dice rolling, point buy, hit points, armor class, currency, effect types, statuses, damage types, effects, equipment, weapons, skills, spells, pantheons, deities, races, and classes. Attribute Generation appears before Attribute Types/Attributes so default score limits and shared modifiers can guide attribute creation; the selected generation detail screens remain after Attributes because they can depend on the finished attribute list.
 - Attribute Generation now has player-option recipes on `Game`: each option is exclusive, and each option can contain ordered steps that set, add to, or spend from attribute scores. Existing legacy settings still derive default options until custom options are saved. John confirmed the builder controls appear to record the intended mechanics; UI cleanup is deferred until after character-generation smoke testing.
+- Armor Class method entry now uses a required base armor class plus optional AC attribute. The old gear-based/base-plus method selections were removed from the web screen, Swing screen, API payloads, and core model during Cities Without Number data entry.
+- Damage Types are now registry-backed ruleset elements with name and description. Effects, spells, equipment, weapons, and armor can carry an optional damage type reference, which gives later armor/resistance automation a clean data hook without adding special gear-based HP/AC paths now.
 - Stage completion is tracked in the `Game` object.
 - Custom labels/system names are supported for some stage labels.
 
@@ -126,7 +129,7 @@ UX and copy:
 - The closed-beta signup screen has been reviewed on desktop/mobile and accepted for beta.
 - The visual style is serviceable for PoC, but mobile layout, modal density, button hierarchy, and closed-beta onboarding copy need polish.
 - Broader UI polish is intentionally waiting for beta feedback so effort goes to awkward spots testers actually notice.
-- The character generator currently ends with "Character creation screens coming next."
+- The character generator now reaches armor selection and final `.gmcf` download, but still needs hosted smoke testing with a complete real ruleset.
 
 ## Best Path Forward
 

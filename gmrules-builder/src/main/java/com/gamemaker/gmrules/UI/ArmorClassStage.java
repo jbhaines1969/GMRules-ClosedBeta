@@ -18,7 +18,6 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
-import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -39,19 +38,15 @@ public class ArmorClassStage extends JPanel implements StageView {
     // *** MEMBERS ***
     private final JLabel titleLabel = new JLabel();
     private final JTextArea introArea = new JTextArea();
-    private final JLabel methodLabel = new JLabel();
     private final JLabel baseLabel = new JLabel();
     private final javax.swing.JSpinner baseSpinner = new javax.swing.JSpinner(
         new javax.swing.SpinnerNumberModel(10, 0, Integer.MAX_VALUE, 1)
     );
     private final JLabel abilityAttributeLabel = new JLabel();
     private final JComboBox<Attribute> abilityAttributeDropdown = new JComboBox<>();
-    private final JCheckBox gearBasedCheck = new JCheckBox();
-    private final JCheckBox baseModifierCheck = new JCheckBox();
     private final JButton backButton = new JButton();
     private final JButton continueButton = new JButton();
     private final JPanel contentPanel = new JPanel();
-    private final JPanel optionPanel = new JPanel();
     private final MainStage mainStage;
     private final Game game;
     private final ArmorClassMethod method;
@@ -74,11 +69,8 @@ public class ArmorClassStage extends JPanel implements StageView {
     private void configureText() {
         titleLabel.setText(Localization.get("armorclass.title"));
         introArea.setText(Localization.get("armorclass.intro"));
-        methodLabel.setText(Localization.get("armorclass.method"));
         baseLabel.setText(Localization.get("armorclass.base"));
         abilityAttributeLabel.setText(Localization.get("armorclass.ability.attribute"));
-        gearBasedCheck.setText(Localization.get("armorclass.method.gear"));
-        baseModifierCheck.setText(Localization.get("armorclass.method.base_modifier"));
         backButton.setText(Localization.get("setup.back"));
         continueButton.setText(Localization.get("common.continue"));
     }
@@ -93,14 +85,10 @@ public class ArmorClassStage extends JPanel implements StageView {
         introArea.setOpaque(false);
         introArea.setAlignmentX(Component.LEFT_ALIGNMENT);
         introArea.setForeground(UIManager.getColor("Label.disabledForeground"));
-        methodLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         baseLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         baseSpinner.setAlignmentX(Component.LEFT_ALIGNMENT);
         abilityAttributeLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         abilityAttributeDropdown.setAlignmentX(Component.LEFT_ALIGNMENT);
-        gearBasedCheck.setAlignmentX(Component.LEFT_ALIGNMENT);
-        baseModifierCheck.setAlignmentX(Component.LEFT_ALIGNMENT);
-        optionPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
     }
 
     private void buildLayout() {
@@ -112,21 +100,13 @@ public class ArmorClassStage extends JPanel implements StageView {
         contentPanel.add(Box.createVerticalStrut(6));
         contentPanel.add(introArea);
         contentPanel.add(Box.createVerticalStrut(16));
-        contentPanel.add(methodLabel);
-        contentPanel.add(Box.createVerticalStrut(12));
         contentPanel.add(baseLabel);
         contentPanel.add(Box.createVerticalStrut(6));
         contentPanel.add(baseSpinner);
         contentPanel.add(Box.createVerticalStrut(8));
-
-        optionPanel.setLayout(new BoxLayout(optionPanel, BoxLayout.Y_AXIS));
-        optionPanel.add(gearBasedCheck);
-        optionPanel.add(baseModifierCheck);
-        optionPanel.add(Box.createVerticalStrut(8));
-        optionPanel.add(abilityAttributeLabel);
-        optionPanel.add(Box.createVerticalStrut(6));
-        optionPanel.add(abilityAttributeDropdown);
-        contentPanel.add(optionPanel);
+        contentPanel.add(abilityAttributeLabel);
+        contentPanel.add(Box.createVerticalStrut(6));
+        contentPanel.add(abilityAttributeDropdown);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 24, 8));
         buttonPanel.add(backButton);
@@ -141,14 +121,10 @@ public class ArmorClassStage extends JPanel implements StageView {
         baseSpinner.setValue(Math.max(0, method.getBaseArmorClass()));
         populateAbilityAttributes();
         selectAbilityAttribute(method.getAcAbilityAttributeId());
-        gearBasedCheck.setSelected(method.isGearBased());
-        baseModifierCheck.setSelected(method.isBasePlusModifier());
         loading = false;
     }
 
     private void registerActions() {
-        gearBasedCheck.addActionListener(event -> updateSelection());
-        baseModifierCheck.addActionListener(event -> updateSelection());
         baseSpinner.addChangeListener(event -> updateSelection());
         abilityAttributeDropdown.addActionListener(event -> updateSelection());
 
@@ -163,20 +139,10 @@ public class ArmorClassStage extends JPanel implements StageView {
         if (loading) {
             return;
         }
-        boolean gearBased = gearBasedCheck.isSelected();
-        boolean baseModifier = baseModifierCheck.isSelected();
-        boolean abilityBased = !Objects.toString(method.getAcAbilityAttributeId(), "").trim().isEmpty();
-        if (!gearBased && !baseModifier && !abilityBased) {
-            loadFromMethod();
-            return;
-        }
         method.setBaseArmorClass((Integer) baseSpinner.getValue());
         Attribute selected = (Attribute) abilityAttributeDropdown.getSelectedItem();
         String attributeId = selected == null ? "" : Objects.toString(selected.getId(), "").trim();
         method.setAcAbilityAttributeId(attributeId);
-        method.setAbilityBased(!attributeId.isEmpty());
-        method.setGearBased(gearBased);
-        method.setBasePlusModifier(baseModifier);
         saveGame();
     }
 

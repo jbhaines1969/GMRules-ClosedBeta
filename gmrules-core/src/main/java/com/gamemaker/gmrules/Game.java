@@ -179,6 +179,7 @@ public class Game extends GameElement {
         arrayRegistry.put("pantheons", getElementRegistry(ElementRegistryKey.PANTHEONS).getMutableItems());
         arrayRegistry.put("deities", getElementRegistry(ElementRegistryKey.DEITIES).getMutableItems());
         arrayRegistry.put("currencies", getElementRegistry(ElementRegistryKey.CURRENCIES).getMutableItems());
+        arrayRegistry.put("damageTypes", getElementRegistry(ElementRegistryKey.DAMAGE_TYPES).getMutableItems());
         arrayRegistry.put("materials", getElementRegistry(ElementRegistryKey.MATERIALS).getMutableItems());
 
         // String arrays
@@ -231,6 +232,7 @@ public class Game extends GameElement {
         registerElementRegistry(ElementRegistryKey.PANTHEONS, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.DEITIES, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.CURRENCIES, new ElementRegistry<>());
+        registerElementRegistry(ElementRegistryKey.DAMAGE_TYPES, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.MATERIALS, new ElementRegistry<>());
     }
 
@@ -1294,6 +1296,7 @@ public class Game extends GameElement {
         ensureElementRegistry(ElementRegistryKey.PANTHEONS);
         ensureElementRegistry(ElementRegistryKey.DEITIES);
         ensureElementRegistry(ElementRegistryKey.CURRENCIES);
+        ensureElementRegistry(ElementRegistryKey.DAMAGE_TYPES);
         ensureElementRegistry(ElementRegistryKey.MATERIALS);
         if (completedStages == null) {
             completedStages = new ArrayList<>();

@@ -48,6 +48,7 @@ public class Armor extends GameElement implements Serializable {
 
     // Damage Reduction and Resistances
     private int damageReduction = 0;                 // Flat damage reduction
+    private String damageTypeId = "";
     private String drType = "";                      // Type of DR (magic, silver, etc.)
     private Map<String, Integer> resistanceValues = new LinkedHashMap<>(); // Resistance -> value
 
@@ -229,6 +230,11 @@ public class Armor extends GameElement implements Serializable {
     public int getDamageReduction() { return damageReduction; }
     public void setDamageReduction(int damageReduction) { this.damageReduction = Math.max(0, damageReduction); }
 
+    public String getDamageTypeId() { return java.util.Objects.toString(damageTypeId, "").trim(); }
+    public void setDamageTypeId(String damageTypeId) {
+        this.damageTypeId = java.util.Objects.toString(damageTypeId, "").trim();
+    }
+
     public String getDrType() { return drType; }
     public void setDrType(String drType) { this.drType = drType; }
 
@@ -364,8 +370,13 @@ public class Armor extends GameElement implements Serializable {
      * Called by GameIO after deserialization to maintain referential integrity.
      * @return number of orphaned references removed
      */
-    public int cleanupOrphanedReferences() {
+    public int cleanupOrphanedReferences(Set<String> validDamageTypeIds) {
         int removedCount = 0;
+        damageTypeId = getDamageTypeId();
+        if (!damageTypeId.isEmpty() && !validDamageTypeIds.contains(damageTypeId)) {
+            damageTypeId = "";
+            removedCount++;
+        }
         return removedCount;
     }
 }

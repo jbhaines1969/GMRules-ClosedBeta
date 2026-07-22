@@ -81,6 +81,7 @@ public class Effect extends GameElement implements Serializable {
     // What THIS instance is doing RIGHT NOW
     private Map<String, Integer> activeModifiers = new LinkedHashMap<>(); // Stat -> current modifier value
     private String damagePerInterval = "";           // Ongoing damage formula for THIS instance
+    private String damageTypeId = "";
     private int damageDiceCount = 0;
     private int damageDiceSides = 0;
     private int damageDiceModifier = 0;
@@ -352,6 +353,11 @@ public class Effect extends GameElement implements Serializable {
         }
     }
 
+    public String getDamageTypeId() { return Objects.toString(damageTypeId, "").trim(); }
+    public void setDamageTypeId(String damageTypeId) {
+        this.damageTypeId = Objects.toString(damageTypeId, "").trim();
+    }
+
     public String getHealingPerInterval() {
         DiceSpec spec = getHealingDiceSpec();
         if (spec.isDefined()) {
@@ -559,7 +565,11 @@ public class Effect extends GameElement implements Serializable {
      * @param validEffectTypeKeys Set of valid EffectType keys currently in the game
      * @return number of orphaned references removed
      */
-    public int cleanupOrphanedReferences(Set<String> validEffectIds, Set<String> validEffectTypeKeys) {
+    public int cleanupOrphanedReferences(
+        Set<String> validEffectIds,
+        Set<String> validEffectTypeKeys,
+        Set<String> validDamageTypeIds
+    ) {
         int removedCount = 0;
 
         ArrayList<String> effectTypeKeys = ensureEffectTypeKeys();
@@ -607,6 +617,12 @@ public class Effect extends GameElement implements Serializable {
                 suppressingIter.remove();
                 removedCount++;
             }
+        }
+
+        damageTypeId = getDamageTypeId();
+        if (!damageTypeId.isEmpty() && !validDamageTypeIds.contains(damageTypeId)) {
+            damageTypeId = "";
+            removedCount++;
         }
 
         return removedCount;

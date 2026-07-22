@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-07-18
+Updated: 2026-07-21
 
 ## Beta Launch Blockers
 
@@ -38,6 +38,9 @@ Updated: 2026-07-18
 - [x] Review the closed-beta signup screen on desktop and mobile.
 - [x] Make the account/home screen clearer for new users choosing builder vs character generation after beta feedback identifies awkward spots.
 - [ ] Create a way for users to navigate help/tutorial popups for non-current screens.
+- [ ] Add Hit Points explanation/help copy showing how to model a static health track with fixed first-level HP, zero per-level gain, zero minimum per-level gain, and no Constitution modifier; gear-based HP can be modeled for beta as gear modifiers on top of `(0,0,0,0)` base HP.
+- [x] Simplify Armor Class method entry to required base AC plus optional AC attribute; remove gear-based/base-plus method selections from the web screen, Swing screen, API, and core model.
+- [x] Add Damage Types before Effects/Equipment so effects, spells, equipment, weapons, and armor can carry an optional damage type reference.
 - [ ] Tighten modal layout for dense edit forms.
 - [ ] Review button hierarchy and action color usage.
 - [ ] Verify mobile behavior for the stage sidebar, lists, long labels, and form grids.
@@ -67,6 +70,7 @@ Updated: 2026-07-18
 - [x] Add Attribute Generation player-option recipes so creators can model either/or options and additive sequences like Standard Array plus Dice or Standard Array plus Point Buy.
 - [x] Confirm the Attribute Generation player-option recipe controls record the intended builder mechanics; UI cleanup remains deferred until after character-generation smoke testing.
 - [ ] Consider hiding character Race, Class, and Spell screens entirely when the ruleset has no entries, instead of showing an informational screen.
+- [ ] Character file AC cleanup: ensure final character data keeps resolved AC, armor replacement AC values, and armor/shield AC modifiers distinct so games where armor changes the base AC do not collapse into modifier-only math.
 - [ ] Manually enter the Cities Without Number ruleset from the included CL-Open SRD and note builder workflow weaknesses found during entry.
 - [ ] Hosted-smoke the completed character flow from class selection through skills, spells, equipment, weapons, armor, and final `.gmcf` export.
 - [ ] Smoke-test ruleset and character migration behavior: edit a saved server game, upload/download it, and load older saved character drafts plus object-backed `.gmcf` files against the edited ruleset.
@@ -77,6 +81,8 @@ Updated: 2026-07-18
 - [ ] Add focused unit tests around `GameIO`, `DraftStore`, `AccountStore`, `NdaAuditStore`, and `ApiRoutes`.
 - [ ] Add a small end-to-end/manual smoke checklist for hosted beta deploys.
 - [ ] Review remaining in-code TODOs in `CharacterClass`, `Race`, `Skill`, and `GameIO`.
+- [ ] Later HP cleanup: remove or rename misleading fixed-hit/static-track concepts in `HPMethod`, and consider a cleaner explicit gear-based HP model after help copy documents the current fixed-HP/modifier recipe.
+- [ ] Later ruleset modeling cleanup: add explicit armor/resistance/vulnerability rules that modify incoming damage by damage type.
 - [ ] Decide whether PoC account/draft caps should stay hardcoded or move to configuration.
 - [ ] Add CI for `mvn test` at minimum.
 

@@ -268,11 +268,12 @@ public class GameIO {
         java.util.Set<String> validPantheonIds = buildPantheonIds(game);
         java.util.Set<String> validDeityIds = buildDeityIds(game);
         java.util.Set<String> validWeaponIds = buildWeaponIds(game);
+        java.util.Set<String> validDamageTypeIds = buildDamageTypeIds(game);
 
         // Clean up all effects
         java.util.ArrayList<Effect> effects = game.getObjectArray("effects");
         for (Effect effect : effects) {
-            int removed = effect.cleanupOrphanedReferences(validEffectIds, validEffectTypeKeys);
+            int removed = effect.cleanupOrphanedReferences(validEffectIds, validEffectTypeKeys, validDamageTypeIds);
             report.recordEffectCleanup(effect.getName(), removed);
         }
 
@@ -352,7 +353,8 @@ public class GameIO {
                 validEffectIds,
                 validClassIds,
                 validSpellIds,
-                validSpellSchoolKeys
+                validSpellSchoolKeys,
+                validDamageTypeIds
             );
             report.recordSpellCleanup(spell.getName(), removed);
         }
@@ -365,9 +367,22 @@ public class GameIO {
                 validSkillIds,
                 validClassIds,
                 validRaceIds,
-                validEquipmentTypeKeys
+                validEquipmentTypeKeys,
+                validDamageTypeIds
             );
             report.recordEquipmentCleanup(equipment.getName(), removed);
+        }
+
+        java.util.ArrayList<Weapon> weapons = game.getObjectArray("weapons");
+        for (Weapon weapon : weapons) {
+            int removed = weapon.cleanupOrphanedReferences(validClassIds, validDamageTypeIds);
+            report.recordWeaponCleanup(weapon.getName(), removed);
+        }
+
+        java.util.ArrayList<Armor> armorEntries = game.getObjectArray("armor");
+        for (Armor armor : armorEntries) {
+            int removed = armor.cleanupOrphanedReferences(validDamageTypeIds);
+            report.recordArmorCleanup(armor.getName(), removed);
         }
 
         // Clean up all natural weapons
@@ -649,6 +664,14 @@ public class GameIO {
         java.util.ArrayList<Weapon> weapons = game.getObjectArray("weapons");
         return weapons.stream()
             .map(Weapon::getId)
+            .collect(java.util.stream.Collectors.toSet());
+    }
+
+    private java.util.Set<String> buildDamageTypeIds(Game game) {
+        java.util.ArrayList<com.gamemaker.gmrules.GameElements.DamageType> damageTypes =
+            game.getObjectArray("damageTypes");
+        return damageTypes.stream()
+            .map(com.gamemaker.gmrules.GameElements.DamageType::getId)
             .collect(java.util.stream.Collectors.toSet());
     }
     

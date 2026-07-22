@@ -29,6 +29,8 @@ public class CleanupReport {
     private int totalFlawReferencesRemoved = 0;
     private int totalSoftwareReferencesRemoved = 0;
     private int totalSpellReferencesRemoved = 0;
+    private int totalWeaponReferencesRemoved = 0;
+    private int totalArmorReferencesRemoved = 0;
     private int totalNaturalWeaponReferencesRemoved = 0;
 
     private Map<String, Integer> attributeCleanupDetails = new HashMap<>();
@@ -41,6 +43,8 @@ public class CleanupReport {
     private Map<String, Integer> flawCleanupDetails = new HashMap<>();
     private Map<String, Integer> softwareCleanupDetails = new HashMap<>();
     private Map<String, Integer> spellCleanupDetails = new HashMap<>();
+    private Map<String, Integer> weaponCleanupDetails = new HashMap<>();
+    private Map<String, Integer> armorCleanupDetails = new HashMap<>();
     private Map<String, Integer> naturalWeaponCleanupDetails = new HashMap<>();
 
 // *** CONSTRUCTORS ***
@@ -168,6 +172,20 @@ public class CleanupReport {
         }
     }
 
+    public void recordWeaponCleanup(String weaponName, int referencesRemoved) {
+        if (referencesRemoved > 0) {
+            weaponCleanupDetails.put(weaponName, referencesRemoved);
+            totalWeaponReferencesRemoved += referencesRemoved;
+        }
+    }
+
+    public void recordArmorCleanup(String armorName, int referencesRemoved) {
+        if (referencesRemoved > 0) {
+            armorCleanupDetails.put(armorName, referencesRemoved);
+            totalArmorReferencesRemoved += referencesRemoved;
+        }
+    }
+
     /**
      * Records cleanup for a specific natural weapon.
      * @param naturalWeaponName The name of the natural weapon that was cleaned
@@ -195,6 +213,8 @@ public class CleanupReport {
             || totalFlawReferencesRemoved > 0
             || totalSoftwareReferencesRemoved > 0
             || totalSpellReferencesRemoved > 0
+            || totalWeaponReferencesRemoved > 0
+            || totalArmorReferencesRemoved > 0
             || totalNaturalWeaponReferencesRemoved > 0;
     }
 
@@ -213,6 +233,8 @@ public class CleanupReport {
             + totalFlawReferencesRemoved
             + totalSoftwareReferencesRemoved
             + totalSpellReferencesRemoved
+            + totalWeaponReferencesRemoved
+            + totalArmorReferencesRemoved
             + totalNaturalWeaponReferencesRemoved;
     }
 
@@ -227,6 +249,8 @@ public class CleanupReport {
     public int getTotalFlawReferencesRemoved() { return totalFlawReferencesRemoved; }
     public int getTotalSoftwareReferencesRemoved() { return totalSoftwareReferencesRemoved; }
     public int getTotalSpellReferencesRemoved() { return totalSpellReferencesRemoved; }
+    public int getTotalWeaponReferencesRemoved() { return totalWeaponReferencesRemoved; }
+    public int getTotalArmorReferencesRemoved() { return totalArmorReferencesRemoved; }
     public int getTotalNaturalWeaponReferencesRemoved() { return totalNaturalWeaponReferencesRemoved; }
 
     // Getters for details
@@ -240,6 +264,8 @@ public class CleanupReport {
     public Map<String, Integer> getFlawCleanupDetails() { return flawCleanupDetails; }
     public Map<String, Integer> getSoftwareCleanupDetails() { return softwareCleanupDetails; }
     public Map<String, Integer> getSpellCleanupDetails() { return spellCleanupDetails; }
+    public Map<String, Integer> getWeaponCleanupDetails() { return weaponCleanupDetails; }
+    public Map<String, Integer> getArmorCleanupDetails() { return armorCleanupDetails; }
     public Map<String, Integer> getNaturalWeaponCleanupDetails() { return naturalWeaponCleanupDetails; }
 
     /**
@@ -330,6 +356,22 @@ public class CleanupReport {
         if (totalSpellReferencesRemoved > 0) {
             report.append(String.format("Spells cleaned: %d references removed\n", totalSpellReferencesRemoved));
             for (Map.Entry<String, Integer> entry : spellCleanupDetails.entrySet()) {
+                report.append(String.format("  - %s: %d\n", entry.getKey(), entry.getValue()));
+            }
+            report.append("\n");
+        }
+
+        if (totalWeaponReferencesRemoved > 0) {
+            report.append(String.format("Weapons cleaned: %d references removed\n", totalWeaponReferencesRemoved));
+            for (Map.Entry<String, Integer> entry : weaponCleanupDetails.entrySet()) {
+                report.append(String.format("  - %s: %d\n", entry.getKey(), entry.getValue()));
+            }
+            report.append("\n");
+        }
+
+        if (totalArmorReferencesRemoved > 0) {
+            report.append(String.format("Armor cleaned: %d references removed\n", totalArmorReferencesRemoved));
+            for (Map.Entry<String, Integer> entry : armorCleanupDetails.entrySet()) {
                 report.append(String.format("  - %s: %d\n", entry.getKey(), entry.getValue()));
             }
             report.append("\n");

@@ -65,6 +65,7 @@ const steps = [
   { id: "currency", labelKey: "currency.title", fallback: "Currency", systemNameKey: "currencies" },
   { id: "effect-types", labelKey: "effecttypes.title", fallback: "Effect Types" },
   { id: "statuses", labelKey: "statuses.title", fallback: "Statuses" },
+  { id: "damage-types", labelKey: "damagetypes.title", fallback: "Damage Types", systemNameKey: "damage-types" },
   { id: "effects", labelKey: "effects.title", fallback: "Effects" },
   { id: "equipment", labelKey: "equipment.title", fallback: "Equipment" },
   { id: "weapons", labelKey: "weapons.title", fallback: "Weapons" },
@@ -168,6 +169,9 @@ const editWeightValueLabel = document.getElementById("editWeightValueLabel");
 const editWeightValue = document.getElementById("editWeightValue");
 const editWeightUnitLabel = document.getElementById("editWeightUnitLabel");
 const editWeightUnit = document.getElementById("editWeightUnit");
+const editDamageTypeField = document.getElementById("editDamageTypeField");
+const editDamageTypeLabel = document.getElementById("editDamageTypeLabel");
+const editDamageType = document.getElementById("editDamageType");
 const editWeaponDamageField = document.getElementById("editWeaponDamageField");
 const editWeaponDamageCountLabel = document.getElementById("editWeaponDamageCountLabel");
 const editWeaponDamageCount = document.getElementById("editWeaponDamageCount");
@@ -330,6 +334,8 @@ const spellRangeLabel = document.getElementById("spellRangeLabel");
 const spellRangeInput = document.getElementById("spellRangeInput");
 const spellDurationLabel = document.getElementById("spellDurationLabel");
 const spellDurationInput = document.getElementById("spellDurationInput");
+const spellDamageTypeLabel = document.getElementById("spellDamageTypeLabel");
+const spellDamageTypeSelect = document.getElementById("spellDamageTypeSelect");
 const spellEffectTitle = document.getElementById("spellEffectTitle");
 const spellEffectSelectLabel = document.getElementById("spellEffectSelectLabel");
 const spellEffectSelect = document.getElementById("spellEffectSelect");
@@ -353,6 +359,7 @@ let editBonuses = [];
 let editEffectTypeKeys = [];
 let editSuspend = null;
 let effectTypeOptions = [];
+let damageTypeOptions = [];
 let weightUnitOptions = [];
 let weightSystem = "";
 let weaponEffectOptions = [];
@@ -593,6 +600,9 @@ function applyStaticLabels() {
   }
   if (editWeightUnitLabel) {
     editWeightUnitLabel.textContent = t("common.weight.unit", "Weight Unit");
+  }
+  if (editDamageTypeLabel) {
+    editDamageTypeLabel.textContent = t("damagetypes.field", "Damage Type");
   }
   editTypeLabel.textContent = t("attributes.edit.type", "Attribute Category");
   if (editTypeAdd) {
@@ -838,6 +848,9 @@ function applyStaticLabels() {
   }
   if (spellDurationLabel) {
     spellDurationLabel.textContent = t("spells.duration", "Duration");
+  }
+  if (spellDamageTypeLabel) {
+    spellDamageTypeLabel.textContent = t("damagetypes.field", "Damage Type");
   }
   if (spellEffectTitle) {
     spellEffectTitle.textContent = t("spells.effects", "Effects");
@@ -1805,6 +1818,7 @@ function snapshotWeaponEdit() {
     damageDiceModifier: editWeaponDamageModifier ? Number(editWeaponDamageModifier.value || 0) : 0,
     weightValue: editWeightValue ? Number(editWeightValue.value || 0) : 0,
     weightUnit: editWeightUnit ? String(editWeightUnit.value || "").trim() : "",
+    damageTypeId: editDamageType ? String(editDamageType.value || "").trim() : "",
     effectIds: editWeaponEffectIds.slice(),
   };
 }
@@ -2066,6 +2080,43 @@ function openAttributeEditor(attribute, types) {
   editModal.classList.remove("hidden");
 }
 
+function openDamageTypeEditor(damageType) {
+  if (!damageType) {
+    return;
+  }
+  resetClassEditSection();
+  resetWeaponEditSection();
+  resetRaceEditSection();
+  resetEffectTypeSection();
+  resetWeightSection();
+  editContext = { kind: "damage-type", id: damageType.id };
+  editTitle.textContent = t("damagetypes.edit.title", "Edit Damage Type");
+  editName.value = damageType.name || "";
+  editDescription.value = damageType.description || "";
+  editTypeField.classList.add("hidden");
+  editRangeFields.classList.add("hidden");
+  editModifierSection.classList.add("hidden");
+  editBonusSection.classList.add("hidden");
+  editModal.classList.remove("hidden");
+}
+
+function openDamageTypeCreate() {
+  resetClassEditSection();
+  resetWeaponEditSection();
+  resetRaceEditSection();
+  resetEffectTypeSection();
+  resetWeightSection();
+  editContext = { kind: "damage-type-create" };
+  editTitle.textContent = t("damagetypes.edit.title", "Edit Damage Type");
+  editName.value = "";
+  editDescription.value = "";
+  editTypeField.classList.add("hidden");
+  editRangeFields.classList.add("hidden");
+  editModifierSection.classList.add("hidden");
+  editBonusSection.classList.add("hidden");
+  editModal.classList.remove("hidden");
+}
+
 async function openEffectEditor(effect) {
   if (!effect) {
     return;
@@ -2074,6 +2125,7 @@ async function openEffectEditor(effect) {
   resetWeaponEditSection();
   resetRaceEditSection();
   resetEffectTypeSection();
+  resetWeightSection();
   editContext = { kind: "effect", id: effect.id };
   editTitle.textContent = t("effects.edit.title", "Edit Effect");
   editName.value = effect.name || "";
@@ -2083,6 +2135,12 @@ async function openEffectEditor(effect) {
   editRangeFields.classList.add("hidden");
   editModifierSection.classList.add("hidden");
   editBonusSection.classList.add("hidden");
+  try {
+    await ensureDamageTypeOptions();
+  } catch (error) {
+    showToast(error.message);
+  }
+  showDamageTypeField(effect.damageTypeId || "");
   try {
     await ensureEffectTypeOptions();
   } catch (error) {
@@ -2109,6 +2167,7 @@ async function openEffectCreateModal(origin, prefillName, prefillDescription, pr
   resetWeaponEditSection();
   resetRaceEditSection();
   resetEffectTypeSection();
+  resetWeightSection();
   editContext = { kind: "effect-create", origin: safeOrigin };
   editTitle.textContent = t("skills.effects.create", "Create Effect");
   editName.value = String(prefillName || "");
@@ -2118,6 +2177,12 @@ async function openEffectCreateModal(origin, prefillName, prefillDescription, pr
   editRangeFields.classList.add("hidden");
   editModifierSection.classList.add("hidden");
   editBonusSection.classList.add("hidden");
+  try {
+    await ensureDamageTypeOptions();
+  } catch (error) {
+    showToast(error.message);
+  }
+  showDamageTypeField("");
   try {
     await ensureEffectTypeOptions();
   } catch (error) {
@@ -2344,6 +2409,24 @@ function resetWeightSection() {
   if (editWeightUnit) {
     editWeightUnit.innerHTML = "";
   }
+  if (editDamageTypeField) {
+    editDamageTypeField.classList.add("hidden");
+  }
+  if (editDamageType) {
+    editDamageType.innerHTML = "";
+  }
+}
+
+async function ensureDamageTypeOptions() {
+  if (!ensureDraft()) {
+    return [];
+  }
+  if (damageTypeOptions.length) {
+    return damageTypeOptions;
+  }
+  const data = await api("GET", `/api/drafts/${state.draftId}/damage-types`);
+  damageTypeOptions = sortByLabel(data.damageTypes || [], (type) => type.displayName || type.name || "");
+  return damageTypeOptions;
 }
 
 function renderWeightUnitOptions(select, selectedValue) {
@@ -2374,6 +2457,40 @@ function showWeightSection(value, unit) {
     editWeightValue.value = String(Math.max(0, Math.trunc(safeValue)));
   }
   renderWeightUnitOptions(editWeightUnit, unit);
+}
+
+function renderDamageTypeOptions(select, selectedValue) {
+  if (!select) {
+    return;
+  }
+  const options = [`<option value="">${t("common.none", "None")}</option>`]
+    .concat(
+      (damageTypeOptions || []).map((type) => {
+        const value = escapeHtml(type.id || "");
+        const label = escapeHtml(type.displayName || type.name || "");
+        return `<option value="${value}">${label}</option>`;
+      })
+    )
+    .join("");
+  select.innerHTML = options;
+  const safeValue = String(selectedValue || "").trim();
+  select.value = Array.from(select.options || []).some((option) => option.value === safeValue) ? safeValue : "";
+}
+
+function showDamageTypeField(selectedValue) {
+  if (editDamageTypeField) {
+    editDamageTypeField.classList.remove("hidden");
+  }
+  renderDamageTypeOptions(editDamageType, selectedValue);
+}
+
+function resolveDamageTypeLabel(damageTypeId) {
+  const safeId = String(damageTypeId || "").trim();
+  if (!safeId) {
+    return "";
+  }
+  const match = (damageTypeOptions || []).find((type) => String(type.id || "") === safeId);
+  return match ? match.displayName || match.name || safeId : safeId;
 }
 
 function resolveEffectTypeLabel(typeKey) {
@@ -2490,6 +2607,7 @@ function openEquipmentEditor(item) {
   editName.value = item.name || "";
   editDescription.value = item.description || "";
   showWeightSection(item.weightValue || 0, item.weightUnit || "");
+  showDamageTypeField(item.damageTypeId || "");
   editTypeField.classList.add("hidden");
   editRangeFields.classList.add("hidden");
   editModifierSection.classList.add("hidden");
@@ -2507,6 +2625,7 @@ function openEquipmentCreate() {
   editName.value = "";
   editDescription.value = "";
   showWeightSection(0, "");
+  showDamageTypeField("");
   editTypeField.classList.add("hidden");
   editRangeFields.classList.add("hidden");
   editModifierSection.classList.add("hidden");
@@ -2528,6 +2647,7 @@ function openWeaponEditor(weapon) {
   editName.value = weapon.name || "";
   editDescription.value = weapon.description || "";
   showWeightSection(weapon.weightValue || 0, weapon.weightUnit || "");
+  showDamageTypeField(weapon.damageTypeId || "");
   editTypeField.classList.add("hidden");
   editRangeFields.classList.add("hidden");
   editModifierSection.classList.add("hidden");
@@ -2564,6 +2684,7 @@ function openWeaponCreate() {
   editName.value = "";
   editDescription.value = "";
   showWeightSection(0, "");
+  showDamageTypeField("");
   editTypeField.classList.add("hidden");
   editRangeFields.classList.add("hidden");
   editModifierSection.classList.add("hidden");
@@ -3488,6 +3609,9 @@ function closeSpellModal() {
   spellModal.classList.add("hidden");
   spellContext = null;
   spellEffects = [];
+  if (spellDamageTypeSelect) {
+    spellDamageTypeSelect.innerHTML = "";
+  }
 }
 
 function renderSpellEffectOptions(selectedValue) {
@@ -3525,7 +3649,7 @@ function renderSpellEffectList() {
     .join("");
 }
 
-function openSpellEditor(spell) {
+async function openSpellEditor(spell) {
   if (!spell || !spellModal) {
     return;
   }
@@ -3537,6 +3661,12 @@ function openSpellEditor(spell) {
   spellCastingInput.value = spell.castingTime || "";
   spellRangeInput.value = spell.range || "";
   spellDurationInput.value = spell.duration || "";
+  try {
+    await ensureDamageTypeOptions();
+  } catch (error) {
+    showToast(error.message);
+  }
+  renderDamageTypeOptions(spellDamageTypeSelect, spell.damageTypeId || "");
   if (Array.isArray(spell.effectNames) && spell.effectNames.length) {
     spellEffects = Array.from(new Set(spell.effectNames.filter(Boolean)));
   } else {
@@ -3555,7 +3685,7 @@ function openSpellEditor(spell) {
   spellModal.classList.remove("hidden");
 }
 
-function openSpellCreateModal() {
+async function openSpellCreateModal() {
   if (!spellModal) {
     return;
   }
@@ -3567,6 +3697,12 @@ function openSpellCreateModal() {
   spellCastingInput.value = "";
   spellRangeInput.value = "";
   spellDurationInput.value = "";
+  try {
+    await ensureDamageTypeOptions();
+  } catch (error) {
+    showToast(error.message);
+  }
+  renderDamageTypeOptions(spellDamageTypeSelect, "");
   spellEffects = [];
   renderSpellEffectOptions();
   renderSpellEffectList();
@@ -4201,6 +4337,35 @@ editOk.addEventListener("click", async () => {
     }
     return;
   }
+  if (editContext.kind === "damage-type-create") {
+    try {
+      const result = await api("POST", `/api/drafts/${state.draftId}/damage-types`, { name, description });
+      markSaved(t("web.toast.damage_type_added", "Damage type added"));
+      damageTypeOptions = [];
+      closeEditModal();
+      renderDamageTypes(String(result.id || ""));
+    } catch (error) {
+      showToast(error.message);
+    }
+    return;
+  }
+  if (editContext.kind === "damage-type") {
+    try {
+      const damageTypeId = editContext.id;
+      await api("POST", `/api/drafts/${state.draftId}/damage-types/update`, {
+        id: damageTypeId,
+        name,
+        description,
+      });
+      markSaved(t("web.toast.damage_type_updated", "Damage type updated"));
+      damageTypeOptions = [];
+      closeEditModal();
+      renderDamageTypes(damageTypeId);
+    } catch (error) {
+      showToast(error.message);
+    }
+    return;
+  }
   if (editContext.kind === "skill-category-create") {
     try {
       const result = await api("POST", `/api/drafts/${state.draftId}/skill-categories`, { name, description });
@@ -4253,6 +4418,7 @@ editOk.addEventListener("click", async () => {
         name,
         description,
         effectTypeKeys,
+        damageTypeId: editDamageType ? String(editDamageType.value || "").trim() : "",
       });
       markSaved(t("web.toast.effect_updated", "Effect updated"));
       state.lastEffectTypeKeys = effectTypeKeys.slice();
@@ -4270,10 +4436,17 @@ editOk.addEventListener("click", async () => {
         name,
         description,
         effectTypeKeys,
+        damageTypeId: editDamageType ? String(editDamageType.value || "").trim() : "",
       });
       markSaved(t("web.toast.effect_added", "Effect added"));
       state.lastEffectTypeKeys = effectTypeKeys.slice();
-      const effectEntry = { id: result.id || "", name, description, effectTypeKeys };
+      const effectEntry = {
+        id: result.id || "",
+        name,
+        description,
+        effectTypeKeys,
+        damageTypeId: editDamageType ? String(editDamageType.value || "").trim() : "",
+      };
       if (editContext.origin === "skill") {
         if (!skillEffectOptions.some((effect) => effect.id === effectEntry.id)) {
           skillEffectOptions.push(effectEntry);
@@ -4355,6 +4528,7 @@ editOk.addEventListener("click", async () => {
         description,
         weightValue: Math.max(0, Math.trunc(weightValue)),
         weightUnit,
+        damageTypeId: editDamageType ? String(editDamageType.value || "").trim() : "",
       });
       markSaved(t("web.toast.equipment_added", "Equipment added"));
       closeEditModal();
@@ -4379,6 +4553,7 @@ editOk.addEventListener("click", async () => {
         damageDiceModifier,
         weightValue: Math.max(0, Math.trunc(weightValue)),
         weightUnit,
+        damageTypeId: editDamageType ? String(editDamageType.value || "").trim() : "",
         effectIds: editWeaponEffectIds.slice(),
       });
       markSaved(t("web.toast.weapon_added", "Weapon added"));
@@ -4451,6 +4626,7 @@ editOk.addEventListener("click", async () => {
         description,
         weightValue: Math.max(0, Math.trunc(weightValue)),
         weightUnit,
+        damageTypeId: editDamageType ? String(editDamageType.value || "").trim() : "",
       });
       markSaved(t("web.toast.equipment_updated", "Equipment updated"));
       closeEditModal();
@@ -4476,6 +4652,7 @@ editOk.addEventListener("click", async () => {
         damageDiceModifier,
         weightValue: Math.max(0, Math.trunc(weightValue)),
         weightUnit,
+        damageTypeId: editDamageType ? String(editDamageType.value || "").trim() : "",
         effectIds: editWeaponEffectIds.slice(),
       });
       markSaved(t("web.toast.weapon_updated", "Weapon updated"));
@@ -4855,6 +5032,7 @@ if (spellSave) {
       castingTime: String(spellCastingInput.value || "").trim(),
       range: String(spellRangeInput.value || "").trim(),
       duration: String(spellDurationInput.value || "").trim(),
+      damageTypeId: spellDamageTypeSelect ? String(spellDamageTypeSelect.value || "").trim() : "",
       effectNames: spellEffects.slice(),
     };
     try {
@@ -7429,8 +7607,12 @@ async function renderCharGenSpells() {
   setStep("chargen-spells");
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
-    const spellData = await api("GET", `/api/drafts/${state.draftId}/spells`);
+    const [spellData, damageTypeData] = await Promise.all([
+      api("GET", `/api/drafts/${state.draftId}/spells`),
+      api("GET", `/api/drafts/${state.draftId}/damage-types`),
+    ]);
     const spells = sortByLabel(spellData.spells || [], (spell) => spell.displayName || spell.name || "");
+    damageTypeOptions = sortByLabel(damageTypeData.damageTypes || [], (type) => type.displayName || type.name || "");
     const hasSpells = spells.length > 0;
     const emptyNotice = t(
       "web.chargen.spells.empty_system",
@@ -7442,13 +7624,15 @@ async function renderCharGenSpells() {
         const id = String(spell.id || "").trim();
         const level = Number(spell.level || 0);
         const school = spell.school ? ` <span class="badge">${escapeHtml(spell.school)}</span>` : "";
+        const damageTypeLabel = resolveDamageTypeLabel(spell.damageTypeId);
+        const damageType = damageTypeLabel ? ` <span class="badge">${escapeHtml(damageTypeLabel)}</span>` : "";
         const checked = selected.has(id) ? "checked" : "";
         return `
           <div class="list-item">
             <label>
               <input type="checkbox" data-chargen-spell="${escapeHtml(id)}" ${checked}>
               <strong>${escapeHtml(spell.name || t("spells.untitled", "Untitled"))}</strong>
-              <span class="badge">L${level}</span>${school}
+              <span class="badge">L${level}</span>${school}${damageType}
               ${spell.description ? `<div>${escapeHtml(spell.description)}</div>` : ""}
             </label>
           </div>
@@ -7500,12 +7684,14 @@ async function renderCharGenEquipment() {
   setStep("chargen-equipment");
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
-    const [equipmentData, currencyData, classData] = await Promise.all([
+    const [equipmentData, currencyData, classData, damageTypeData] = await Promise.all([
       api("GET", `/api/drafts/${state.draftId}/equipment`),
       api("GET", `/api/drafts/${state.draftId}/currency`),
       api("GET", `/api/drafts/${state.draftId}/classes`),
+      api("GET", `/api/drafts/${state.draftId}/damage-types`),
     ]);
     const equipment = sortByLabel(equipmentData.equipment || [], (item) => item.displayName || item.name || "");
+    damageTypeOptions = sortByLabel(damageTypeData.damageTypes || [], (type) => type.displayName || type.name || "");
     const currencies = sortByLabel(currencyData.currencies || [], (currency) => currency.name || "");
     const classes = Array.isArray(classData.classes) ? classData.classes : [];
     const characterClass = classes.find((entry) => String(entry.id || "") === String(state.chargenClassId || ""));
@@ -7527,11 +7713,13 @@ async function renderCharGenEquipment() {
         const weight = Number(item.weightValue || 0) > 0
           ? ` <span class="badge">${escapeHtml(String(item.weightValue))} ${escapeHtml(item.weightUnit || "")}</span>`
           : "";
+        const damageTypeLabel = resolveDamageTypeLabel(item.damageTypeId);
+        const damageType = damageTypeLabel ? ` <span class="badge">${escapeHtml(damageTypeLabel)}</span>` : "";
         return `
           <div class="list-item">
             <label>
               <input type="checkbox" data-chargen-equipment="${escapeHtml(id)}" ${checked}>
-              <strong>${escapeHtml(item.name || t("equipment.untitled", "Untitled"))}</strong>${weight}
+              <strong>${escapeHtml(item.name || t("equipment.untitled", "Untitled"))}</strong>${weight}${damageType}
               ${item.description ? `<div>${escapeHtml(item.description)}</div>` : ""}
             </label>
           </div>
@@ -7598,19 +7786,25 @@ async function renderCharGenWeapons() {
   setStep("chargen-weapons");
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
-    const weaponData = await api("GET", `/api/drafts/${state.draftId}/weapons`);
+    const [weaponData, damageTypeData] = await Promise.all([
+      api("GET", `/api/drafts/${state.draftId}/weapons`),
+      api("GET", `/api/drafts/${state.draftId}/damage-types`),
+    ]);
     const weapons = sortByLabel(weaponData.weapons || [], (weapon) => weapon.displayName || weapon.name || "");
+    damageTypeOptions = sortByLabel(damageTypeData.damageTypes || [], (type) => type.displayName || type.name || "");
     const selected = new Set(normalizeCharGenIdList(state.chargenSelectedWeaponIds));
     const list = weapons
       .map((weapon) => {
         const id = String(weapon.id || "").trim();
         const checked = selected.has(id) ? "checked" : "";
         const damage = weapon.damageRoll ? ` <span class="badge">${escapeHtml(weapon.damageRoll)}</span>` : "";
+        const damageTypeLabel = resolveDamageTypeLabel(weapon.damageTypeId);
+        const damageType = damageTypeLabel ? ` <span class="badge">${escapeHtml(damageTypeLabel)}</span>` : "";
         return `
           <div class="list-item">
             <label>
               <input type="checkbox" data-chargen-weapon="${escapeHtml(id)}" ${checked}>
-              <strong>${escapeHtml(weapon.name || t("weapons.untitled", "Untitled"))}</strong>${damage}
+              <strong>${escapeHtml(weapon.name || t("weapons.untitled", "Untitled"))}</strong>${damage}${damageType}
               ${weapon.description ? `<div>${escapeHtml(weapon.description)}</div>` : ""}
             </label>
           </div>
@@ -7662,11 +7856,13 @@ async function renderCharGenArmor() {
   setStep("chargen-armor");
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
-    const [armorData, armorClassData] = await Promise.all([
+    const [armorData, armorClassData, damageTypeData] = await Promise.all([
       api("GET", `/api/drafts/${state.draftId}/armor`),
       api("GET", `/api/drafts/${state.draftId}/armor-class`),
+      api("GET", `/api/drafts/${state.draftId}/damage-types`),
     ]);
     const armor = sortByLabel(armorData.armor || [], (item) => item.displayName || item.name || "");
+    damageTypeOptions = sortByLabel(damageTypeData.damageTypes || [], (type) => type.displayName || type.name || "");
     const selected = new Set(normalizeCharGenIdList(state.chargenSelectedArmorIds));
     const initialAc = state.chargenResolvedArmorClass > 0
       ? state.chargenResolvedArmorClass
@@ -7684,6 +7880,10 @@ async function renderCharGenArmor() {
         }
         if (Number(item.shieldBonus || 0) > 0) {
           acParts.push(`+${Number(item.shieldBonus || 0)} ${t("armor.shield", "Shield")}`);
+        }
+        const damageTypeLabel = resolveDamageTypeLabel(item.damageTypeId);
+        if (damageTypeLabel) {
+          acParts.push(damageTypeLabel);
         }
         const detail = acParts.length ? ` <span class="badge">${escapeHtml(acParts.join(" "))}</span>` : "";
         return `
@@ -8113,26 +8313,23 @@ function calculateCharGenArmorClass(armorClassData, armor, selectedIds) {
   const data = armorClassData || {};
   const selected = selectedIds instanceof Set ? selectedIds : new Set(normalizeCharGenIdList(selectedIds));
   const base = Math.max(0, Math.trunc(Number(data.baseArmorClass || 0)));
-  let total = base;
-  if (data.gearBased !== false) {
-    (armor || []).forEach((item) => {
-      const id = String(item.id || "").trim();
-      if (!selected.has(id)) {
-        return;
-      }
-      const armorClass = Math.max(0, Math.trunc(Number(item.armorClass || 0)));
-      const armorBonus = Math.max(0, Math.trunc(Number(item.armorBonus || 0)));
-      const shieldBonus = Math.max(0, Math.trunc(Number(item.shieldBonus || 0)));
-      if (data.basePlusModifier && armorBonus > 0) {
-        total += armorBonus + shieldBonus;
-      } else if (armorClass > 0) {
-        total = Math.max(total, armorClass + shieldBonus);
-      } else {
-        total += armorBonus + shieldBonus;
-      }
-    });
-  }
-  if (data.abilityBased !== false) {
+  let replacementBase = base;
+  let modifierTotal = 0;
+  (armor || []).forEach((item) => {
+    const id = String(item.id || "").trim();
+    if (!selected.has(id)) {
+      return;
+    }
+    const armorClass = Math.max(0, Math.trunc(Number(item.armorClass || 0)));
+    const armorBonus = Math.max(0, Math.trunc(Number(item.armorBonus || 0)));
+    const shieldBonus = Math.max(0, Math.trunc(Number(item.shieldBonus || 0)));
+    if (armorClass > 0) {
+      replacementBase = Math.max(replacementBase, armorClass);
+    }
+    modifierTotal += armorBonus + shieldBonus;
+  });
+  let total = replacementBase + modifierTotal;
+  if (String(data.acAbilityAttributeId || "").trim()) {
     total += resolveCharGenAbilityModifier(data.acAbilityAttributeId);
   }
   return Math.max(0, Math.trunc(total));
@@ -11135,27 +11332,15 @@ async function renderArmorClass() {
     const baseArmorClass = Number(data.baseArmorClass || 10);
     const acAbilityAttributeId = String(data.acAbilityAttributeId || "");
     const attributes = Array.isArray(data.attributes) ? data.attributes : [];
-    const gearBased = !!data.gearBased;
-    const basePlusModifier = !!data.basePlusModifier;
 
     view.innerHTML = `
       <section class="panel">
         <h1>${t("armorclass.title", "Armor Class")}</h1>
         <p class="field-hint">${t(
           "armorclass.intro",
-          "Choose how armor class is calculated. You can enable more than one method for hybrid systems."
+          "Set the starting armor class value and optional attribute modifier used for armor class."
         )}</p>
-        <div class="toggle-group">
-          <label class="toggle"><input type="checkbox" id="acGear" ${gearBased ? "checked" : ""}> ${t(
-            "armorclass.method.gear",
-            "Gear-Based AC"
-          )}</label>
-          <label class="toggle"><input type="checkbox" id="acBase" ${basePlusModifier ? "checked" : ""}> ${t(
-            "armorclass.method.base_modifier",
-            "Base + Modifier AC"
-          )}</label>
-        </div>
-        <div class="grid two" style="margin-top: 16px;">
+        <div class="grid two">
           <div class="field">
             <label for="acBaseValue">${t("armorclass.base", "Base Armor Class")}</label>
             <input type="number" id="acBaseValue" min="0" step="1" value="${Number.isFinite(baseArmorClass) ? baseArmorClass : 10}">
@@ -11176,12 +11361,6 @@ async function renderArmorClass() {
       </section>
     `;
 
-    const applySelection = () => {
-      document.getElementById("acBaseValue").value = String(baseArmorClass);
-      document.getElementById("acGear").checked = gearBased;
-      document.getElementById("acBase").checked = basePlusModifier;
-    };
-
     const populateAbilityAttributes = () => {
       const select = document.getElementById("acAbilityAttr");
       if (!select) {
@@ -11201,13 +11380,7 @@ async function renderArmorClass() {
       const selected = {
         baseArmorClass: Number(document.getElementById("acBaseValue").value || 0),
         acAbilityAttributeId: String(document.getElementById("acAbilityAttr").value || "").trim(),
-        gearBased: document.getElementById("acGear").checked,
-        basePlusModifier: document.getElementById("acBase").checked,
       };
-      if (!selected.gearBased && !selected.basePlusModifier && !selected.acAbilityAttributeId) {
-        applySelection();
-        return;
-      }
       try {
         await api("POST", `/api/drafts/${state.draftId}/armor-class`, selected);
         markSaved(t("web.toast.armor_class_updated", "Armor class updated"));
@@ -11216,8 +11389,6 @@ async function renderArmorClass() {
       }
     };
 
-    document.getElementById("acGear").addEventListener("change", saveSelection);
-    document.getElementById("acBase").addEventListener("change", saveSelection);
     document.getElementById("acBaseValue").addEventListener("change", saveSelection);
     document.getElementById("acAbilityAttr").addEventListener("change", saveSelection);
     document.getElementById("backToHP").addEventListener("click", navigateBackInApp);
@@ -11715,12 +11886,109 @@ async function renderStatuses(openId = "") {
     document.getElementById("backToEffectTypes").addEventListener("click", navigateBackInApp);
     document.getElementById("statusesContinue").addEventListener("click", () => {
       markSaved(t("web.toast.statuses_saved", "Statuses saved"));
-      renderEffects();
+      renderDamageTypes();
     });
     wireSystemNameSave("statuses", () => renderStatuses());
     if (openId) {
       const target = statuses.find((item) => item.id === openId);
       openStatusEditor(target);
+    }
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function renderDamageTypes(openId = "") {
+  if (!ensureDraft()) {
+    return;
+  }
+  setStep("damage-types");
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const data = await api("GET", `/api/drafts/${state.draftId}/damage-types`);
+    const systemName = String(data.systemName || "");
+    const title = systemNameTitle(systemName, t("damagetypes.title", "Damage Types"));
+    const damageTypes = sortByLabel(data.damageTypes || [], (type) => type.name || type.displayName || "");
+    damageTypeOptions = damageTypes.slice();
+    const damageTypeList = damageTypes
+      .map(
+        (damageType) => `
+          <div class="list-item">
+            <div>
+              <strong>${escapeHtml(damageType.name || t("damagetypes.untitled", "Untitled"))}</strong>
+              ${damageType.description ? `<div>${escapeHtml(damageType.description)}</div>` : ""}
+            </div>
+            <div>
+              <button class="btn ghost small" data-edit-damage-type="${damageType.id}">${t("common.edit", "Edit")}</button>
+              <button class="btn danger small" data-remove-damage-type="${damageType.id}">${t("common.remove", "Remove")}</button>
+            </div>
+          </div>
+        `
+      )
+      .join("");
+
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${escapeHtml(title)}</h1>
+        <p class="field-hint">${t(
+          "damagetypes.intro",
+          "Define reusable damage types before adding damaging effects, weapons, equipment, and spells."
+        )}</p>
+        ${renderSystemNameControls(systemName, t("damagetypes.title", "Damage Types"))}
+        <button class="btn" id="addDamageType" type="button">${t("damagetypes.add", "Add Damage Type")}</button>
+        <div class="list" id="damageTypeList">
+          ${damageTypeList || `<div class="list-item">${t("damagetypes.none", "No damage types yet.")}</div>`}
+        </div>
+        <div class="actions-row">
+          <div class="left">
+            <button class="btn ghost" id="backToStatuses" type="button">${t("setup.back", "Back")}</button>
+          </div>
+          <div class="right">
+            <button class="btn ghost" id="damageTypesContinue" type="button">${t("common.continue", "Continue")}</button>
+          </div>
+        </div>
+      </section>
+    `;
+
+    document.getElementById("addDamageType").addEventListener("click", () => {
+      openDamageTypeCreate();
+    });
+    document.querySelectorAll("[data-edit-damage-type]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const damageTypeId = button.dataset.editDamageType;
+        const damageType = damageTypes.find((item) => item.id === damageTypeId);
+        openDamageTypeEditor(damageType);
+      });
+    });
+    document.querySelectorAll("[data-remove-damage-type]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const id = button.dataset.removeDamageType;
+        const confirmed = await showConfirm(
+          t("damagetypes.remove.confirm", "Remove this damage type?"),
+          t("common.remove", "Remove")
+        );
+        if (!confirmed) {
+          return;
+        }
+        try {
+          await api("DELETE", `/api/drafts/${state.draftId}/damage-types`, { id });
+          damageTypeOptions = [];
+          markSaved(t("web.toast.damage_type_removed", "Damage type removed"));
+          renderDamageTypes();
+        } catch (error) {
+          showToast(error.message);
+        }
+      });
+    });
+    document.getElementById("backToStatuses").addEventListener("click", navigateBackInApp);
+    document.getElementById("damageTypesContinue").addEventListener("click", () => {
+      markSaved(t("web.toast.damage_types_saved", "Damage types saved"));
+      renderEffects();
+    });
+    wireSystemNameSave("damage-types", () => renderDamageTypes());
+    if (openId) {
+      const target = damageTypes.find((item) => item.id === openId);
+      openDamageTypeEditor(target);
     }
   } catch (error) {
     showToast(error.message);
@@ -11734,28 +12002,34 @@ async function renderEffects(openId = "") {
   setStep("effects");
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
-    const [data, typeData] = await Promise.all([
+    const [data, typeData, damageTypeData] = await Promise.all([
       api("GET", `/api/drafts/${state.draftId}/effects`),
       api("GET", `/api/drafts/${state.draftId}/effect-types`),
+      api("GET", `/api/drafts/${state.draftId}/damage-types`),
     ]);
     const systemName = String(data.systemName || "");
     const title = systemNameTitle(systemName, t("effects.title", "Effects"));
     const effects = sortByLabel(data.effects || [], (effect) => effect.name || effect.displayName || "");
     effectTypeOptions = sortByLabel(typeData.types || [], (type) => type.displayName || type.name || type.key || "");
+    damageTypeOptions = sortByLabel(damageTypeData.damageTypes || [], (type) => type.displayName || type.name || "");
     const effectList = effects
       .map(
-        (effect) => `
-          <div class="list-item">
-            <div>
-              <strong>${escapeHtml(effect.name || t("effects.untitled", "Untitled"))}</strong>
-              ${effect.description ? `<div>${escapeHtml(effect.description)}</div>` : ""}
+        (effect) => {
+          const damageTypeLabel = resolveDamageTypeLabel(effect.damageTypeId);
+          return `
+            <div class="list-item">
+              <div>
+                <strong>${escapeHtml(effect.name || t("effects.untitled", "Untitled"))}</strong>
+                ${damageTypeLabel ? `<div>${escapeHtml(t("damagetypes.field", "Damage Type"))}: ${escapeHtml(damageTypeLabel)}</div>` : ""}
+                ${effect.description ? `<div>${escapeHtml(effect.description)}</div>` : ""}
+              </div>
+              <div>
+                <button class="btn ghost small" data-edit-effect="${effect.id}">${t("common.edit", "Edit")}</button>
+                <button class="btn danger small" data-remove-effect="${effect.id}">${t("common.remove", "Remove")}</button>
+              </div>
             </div>
-            <div>
-              <button class="btn ghost small" data-edit-effect="${effect.id}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" data-remove-effect="${effect.id}">${t("common.remove", "Remove")}</button>
-            </div>
-          </div>
-        `
+          `;
+        }
       )
       .join("");
 
@@ -11773,7 +12047,7 @@ async function renderEffects(openId = "") {
         </div>
         <div class="actions-row">
           <div class="left">
-            <button class="btn ghost" id="backToEffectTypes" type="button">${t("setup.back", "Back")}</button>
+            <button class="btn ghost" id="backToDamageTypes" type="button">${t("setup.back", "Back")}</button>
           </div>
           <div class="right">
             <button class="btn ghost" id="effectsContinue" type="button">${t("common.continue", "Continue")}</button>
@@ -11814,7 +12088,7 @@ async function renderEffects(openId = "") {
       });
     });
 
-    document.getElementById("backToEffectTypes").addEventListener("click", navigateBackInApp);
+    document.getElementById("backToDamageTypes").addEventListener("click", navigateBackInApp);
     document.getElementById("effectsContinue").addEventListener("click", () => {
       markSaved(t("web.toast.effects_saved", "Effects saved"));
       renderEquipment();
@@ -11836,27 +12110,35 @@ async function renderEquipment(openId = "") {
   setStep("equipment");
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
-    const data = await api("GET", `/api/drafts/${state.draftId}/equipment`);
+    const [data, damageTypeData] = await Promise.all([
+      api("GET", `/api/drafts/${state.draftId}/equipment`),
+      api("GET", `/api/drafts/${state.draftId}/damage-types`),
+    ]);
     const systemName = String(data.systemName || "");
     const title = systemNameTitle(systemName, t("equipment.title", "Equipment"));
     const equipment = sortByLabel(data.equipment || [], (item) => item.name || item.displayName || "");
+    damageTypeOptions = sortByLabel(damageTypeData.damageTypes || [], (type) => type.displayName || type.name || "");
     weightUnitOptions = Array.isArray(data.weightUnits) ? data.weightUnits.slice() : [];
     weightSystem = String(data.weightSystem || "");
 
     const equipmentList = equipment
       .map(
-        (item) => `
-          <div class="list-item">
-            <div>
-              <strong>${escapeHtml(item.name || t("equipment.untitled", "Untitled"))}</strong>
-              ${item.description ? `<div>${escapeHtml(item.description)}</div>` : ""}
+        (item) => {
+          const damageTypeLabel = resolveDamageTypeLabel(item.damageTypeId);
+          return `
+            <div class="list-item">
+              <div>
+                <strong>${escapeHtml(item.name || t("equipment.untitled", "Untitled"))}</strong>
+                ${damageTypeLabel ? `<div>${escapeHtml(t("damagetypes.field", "Damage Type"))}: ${escapeHtml(damageTypeLabel)}</div>` : ""}
+                ${item.description ? `<div>${escapeHtml(item.description)}</div>` : ""}
+              </div>
+              <div>
+                <button class="btn ghost small" data-edit-equipment="${item.id}">${t("common.edit", "Edit")}</button>
+                <button class="btn danger small" data-remove-equipment="${item.id}">${t("common.remove", "Remove")}</button>
+              </div>
             </div>
-            <div>
-              <button class="btn ghost small" data-edit-equipment="${item.id}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" data-remove-equipment="${item.id}">${t("common.remove", "Remove")}</button>
-            </div>
-          </div>
-        `
+          `;
+        }
       )
       .join("");
 
@@ -11937,21 +12219,26 @@ async function renderWeapons(openId = "") {
   setStep("weapons");
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
-    const [data, effectsData] = await Promise.all([
+    const [data, effectsData, damageTypeData] = await Promise.all([
       api("GET", `/api/drafts/${state.draftId}/weapons`),
       api("GET", `/api/drafts/${state.draftId}/effects`),
+      api("GET", `/api/drafts/${state.draftId}/damage-types`),
     ]);
     const weapons = sortByLabel(data.weapons || [], (weapon) => weapon.name || weapon.displayName || "");
     weightUnitOptions = Array.isArray(data.weightUnits) ? data.weightUnits.slice() : [];
     weightSystem = String(data.weightSystem || "");
     weaponEffectOptions = sortByLabel(effectsData.effects || [], (effect) => effect.name || effect.displayName || "");
+    damageTypeOptions = sortByLabel(damageTypeData.damageTypes || [], (type) => type.displayName || type.name || "");
 
     const weaponList = weapons
       .map(
-        (weapon) => `
+        (weapon) => {
+          const damageTypeLabel = resolveDamageTypeLabel(weapon.damageTypeId);
+          return `
           <div class="list-item">
             <div>
               <strong>${escapeHtml(weapon.name || t("weapons.untitled", "Untitled"))}</strong>
+              ${damageTypeLabel ? `<div>${escapeHtml(t("damagetypes.field", "Damage Type"))}: ${escapeHtml(damageTypeLabel)}</div>` : ""}
               ${weapon.description ? `<div>${escapeHtml(weapon.description)}</div>` : ""}
             </div>
             <div>
@@ -11959,7 +12246,8 @@ async function renderWeapons(openId = "") {
               <button class="btn danger small" data-remove-weapon="${weapon.id}">${t("common.remove", "Remove")}</button>
             </div>
           </div>
-        `
+        `;
+        }
       )
       .join("");
 
@@ -12512,24 +12800,28 @@ async function renderSpells(openId = "") {
   setStep("spells");
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
-    const [spellData, effectsData] = await Promise.all([
+    const [spellData, effectsData, damageTypeData] = await Promise.all([
       api("GET", `/api/drafts/${state.draftId}/spells`),
       api("GET", `/api/drafts/${state.draftId}/effects`),
+      api("GET", `/api/drafts/${state.draftId}/damage-types`),
     ]);
     const systemName = String(spellData.systemName || "");
     const title = systemNameTitle(systemName, t("spells.title", "Spells"));
     const spells = sortByLabel(spellData.spells || [], (spell) => spell.name || spell.displayName || "");
     spellEffectOptions = sortByLabel(effectsData.effects || [], (effect) => effect.name || effect.displayName || "");
+    damageTypeOptions = sortByLabel(damageTypeData.damageTypes || [], (type) => type.displayName || type.name || "");
 
     const spellList = spells
       .map((spell) => {
         const level = Number(spell.level || 0);
         const school = spell.school ? ` <span class="badge">${escapeHtml(spell.school)}</span>` : "";
+        const damageTypeLabel = resolveDamageTypeLabel(spell.damageTypeId);
+        const damageType = damageTypeLabel ? ` <span class="badge">${escapeHtml(damageTypeLabel)}</span>` : "";
         return `
           <div class="list-item">
             <div>
               <strong>${escapeHtml(spell.name || t("spells.untitled", "Untitled"))}</strong>
-              <span class="badge">L${level}</span>${school}
+              <span class="badge">L${level}</span>${school}${damageType}
             </div>
             <div>
               <button class="btn ghost small" data-edit-spell="${spell.id}">${t("common.edit", "Edit")}</button>
@@ -12563,15 +12855,15 @@ async function renderSpells(openId = "") {
       </section>
     `;
 
-    document.getElementById("addSpell").addEventListener("click", () => {
-      openSpellCreateModal();
+    document.getElementById("addSpell").addEventListener("click", async () => {
+      await openSpellCreateModal();
     });
 
     document.querySelectorAll("[data-edit-spell]").forEach((button) => {
-      button.addEventListener("click", () => {
+      button.addEventListener("click", async () => {
         const spellId = button.dataset.editSpell;
         const spell = spells.find((item) => item.id === spellId);
-        openSpellEditor(spell);
+        await openSpellEditor(spell);
       });
     });
 
@@ -12603,7 +12895,7 @@ async function renderSpells(openId = "") {
     wireSystemNameSave("spells", () => renderSpells());
     if (openId) {
       const target = spells.find((item) => item.id === openId);
-      openSpellEditor(target);
+      await openSpellEditor(target);
     }
   } catch (error) {
     showToast(error.message);
@@ -13028,6 +13320,7 @@ Object.assign(stepRoutes, {
   currency: renderCurrency,
   "effect-types": renderEffectTypes,
   statuses: renderStatuses,
+  "damage-types": renderDamageTypes,
   effects: renderEffects,
   equipment: renderEquipment,
   weapons: renderWeapons,

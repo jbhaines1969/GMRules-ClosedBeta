@@ -1,6 +1,6 @@
 # GMRules Closed Beta Deploy Structure
 
-Updated: 2026-07-18
+Updated: 2026-07-21
 
 This file is the deploy-release filesystem map for `GMRules-ClosedBeta`.
 Update it whenever tracked files or deploy-relevant directories are added, removed, or moved. Its purpose is to let agents find known paths from this document before falling back to repository searches.
@@ -156,6 +156,7 @@ GameElements/
 |-- Armor.java
 |-- Creature.java
 |-- Currency.java
+|-- DamageType.java
 |-- Deity.java
 |-- Equipment.java
 |-- Material.java

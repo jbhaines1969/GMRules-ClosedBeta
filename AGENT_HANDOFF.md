@@ -1,6 +1,6 @@
 # GMRules Closed Beta Agent Handoff
 
-Updated: 2026-07-18
+Updated: 2026-07-21
 Repo root: `C:\Users\John\IdeaProjects\GMRules-ClosedBeta`
 
 This is the start-here snapshot for recovering the project after context loss or a machine failure.
@@ -30,13 +30,15 @@ This repo is the current closed-beta deploy release for GMRules.
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-04 after adding password reset and admin active-session visibility.
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-04 after adding account-backed character draft saves.
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-04 after adding the character file export bridge.
+- `node --check gmrules-builder/src/main/resources/web/app.js` and `mvn test` passed locally on 2026-07-21 after simplifying Armor Class method entry to required base AC plus optional AC attribute.
+- `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-21 after adding the Damage Types builder stage and optional damage type references on effects, spells, equipment, weapons, and armor.
 - Production route-debugging on 2026-07-05 confirmed the service currently launches Maven directly with `ExecStart=/usr/bin/mvn -pl gmrules-builder exec:java -Dexec.mainClass=com.gamemaker.gmrules.web.WebMain`, not `target/gmrules-app.jar`. Runtime debugging on 2026-07-08 confirmed compile-only deploys can leave stale `~/.m2` snapshots for this launcher. `deploy.sh` now runs `mvn -q -DskipTests clean install`, verifies compiled character routes, verifies the installed core snapshot has `AttributeGenerationMethod.getStandardArrayAssignmentMode()`, then restarts.
 - There are currently no automated test sources, so successful Maven runs are compile/build verification, not behavioral coverage.
 - New continuity docs were added at the repo root: `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `AGENTS.md`, and `AGENT_HANDOFF.md`.
 
 ## Active Resume Point
 
-Feedback intake implementation is complete and smoke-tested. The next session should resume from this state, not restart the feedback work.
+John is manually entering a complete Cities Without Number ruleset. The next session should resume from that data-entry flow after the Damage Types pass, not from the older feedback work.
 
 Implemented so far:
 
@@ -100,7 +102,7 @@ External setup completed:
 
 Next repo steps:
 
-- John is manually entering a complete Cities Without Number ruleset from the included CL-Open SRD first, both to create a realistic smoke-test `.gmrf` and to identify builder workflow weaknesses during real data entry.
+- John is manually entering a complete Cities Without Number ruleset from the included CL-Open SRD first, both to create a realistic smoke-test `.gmrf` and to identify builder workflow weaknesses during real data entry. As of the Hit Points pass, John considers the HP entry screen beta-adequate: static health tracks can be modeled as fixed first-level HP with zero per-level gain, zero minimum per-level gain, and no Constitution modifier; gear-based HP can be handled for now as gear modifiers on top of a zero base and cleaned up later. As of the Armor Class pass, AC method entry has been simplified to a required base AC plus optional AC attribute; gear/base-plus toggles were removed from web, Swing, API, and core model. Character-generation AC calculation now treats armor replacement AC values separately from armor/shield AC modifiers; later character-file cleanup should keep resolved AC, replacement AC, and modifier contributions distinct. As of the Damage Types pass, damage types are defined before Effects/Equipment and can be attached to effects, spells, equipment, weapons, and armor; later modeling cleanup should add explicit armor/resistance/vulnerability rules by incoming damage type.
 - Then hosted-smoke the completed character generator flow after class selection: skills, spells, equipment, weapons, armor, and final `.gmcf` export using that complete ruleset.
 - Then smoke-test ruleset and character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older saved character drafts plus object-backed `.gmcf` files against the edited ruleset.
 - Then add compatibility coverage for older `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` files before future `Game.java`, registry, or character-format changes.

@@ -62,6 +62,7 @@ public class Spell extends GameElement implements Serializable {
     // Spell Effects and Damage
     private String effect = "";
     private String damageFormula = "";
+    private String damageTypeId = "";
     private int damageDiceCount = 0;
     private int damageDiceSides = 0;
     private int damageDiceModifier = 0;
@@ -292,6 +293,11 @@ public class Spell extends GameElement implements Serializable {
         }
     }
 
+    public String getDamageTypeId() { return Objects.toString(damageTypeId, "").trim(); }
+    public void setDamageTypeId(String damageTypeId) {
+        this.damageTypeId = Objects.toString(damageTypeId, "").trim();
+    }
+
     public int getMaximumDamage() { return maximumDamage; }
     public void setMaximumDamage(int maximumDamage) { this.maximumDamage = Math.max(0, maximumDamage); }
 
@@ -447,7 +453,8 @@ public class Spell extends GameElement implements Serializable {
         Set<String> validEffectIds,
         Set<String> validClassIds,
         Set<String> validSpellIds,
-        Set<String> validSpellSchoolKeys
+        Set<String> validSpellSchoolKeys,
+        Set<String> validDamageTypeIds
     ) {
         int removedCount = 0;
 
@@ -523,6 +530,12 @@ public class Spell extends GameElement implements Serializable {
                 prereqIter.remove();
                 removedCount++;
             }
+        }
+
+        damageTypeId = getDamageTypeId();
+        if (!damageTypeId.isEmpty() && !validDamageTypeIds.contains(damageTypeId)) {
+            damageTypeId = "";
+            removedCount++;
         }
 
         return removedCount;
