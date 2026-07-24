@@ -32,13 +32,14 @@ This repo is the current closed-beta deploy release for GMRules.
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-04 after adding the character file export bridge.
 - `node --check gmrules-builder/src/main/resources/web/app.js` and `mvn test` passed locally on 2026-07-21 after simplifying Armor Class method entry to required base AC plus optional AC attribute.
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` passed locally on 2026-07-21 after adding the Damage Types builder stage and optional damage type references on effects, spells, equipment, weapons, and armor.
+- `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `git diff --check` passed locally on 2026-07-21 after sorting attribute modifier lists by score and moving Damage Types before Statuses. `git diff --check` only reported line-ending normalization warnings.
 - Production route-debugging on 2026-07-05 confirmed the service currently launches Maven directly with `ExecStart=/usr/bin/mvn -pl gmrules-builder exec:java -Dexec.mainClass=com.gamemaker.gmrules.web.WebMain`, not `target/gmrules-app.jar`. Runtime debugging on 2026-07-08 confirmed compile-only deploys can leave stale `~/.m2` snapshots for this launcher. `deploy.sh` now runs `mvn -q -DskipTests clean install`, verifies compiled character routes, verifies the installed core snapshot has `AttributeGenerationMethod.getStandardArrayAssignmentMode()`, then restarts.
 - There are currently no automated test sources, so successful Maven runs are compile/build verification, not behavioral coverage.
 - New continuity docs were added at the repo root: `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `AGENTS.md`, and `AGENT_HANDOFF.md`.
 
 ## Active Resume Point
 
-John is manually entering a complete Cities Without Number ruleset. The next session should resume from that data-entry flow after the Damage Types pass, not from the older feedback work.
+John is manually entering a complete Cities Without Number ruleset. The next session should resume from that data-entry flow after the Armor Class, Damage Types, and attribute-modifier ordering passes, not from older feedback/admin work.
 
 Implemented so far:
 
@@ -102,7 +103,7 @@ External setup completed:
 
 Next repo steps:
 
-- John is manually entering a complete Cities Without Number ruleset from the included CL-Open SRD first, both to create a realistic smoke-test `.gmrf` and to identify builder workflow weaknesses during real data entry. As of the Hit Points pass, John considers the HP entry screen beta-adequate: static health tracks can be modeled as fixed first-level HP with zero per-level gain, zero minimum per-level gain, and no Constitution modifier; gear-based HP can be handled for now as gear modifiers on top of a zero base and cleaned up later. As of the Armor Class pass, AC method entry has been simplified to a required base AC plus optional AC attribute; gear/base-plus toggles were removed from web, Swing, API, and core model. Character-generation AC calculation now treats armor replacement AC values separately from armor/shield AC modifiers; later character-file cleanup should keep resolved AC, replacement AC, and modifier contributions distinct. As of the Damage Types pass, damage types are defined before Effects/Equipment and can be attached to effects, spells, equipment, weapons, and armor; later modeling cleanup should add explicit armor/resistance/vulnerability rules by incoming damage type.
+- John is manually entering a complete Cities Without Number ruleset from the included CL-Open SRD first, both to create a realistic smoke-test `.gmrf` and to identify builder workflow weaknesses during real data entry. As of the Hit Points pass, John considers the HP entry screen beta-adequate: static health tracks can be modeled as fixed first-level HP with zero per-level gain, zero minimum per-level gain, and no Constitution modifier; gear-based HP can be handled for now as gear modifiers on top of a zero base and cleaned up later. As of the Armor Class pass, AC method entry has been simplified to a required base AC plus optional AC attribute; gear/base-plus toggles were removed from web, Swing, API, and core model. Character-generation AC calculation now treats armor replacement AC values separately from armor/shield AC modifiers; later character-file cleanup should keep resolved AC, replacement AC, and modifier contributions distinct. As of the Damage Types pass, damage types are defined before Statuses/Effects/Equipment and can be attached to effects, spells, equipment, weapons, and armor; later modeling cleanup should add explicit armor/resistance/vulnerability rules by incoming damage type. Attribute modifier lists now render sorted ascending by attribute score in both Attribute Generation defaults and per-Attribute editing.
 - Then hosted-smoke the completed character generator flow after class selection: skills, spells, equipment, weapons, armor, and final `.gmcf` export using that complete ruleset.
 - Then smoke-test ruleset and character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older saved character drafts plus object-backed `.gmcf` files against the edited ruleset.
 - Then add compatibility coverage for older `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` files before future `Game.java`, registry, or character-format changes.
@@ -126,7 +127,7 @@ Proof-of-concept functionality is present:
 - Character files are named from the linked ruleset and character name, for example `Ruleset-Character.gmcf`.
 - In-app feedback, bug report, and blocker/crash report intake with local storage and Discord forwarding.
 - Builder stages through setup, measurements, dice, attribute generation, attribute types, attributes, hit points, armor class, currency, effect types, damage types, statuses, effects, equipment, weapons, skills, spells, pantheons, deities, races, and classes.
-- Early web character-generation flow through attributes, race, and class.
+- Web character-generation flow reaches skills, spells, equipment, weapons, armor, and final `.gmcf` download, but still needs hosted smoke testing with a complete real ruleset.
 
 User-provided deployment context:
 
@@ -242,7 +243,7 @@ Draft lifecycle:
 - `GET/POST /api/drafts/{id}/locale`
 - `GET/POST /api/drafts/{id}/system-names`
 
-Builder routes exist under `/api/drafts/{id}` for setup, measurements, dice, attribute types, effect types, skill categories, attributes, attribute generation, standard array, dice rolling, points buy, hit points, armor class, currencies, effects, statuses, equipment, weapons, classes, skills, spells, pantheons, deities, and races.
+Builder routes exist under `/api/drafts/{id}` for setup, measurements, dice, attribute types, effect types, damage types, skill categories, attributes, attribute generation, standard array, dice rolling, points buy, hit points, armor class, currencies, effects, statuses, equipment, weapons, armor readout, classes, skills, spells, pantheons, deities, and races.
 
 Character-generation route:
 
