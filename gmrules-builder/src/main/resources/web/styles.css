@@ -131,9 +131,20 @@ body {
   gap: 10px;
 }
 
+.sidebar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
 .sidebar-link {
   width: 100%;
   text-align: left;
+}
+
+.sidebar-info {
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 .sidebar-link.active,
@@ -201,6 +212,10 @@ body.mode-chargen .step-indicator {
 
   .sidebar-link {
     width: auto;
+  }
+
+  .sidebar-row {
+    flex: 1 1 220px;
   }
 }
 

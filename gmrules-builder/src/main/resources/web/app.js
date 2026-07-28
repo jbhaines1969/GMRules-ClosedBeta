@@ -52,30 +52,178 @@ const state = {
 };
 
 const steps = [
-  { id: "setup", labelKey: "setup.title", fallback: "Game Setup" },
-  { id: "measurements", labelKey: "measurements.title", fallback: "Measurements" },
-  { id: "dice", labelKey: "dice.title", fallback: "Dice Options" },
-  { id: "attribute-generation", labelKey: "attrgen.title", fallback: "Attribute Generation" },
-  { id: "attribute-types", labelKey: "attrtypes.title", fallback: "Attribute Categories" },
-  { id: "attributes", labelKey: "attributes.title", fallback: "Attributes" },
-  { id: "standard-array", labelKey: "attrgen.standard.title", fallback: "Standard Arrays" },
-  { id: "dice-rolling", labelKey: "attrgen.dice.title", fallback: "Dice Rolling" },
-  { id: "points-buy", labelKey: "attrgen.point.title", fallback: "Points Buy" },
-  { id: "hit-points", labelKey: "hp.title", fallback: "Hit Points" },
-  { id: "armor-class", labelKey: "armorclass.title", fallback: "Armor Class" },
-  { id: "currency", labelKey: "currency.title", fallback: "Currency", systemNameKey: "currencies" },
-  { id: "effect-types", labelKey: "effecttypes.title", fallback: "Effect Types" },
-  { id: "damage-types", labelKey: "damagetypes.title", fallback: "Damage Types", systemNameKey: "damage-types" },
-  { id: "statuses", labelKey: "statuses.title", fallback: "Statuses" },
-  { id: "effects", labelKey: "effects.title", fallback: "Effects" },
-  { id: "equipment", labelKey: "equipment.title", fallback: "Equipment" },
-  { id: "weapons", labelKey: "weapons.title", fallback: "Weapons" },
-  { id: "skills", labelKey: "skills.title", fallback: "Skills" },
-  { id: "spells", labelKey: "spells.title", fallback: "Spells" },
-  { id: "pantheons", labelKey: "pantheons.title", fallback: "Pantheons", systemNameKey: "pantheons" },
-  { id: "deities", labelKey: "deities.title", fallback: "Deities", systemNameKey: "deities" },
-  { id: "races", labelKey: "races.title", fallback: "Races" },
-  { id: "classes", labelKey: "classes.title", fallback: "Classes" },
+  {
+    id: "setup",
+    labelKey: "setup.title",
+    fallback: "Game Setup",
+    tutorialKey: "web.download.note",
+    tutorialFallback: "Game rules are automatically saved to your account for easy access. Use the Download .gmrf button in the top bar anytime if you'd like to save the file to your computer.",
+  },
+  {
+    id: "measurements",
+    labelKey: "measurements.title",
+    fallback: "Measurements",
+    tutorialKey: "measurements.intro",
+    tutorialFallback: "Time units help define how long things take in your game, from combat order like rounds and turns to longer actions such as travel, rest, or crafting.",
+  },
+  {
+    id: "dice",
+    labelKey: "dice.title",
+    fallback: "Dice Options",
+    tutorialKey: "dice.intro",
+    tutorialFallback: "In RPGs, dice rolls are often used to create characters, randomize selections, or resolve outcomes. Did your attack succeed? How much damage did that spell do? What treasures are contained in the dragon's hoard, or the corporate CEO's safe? Select which dice your game system uses, and enter any custom ranges you need.",
+  },
+  {
+    id: "attribute-generation",
+    labelKey: "attrgen.title",
+    fallback: "Attribute Generation",
+    tutorialKey: "attrgen.intro",
+    tutorialFallback: "Choose how players generate attribute scores: dice rolling for randomness, point buy for controlled balance, or a standard array for a fixed spread. You can select more than one to support hybrid systems.",
+  },
+  {
+    id: "attribute-types",
+    labelKey: "attrtypes.title",
+    fallback: "Attribute Categories",
+    tutorialKey: "attrtypes.intro",
+    tutorialFallback: "Attribute categories are optional groups, not the attributes themselves. For example, Vampire: The Masquerade groups attributes into Physical, Social, and Mental, while many versions of D&D skip categories entirely.",
+  },
+  {
+    id: "attributes",
+    labelKey: "attributes.title",
+    fallback: "Attributes",
+    tutorialKey: "attributes.intro",
+    tutorialFallback: "Attributes are the core stats for characters, such as Strength or Intelligence. Add the attributes your game uses, and optionally assign them to a category.",
+  },
+  {
+    id: "standard-array",
+    labelKey: "attrgen.standard.title",
+    fallback: "Standard Arrays",
+    tutorialKey: "attrgen.standard.intro",
+    tutorialFallback: "Define fixed attribute arrays and choose which one is the default option.",
+  },
+  {
+    id: "dice-rolling",
+    labelKey: "attrgen.dice.title",
+    fallback: "Dice Rolling",
+    tutorialKey: "attrgen.dice.intro",
+    tutorialFallback: "Set how many attribute sets are rolled and define the dice terms used for each roll.",
+  },
+  {
+    id: "points-buy",
+    labelKey: "attrgen.point.title",
+    fallback: "Points Buy",
+    tutorialKey: "attrgen.point.intro",
+    tutorialFallback: "Set the starting points and bounds for point-buy attribute generation.",
+  },
+  {
+    id: "hit-points",
+    labelKey: "hp.title",
+    fallback: "Hit Points",
+    tutorialKey: "hp.intro",
+    tutorialFallback: "Set how characters gain hit points each level and how first level is handled.",
+  },
+  {
+    id: "armor-class",
+    labelKey: "armorclass.title",
+    fallback: "Armor Class",
+    tutorialKey: "armorclass.intro",
+    tutorialFallback: "Set the starting armor class value and optional attribute modifier used for armor class.",
+  },
+  {
+    id: "currency",
+    labelKey: "currency.title",
+    fallback: "Currency",
+    systemNameKey: "currencies",
+    tutorialKey: "currency.intro",
+    tutorialFallback: "A currency system is the overall economy (like gold standard or credits). Denominations are the specific coins or bills within it, each with a value.",
+  },
+  {
+    id: "effect-types",
+    labelKey: "effecttypes.title",
+    fallback: "Effect Types",
+    tutorialKey: "effecttypes.intro",
+    tutorialFallback: "Effect types are tags that classify effects (for example: damage, condition, or movement). They help organize effects and power automation later.",
+  },
+  {
+    id: "damage-types",
+    labelKey: "damagetypes.title",
+    fallback: "Damage Types",
+    systemNameKey: "damage-types",
+    tutorialKey: "damagetypes.intro",
+    tutorialFallback: "Define reusable damage types before adding damaging effects, weapons, equipment, and spells.",
+  },
+  {
+    id: "statuses",
+    labelKey: "statuses.title",
+    fallback: "Statuses",
+    tutorialKey: "statuses.intro",
+    tutorialFallback: "Statuses are reusable conditions that effects can apply to characters.",
+  },
+  {
+    id: "effects",
+    labelKey: "effects.title",
+    fallback: "Effects",
+    tutorialKey: "effects.intro",
+    tutorialFallback: "Effects are reusable rules snippets that can be referenced by skills, spells, and equipment.",
+  },
+  {
+    id: "equipment",
+    labelKey: "equipment.title",
+    fallback: "Equipment",
+    tutorialKey: "equipment.intro",
+    tutorialFallback: "List the gear available in your game and describe what each item does.",
+  },
+  {
+    id: "weapons",
+    labelKey: "weapons.title",
+    fallback: "Weapons",
+    tutorialKey: "weapons.intro",
+    tutorialFallback: "Define the weapons available in your game along with their damage and effects.",
+  },
+  {
+    id: "skills",
+    labelKey: "skills.title",
+    fallback: "Skills",
+    tutorialKey: "skills.intro",
+    tutorialFallback: "Skills describe what characters can do and can reference effects for automation.",
+  },
+  {
+    id: "spells",
+    labelKey: "spells.title",
+    fallback: "Spells",
+    tutorialKey: "spells.intro",
+    tutorialFallback: "Spells define magic options, including level, school, and linked effects.",
+  },
+  {
+    id: "pantheons",
+    labelKey: "pantheons.title",
+    fallback: "Pantheons",
+    systemNameKey: "pantheons",
+    tutorialKey: "pantheons.intro",
+    tutorialFallback: "Pantheons organize related deities by culture, region, or theme.",
+  },
+  {
+    id: "deities",
+    labelKey: "deities.title",
+    fallback: "Deities",
+    systemNameKey: "deities",
+    tutorialKey: "deities.intro",
+    tutorialFallback: "Deities define divine figures, their portfolios, symbols, spell access, and pantheon membership.",
+  },
+  {
+    id: "races",
+    labelKey: "races.title",
+    fallback: "Races",
+    tutorialKey: "races.intro",
+    tutorialFallback: "Races define species options and the traits or limits that come with them.",
+  },
+  {
+    id: "classes",
+    labelKey: "classes.title",
+    fallback: "Classes",
+    tutorialKey: "classes.intro",
+    tutorialFallback: "Classes bundle progression rules, requirements, and starting packages.",
+  },
 ];
 
 const stepRoutes = {};
@@ -86,7 +234,7 @@ const appBackStack = [];
 const SESSION_TOKEN_KEY = "gmrules.web.sessionToken";
 const LOCAL_SESSION_FRAGMENT_KEY = "local-session";
 const TUTORIAL_SCREEN_KEY_PATTERN = /^[a-z0-9][a-z0-9._:-]{0,79}$/;
-const TUTORIAL_PLACEHOLDER_VERSION = "placeholder-20260706";
+const TUTORIAL_CONTENT_VERSION = "builder-intros-20260728";
 
 let historyReady = false;
 let historyLocked = false;
@@ -1154,6 +1302,9 @@ function setStep(stepId) {
     recordAppBack(previousStep);
   }
   state.step = safeStep;
+  if (!isSameStep) {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }
   markVisited(safeStep);
   markTutorialScreenVisited(safeStep);
   updateStepIndicator();
@@ -1227,7 +1378,7 @@ function tutorialSeenKey(screenKey) {
   if (!safeKey) {
     return "";
   }
-  return `${TUTORIAL_PLACEHOLDER_VERSION}:${safeKey}`;
+  return `${TUTORIAL_CONTENT_VERSION}:${safeKey}`;
 }
 
 function applyTutorialVisitedScreens(screenKeys) {
@@ -1261,7 +1412,7 @@ function markTutorialScreenVisited(screenKey) {
   if (shouldPersistTutorial && !alreadySawTutorial && safeSeenKey) {
     tutorialVisitedScreens.add(safeSeenKey);
     screensToRecord.push(safeSeenKey);
-    openTutorialPopup();
+    openTutorialPopup(safeKey);
   }
   if (!shouldPersistTutorial || !screensToRecord.length) {
     return;
@@ -1284,9 +1435,21 @@ function markTutorialScreenVisited(screenKey) {
     });
 }
 
-function openTutorialPopup() {
+function openTutorialPopup(screenKey = state.step) {
   if (!tutorialModal) {
     return;
+  }
+  const safeKey = normalizeTutorialScreenKey(screenKey);
+  const tutorialStep = steps.find((entry) => entry.id === safeKey);
+  if (tutorialTitle) {
+    tutorialTitle.textContent = tutorialStep
+      ? t(tutorialStep.labelKey, tutorialStep.fallback)
+      : t("web.tutorial.title", "Tutorial");
+  }
+  if (tutorialMessage) {
+    tutorialMessage.textContent = tutorialStep
+      ? t(tutorialStep.tutorialKey, tutorialStep.tutorialFallback)
+      : t("web.tutorial.placeholder", "Tutorial guidance for this screen is coming soon.");
   }
   tutorialModal.classList.remove("hidden");
   window.requestAnimationFrame(() => {
@@ -1330,11 +1493,23 @@ function renderSidebar() {
       const disabled = isActive ? "disabled" : "";
       const systemNameKey = String(entry.systemNameKey || entry.id || "").trim().toLowerCase();
       const customLabel = systemNameKey ? String(state.systemNames[systemNameKey] || "").trim() : "";
-      const label = customLabel ? escapeHtml(customLabel) : t(entry.labelKey, entry.fallback);
+      const rawLabel = customLabel || t(entry.labelKey, entry.fallback);
+      const label = escapeHtml(rawLabel);
+      const infoLabel = t("web.tutorial.info_button", "Info");
       return `
-        <button class="btn ghost sidebar-link${activeClass}" type="button" data-step="${entry.id}" ${disabled}>
-          ${label}
-        </button>
+        <div class="sidebar-row">
+          <button class="btn ghost sidebar-link${activeClass}" type="button" data-step="${entry.id}" ${disabled}>
+            ${label}
+          </button>
+          <button
+            class="btn ghost sidebar-info"
+            type="button"
+            data-tutorial-screen="${entry.id}"
+            aria-label="${escapeHtml(`${infoLabel}: ${rawLabel}`)}"
+          >
+            ${escapeHtml(infoLabel)}
+          </button>
+        </div>
       `;
     })
     .join("");
@@ -1674,7 +1849,7 @@ if (homeBtn) {
   homeBtn.addEventListener("click", renderHome);
 }
 if (tutorialInfoBtn) {
-  tutorialInfoBtn.addEventListener("click", openTutorialPopup);
+  tutorialInfoBtn.addEventListener("click", () => openTutorialPopup());
 }
 
 feedbackCancel.addEventListener("click", closeFeedbackModal);
@@ -3834,10 +4009,6 @@ async function renderRaces(openRaceId = "") {
     view.innerHTML = `
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
-        <p class="field-hint">${t(
-          "races.intro",
-          "Races define species options and the traits or limits that come with them."
-        )}</p>
         ${renderSystemNameControls(systemName, t("races.title", "Races"))}
         <button class="btn" id="addRace" type="button">${t("races.add", "Add Race")}</button>
         <div class="list" id="raceList">
@@ -5103,6 +5274,11 @@ logoutBtn.addEventListener("click", async () => {
 
 if (sidebarNav) {
   sidebarNav.addEventListener("click", (event) => {
+    const tutorialButton = event.target.closest("button[data-tutorial-screen]");
+    if (tutorialButton) {
+      openTutorialPopup(tutorialButton.dataset.tutorialScreen);
+      return;
+    }
     const button = event.target.closest("button[data-step]");
     if (!button) {
       return;
@@ -9384,10 +9560,6 @@ async function renderSetup() {
     view.innerHTML = `
       <section class="panel">
         <h1>${t("setup.title", "Game Setup")}</h1>
-        <p class="field-hint">${t(
-          "web.download.note",
-          "Game rules are automatically saved to your account for easy access. Use the Download .gmrf button in the top bar anytime if you'd like to save the file to your computer."
-        )}</p>
         <div class="grid">
           <div class="field">
             <label for="gameName">${t("setup.game.name", "Game Name")}</label>
@@ -9490,10 +9662,6 @@ async function renderMeasurements() {
     view.innerHTML = `
       <section class="panel">
         <h1>${t("measurements.title", "Weights & Measures")}</h1>
-        <p class="field-hint">${t(
-          "measurements.intro",
-          "Time units help define how long things take in your game, from combat order like rounds and turns to longer actions such as travel, rest, or crafting."
-        )}</p>
         <div class="field">
           <label for="weightSystem">${t("measurements.weight.label", "Weight System")}</label>
           <select id="weightSystem">${weightOptions}</select>
@@ -9743,10 +9911,6 @@ async function renderDice() {
     view.innerHTML = `
       <section class="panel">
         <h1>${t("dice.title", "Dice Options")}</h1>
-        <p class="field-hint">${t(
-          "dice.intro",
-          "In RPGs, dice rolls are often used to create characters, randomize selections, or resolve outcomes. Did your attack succeed? How much damage did that spell do? What treasures are contained in the dragon's hoard, or the corporate CEO's safe? Select which dice your game system uses, and enter any custom ranges you need."
-        )}</p>
         <h2>${t("dice.standard", "Standard Dice")}</h2>
         <div class="toggle-group" id="standardDice">${toggles}</div>
         <h2>${t("dice.custom", "Custom Ranges")}</h2>
@@ -9856,10 +10020,6 @@ async function renderAttributeTypes(openKey = "") {
     view.innerHTML = `
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
-        <p class="field-hint">${t(
-          "attrtypes.intro",
-          "Attribute categories are optional groups, not the attributes themselves. For example, Vampire: The Masquerade groups attributes into Physical, Social, and Mental, while many versions of D&D skip categories entirely."
-        )}</p>
         ${renderSystemNameControls(systemName, t("attrtypes.title", "Attribute Categories"))}
         <button class="btn" id="addType" type="button">${t("attrtypes.add", "Add Category")}</button>
         <div class="list" id="typeList">${list || `<div class="list-item">${t("web.attrtypes.none", "No categories yet.")}</div>`}</div>
@@ -9961,10 +10121,6 @@ async function renderAttributes(openId = "") {
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
         ${renderSystemNameControls(systemName, t("attributes.title", "Attributes"))}
-        <p class="field-hint">${t(
-          "attributes.intro",
-          "Attributes are the core stats for characters, such as Strength or Intelligence. Add the attributes your game uses, and optionally assign them to a category."
-        )}</p>
         <button class="btn" id="addAttribute" type="button">${t("attributes.add", "Add Attribute")}</button>
         <div class="list" id="attributeList">${list || `<div class="list-item">${t("web.attributes.none", "No attributes yet.")}</div>`}</div>
         <div class="actions-row">
@@ -10264,10 +10420,6 @@ async function renderAttributeGeneration() {
     view.innerHTML = `
       <section class="panel">
         <h1>${t("attrgen.title", "Attribute Generation")}</h1>
-        <p class="field-hint">${t(
-          "attrgen.intro",
-          "Choose how players generate attribute scores: dice rolling for randomness, point buy for controlled balance, or a standard array for a fixed spread. You can select more than one to support hybrid systems."
-        )}</p>
         <div class="toggle-group" id="generationOptions">
           <label class="toggle"><input type="checkbox" id="genStandard" ${standardChecked ? "checked" : ""}> ${t("attrgen.type.standard_array", "Standard Array")}</label>
           <label class="toggle"><input type="checkbox" id="genDice" ${diceChecked ? "checked" : ""}> ${t("attrgen.type.dice", "Dice Rolling")}</label>
@@ -10728,10 +10880,6 @@ async function renderStandardArray() {
     view.innerHTML = `
       <section class="panel">
         <h1>${t("attrgen.standard.title", "Standard Arrays")}</h1>
-        <p class="field-hint">${t(
-          "attrgen.standard.intro",
-          "Define fixed attribute arrays and choose which one is the default option."
-        )}</p>
         <div class="field">
           <label>${t("attrgen.arrays.mode", "Array Assignment")}</label>
           <select id="standardAssignmentMode">
@@ -10949,10 +11097,6 @@ async function renderDiceRolling() {
     view.innerHTML = `
       <section class="panel">
         <h1>${t("attrgen.dice.title", "Dice Rolling")}</h1>
-        <p class="field-hint">${t(
-          "attrgen.dice.intro",
-          "Set how many attribute sets are rolled and define the dice terms used for each roll."
-        )}</p>
         <div class="grid two">
           <div class="field">
             <label>${t("attrgen.sets.count", "Number of Sets")}</label>
@@ -11163,10 +11307,6 @@ async function renderPointsBuy() {
     view.innerHTML = `
       <section class="panel">
         <h1>${t("attrgen.point.title", "Point Buy")}</h1>
-        <p class="field-hint">${t(
-          "attrgen.point.intro",
-          "Set the starting points and bounds for point-buy attribute generation."
-        )}</p>
         <div class="grid two">
           <div class="field">
             <label>${t("attrgen.point.base_points", "Base Points")}</label>
@@ -11275,10 +11415,6 @@ async function renderHitPoints() {
     view.innerHTML = `
       <section class="panel">
         <h1>${t("hp.title", "Hit Points")}</h1>
-        <p class="field-hint">${t(
-          "hp.intro",
-          "Set how characters gain hit points each level and how first level is handled."
-        )}</p>
         <div class="grid two">
           <div class="field">
             <label>${t("hp.method.label", "HP Gain Method")}</label>
@@ -11403,10 +11539,6 @@ async function renderArmorClass() {
     view.innerHTML = `
       <section class="panel">
         <h1>${t("armorclass.title", "Armor Class")}</h1>
-        <p class="field-hint">${t(
-          "armorclass.intro",
-          "Set the starting armor class value and optional attribute modifier used for armor class."
-        )}</p>
         <div class="grid two">
           <div class="field">
             <label for="acBaseValue">${t("armorclass.base", "Base Armor Class")}</label>
@@ -11532,10 +11664,6 @@ async function renderCurrency() {
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
         ${renderSystemNameControls(systemName, t("currency.title", "Currency"))}
-        <p class="field-hint">${t(
-          "currency.intro",
-          "A currency system is the overall economy (like gold standard or credits). Denominations are the specific coins or bills within it, each with a value."
-        )}</p>
         <div class="grid two">
           <div class="field">
             <label for="currencyName">${t("currency.name", "Currency Name")}</label>
@@ -11795,10 +11923,6 @@ async function renderEffectTypes(openKey = "") {
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
         ${renderSystemNameControls(systemName, t("effecttypes.title", "Effect Types"))}
-        <p class="field-hint">${t(
-          "effecttypes.intro",
-          "Effect types are tags that classify effects (for example: damage, condition, or movement). They help organize effects and power automation later."
-        )}</p>
         <button class="btn" id="addEffectType" type="button">${t("effecttypes.add", "Add Effect Type")}</button>
         <div class="list" id="effectTypeList">
           ${list || `<div class="list-item">${t("effecttypes.none", "No effect types yet.")}</div>`}
@@ -11898,10 +12022,6 @@ async function renderStatuses(openId = "") {
     view.innerHTML = `
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
-        <p class="field-hint">${t(
-          "statuses.intro",
-          "Statuses are reusable conditions that effects can apply to characters."
-        )}</p>
         ${renderSystemNameControls(systemName, t("statuses.title", "Statuses"))}
         <button class="btn" id="addStatus" type="button">${t("statuses.add", "Add Status")}</button>
         <div class="list" id="statusList">
@@ -11997,10 +12117,6 @@ async function renderDamageTypes(openId = "") {
     view.innerHTML = `
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
-        <p class="field-hint">${t(
-          "damagetypes.intro",
-          "Define reusable damage types before adding damaging effects, weapons, equipment, and spells."
-        )}</p>
         ${renderSystemNameControls(systemName, t("damagetypes.title", "Damage Types"))}
         <button class="btn" id="addDamageType" type="button">${t("damagetypes.add", "Add Damage Type")}</button>
         <div class="list" id="damageTypeList">
@@ -12103,10 +12219,6 @@ async function renderEffects(openId = "") {
     view.innerHTML = `
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
-        <p class="field-hint">${t(
-          "effects.intro",
-          "Effects are reusable rules snippets that can be referenced by skills, spells, and equipment."
-        )}</p>
         ${renderSystemNameControls(systemName, t("effects.title", "Effects"))}
         <button class="btn" id="addEffect" type="button">${t("effects.add", "Add Effect")}</button>
         <div class="list" id="effectList">
@@ -12212,10 +12324,6 @@ async function renderEquipment(openId = "") {
     view.innerHTML = `
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
-        <p class="field-hint">${t(
-          "equipment.intro",
-          "List the gear available in your game and describe what each item does."
-        )}</p>
         ${renderSystemNameControls(systemName, t("equipment.title", "Equipment"))}
         <button class="btn" id="addEquipment" type="button">${t("equipment.add", "Add Equipment")}</button>
         <div class="list" id="equipmentList">
@@ -12321,10 +12429,6 @@ async function renderWeapons(openId = "") {
     view.innerHTML = `
       <section class="panel">
         <h1>${t("weapons.title", "Weapons")}</h1>
-        <p class="field-hint">${t(
-          "weapons.intro",
-          "Define the weapons available in your game along with their damage and effects."
-        )}</p>
         <button class="btn" id="addWeapon" type="button">${t("weapons.add", "Add Weapon")}</button>
         <div class="list" id="weaponList">
           ${weaponList || `<div class="list-item">${t("weapons.none", "No weapons yet.")}</div>`}
@@ -12431,10 +12535,6 @@ async function renderClasses(openId = "") {
     view.innerHTML = `
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
-        <p class="field-hint">${t(
-          "classes.intro",
-          "Classes bundle progression rules, requirements, and starting packages."
-        )}</p>
         ${renderSystemNameControls(systemName, t("classes.title", "Classes"))}
         <button class="btn" id="addClass" type="button">${t("classes.add", "Add Class")}</button>
         <div class="list" id="classList">
@@ -12582,10 +12682,6 @@ async function renderSkills(openId = "") {
     view.innerHTML = `
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
-        <p class="field-hint">${t(
-          "skills.intro",
-          "Skills describe what characters can do and can reference effects for automation."
-        )}</p>
         ${renderSystemNameControls(systemName, t("skills.title", "Skills"))}
         <div class="edit-section">
           <h4>${t("skills.progression.type", "Skill Point Progression")}</h4>
@@ -12902,10 +12998,6 @@ async function renderSpells(openId = "") {
     view.innerHTML = `
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
-        <p class="field-hint">${t(
-          "spells.intro",
-          "Spells define magic options, including level, school, and linked effects."
-        )}</p>
         ${renderSystemNameControls(systemName, t("spells.title", "Spells"))}
         <button class="btn" id="addSpell" type="button">${t("spells.add", "Add Spell")}</button>
         <div class="list" id="spellList">
@@ -13014,10 +13106,6 @@ async function renderPantheons(openId = "") {
     view.innerHTML = `
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
-        <p class="field-hint">${t(
-          "pantheons.intro",
-          "Pantheons organize related deities by culture, region, or theme."
-        )}</p>
         ${renderSystemNameControls(systemName, t("pantheons.title", "Pantheons"))}
         <div class="grid two">
           <div class="field">
@@ -13181,10 +13269,6 @@ async function renderDeities(openId = "") {
     view.innerHTML = `
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
-        <p class="field-hint">${t(
-          "deities.intro",
-          "Deities define divine figures, their portfolios, symbols, spell access, and pantheon membership."
-        )}</p>
         ${renderSystemNameControls(systemName, t("deities.title", "Deities"))}
         <div class="grid two">
           <div class="field">
