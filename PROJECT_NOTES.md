@@ -135,6 +135,8 @@ UX and copy:
 - The save-status mojibake separator in `app.js` has been fixed.
 - The closed-beta signup screen has been reviewed on desktop/mobile and accepted for beta.
 - Rules Builder screen introductions now live in the reusable tutorial modal instead of occupying each form. The topbar Info button reopens the current screen's guidance, sidebar Info buttons preview guidance for any visited section without navigating, and changing screens resets the page scroll to the top.
+- The Home screen's introductory explanation also lives in its tutorial modal; the action-oriented choice prompt remains inline.
+- An open Rules Builder draft shows the full sidebar immediately; first-visit tutorial tracking no longer controls navigation visibility.
 - The visual style is serviceable for PoC, but mobile layout, modal density, button hierarchy, and closed-beta onboarding copy need polish.
 - Broader UI polish is intentionally waiting for beta feedback so effort goes to awkward spots testers actually notice.
 - The character generator now reaches armor selection and final `.gmcf` download, but still needs hosted smoke testing with a complete real ruleset.

@@ -226,6 +226,24 @@ const steps = [
   },
 ];
 
+const tutorialScreens = steps.concat([
+  {
+    id: "home",
+    labelKey: "web.home.title",
+    fallback: "Welcome to GMRules",
+    tutorialParagraphs: [
+      {
+        key: "web.home.intro_ttrpg",
+        fallback: "A tabletop RPG is a shared story game where players create characters, explore imagined worlds, and use rules and dice to decide what happens.",
+      },
+      {
+        key: "web.home.intro_purpose",
+        fallback: "GMRules helps you turn your custom game's rules, options, and content into a portable file that can power a digital ecosystem for your creation.",
+      },
+    ],
+  },
+]);
+
 const stepRoutes = {};
 const historyRoutes = {};
 const visitedSteps = new Set();
@@ -235,6 +253,9 @@ const SESSION_TOKEN_KEY = "gmrules.web.sessionToken";
 const LOCAL_SESSION_FRAGMENT_KEY = "local-session";
 const TUTORIAL_SCREEN_KEY_PATTERN = /^[a-z0-9][a-z0-9._:-]{0,79}$/;
 const TUTORIAL_CONTENT_VERSION = "builder-intros-20260728";
+const TUTORIAL_CONTENT_VERSION_BY_SCREEN = {
+  home: "home-intro-20260728",
+};
 
 let historyReady = false;
 let historyLocked = false;
@@ -1378,7 +1399,8 @@ function tutorialSeenKey(screenKey) {
   if (!safeKey) {
     return "";
   }
-  return `${TUTORIAL_CONTENT_VERSION}:${safeKey}`;
+  const contentVersion = TUTORIAL_CONTENT_VERSION_BY_SCREEN[safeKey] || TUTORIAL_CONTENT_VERSION;
+  return `${contentVersion}:${safeKey}`;
 }
 
 function applyTutorialVisitedScreens(screenKeys) {
@@ -1440,15 +1462,20 @@ function openTutorialPopup(screenKey = state.step) {
     return;
   }
   const safeKey = normalizeTutorialScreenKey(screenKey);
-  const tutorialStep = steps.find((entry) => entry.id === safeKey);
+  const tutorialStep = tutorialScreens.find((entry) => entry.id === safeKey);
   if (tutorialTitle) {
     tutorialTitle.textContent = tutorialStep
       ? t(tutorialStep.labelKey, tutorialStep.fallback)
       : t("web.tutorial.title", "Tutorial");
   }
   if (tutorialMessage) {
-    tutorialMessage.textContent = tutorialStep
-      ? t(tutorialStep.tutorialKey, tutorialStep.tutorialFallback)
+    const tutorialParagraphs = tutorialStep && Array.isArray(tutorialStep.tutorialParagraphs)
+      ? tutorialStep.tutorialParagraphs
+      : tutorialStep
+        ? [{ key: tutorialStep.tutorialKey, fallback: tutorialStep.tutorialFallback }]
+        : [];
+    tutorialMessage.textContent = tutorialParagraphs.length
+      ? tutorialParagraphs.map((paragraph) => t(paragraph.key, paragraph.fallback)).join("\n\n")
       : t("web.tutorial.placeholder", "Tutorial guidance for this screen is coming soon.");
   }
   tutorialModal.classList.remove("hidden");
@@ -1474,19 +1501,11 @@ function renderSidebar() {
     return;
   }
   sidebarTitle.textContent = t("common.stages", "Stages");
-  let items = steps.filter((entry) => visitedSteps.has(entry.id));
-  if (!items.length) {
-    const stepIndex = steps.findIndex((entry) => entry.id === state.step);
-    if (stepIndex >= 0) {
-      items = steps.slice(0, stepIndex + 1);
-      items.forEach((entry) => visitedSteps.add(entry.id));
-    }
-  }
-  if (!items.length) {
+  if (!state.draftId || state.step === "splash") {
     sidebarNav.innerHTML = "";
     return;
   }
-  sidebarNav.innerHTML = items
+  sidebarNav.innerHTML = steps
     .map((entry) => {
       const isActive = entry.id === state.step;
       const activeClass = isActive ? " active" : "";
@@ -6452,16 +6471,6 @@ function renderHome() {
   view.innerHTML = `
     <section class="panel">
       <h1>${t("web.home.title", "Welcome to GMRules")}</h1>
-      <div class="home-intro">
-        <p>${t(
-          "web.home.intro_ttrpg",
-          "A tabletop RPG is a shared story game where players create characters, explore imagined worlds, and use rules and dice to decide what happens."
-        )}</p>
-        <p>${t(
-          "web.home.intro_purpose",
-          "GMRules helps you turn your custom game's rules, options, and content into a portable file that can power a digital ecosystem for your creation."
-        )}</p>
-      </div>
       <p class="home-choice-prompt">${t(
         "web.home.question",
         "Choose whether to create a ruleset, edit an existing ruleset, or create a character."
