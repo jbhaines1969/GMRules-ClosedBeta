@@ -1492,6 +1492,44 @@ function closeTutorialPopup() {
   }
 }
 
+function openInformationPopup(title, message) {
+  if (!tutorialModal) {
+    return;
+  }
+  if (tutorialTitle) {
+    tutorialTitle.textContent = title;
+  }
+  if (tutorialMessage) {
+    tutorialMessage.textContent = message;
+  }
+  tutorialModal.classList.remove("hidden");
+  window.requestAnimationFrame(() => {
+    if (tutorialOk) {
+      tutorialOk.focus();
+    }
+  });
+}
+
+function openRulesetLimitPopup() {
+  openInformationPopup(
+    t("web.home.ruleset_limit_title", "Ruleset Limit"),
+    t(
+      "web.home.ruleset_limit_message",
+      "Only two rulesets are allowed per account. If you wish to work on a different ruleset, please download one of the current saves and delete it from server."
+    )
+  );
+}
+
+function openCharacterRulesetRequiredPopup() {
+  openInformationPopup(
+    t("web.home.character_ruleset_required_title", "Ruleset Required"),
+    t(
+      "web.home.character_ruleset_required_message",
+      "Ruleset required for character creation, please upload or create a ruleset."
+    )
+  );
+}
+
 function renderSidebar() {
   if (!sidebarNav || !sidebarTitle) {
     return;
@@ -5899,12 +5937,23 @@ async function renderSavedDraftList() {
       meta.textContent = t("web.home.guest_badge", "Guest");
     }
     const newDraftButton = document.getElementById("homeNewDraft");
-    const editChooseButton = document.getElementById("homeEditChoose");
+    const uploadRuleFileButton = document.getElementById("homeUploadRuleFile");
+    const characterButton = document.getElementById("homeCharacterActions");
     if (newDraftButton) {
-      newDraftButton.disabled = !canCreate;
+      newDraftButton.classList.toggle("is-disabled", !canCreate);
+      newDraftButton.setAttribute("aria-disabled", String(!canCreate));
+      newDraftButton.dataset.rulesetSlotsFull = String(!canCreate);
     }
-    if (editChooseButton) {
-      editChooseButton.disabled = !canCreate;
+    if (uploadRuleFileButton) {
+      uploadRuleFileButton.classList.toggle("is-disabled", !canCreate);
+      uploadRuleFileButton.setAttribute("aria-disabled", String(!canCreate));
+      uploadRuleFileButton.dataset.rulesetSlotsFull = String(!canCreate);
+    }
+    if (characterButton) {
+      const hasRulesets = drafts.length > 0;
+      characterButton.classList.toggle("is-disabled", !hasRulesets);
+      characterButton.setAttribute("aria-disabled", String(!hasRulesets));
+      characterButton.dataset.rulesetsAvailable = String(hasRulesets);
     }
     if (transientGuest) {
       list.innerHTML = `<div class="field-hint">${t(
@@ -5928,16 +5977,16 @@ async function renderSavedDraftList() {
         const savedAt = escapeHtml(formatSavedDate(draft.lastSaved));
         return `
           <div class="list-item saved-draft-item">
-            <div class="saved-draft-copy">
-              <strong>${name}</strong>
-              ${description ? `<div class="field-hint">${escapeHtml(description)}</div>` : ""}
-              <div class="field-hint">${t("web.home.last_saved", "Last saved")}: ${savedAt}</div>
+            <div class="saved-draft-top-row">
+              <strong class="saved-draft-name">${name}</strong>
+              <div class="saved-draft-actions">
+                <button class="btn small" type="button" data-open-draft="${id}">${t("web.home.open_saved", "Open")}</button>
+                <button class="btn ghost small" type="button" data-create-character="${id}">${t("web.home.create_character_from_saved", "Create Character")}</button>
+                <button class="btn danger small" type="button" data-delete-draft="${id}" data-delete-draft-name="${name}">${t("web.home.delete_saved", "Delete Save")}</button>
+              </div>
             </div>
-            <div class="saved-draft-actions">
-              <button class="btn small" type="button" data-open-draft="${id}">${t("web.home.open_saved", "Open")}</button>
-              <button class="btn ghost small" type="button" data-create-character="${id}">${t("web.home.create_character_from_saved", "Create Character")}</button>
-              <button class="btn danger small" type="button" data-delete-draft="${id}" data-delete-draft-name="${name}">${t("web.home.delete_saved", "Delete Save")}</button>
-            </div>
+            ${description ? `<div class="field-hint">${escapeHtml(description)}</div>` : ""}
+            <div class="field-hint">${t("web.home.last_saved", "Last saved")}: ${savedAt}</div>
           </div>
         `;
       })
@@ -6475,17 +6524,28 @@ function renderHome() {
         "web.home.question",
         "Choose whether to create a ruleset, edit an existing ruleset, or create a character."
       )}</p>
-      <div class="grid">
-        <div class="field">
-          <label>${t("web.home.create_game", "Create New Game")}</label>
-          <button class="btn" id="homeNewDraft" type="button">${t("web.splash.start", "Start New Ruleset")}</button>
-        </div>
+      <div class="home-primary-actions">
+        <button class="btn" id="homeNewDraft" type="button">${t("web.splash.start", "Start New Ruleset")}</button>
+        <button
+          class="btn ghost"
+          id="homeOpenSavedRulesets"
+          type="button"
+          aria-controls="savedDraftsPanel"
+          aria-expanded="false"
+        >${t("web.home.open_saved_ruleset", "Open Saved Ruleset")}</button>
+        <button class="btn ghost" id="homeUploadRuleFile" type="button">${t("web.home.upload_rule_file", "Upload Rule File")}</button>
+        <button
+          class="btn ghost is-disabled"
+          id="homeCharacterActions"
+          type="button"
+          aria-controls="savedDraftsPanel savedCharactersPanel homeCharacterUploadActions"
+          aria-expanded="false"
+          aria-disabled="true"
+          data-rulesets-available="false"
+        >${t("web.home.create_edit_character", "Create/Edit character")}</button>
       </div>
-      <p class="field-hint">${t(
-        "web.home.saved_or_upload_hint",
-        "You may continue working with a draft stored on your account, or upload a file from your computer to work with"
-      )}</p>
-      <div class="saved-drafts" id="savedDraftsPanel">
+      <input class="hidden" type="file" id="homeEditFile" accept=".gmrf">
+      <div class="saved-drafts hidden" id="savedDraftsPanel">
         <div class="saved-drafts-header">
           <h2>${t("web.home.saved_title", "Saved on This Server")}</h2>
           <span class="badge" id="savedDraftsMeta">${t("web.loading", "Loading...")}</span>
@@ -6494,7 +6554,7 @@ function renderHome() {
           <div class="field-hint">${t("web.loading", "Loading...")}</div>
         </div>
       </div>
-      <div class="saved-drafts" id="savedCharactersPanel">
+      <div class="saved-drafts hidden" id="savedCharactersPanel">
         <div class="saved-drafts-header">
           <h2>${t("web.home.saved_characters_title", "Saved Characters")}</h2>
           <span class="badge" id="savedCharactersMeta">${t("web.loading", "Loading...")}</span>
@@ -6503,17 +6563,9 @@ function renderHome() {
           <div class="field-hint">${t("web.loading", "Loading...")}</div>
         </div>
       </div>
-      <div class="grid two">
-        <div class="field">
-          <label for="homeEditFile">${t("web.home.edit_game", "Upload Game File")}</label>
-          <input class="hidden" type="file" id="homeEditFile" accept=".gmrf">
-          <button class="btn ghost" id="homeEditChoose" type="button">${t("web.home.choose_game", "Choose Game File")}</button>
-        </div>
-        <div class="field">
-          <label for="homeCharacterFile">${t("web.home.create_character", "Upload Character File")}</label>
-          <input class="hidden" type="file" id="homeCharacterFile" accept=".gmrf,.gmcf">
-          <button class="btn ghost" id="homeCharacterChoose" type="button">${t("web.home.choose_character", "Choose Character File")}</button>
-        </div>
+      <div class="home-character-upload-actions hidden" id="homeCharacterUploadActions">
+        <input class="hidden" type="file" id="homeCharacterFile" accept=".gmrf,.gmcf">
+        <button class="btn ghost" id="homeCharacterChoose" type="button">${t("web.home.create_character", "Upload Character File")}</button>
       </div>
       <div class="account-danger-zone">
         <h2>${t("web.account_delete.zone_title", "Account Danger Zone")}</h2>
@@ -6615,7 +6667,11 @@ function renderHome() {
     }
   };
 
-  document.getElementById("homeNewDraft").addEventListener("click", async () => {
+  document.getElementById("homeNewDraft").addEventListener("click", async (event) => {
+    if (event.currentTarget.dataset.rulesetSlotsFull === "true") {
+      openRulesetLimitPopup();
+      return;
+    }
     try {
       const result = await api("POST", "/api/drafts", { locale: state.locale });
       state.draftId = result.draftId;
@@ -6635,14 +6691,47 @@ function renderHome() {
 
   const homeEditFile = document.getElementById("homeEditFile");
   const homeCharacterFile = document.getElementById("homeCharacterFile");
+  const savedDraftsPanel = document.getElementById("savedDraftsPanel");
+  const savedCharactersPanel = document.getElementById("savedCharactersPanel");
+  const homeCharacterUploadActions = document.getElementById("homeCharacterUploadActions");
+  const homeOpenSavedRulesets = document.getElementById("homeOpenSavedRulesets");
+  const homeCharacterActions = document.getElementById("homeCharacterActions");
+  let homePanelMode = "";
+
+  const setHomePanelMode = (mode) => {
+    homePanelMode = mode;
+    const showRulesets = mode === "rulesets" || mode === "characters";
+    const showCharacters = mode === "characters";
+    savedDraftsPanel.classList.toggle("hidden", !showRulesets);
+    savedCharactersPanel.classList.toggle("hidden", !showCharacters);
+    homeCharacterUploadActions.classList.toggle("hidden", !showCharacters);
+    homeOpenSavedRulesets.setAttribute("aria-expanded", String(mode === "rulesets"));
+    homeCharacterActions.setAttribute("aria-expanded", String(showCharacters));
+  };
 
   document.getElementById("homeDeleteAccount").addEventListener("click", () => {
     openDeleteAccountModal(state.accountName);
   });
 
-  document.getElementById("homeEditChoose").addEventListener("click", async () => {
+  homeOpenSavedRulesets.addEventListener("click", () => {
+    setHomePanelMode(homePanelMode === "rulesets" ? "" : "rulesets");
+  });
+
+  document.getElementById("homeUploadRuleFile").addEventListener("click", async (event) => {
+    if (event.currentTarget.dataset.rulesetSlotsFull === "true") {
+      openRulesetLimitPopup();
+      return;
+    }
     const file = await openHomeFilePicker(homeEditFile, "gmrules-edit-game", [".gmrf"]);
     await importGameForEditing(file);
+  });
+
+  homeCharacterActions.addEventListener("click", () => {
+    if (homeCharacterActions.dataset.rulesetsAvailable !== "true") {
+      openCharacterRulesetRequiredPopup();
+      return;
+    }
+    setHomePanelMode(homePanelMode === "characters" ? "" : "characters");
   });
 
   document.getElementById("homeCharacterChoose").addEventListener("click", async () => {

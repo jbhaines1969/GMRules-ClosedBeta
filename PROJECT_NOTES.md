@@ -137,6 +137,10 @@ UX and copy:
 - Rules Builder screen introductions now live in the reusable tutorial modal instead of occupying each form. The topbar Info button reopens the current screen's guidance, sidebar Info buttons preview guidance for any visited section without navigating, and changing screens resets the page scroll to the top.
 - The Home screen's introductory explanation also lives in its tutorial modal; the action-oriented choice prompt remains inline.
 - An open Rules Builder draft shows the full sidebar immediately; first-visit tutorial tracking no longer controls navigation visibility.
+- Home now presents three vertically aligned ruleset actions: Start New Ruleset, Open Saved Ruleset, and Upload Rule File. The saved-ruleset list is revealed on demand; saved-character and character-upload controls are temporarily hidden pending later UI placement.
+- At the two-ruleset account limit, Start New Ruleset and Upload Rule File remain visibly unavailable but open an explanatory limit modal when selected.
+- Home includes a Create/Edit Character action. It reveals saved rulesets, saved characters, and character-file upload controls when rulesets exist; otherwise its unavailable state opens a Ruleset Required explanation.
+- Saved-ruleset cards keep the game name and all actions in one fixed top row, with description and last-saved details flowing beneath.
 - The visual style is serviceable for PoC, but mobile layout, modal density, button hierarchy, and closed-beta onboarding copy need polish.
 - Broader UI polish is intentionally waiting for beta feedback so effort goes to awkward spots testers actually notice.
 - The character generator now reaches armor selection and final `.gmcf` download, but still needs hosted smoke testing with a complete real ruleset.

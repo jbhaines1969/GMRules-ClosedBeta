@@ -240,6 +240,23 @@ body.mode-chargen .step-indicator {
   font-weight: 600;
 }
 
+.home-primary-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  width: min(320px, 100%);
+}
+
+.home-character-upload-actions {
+  margin-top: 24px;
+  width: min(320px, 100%);
+}
+
+.home-character-upload-actions .btn {
+  width: 100%;
+}
+
 .grid {
   display: grid;
   gap: 16px;
@@ -395,6 +412,11 @@ textarea {
   opacity: 0.48;
 }
 
+.btn.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .saved-drafts {
   margin-top: 24px;
 }
@@ -416,7 +438,23 @@ textarea {
 }
 
 .saved-draft-item {
+  display: block;
   gap: 12px;
+}
+
+.saved-draft-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.saved-draft-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .saved-draft-copy {
@@ -426,7 +464,8 @@ textarea {
 .saved-draft-actions {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
   justify-content: flex-end;
 }
 
