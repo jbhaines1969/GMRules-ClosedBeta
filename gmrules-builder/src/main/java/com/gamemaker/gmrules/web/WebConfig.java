@@ -9,11 +9,17 @@
 
 package com.gamemaker.gmrules.web;
 
+import java.io.IOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
  * Configuration holder for the web server.
@@ -26,6 +32,8 @@ public final class WebConfig {
     private static final String THREADS_PROPERTY = "gmrules.web.threads";
     private static final String MAX_UPLOAD_PROPERTY = "gmrules.web.maxUploadBytes";
     private static final String SESSION_MINUTES_PROPERTY = "gmrules.web.sessionMinutes";
+    private static final String LOCAL_MODE_PROPERTY = "gmrules.web.localMode";
+    private static final String LOCAL_ACCESS_KEY_FILE_PROPERTY = "gmrules.web.localAccessKeyFile";
     private static final String DRAFTS_DIR_PROPERTY = "gmrules.web.draftsDir";
     private static final String ACCOUNTS_FILE_PROPERTY = "gmrules.web.accountsFile";
     private static final String NDA_AUDIT_DIR_PROPERTY = "gmrules.web.ndaAuditDir";
@@ -47,6 +55,8 @@ public final class WebConfig {
     private static final int DEFAULT_THREADS = 12;
     private static final long DEFAULT_MAX_UPLOAD_BYTES = 512L * 1024 * 1024;
     private static final long DEFAULT_SESSION_MINUTES = 480;
+    private static final boolean DEFAULT_LOCAL_MODE = false;
+    private static final String DEFAULT_LOCAL_ACCESS_KEY_FILE = "";
     private static final String DEFAULT_DRAFTS_DIR = "drafts";
     private static final String DEFAULT_ACCOUNTS_FILE = "server-data/accounts.properties";
     private static final String DEFAULT_NDA_AUDIT_DIR = "server-data/nda-audit";
@@ -62,12 +72,15 @@ public final class WebConfig {
     private static final String DEFAULT_DISCORD_FEEDBACK_WEBHOOK_URL = "";
     private static final String DEFAULT_DISCORD_BUG_WEBHOOK_URL = "";
     private static final String DEFAULT_DISCORD_BLOCKER_WEBHOOK_URL = "";
+    private static final Pattern LOCAL_ACCESS_KEY_PATTERN = Pattern.compile("[A-Za-z0-9_-]{43,128}");
 
     private final String host;
     private final int port;
     private final int threads;
     private final long maxUploadBytes;
     private final long sessionMinutes;
+    private final boolean localMode;
+    private final byte[] localAccessKeyBytes;
     private final Path draftsDirectory;
     private final Path accountsFile;
     private final Path ndaAuditDirectory;
@@ -91,6 +104,8 @@ public final class WebConfig {
             int threads,
             long maxUploadBytes,
             long sessionMinutes,
+            boolean localMode,
+            byte[] localAccessKeyBytes,
             Path draftsDirectory,
             Path accountsFile,
             Path ndaAuditDirectory,
@@ -112,6 +127,8 @@ public final class WebConfig {
         this.threads = threads;
         this.maxUploadBytes = maxUploadBytes;
         this.sessionMinutes = sessionMinutes;
+        this.localMode = localMode;
+        this.localAccessKeyBytes = Objects.requireNonNullElseGet(localAccessKeyBytes, () -> new byte[0]).clone();
         this.draftsDirectory = draftsDirectory;
         this.accountsFile = accountsFile;
         this.ndaAuditDirectory = ndaAuditDirectory;
@@ -136,6 +153,10 @@ public final class WebConfig {
         int threads = Math.max(2, readInt(THREADS_PROPERTY, DEFAULT_THREADS));
         long maxUploadBytes = readLong(MAX_UPLOAD_PROPERTY, DEFAULT_MAX_UPLOAD_BYTES);
         long sessionMinutes = Math.max(15, readLong(SESSION_MINUTES_PROPERTY, DEFAULT_SESSION_MINUTES));
+        boolean localMode = readBoolean(LOCAL_MODE_PROPERTY, DEFAULT_LOCAL_MODE);
+        Path localAccessKeyFile = Paths.get(
+            readString(LOCAL_ACCESS_KEY_FILE_PROPERTY, DEFAULT_LOCAL_ACCESS_KEY_FILE)
+        );
         Path draftsDirectory = Paths.get(readString(DRAFTS_DIR_PROPERTY, DEFAULT_DRAFTS_DIR));
         Path accountsFile = Paths.get(readString(ACCOUNTS_FILE_PROPERTY, DEFAULT_ACCOUNTS_FILE));
         Path ndaAuditDirectory = Paths.get(readString(NDA_AUDIT_DIR_PROPERTY, DEFAULT_NDA_AUDIT_DIR));
@@ -157,6 +178,24 @@ public final class WebConfig {
             DISCORD_BLOCKER_WEBHOOK_URL_PROPERTY,
             DEFAULT_DISCORD_BLOCKER_WEBHOOK_URL
         );
+        String localAccessKey = readLocalAccessKey(localMode, localAccessKeyFile);
+        validateLocalMode(
+            localMode,
+            host,
+            publicBaseUrl,
+            draftsDirectory,
+            accountsFile,
+            localAccessKeyFile,
+            localAccessKey
+        );
+        if (localMode) {
+            ndaAuditEmailTo = "";
+            emailApiKey = "";
+            emailFrom = "";
+            discordFeedbackWebhookUrl = "";
+            discordBugWebhookUrl = "";
+            discordBlockerWebhookUrl = "";
+        }
 
         return new WebConfig(
             host,
@@ -164,6 +203,8 @@ public final class WebConfig {
             threads,
             maxUploadBytes,
             sessionMinutes,
+            localMode,
+            localAccessKey.getBytes(StandardCharsets.UTF_8),
             draftsDirectory,
             accountsFile,
             ndaAuditDirectory,
@@ -200,6 +241,15 @@ public final class WebConfig {
 
     public long getSessionMinutes() {
         return sessionMinutes;
+    }
+
+    public boolean isLocalMode() {
+        return localMode;
+    }
+
+    public boolean matchesLocalAccessKey(String candidate) {
+        byte[] candidateBytes = Objects.toString(candidate, "").trim().getBytes(StandardCharsets.UTF_8);
+        return localMode && MessageDigest.isEqual(localAccessKeyBytes, candidateBytes);
     }
 
     public Path getDraftsDirectory() {
@@ -317,6 +367,105 @@ public final class WebConfig {
             return Long.parseLong(raw);
         } catch (NumberFormatException ignored) {
             return fallback;
+        }
+    }
+
+    private static boolean readBoolean(String property, boolean fallback) {
+        String raw = Objects.toString(System.getProperty(property), "").trim();
+        if (raw.isEmpty()) {
+            raw = Objects.toString(System.getenv(propertyToEnv(property)), "").trim();
+        }
+        if (raw.isEmpty()) {
+            return fallback;
+        }
+        if ("true".equalsIgnoreCase(raw)) {
+            return true;
+        }
+        if ("false".equalsIgnoreCase(raw)) {
+            return false;
+        }
+        return fallback;
+    }
+
+    private static boolean isLoopbackHost(String host) {
+        String safeHost = Objects.toString(host, "").trim();
+        return "127.0.0.1".equals(safeHost)
+            || "localhost".equalsIgnoreCase(safeHost)
+            || "::1".equals(safeHost)
+            || "[::1]".equals(safeHost);
+    }
+
+    private static void validateLocalMode(
+            boolean localMode,
+            String host,
+            String publicBaseUrl,
+            Path draftsDirectory,
+            Path accountsFile,
+            Path localAccessKeyFile,
+            String localAccessKey
+    ) {
+        if (!localMode) {
+            return;
+        }
+        if (!isLoopbackHost(host)) {
+            throw new IllegalStateException(
+                "Local development mode requires GMRULES_WEB_HOST to be 127.0.0.1, localhost, or ::1."
+            );
+        }
+        if (!isLocalHttpUrl(publicBaseUrl)) {
+            throw new IllegalStateException(
+                "Local development mode requires GMRULES_WEB_PUBLICBASEURL to use local HTTP."
+            );
+        }
+        if (!isLocalDevelopmentPath(draftsDirectory) || !isLocalDevelopmentPath(accountsFile)) {
+            throw new IllegalStateException(
+                "Local development mode requires drafts and accounts to be stored under .local-dev."
+            );
+        }
+        if (!isLocalDevelopmentPath(localAccessKeyFile)) {
+            throw new IllegalStateException(
+                "Local development mode requires its access key file to be stored under .local-dev."
+            );
+        }
+        if (!LOCAL_ACCESS_KEY_PATTERN.matcher(Objects.toString(localAccessKey, "")).matches()) {
+            throw new IllegalStateException(
+                "Local development mode requires a 256-bit URL-safe access key."
+            );
+        }
+    }
+
+    private static boolean isLocalHttpUrl(String value) {
+        try {
+            URI uri = URI.create(Objects.toString(value, "").trim());
+            return "http".equalsIgnoreCase(Objects.toString(uri.getScheme(), ""))
+                && isLoopbackHost(uri.getHost());
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
+
+    private static boolean isLocalDevelopmentPath(Path path) {
+        Path safePath = Objects.requireNonNullElseGet(path, () -> Paths.get(""));
+        for (Path part : safePath.normalize()) {
+            if (".local-dev".equalsIgnoreCase(part.toString())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String readLocalAccessKey(boolean localMode, Path keyFile) {
+        if (!localMode) {
+            return "";
+        }
+        Path safeKeyFile = Objects.requireNonNullElseGet(keyFile, () -> Paths.get(""));
+        if (!Files.isRegularFile(safeKeyFile)) {
+            throw new IllegalStateException("Local development access key file does not exist.");
+        }
+        try {
+            return Files.readString(safeKeyFile, StandardCharsets.UTF_8).trim();
+        } catch (IOException e) {
+            throw new IllegalStateException("Local development access key file could not be read.", e);
         }
     }
 

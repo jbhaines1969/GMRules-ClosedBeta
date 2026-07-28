@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-07-21
+Updated: 2026-07-28
 
 ## Beta Launch Blockers
 
@@ -79,6 +79,7 @@ Updated: 2026-07-21
 
 ## Core And Builder Quality
 
+- [x] Add a guarded one-command local web mode using the production frontend/backend, isolated ignored test data, and a private 256-bit local key exchanged for a normal session.
 - [ ] Add focused unit tests around `GameIO`, `DraftStore`, `AccountStore`, `NdaAuditStore`, and `ApiRoutes`.
 - [ ] Add a small end-to-end/manual smoke checklist for hosted beta deploys.
 - [ ] Review remaining in-code TODOs in `CharacterClass`, `Race`, `Skill`, and `GameIO`.

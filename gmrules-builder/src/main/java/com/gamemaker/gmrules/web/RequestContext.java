@@ -144,6 +144,10 @@ public final class RequestContext {
         return Objects.toString(exchange.getRemoteAddress().getAddress().getHostAddress(), "");
     }
 
+    public String remoteIp() {
+        return Objects.toString(exchange.getRemoteAddress().getAddress().getHostAddress(), "");
+    }
+
     public String userAgent() {
         return header("User-Agent").trim();
     }

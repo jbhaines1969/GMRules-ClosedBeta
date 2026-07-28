@@ -6,7 +6,9 @@ target/
 *.iml
 .env
 USER.md
+/run-local.ps1
 
 server-data/
 drafts/
+.local-dev/
 *.gmrf

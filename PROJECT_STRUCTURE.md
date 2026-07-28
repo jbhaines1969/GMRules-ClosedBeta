@@ -1,6 +1,6 @@
 # GMRules Closed Beta Deploy Structure
 
-Updated: 2026-07-21
+Updated: 2026-07-28
 
 This file is the deploy-release filesystem map for `GMRules-ClosedBeta`.
 Update it whenever tracked files or deploy-relevant directories are added, removed, or moved. Its purpose is to let agents find known paths from this document before falling back to repository searches.
@@ -15,6 +15,7 @@ Runtime/build directories intentionally excluded from this map:
 - `*.gmrf`
 - `*.jar`
 - `.env`
+- `.local-dev/`
 
 ## Root
 
@@ -52,7 +53,7 @@ pom.xml
 ## Root Deploy Files
 
 ```text
-.env.example        # Hosted service env example, including storage, Resend, NDA audit, and Discord webhook variables.
+.env.example        # Hosted service env example, including storage, local-mode safety, Resend, NDA audit, and Discord webhook variables.
 .gitignore          # Excludes build/runtime/secrets/data files and local-only USER.md.
 deploy.sh           # Pull, clean-compile the Maven exec:java service classes, verify character routes, restart gmrules service, show status/logs.
 makebackup.sh       # Create encrypted droplet backup and remove unencrypted archive.
@@ -329,6 +330,17 @@ drafts/
 `-- characters/
     `-- *.gmcf
 ```
+
+Local development mode uses a separate ignored tree and never points at the normal runtime paths:
+
+```text
+.local-dev/
+|-- local-access.key     # 256-bit local session bootstrap key; ACL-restricted to the current Windows user.
+|-- drafts/
+`-- server-data/
+```
+
+The root `run-local.ps1` launcher is also intentionally ignored as a machine-local convenience file. Recreate it when setting up a fresh clone.
 
 ## External Local Reference
 

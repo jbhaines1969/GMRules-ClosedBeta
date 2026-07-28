@@ -55,5 +55,8 @@ public final class WebServer {
     private void logStartup() {
         String url = "http://" + config.getHost() + ":" + config.getPort();
         System.out.println("Web UI running at " + url);
+        if (config.isLocalMode()) {
+            System.out.println("LOCAL DEVELOPMENT MODE: private key exchange enabled; data isolated by the launcher.");
+        }
     }
 }

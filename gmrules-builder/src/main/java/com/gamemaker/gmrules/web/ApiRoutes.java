@@ -47,7 +47,9 @@ import com.gamemaker.gmrules.character.CharacterFileIO;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.URLEncoder;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
@@ -72,6 +74,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class ApiRoutes {
 
     // *** MEMBERS ***
+    private static final String LOCAL_DEVELOPMENT_USER_ID = "local-development";
+    private static final String LOCAL_DEVELOPMENT_USERNAME = "local@gmrules.test";
+    private static final String LOCAL_ACCESS_KEY_HEADER = "X-GMRules-Local-Key";
+    private static final int LOCAL_ACCESS_RATE_LIMIT_MAX = 10;
+    private static final Duration LOCAL_ACCESS_RATE_LIMIT_WINDOW = Duration.ofMinutes(1);
+    private static final Map<String, Deque<Instant>> LOCAL_ACCESS_RATE_LIMITS = new ConcurrentHashMap<>();
     private static final String STRINGS_BUNDLE = "i18n/strings";
     private static final String NDA_RESOURCE = "legal/nda/nda-v1-en.txt";
     private static final String ARRAY_HYBRID = "hybridStages";
@@ -121,6 +129,7 @@ public final class ApiRoutes {
         router.add("POST", "/api/login", ApiRoutes::login);
         router.add("POST", "/api/logout", ApiRoutes::logout);
         router.add("GET", "/api/session", ApiRoutes::sessionInfo);
+        router.add("POST", "/api/local-session", ApiRoutes::createLocalSession);
         router.add("GET", "/api/tutorial/visited", ApiRoutes::listTutorialVisitedScreens);
         router.add("POST", "/api/tutorial/visited", ApiRoutes::markTutorialVisitedScreens);
         router.add("POST", "/api/feedback", ApiRoutes::submitFeedback);
@@ -650,21 +659,63 @@ public final class ApiRoutes {
     private static void sessionInfo(RequestContext ctx) throws IOException {
         SessionStore.Session session = ctx.getSessionStore().getSession(resolveToken(ctx));
         if (session == null) {
-            ctx.json(200, Map.of("authenticated", false));
+            ctx.json(200, Map.of(
+                "authenticated",
+                false,
+                "localMode",
+                ctx.getConfig().isLocalMode()
+            ));
             return;
         }
+        ctx.json(200, buildSessionPayload(ctx, session, false));
+    }
+
+    private static void createLocalSession(RequestContext ctx) throws IOException {
+        if (!ctx.getConfig().isLocalMode()) {
+            ctx.json(404, Map.of("error", "Not found"));
+            return;
+        }
+        if (!isLoopbackAddress(ctx.remoteIp())) {
+            ctx.json(403, Map.of("error", "Local development access is only available from this computer."));
+            return;
+        }
+        if (!consumeLocalAccessRateLimit(ctx)) {
+            ctx.json(429, Map.of("error", "Too many local access attempts. Try again in one minute."));
+            return;
+        }
+        if (!ctx.getConfig().matchesLocalAccessKey(ctx.header(LOCAL_ACCESS_KEY_HEADER))) {
+            ctx.json(401, Map.of("error", "Invalid local development access key."));
+            return;
+        }
+        SessionStore.Session session = ctx.getSessionStore().createSession(
+            LOCAL_DEVELOPMENT_USER_ID,
+            LOCAL_DEVELOPMENT_USERNAME,
+            false
+        );
+        ctx.json(200, buildSessionPayload(ctx, session, true));
+    }
+
+    private static Map<String, Object> buildSessionPayload(
+            RequestContext ctx,
+            SessionStore.Session session,
+            boolean includeToken
+    ) throws IOException {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("authenticated", true);
         payload.put("username", session.getUsername());
         payload.put("legacyGuest", session.isLegacyGuest());
         payload.put("admin", ctx.getConfig().isAdminEmail(session.getUsername()));
+        payload.put("localMode", ctx.getConfig().isLocalMode());
+        if (includeToken) {
+            payload.put("token", session.getId());
+        }
         payload.put("draftId", session.getDraftId());
         payload.put("draftLocale", resolveDraftLocale(ctx, session.getDraftId()));
         payload.put("completedStages", resolveCompletedStages(ctx, session.getDraftId()));
         payload.put("tutorialVisitedScreens", session.isLegacyGuest()
             ? List.of()
             : ctx.getAccountStore().listTutorialVisitedScreens(session.getUserId()));
-        ctx.json(200, payload);
+        return payload;
     }
 
     private static void listTutorialVisitedScreens(RequestContext ctx) throws IOException {
@@ -5592,6 +5643,34 @@ public final class ApiRoutes {
             recordRollingRateLimit(SIGNUP_RATE_LIMITS, emailKey, SIGNUP_EMAIL_RATE_LIMIT_WINDOW, now);
         }
         return "";
+    }
+
+    private static boolean consumeLocalAccessRateLimit(RequestContext ctx) {
+        String key = "local-access:" + Objects.toString(ctx.remoteIp(), "").trim();
+        Instant now = Instant.now();
+        if (!isRollingRateLimitAvailable(
+                LOCAL_ACCESS_RATE_LIMITS,
+                key,
+                LOCAL_ACCESS_RATE_LIMIT_MAX,
+                LOCAL_ACCESS_RATE_LIMIT_WINDOW,
+                now
+        )) {
+            return false;
+        }
+        recordRollingRateLimit(LOCAL_ACCESS_RATE_LIMITS, key, LOCAL_ACCESS_RATE_LIMIT_WINDOW, now);
+        return true;
+    }
+
+    private static boolean isLoopbackAddress(String value) {
+        String safeValue = Objects.toString(value, "").trim();
+        if (safeValue.isEmpty()) {
+            return false;
+        }
+        try {
+            return InetAddress.getByName(safeValue).isLoopbackAddress();
+        } catch (UnknownHostException ignored) {
+            return false;
+        }
     }
 
     private static boolean consumeFeedbackRateLimit(RequestContext ctx, SessionStore.Session session) {

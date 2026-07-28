@@ -1,6 +1,6 @@
 # GMRules Closed Beta Project Notes
 
-Updated: 2026-07-21
+Updated: 2026-07-28
 
 ## Current Status
 
@@ -19,6 +19,8 @@ The application is functional enough for proof of concept: account signup, NDA a
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` completed successfully on 2026-07-04 after adding character draft saves and final `.gmcf` export.
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `mvn package` completed successfully on 2026-07-21 after adding Damage Types and simplifying Armor Class entry.
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `git diff --check` completed successfully on 2026-07-21 after sorting attribute modifier lists and moving Damage Types before Statuses. `git diff --check` only reported line-ending normalization warnings.
+- `mvn test` completed successfully on 2026-07-28 after adding guarded local development mode. JavaScript syntax verification was unavailable in the sandbox because `node` was not on its command path.
+- `mvn test` and `mvn package` passed after adding the private local-key exchange. An HTTP smoke confirmed that `/api/session` remains unauthenticated before proof, missing/wrong keys return `401`, the correct key issues a working normal session token, and authenticated draft create/delete still works. The in-app browser was unavailable for the final address-bar fragment-removal check.
 - The current build compiles `61` core Java source files and `62` builder Java source files.
 - There are currently no automated test sources, so the successful Maven run is a compile/build verification, not behavioral coverage.
 
@@ -43,6 +45,9 @@ The web app is served from `gmrules-builder`:
 - Signup/login blocking: admins can block or unblock emails and IP addresses; blocks persist outside live account records so deletion does not erase abuse controls.
 - Request logging records timestamp, request id, route template, status, duration, IP, user agent, authenticated account metadata, and byte counts. It does not log query strings, bearer tokens, passwords, verification tokens, request bodies, uploaded rulesets, feedback text, or secrets.
 - Health checks are available at `GET /api/health`; the endpoint returns `200` when core runtime storage is writable and `503` with sanitized failing check names when storage probes fail.
+- `run-local.ps1` packages and runs the production web app on `127.0.0.1:8080` with all runtime data isolated under ignored `.local-dev/`. The launcher generates a 256-bit `local-access.key`, restricts it to the current Windows user, and exchanges it directly with the loopback server. Only the resulting ordinary session token reaches the browser in a URL fragment, which the SPA immediately removes. Local mode is default-off, disables email/Discord delivery, and refuses startup unless the bind host and public URL are local and the draft/account/key paths are under `.local-dev`.
+- The Desktop `GMRules Local` shortcut launches `run-local.ps1` with `-NoExit`, so startup errors remain visible. Key-file permissions use `icacls` because PowerShell `Set-Acl` required an unavailable security privilege in a normal desktop shell. Background launcher verification confirmed the server remains running and answers in local mode.
+- `run-local.ps1` is intentionally ignored as a machine-local convenience and must be recreated after a fresh clone. The local-mode Java/API/SPA implementation remains tracked production code.
 
 The shaded app jar is produced by `mvn package` as `target/gmrules-app.jar`.
 

@@ -11,6 +11,7 @@ const state = {
   accountName: "",
   legacyGuest: false,
   admin: false,
+  localMode: false,
   currencyId: "",
   chargenAttributes: [],
   chargenAttributeScores: {},
@@ -83,6 +84,7 @@ const visitedSteps = new Set();
 const tutorialVisitedScreens = new Set();
 const appBackStack = [];
 const SESSION_TOKEN_KEY = "gmrules.web.sessionToken";
+const LOCAL_SESSION_FRAGMENT_KEY = "local-session";
 const TUTORIAL_SCREEN_KEY_PATTERN = /^[a-z0-9][a-z0-9._:-]{0,79}$/;
 const TUTORIAL_PLACEHOLDER_VERSION = "placeholder-20260706";
 
@@ -474,6 +476,22 @@ function storeSessionToken(token) {
 
 function clearStoredSessionToken() {
   storeSessionToken("");
+}
+
+function consumeLocalSessionTokenFromUrl() {
+  const rawHash = String(window.location.hash || "");
+  if (!rawHash.startsWith("#")) {
+    return "";
+  }
+  const params = new URLSearchParams(rawHash.slice(1));
+  const localSessionToken = String(params.get(LOCAL_SESSION_FRAGMENT_KEY) || "").trim();
+  if (!localSessionToken) {
+    return "";
+  }
+  const cleanUrl = new URL(window.location.href);
+  cleanUrl.hash = "";
+  window.history.replaceState(window.history.state, "", `${cleanUrl.pathname}${cleanUrl.search}`);
+  return localSessionToken;
 }
 
 function applyStaticLabels() {
@@ -1051,6 +1069,7 @@ async function apiBinaryCharacterImport(file) {
 
 function setLoggedIn(isLoggedIn) {
   document.body.classList.toggle("logged-out", !isLoggedIn);
+  logoutBtn.classList.toggle("hidden", isLoggedIn && state.localMode);
 }
 
 function setMode(mode) {
@@ -5151,7 +5170,9 @@ async function downloadDraft() {
 async function boot() {
   setupSelectAllOnFocus();
   trackTransientStacking();
-  state.sessionToken = readStoredSessionToken();
+  const localSessionToken = consumeLocalSessionTokenFromUrl();
+  let localModeDetected = Boolean(localSessionToken);
+  state.sessionToken = localSessionToken || readStoredSessionToken();
   await loadLocalization(state.locale);
   const verifiedEmail = readVerifiedEmailFromUrl();
   const passwordReset = readPasswordResetFromUrl();
@@ -5170,8 +5191,25 @@ async function boot() {
     return;
   }
   try {
-    const session = await api("GET", "/api/session");
+    let session = await api("GET", "/api/session");
+    localModeDetected = localModeDetected || !!session.localMode;
+    if (!session.authenticated && session.localMode) {
+      state.sessionToken = "";
+      clearStoredSessionToken();
+      state.accountName = "";
+      state.legacyGuest = false;
+      state.admin = false;
+      state.localMode = true;
+      applyTutorialVisitedScreens([]);
+      setLoggedIn(false);
+      renderLocalAccessRequired();
+      ensureHistoryReady();
+      return;
+    }
     if (session.authenticated) {
+      state.sessionToken = session.token || state.sessionToken;
+      storeSessionToken(state.sessionToken);
+      state.localMode = !!session.localMode;
       setLoggedIn(true);
       state.accountName = session.username || "";
       state.legacyGuest = !!session.legacyGuest;
@@ -5198,6 +5236,7 @@ async function boot() {
       state.accountName = "";
       state.legacyGuest = false;
       state.admin = false;
+      state.localMode = false;
       applyTutorialVisitedScreens([]);
       setLoggedIn(false);
       if (verifiedEmail) {
@@ -5215,9 +5254,13 @@ async function boot() {
     state.accountName = "";
     state.legacyGuest = false;
     state.admin = false;
+    state.localMode = false;
     applyTutorialVisitedScreens([]);
     setLoggedIn(false);
-    if (verifiedEmail) {
+    if (localModeDetected) {
+      state.localMode = true;
+      renderLocalAccessRequired(error.message);
+    } else if (verifiedEmail) {
       clearVerifiedEmailFromUrl();
       renderCreatePassword(verifiedEmail);
       showToast(t("web.login.email_verified", "Email verified. Create your password to finish account setup."));
@@ -5226,6 +5269,26 @@ async function boot() {
     }
     ensureHistoryReady();
   }
+}
+
+function renderLocalAccessRequired(message = "") {
+  setMode("home");
+  resetVisited();
+  setStep("login");
+  const safeMessage = String(message || "").trim();
+  view.innerHTML = `
+    <section class="panel">
+      <h1>Local Development Access</h1>
+      <p>Close this tab and start the site with <code>.\\run-local.ps1</code>. The launcher verifies the private local key and supplies a browser session.</p>
+      ${safeMessage ? `<p class="field-hint">${escapeHtml(safeMessage)}</p>` : ""}
+      <div class="actions-row">
+        <div class="right">
+          <button class="btn" id="localAccessReload" type="button">Try Again</button>
+        </div>
+      </div>
+    </section>
+  `;
+  document.getElementById("localAccessReload").addEventListener("click", () => window.location.reload());
 }
 
 function readVerifiedEmailFromUrl() {
@@ -5616,6 +5679,7 @@ function finishLogin(result) {
   state.accountName = result.username || "";
   state.legacyGuest = !!result.legacyGuest;
   state.admin = !!result.admin;
+  state.localMode = !!result.localMode;
   applyTutorialVisitedScreens(result.tutorialVisitedScreens || []);
   setLoggedIn(true);
   state.step = "splash";
