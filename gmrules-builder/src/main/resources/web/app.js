@@ -5988,9 +5988,9 @@ async function renderSavedDraftList() {
             <div class="saved-draft-top-row">
               <strong class="saved-draft-name">${name}</strong>
               <div class="saved-draft-actions">
-                <button class="btn small" type="button" data-open-draft="${id}">${t("web.home.open_saved", "Open")}</button>
+                <button class="btn small" type="button" data-open-draft="${id}" data-ruleset-management-action>${t("web.home.open_saved", "Open")}</button>
                 <button class="btn ghost small" type="button" data-create-character="${id}">${t("web.home.create_character_from_saved", "Create Character")}</button>
-                <button class="btn danger small" type="button" data-delete-draft="${id}" data-delete-draft-name="${name}">${t("web.home.delete_saved", "Delete Save")}</button>
+                <button class="btn danger small" type="button" data-delete-draft="${id}" data-delete-draft-name="${name}" data-ruleset-management-action>${t("web.home.delete_saved", "Delete Save")}</button>
               </div>
             </div>
             ${description ? `<div class="field-hint">${escapeHtml(description)}</div>` : ""}
@@ -5999,10 +5999,19 @@ async function renderSavedDraftList() {
         `;
       })
       .join("");
+    updateSavedDraftActionVisibility();
     updateSavedDraftCharacterButtons();
   } catch (error) {
     list.innerHTML = `<div class="field-hint">${escapeHtml(error.message)}</div>`;
   }
+}
+
+function updateSavedDraftActionVisibility() {
+  const characterButton = document.getElementById("homeCharacterActions");
+  const characterMode = characterButton && characterButton.getAttribute("aria-expanded") === "true";
+  document.querySelectorAll("[data-ruleset-management-action]").forEach((button) => {
+    button.classList.toggle("hidden", Boolean(characterMode));
+  });
 }
 
 function updateSavedDraftCharacterButtons() {
@@ -6540,7 +6549,7 @@ function renderHome() {
           type="button"
           aria-controls="savedDraftsPanel"
           aria-expanded="false"
-        >${t("web.home.open_saved_ruleset", "Open Saved Ruleset")}</button>
+        >${t("web.home.open_saved_ruleset", "Open/Manage saved rulesets")}</button>
         <button class="btn ghost" id="homeUploadRuleFile" type="button">${t("web.home.upload_rule_file", "Upload Rule File")}</button>
         <button
           class="btn ghost is-disabled"
@@ -6715,6 +6724,7 @@ function renderHome() {
     homeCharacterUploadActions.classList.toggle("hidden", !showCharacters);
     homeOpenSavedRulesets.setAttribute("aria-expanded", String(mode === "rulesets"));
     homeCharacterActions.setAttribute("aria-expanded", String(showCharacters));
+    updateSavedDraftActionVisibility();
   };
 
   document.getElementById("homeDeleteAccount").addEventListener("click", () => {
@@ -9679,7 +9689,7 @@ async function renderSetup() {
           </div>
           <div class="field">
             <label for="gameDescription">${t("setup.game.description", "Game Description")}</label>
-            <textarea id="gameDescription">${escapeHtml(data.description)}</textarea>
+            <textarea id="gameDescription" rows="25">${escapeHtml(data.description)}</textarea>
           </div>
           <div class="field">
             <label for="gameType">${t("setup.game.type", "Game Type")}</label>

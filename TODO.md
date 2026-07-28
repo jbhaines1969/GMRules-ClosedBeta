@@ -36,7 +36,7 @@ Updated: 2026-07-28
 ## UI Polish
 
 - [x] Review the closed-beta signup screen on desktop and mobile.
-- [x] Make the account/home screen clearer for new users choosing builder vs character generation after beta feedback identifies awkward spots.
+- [x] Make the account/home screen clearer for new users choosing builder vs character generation, including context-specific saved-ruleset actions.
 - [x] Move Rules Builder screen introductions into current-screen tutorial modals, remove the duplicated inline copy, and reset scroll position when changing screens.
 - [x] Add sidebar Info buttons so users can open tutorial guidance for non-current Rules Builder screens without navigating away.
 - [x] Show the complete Rules Builder sidebar after Game Setup has been saved with a nonblank game name instead of revealing sections only after visits; hide the panel while Setup is incomplete.
