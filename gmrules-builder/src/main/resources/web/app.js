@@ -2,6 +2,7 @@ const state = {
   draftId: "",
   step: "splash",
   mode: "home",
+  setupComplete: false,
   attributeGenerationType: "",
   attributeGenerationStages: [],
   attributeGenerationOptions: [],
@@ -271,6 +272,7 @@ const feedbackBtn = document.getElementById("feedbackBtn");
 const downloadBtn = document.getElementById("downloadBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const toast = document.getElementById("toast");
+const sidebar = document.getElementById("sidebar");
 const sidebarTitle = document.getElementById("sidebarTitle");
 const sidebarNav = document.getElementById("sidebarNav");
 
@@ -1361,6 +1363,7 @@ function markVisited(stepId) {
 
 function resetVisited() {
   visitedSteps.clear();
+  state.setupComplete = false;
   renderSidebar();
 }
 
@@ -1371,6 +1374,7 @@ function applyCompletedStages(stageKeys) {
       .map((value) => String(value || "").trim())
       .filter((value) => value.length > 0)
   );
+  state.setupComplete = stageSet.has("setup");
   visitedSteps.clear();
   let maxIndex = -1;
   steps.forEach((entry, index) => {
@@ -1534,15 +1538,19 @@ function renderSidebar() {
   if (!sidebarNav || !sidebarTitle) {
     return;
   }
-  if (state.mode !== "builder") {
+  const sidebarVisible = state.mode === "builder"
+    && Boolean(state.draftId)
+    && state.step !== "splash"
+    && state.setupComplete;
+  if (sidebar) {
+    sidebar.classList.toggle("hidden", !sidebarVisible);
+  }
+  document.body.classList.toggle("sidebar-hidden", !sidebarVisible);
+  if (!sidebarVisible) {
     sidebarNav.innerHTML = "";
     return;
   }
   sidebarTitle.textContent = t("common.stages", "Stages");
-  if (!state.draftId || state.step === "splash") {
-    sidebarNav.innerHTML = "";
-    return;
-  }
   sidebarNav.innerHTML = steps
     .map((entry) => {
       const isActive = entry.id === state.step;
@@ -9648,6 +9656,8 @@ async function renderSetup() {
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
     const data = await api("GET", `/api/drafts/${state.draftId}/setup`);
+    state.setupComplete = Boolean(String(data.name || "").trim());
+    renderSidebar();
     const gameTypes = data.gameTypes || [];
     const options = [""].concat(gameTypes).map((type) => {
       const label = type || t("setup.game.type.placeholder", "Select a type");
@@ -9698,6 +9708,8 @@ async function renderSetup() {
       const gameType = document.getElementById("gameType").value;
       try {
         await api("POST", `/api/drafts/${state.draftId}/setup`, { name, description, gameType });
+        state.setupComplete = true;
+        renderSidebar();
         markSaved(t("web.toast.setup_saved", "Setup saved"));
         renderMeasurements();
       } catch (error) {

@@ -136,7 +136,7 @@ UX and copy:
 - The closed-beta signup screen has been reviewed on desktop/mobile and accepted for beta.
 - Rules Builder screen introductions now live in the reusable tutorial modal instead of occupying each form. The topbar Info button reopens the current screen's guidance, sidebar Info buttons preview guidance for any visited section without navigating, and changing screens resets the page scroll to the top.
 - The Home screen's introductory explanation also lives in its tutorial modal; the action-oriented choice prompt remains inline.
-- An open Rules Builder draft shows the full sidebar immediately; first-visit tutorial tracking no longer controls navigation visibility.
+- A Rules Builder draft shows the full sidebar only after Game Setup has been saved with a nonblank game name; first-visit tutorial tracking no longer controls navigation visibility. The whole panel stays hidden on the splash and incomplete Setup screens.
 - Home now presents three vertically aligned ruleset actions: Start New Ruleset, Open Saved Ruleset, and Upload Rule File. The saved-ruleset list is revealed on demand; saved-character and character-upload controls are temporarily hidden pending later UI placement.
 - At the two-ruleset account limit, Start New Ruleset and Upload Rule File remain visibly unavailable but open an explanatory limit modal when selected.
 - Home includes a Create/Edit Character action. It reveals saved rulesets, saved characters, and character-file upload controls when rulesets exist; otherwise its unavailable state opens a Ruleset Required explanation.

@@ -39,7 +39,7 @@ Updated: 2026-07-28
 - [x] Make the account/home screen clearer for new users choosing builder vs character generation after beta feedback identifies awkward spots.
 - [x] Move Rules Builder screen introductions into current-screen tutorial modals, remove the duplicated inline copy, and reset scroll position when changing screens.
 - [x] Add sidebar Info buttons so users can open tutorial guidance for non-current Rules Builder screens without navigating away.
-- [x] Show the complete Rules Builder sidebar whenever a draft is open instead of revealing sections only after visits.
+- [x] Show the complete Rules Builder sidebar after Game Setup has been saved with a nonblank game name instead of revealing sections only after visits; hide the panel while Setup is incomplete.
 - [ ] Add Hit Points explanation/help copy showing how to model a static health track with fixed first-level HP, zero per-level gain, zero minimum per-level gain, and no Constitution modifier; gear-based HP can be modeled for beta as gear modifiers on top of `(0,0,0,0)` base HP.
 - [x] Simplify Armor Class method entry to required base AC plus optional AC attribute; remove gear-based/base-plus method selections from the web screen, Swing screen, API, and core model.
 - [x] Add Damage Types before Statuses/Effects/Equipment so effects, spells, equipment, weapons, and armor can carry an optional damage type reference.

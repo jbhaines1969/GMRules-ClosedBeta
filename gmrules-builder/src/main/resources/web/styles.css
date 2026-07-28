@@ -107,6 +107,10 @@ body {
   align-items: start;
 }
 
+body.sidebar-hidden .workspace {
+  grid-template-columns: 1fr;
+}
+
 .sidebar {
   background: var(--card);
   border: 1px solid var(--line);

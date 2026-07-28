@@ -1169,7 +1169,7 @@ public final class ApiRoutes {
             "locale",
             locale,
             "completedStages",
-            game.getCompletedStages()
+            completedStagesFor(game)
         ));
     }
 
@@ -1199,7 +1199,7 @@ public final class ApiRoutes {
                 "locale",
                 locale,
                 "completedStages",
-                draft.getGame().getCompletedStages()
+                completedStagesFor(draft.getGame())
             ));
         } catch (ClassNotFoundException e) {
             ctx.json(400, Map.of("error", "Invalid game file"));
@@ -1221,7 +1221,7 @@ public final class ApiRoutes {
             "locale",
             locale,
             "completedStages",
-            draft.getGame().getCompletedStages()
+            completedStagesFor(draft.getGame())
         ));
     }
 
@@ -1384,7 +1384,7 @@ public final class ApiRoutes {
                 "locale",
                 Objects.toString(draft.getGame().getUiLocale(), ""),
                 "completedStages",
-                draft.getGame().getCompletedStages()
+                completedStagesFor(draft.getGame())
             ));
         } catch (IOException | RuntimeException e) {
             ctx.json(400, Map.of("error", "Invalid character file."));
@@ -1565,7 +1565,6 @@ public final class ApiRoutes {
             return;
         }
         String draftId = ctx.pathParam("id");
-        markStageCompleted(ctx, draftId, "setup");
         Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("id", Objects.toString(game.getId(), ""));
@@ -1597,6 +1596,7 @@ public final class ApiRoutes {
             game.setDescription(description);
             game.setGameType(gameType);
         });
+        markStageCompleted(ctx, draftId, "setup");
         ctx.json(200, Map.of("ok", true));
     }
 
@@ -5266,7 +5266,7 @@ public final class ApiRoutes {
             payload.put("name", name.isEmpty() ? "Untitled Ruleset" : name);
             payload.put("description", Objects.toString(game.getDescription(), ""));
             payload.put("locale", Objects.toString(game.getUiLocale(), ""));
-            payload.put("completedStages", game.getCompletedStages());
+            payload.put("completedStages", completedStagesFor(game));
             return payload;
         });
         Instant lastSaved = ctx.getDraftStore().getLastSaved(draftId);
@@ -6054,10 +6054,20 @@ public final class ApiRoutes {
             return List.of();
         }
         try {
-            return ctx.getDraftStore().readDraft(safeId, Game::getCompletedStages);
+            return ctx.getDraftStore().readDraft(safeId, ApiRoutes::completedStagesFor);
         } catch (IOException e) {
             return List.of();
         }
+    }
+
+    private static List<String> completedStagesFor(Game game) {
+        List<String> completedStages = new ArrayList<>(game.getCompletedStages());
+        boolean setupComplete = !Objects.toString(game.getName(), "").trim().isEmpty();
+        completedStages.removeIf("setup"::equals);
+        if (setupComplete) {
+            completedStages.add(0, "setup");
+        }
+        return completedStages;
     }
 
     private static void markStageCompleted(RequestContext ctx, String draftId, String stageKey) throws IOException {
