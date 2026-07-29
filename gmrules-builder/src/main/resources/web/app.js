@@ -50,6 +50,13 @@ const state = {
   defaultAttributeMinScore: 0,
   defaultAttributeMaxScore: 0,
   systemNames: {},
+  fontSizeAllScreens: false,
+  fontSizeGlobalLevel: 0,
+  fontSizeLevelsByScreen: {},
+  mechanicDescriptions: {},
+  mechanicDescriptionsDraftId: "",
+  mechanicDescriptionsLoadingDraftId: "",
+  mechanicDescriptionsLoadPromise: null,
 };
 
 const steps = [
@@ -118,8 +125,28 @@ const steps = [
         titleFallback: "Using Attribute Generation",
         paragraphs: [
           {
-            key: "attrgen.intro_specifics",
-            fallback: "Attribution Generation specifics go here",
+            key: "attrgen.intro_specifics_options",
+            fallback: "On this screen, you will define the ways players can generate their characters' Attribute scores. You are choosing the options players will see during character creation; the detailed rules for Standard Array, Dice Rolling, and Point Buy are entered on their later screens.",
+          },
+          {
+            key: "attrgen.intro_specifics_player_options",
+            fallback: "Player Options are alternative generation methods offered to the player. Give each option a clear name, such as 'Roll for Attributes,' 'Standard Array,' or 'Standard Array with Point Buy.' If you create more than one option, the player will choose between them during character creation. If there is only one, it will be used automatically.",
+          },
+          {
+            key: "attrgen.intro_specifics_first_step",
+            fallback: "The First Step establishes the character's initial Attribute scores. Standard Array gives the player a prepared group of values to assign. Dice Rolling generates values using the dice rules you define. Point Buy gives the player a budget that can be spent to build their scores.",
+          },
+          {
+            key: "attrgen.intro_specifics_second_step",
+            fallback: "The optional Second Step lets you combine two generation methods in sequence. Add to existing scores is generally used when Dice Rolling should increase the scores produced by the first step. Spend from existing scores is generally used when Point Buy should begin with the first step's scores and allow the player to improve or adjust them with a budget. Replace existing scores makes the second method supply the final scores without carrying forward the first step's results.",
+          },
+          {
+            key: "attrgen.intro_specifics_score_limits",
+            fallback: "Score Limits define the lowest and highest scores allowed for Attributes. Select 'All attributes use the same score limits' when every Attribute follows the same range. Leave it unselected when individual Attributes need different limits; those limits can be entered while creating each Attribute.",
+          },
+          {
+            key: "attrgen.intro_specifics_modifiers",
+            fallback: "Default Modifiers translate Attribute scores into the bonuses or penalties used during play. Select 'All attributes use the same modifier list' when every Attribute uses the same score-to-modifier progression. If different Attributes calculate modifiers differently, leave it unselected and define their modifier lists individually on the Attributes screen.",
           },
         ],
       },
@@ -164,8 +191,20 @@ const steps = [
     id: "hit-points",
     labelKey: "hp.title",
     fallback: "Hit Points",
-    tutorialKey: "hp.intro",
-    tutorialFallback: "Set how characters gain hit points each level and how first level is handled.",
+    tutorialParagraphs: [
+      {
+        key: "hp.intro",
+        fallback: "Hit Points are a numerical measure of how much harm, strain, or danger a character can endure before suffering serious consequences. Depending on the game, they may represent physical health alone or a combination of injury, stamina, luck, resolve, and the ability to avoid a decisive blow.",
+      },
+      {
+        key: "hp.intro.play",
+        fallback: "Damage usually reduces Hit Points, while healing, rest, or other recovery restores them. Reaching zero commonly triggers an important game state such as unconsciousness, critical injury, dying, or death, but your rules determine the exact consequence. Hit Points can also be used for creatures, vehicles, objects, or any other element that can be damaged.",
+      },
+      {
+        key: "hp.intro.design",
+        fallback: "The amount of Hit Points available, how quickly they increase, and how easily they return strongly shape the feel of play. Large or rapidly growing totals support durable, heroic characters; smaller or mostly fixed totals make danger more immediate. This screen defines how characters begin and gain Hit Points so the descendant applications can calculate those totals consistently.",
+      },
+    ],
   },
   {
     id: "armor-class",
@@ -297,6 +336,603 @@ const tutorialScreens = steps.concat([
   },
 ]);
 
+const tutorialSpecificPages = {
+  setup: {
+    titleKey: "setup.info.specifics.title",
+    titleFallback: "Using Game Setup",
+    paragraphs: [
+      {
+        key: "setup.info.specifics.name",
+        fallback: "Game Name is the required identity for this ruleset. Saving a nonblank name completes Game Setup, unlocks the Rules Builder navigation, and gives exported .gmrf files a recognizable filename.",
+      },
+      {
+        key: "setup.info.specifics.description",
+        fallback: "Game Description is the broad introduction to your game. Use it to explain the setting, premise, intended style of play, and anything a new player should understand before creating a character. Descendant applications can present this creator-written text when introducing the ruleset.",
+      },
+      {
+        key: "setup.info.specifics.type",
+        fallback: "Game Type classifies the ruleset by its general genre or style. Choose the closest available option; it is descriptive metadata and does not force the game to use particular mechanics.",
+      },
+      {
+        key: "setup.info.specifics.save",
+        fallback: "Continue saves all three fields to the active draft before moving to Weights & Measures. You can return and revise them later, and you can download the current .gmrf from the top bar whenever you want a portable copy.",
+      },
+    ],
+  },
+  measurements: {
+    titleKey: "measurements.info.specifics.title",
+    titleFallback: "Using Weights & Measures",
+    paragraphs: [
+      {
+        key: "measurements.info.specifics.weight",
+        fallback: "Weight System selects the default convention used when the suite presents weights and measurements. Choose Metric or Imperial (US Customary) according to the language of your rules; individual descriptions can still mention whatever units your game requires.",
+      },
+      {
+        key: "measurements.info.specifics.time_unit",
+        fallback: "Each Time Unit gives a game term a duration. Enter its name, the number in Amount, and the existing Unit that amount is measured in. For example, a round could be 6 seconds, while a turn could be 10 rounds.",
+      },
+      {
+        key: "measurements.info.specifics.relationships",
+        fallback: "Time units may be built from smaller units, allowing the ruleset to preserve relationships between seconds, rounds, turns, watches, days, or setting-specific periods. Add smaller base units before defining larger units that depend on them.",
+      },
+      {
+        key: "measurements.info.specifics.manage",
+        fallback: "The list shows the units currently available to the ruleset. Edit changes an existing unit without rebuilding it, Remove deletes one you do not use, and Add Time Unit saves a new entry. Include only the units that help descendant applications describe durations or schedule game events.",
+      },
+    ],
+  },
+  dice: {
+    titleKey: "dice.info.specifics.title",
+    titleFallback: "Using Dice Options",
+    paragraphs: [
+      {
+        key: "dice.info.specifics.standard",
+        fallback: "Standard Dice identifies the physical or digital dice used anywhere in your game. Select every die size that later rules may reference. These choices make dice available to the ruleset; they do not by themselves create a roll or determine when a die is used.",
+      },
+      {
+        key: "dice.info.specifics.custom",
+        fallback: "Custom Ranges represent random values that are not covered by the standard dice list. Enter the inclusive minimum and maximum result, then add the range. This can support unusual dice, tables, cards, spinners, or digital randomizers whose results follow a custom numeric span.",
+      },
+      {
+        key: "dice.info.specifics.use",
+        fallback: "Later mechanics can combine the available dice and ranges into procedures such as Attribute generation, damage, healing, or random selections. Select a die or range here because the rules use it somewhere, not merely because it is common in other games.",
+      },
+      {
+        key: "dice.info.specifics.manage",
+        fallback: "Checkbox changes are saved immediately. Custom ranges remain in the list until removed. Removing an option means it should no longer be offered for future rule configuration, so review any mechanics that depended on it.",
+      },
+    ],
+  },
+  "attribute-types": {
+    titleKey: "attrtypes.info.specifics.title",
+    titleFallback: "Using Attribute Categories",
+    paragraphs: [
+      {
+        key: "attrtypes.info.specifics.optional",
+        fallback: "Attribute Categories are optional organizational groups. Create them only when the grouping communicates something useful about the rules, such as Physical, Mental, and Social Attributes. A game whose Attributes stand on their own can leave this list empty.",
+      },
+      {
+        key: "attrtypes.info.specifics.entries",
+        fallback: "Add Category opens an editor for the category's name and description. The name is shown while organizing Attributes, and the description can explain what the group represents in your game. Edit revises either value; Remove deletes the category.",
+      },
+      {
+        key: "attrtypes.info.specifics.assignment",
+        fallback: "Categories do not contain scores or generation rules. After creating them, assign each relevant Attribute to a category on the Attributes screen. Attributes may also remain uncategorized.",
+      },
+      {
+        key: "attrtypes.info.specifics.system_name",
+        fallback: "The optional system name changes what this collection is called throughout the builder and ruleset. Use it when your game uses a more fitting term than Attribute Categories, while keeping the underlying data compatible with the rest of the suite.",
+      },
+    ],
+  },
+  attributes: {
+    titleKey: "attributes.info.specifics.title",
+    titleFallback: "Using Attributes",
+    paragraphs: [
+      {
+        key: "attributes.info.specifics.entries",
+        fallback: "Add Attribute creates one of the broad character capabilities used by your game. Give it a clear name and a creator-written description explaining what the Attribute represents, what kinds of actions it influences, and how players should interpret its score.",
+      },
+      {
+        key: "attributes.info.specifics.category",
+        fallback: "Attribute Category assigns the Attribute to one of the optional groups created on the previous screen. You can change that assignment directly from the list without recreating the Attribute, or leave it set to None.",
+      },
+      {
+        key: "attributes.info.specifics.range",
+        fallback: "Minimum and Maximum define the legal score range for this Attribute when the game does not use the shared limits from Attribute Generation. When shared limits are enabled, those common values are used instead and the individual range fields are hidden.",
+      },
+      {
+        key: "attributes.info.specifics.modifiers",
+        fallback: "Modifiers translate particular scores into bonuses or penalties used by other rules. Define an individual score-to-modifier list when this Attribute follows its own progression. If Attribute Generation applies one modifier list to every Attribute, the shared list is used instead.",
+      },
+      {
+        key: "attributes.info.specifics.bonuses",
+        fallback: "Score Bonuses record additional effects that become available at specified thresholds. Use them for rules that grant a named benefit when this Attribute reaches a particular score; leave the list empty when the Attribute has no threshold-based benefits.",
+      },
+      {
+        key: "attributes.info.specifics.manage",
+        fallback: "Edit reopens the complete Attribute definition, Change Category only changes its organizational group, and Remove deletes it. Because later rules may refer to an Attribute, review those relationships before removing one from an established ruleset.",
+      },
+    ],
+  },
+  "standard-array": {
+    titleKey: "attrgen.standard.info.specifics.title",
+    titleFallback: "Using Standard Arrays",
+    paragraphs: [
+      {
+        key: "attrgen.standard.info.specifics.enabled",
+        fallback: "This screen is active when at least one Player Option uses Standard Array. If no option uses it, the controls remain locked so unused array data cannot accidentally affect character generation.",
+      },
+      {
+        key: "attrgen.standard.info.specifics.assignment",
+        fallback: "Array Assignment determines how values reach Attributes. Assigned to Attributes pairs every value with a specific Attribute, producing a fixed distribution. Open Values stores only the numbers and lets each player decide which Attribute receives each value.",
+      },
+      {
+        key: "attrgen.standard.info.specifics.standard",
+        fallback: "Standard Arrays contain the ordinary set of starting values. In assigned mode, select an Attribute and add its value; in open mode, add one value for each score the player will assign. The completed array should supply every Attribute score required by character creation.",
+      },
+      {
+        key: "attrgen.standard.info.specifics.elite",
+        fallback: "Elite Arrays provide a second, usually stronger or more exceptional, set of values. They use the same assignment mode as the Standard Array. You may leave this list empty if your game has only one fixed array.",
+      },
+      {
+        key: "attrgen.standard.info.specifics.default",
+        fallback: "Default Array Type identifies which completed array character generation should offer first. Choose Standard or Elite after entering the values, and remove individual entries when correcting or rebuilding a set.",
+      },
+    ],
+  },
+  "dice-rolling": {
+    titleKey: "attrgen.dice.info.specifics.title",
+    titleFallback: "Using Dice Rolling",
+    paragraphs: [
+      {
+        key: "attrgen.dice.info.specifics.enabled",
+        fallback: "This screen is active when at least one Player Option uses Dice Rolling. It defines the complete procedure used to generate Attribute values; the general Dice Options screen only determines which die sizes are available here.",
+      },
+      {
+        key: "attrgen.dice.info.specifics.sets",
+        fallback: "Number of Sets controls how many complete groups of Attribute results are generated. Selection Method is creator-written instruction explaining how the player chooses among those groups, such as choosing any set, taking the first set, or selecting the set with the highest total.",
+      },
+      {
+        key: "attrgen.dice.info.specifics.substitution",
+        fallback: "Dice Substitution optionally allows a player to replace a rolled Attribute result with a fixed value. Substitution Value is the replacement score, and Max Substitutions limits how many times the player may use it during character creation.",
+      },
+      {
+        key: "attrgen.dice.info.specifics.terms",
+        fallback: "Dice Terms build the roll used for an Attribute result. Number of Rolls is the quantity of the selected die, Reroll Below repeats results lower than the threshold, and Drop lowest roll removes the lowest die before totaling the term. Add multiple terms when the procedure combines different groups of dice.",
+      },
+      {
+        key: "attrgen.dice.info.specifics.manage",
+        fallback: "Apply saves the set-selection instruction, Save records substitution rules, and Add Dice Term appends a term to the procedure. Review the displayed notation after each addition and remove any term that should not participate in the final roll.",
+      },
+    ],
+  },
+  "points-buy": {
+    titleKey: "attrgen.point.info.specifics.title",
+    titleFallback: "Using Point Buy",
+    paragraphs: [
+      {
+        key: "attrgen.point.info.specifics.enabled",
+        fallback: "This screen is active when at least one Player Option uses Point Buy. Point Buy gives players a controlled budget for shaping Attribute scores instead of accepting only predetermined or random results.",
+      },
+      {
+        key: "attrgen.point.info.specifics.budget",
+        fallback: "Base Points is the budget available during character creation. Minimum Points to Spend can require players to commit part or all of that budget before continuing, while a value of zero allows unused points to remain.",
+      },
+      {
+        key: "attrgen.point.info.specifics.bounds",
+        fallback: "Minimum Value and Maximum Value define the score range available during the purchase process. These bounds keep players from lowering or raising an Attribute beyond what the Point Buy method permits.",
+      },
+      {
+        key: "attrgen.point.info.specifics.post_racial",
+        fallback: "Max Value Post-Racial is the final cap after ancestry, species, race, or similar character-option adjustments are applied. Set it higher than the purchase maximum when those later bonuses are allowed to exceed the normal Point Buy limit.",
+      },
+      {
+        key: "attrgen.point.info.specifics.negative",
+        fallback: "Allow Negative Attributes determines whether Point Buy may produce scores below zero. Enable it only when negative scores have a defined meaning in your game and the rest of the rules can interpret them correctly.",
+      },
+      {
+        key: "attrgen.point.info.specifics.apply",
+        fallback: "Apply saves the complete Point Buy configuration. When Point Buy is a second Player Option step set to Spend from existing scores, the earlier step supplies the starting scores and this budget is used to adjust them.",
+      },
+    ],
+  },
+  "hit-points": {
+    titleKey: "hp.info.specifics.title",
+    titleFallback: "Using Hit Points",
+    paragraphs: [
+      {
+        key: "hp.info.specifics.method",
+        fallback: "HP Gain Method controls how characters receive Hit Points as they advance. Rolled uses the applicable Hit Point die, Average uses that die's average result, and Fixed grants the exact Fixed HP per Level value.",
+      },
+      {
+        key: "hp.info.specifics.rounding",
+        fallback: "Average Rounding determines how fractional average results are converted to whole Hit Points. It applies only to the Average method. Fixed HP per Level applies only to Fixed, and the screen disables fields that do not affect the selected method.",
+      },
+      {
+        key: "hp.info.specifics.minimum",
+        fallback: "Minimum HP per Level is the floor for a level's gain after the selected method and relevant modifiers are considered. Use it to prevent poor rolls or penalties from reducing advancement below the minimum your game allows.",
+      },
+      {
+        key: "hp.info.specifics.attribute",
+        fallback: "Attribute Modifier selects the Attribute whose modifier is added to Hit Point gains. Choose None when Hit Points are not affected by an Attribute. Allow Negative Attribute Modifier determines whether a penalty from the selected Attribute may reduce those gains.",
+      },
+      {
+        key: "hp.info.specifics.first_level",
+        fallback: "Max HP at First Level gives a new character the maximum result instead of rolling or averaging the first Hit Point die. First Level Bonus HP adds a separate fixed amount to the starting total.",
+      },
+      {
+        key: "hp.info.specifics.static",
+        fallback: "For a game with a static health track, use Fixed with zero HP per level, a zero minimum, and no Attribute Modifier, then place the intended starting total in First Level Bonus HP. Each change on this screen saves immediately.",
+      },
+    ],
+  },
+  "armor-class": {
+    titleKey: "armorclass.info.specifics.title",
+    titleFallback: "Using Armor Class",
+    paragraphs: [
+      {
+        key: "armorclass.info.specifics.base",
+        fallback: "Base Armor Class is the unmodified defensive value from which a character begins. Set it to the number an unarmored character would use before Attribute modifiers, worn armor, effects, or other bonuses are applied.",
+      },
+      {
+        key: "armorclass.info.specifics.attribute",
+        fallback: "AC Attribute optionally identifies the Attribute whose modifier contributes to Armor Class. Choose None for a fixed base with no inherent Attribute contribution, or select the capability your game uses for avoidance, reflexes, defense, or a similar concept.",
+      },
+      {
+        key: "armorclass.info.specifics.use",
+        fallback: "Character generation combines this rule with the selected Attribute's modifier and any Armor Class changes supplied by equipment. Both fields save when changed, so you can return later if the Attribute list or defensive model evolves.",
+      },
+    ],
+  },
+  currency: {
+    titleKey: "currency.info.specifics.title",
+    titleFallback: "Using Currency",
+    paragraphs: [
+      {
+        key: "currency.info.specifics.system",
+        fallback: "A Currency entry represents one economic system used by the game. Currency Name identifies that system, while Base Denomination creates its value-one unit. Add separate currencies when the setting contains economies that do not share denominations or exchange values.",
+      },
+      {
+        key: "currency.info.specifics.denominations",
+        fallback: "Denominations are the named units within the selected currency. Their Value is measured relative to that currency's base denomination: a value of 1 equals one base unit, while larger or fractional values represent more or less purchasing value.",
+      },
+      {
+        key: "currency.info.specifics.selection",
+        fallback: "Select a currency from the list before adding or removing its denominations. The badge shows how many denominations it contains. Removing a currency also removes the economic structure that later character and equipment rules may reference.",
+      },
+      {
+        key: "currency.info.specifics.starting",
+        fallback: "Starting Money declares where a new character's funds come from. Base uses the shared Base Amount; Class uses values defined by character class; Trait uses applicable character-option adjustments; Hybrid allows the ruleset to combine shared and option-based sources.",
+      },
+      {
+        key: "currency.info.specifics.starting_currency",
+        fallback: "Starting Money Currency identifies which currency receives the starting amount. Save records the method, amount, and currency together. Later Class and Race editors provide their own starting-money values or modifiers when those methods are part of the game.",
+      },
+      {
+        key: "currency.info.specifics.system_name",
+        fallback: "The optional system name changes what this collection is called throughout the builder and ruleset. Use it when your game calls money, wealth, credits, resources, or other economic units by a different collective term.",
+      },
+    ],
+  },
+  "effect-types": {
+    titleKey: "effecttypes.info.specifics.title",
+    titleFallback: "Using Effect Types",
+    paragraphs: [
+      {
+        key: "effecttypes.info.specifics.purpose",
+        fallback: "Effect Types are reusable classifications for the rules snippets and conditions in your game. Examples might include Damage, Healing, Movement, Mental, Magical, or Environmental. Create types that help players and descendant applications understand what an effect does.",
+      },
+      {
+        key: "effecttypes.info.specifics.entries",
+        fallback: "Add Effect Type opens an editor for the type's name and description. The name becomes the selectable tag, while the description explains the shared meaning of effects placed in that category.",
+      },
+      {
+        key: "effecttypes.info.specifics.multiple",
+        fallback: "An Effect or Status may use more than one Effect Type, so the categories may overlap. A burning condition could be both Damage and Environmental, for example. Use combinations when they communicate real rule relationships rather than creating a unique type for every entry.",
+      },
+      {
+        key: "effecttypes.info.specifics.manage",
+        fallback: "Edit revises a type, Remove deletes it, and the optional system name changes what this collection is called throughout the ruleset. Create the major types before Effects and Statuses so they are available while those entries are being defined.",
+      },
+    ],
+  },
+  "damage-types": {
+    titleKey: "damagetypes.info.specifics.title",
+    titleFallback: "Using Damage Types",
+    paragraphs: [
+      {
+        key: "damagetypes.info.specifics.purpose",
+        fallback: "Damage Types identify the nature of harm in your game, such as Fire, Cold, Ballistic, Psychic, Radiant, or Poison. They provide a shared reference that later rules can use for descriptions, resistances, vulnerabilities, immunities, and automation.",
+      },
+      {
+        key: "damagetypes.info.specifics.entries",
+        fallback: "Add Damage Type opens an editor for its name and creator-written description. Explain what produces this damage, how it is understood in the setting, and any general behavior that applies whenever the type appears.",
+      },
+      {
+        key: "damagetypes.info.specifics.references",
+        fallback: "Effects, equipment, weapons, armor, and spells can reference these entries instead of repeating free-form damage labels. Define a type once, then select it wherever the same kind of damage is used.",
+      },
+      {
+        key: "damagetypes.info.specifics.manage",
+        fallback: "Edit revises the shared entry and Remove deletes it. Review dependent content before removing a type from an established ruleset. The optional system name lets your game use another collective term for this list.",
+      },
+    ],
+  },
+  statuses: {
+    titleKey: "statuses.info.specifics.title",
+    titleFallback: "Using Statuses",
+    paragraphs: [
+      {
+        key: "statuses.info.specifics.purpose",
+        fallback: "Statuses are persistent or reusable conditions that can be applied to characters, creatures, or other game subjects. Examples include Stunned, Hidden, Burning, Inspired, Injured, or Exhausted.",
+      },
+      {
+        key: "statuses.info.specifics.entries",
+        fallback: "Add Status opens an editor for its name, description, and Effect Types. The description should tell users what the condition means and how it changes play; the selected types classify the condition for organization and later automation.",
+      },
+      {
+        key: "statuses.info.specifics.relationships",
+        fallback: "A Status defines the condition itself, while an Effect describes a rule event or result that may apply that condition. Keeping the Status reusable allows many spells, skills, items, or other rules to refer to the same condition.",
+      },
+      {
+        key: "statuses.info.specifics.manage",
+        fallback: "Use Edit to change the shared definition and Remove only when the condition is no longer part of the game. The optional system name changes how this collection is labeled without changing its underlying role.",
+      },
+    ],
+  },
+  effects: {
+    titleKey: "effects.info.specifics.title",
+    titleFallback: "Using Effects",
+    paragraphs: [
+      {
+        key: "effects.info.specifics.purpose",
+        fallback: "Effects are reusable pieces of rules content that describe a result, change, or consequence. Create an Effect once when the same behavior may be granted by several skills, spells, weapons, or other game elements.",
+      },
+      {
+        key: "effects.info.specifics.entries",
+        fallback: "Add Effect opens an editor for its name and creator-written description. Write the actionable rule in the description, including triggers, targets, values, duration, limits, or other details needed to apply it during play.",
+      },
+      {
+        key: "effects.info.specifics.types",
+        fallback: "Assign one or more Effect Types to classify the behavior. Select an optional Damage Type when the Effect causes a defined kind of harm. These references let descendant applications organize effects and connect them to other rules without relying only on wording.",
+      },
+      {
+        key: "effects.info.specifics.references",
+        fallback: "Skills, spells, and weapons can attach existing Effects, and their editors can create a new Effect without leaving the current workflow. Editing the shared Effect updates the definition those elements reference.",
+      },
+      {
+        key: "effects.info.specifics.manage",
+        fallback: "Remove deletes the reusable Effect, so review elements that may depend on it first. The optional system name lets your game use a different term for this collection.",
+      },
+    ],
+  },
+  equipment: {
+    titleKey: "equipment.info.specifics.title",
+    titleFallback: "Using Equipment",
+    paragraphs: [
+      {
+        key: "equipment.info.specifics.purpose",
+        fallback: "Equipment contains general carried, worn, consumed, or used items that are not better represented by a more specialized rules section. Examples include tools, supplies, kits, devices, clothing, and adventuring gear.",
+      },
+      {
+        key: "equipment.info.specifics.entries",
+        fallback: "Add Equipment opens an editor for the item's name and creator-written description. Explain what the item is, how it is used, and any limitations or rules that players need when selecting or carrying it.",
+      },
+      {
+        key: "equipment.info.specifics.weight",
+        fallback: "Weight records the item's encumbrance using the units defined in Weights & Measures. Use zero or leave the measurement minimal when your game does not track equipment weight.",
+      },
+      {
+        key: "equipment.info.specifics.damage",
+        fallback: "Damage Type is optional and should be selected only when the item's rules directly involve a defined kind of damage. General equipment without a damage relationship can leave it set to None.",
+      },
+      {
+        key: "equipment.info.specifics.manage",
+        fallback: "Edit revises the complete item and Remove deletes it from the ruleset. The optional system name changes the collective label used for this equipment list.",
+      },
+    ],
+  },
+  weapons: {
+    titleKey: "weapons.info.specifics.title",
+    titleFallback: "Using Weapons",
+    paragraphs: [
+      {
+        key: "weapons.info.specifics.entries",
+        fallback: "Add Weapon creates a selectable weapon definition. Give it a name and creator-written description covering its form, use, range or handling rules, restrictions, special qualities, and any other details not represented by the structured fields.",
+      },
+      {
+        key: "weapons.info.specifics.damage",
+        fallback: "Number of Rolls, Dice Sides, and Modifier form the weapon's basic damage expression. For example, 2 rolls of a 6-sided die with a +1 modifier represents 2d6+1. Select the Damage Type that classifies this harm.",
+      },
+      {
+        key: "weapons.info.specifics.weight",
+        fallback: "Weight uses the measurement units defined earlier and allows inventory or encumbrance systems to account for the weapon. A zero value can represent negligible weight or a game that does not track it.",
+      },
+      {
+        key: "weapons.info.specifics.effects",
+        fallback: "Effects attach reusable rules behavior to the weapon, such as applying a condition, moving a target, or triggering an additional consequence. Select existing Effects or create one from the editor when the weapon needs a new shared rule.",
+      },
+      {
+        key: "weapons.info.specifics.manage",
+        fallback: "Edit revises the complete weapon and Remove deletes it. Review character options and other rules that may grant or reference a weapon before removing it from an established ruleset.",
+      },
+    ],
+  },
+  skills: {
+    titleKey: "skills.info.specifics.title",
+    titleFallback: "Using Skills",
+    paragraphs: [
+      {
+        key: "skills.info.specifics.progression",
+        fallback: "Skill Point Progression determines how many points characters receive as they advance. By Class uses the values defined on each Class; Fixed uses the shared Base Points per Level; Intelligence Modified applies the relevant Attribute modifier; Custom allows level-specific values.",
+      },
+      {
+        key: "skills.info.specifics.progression_controls",
+        fallback: "Minimum per Level places a floor on the award. Apply Intelligence Modifier controls whether that modifier participates, and Same at all levels uses one value throughout progression. Clear Same at all levels to enter different point awards for selected levels, then Save the completed progression.",
+      },
+      {
+        key: "skills.info.specifics.entries",
+        fallback: "Add Skill opens the full Skill editor. Name and Description identify what the Skill covers, Category organizes related Skills, and Related Attribute connects checks to the broad capability that supports them.",
+      },
+      {
+        key: "skills.info.specifics.rules",
+        fallback: "Trained Only marks a Skill that cannot be used normally without training. Armor Check Penalty records how armor interferes with the Skill. Trait Starting Money Modifier lets a Skill or trait-like selection adjust starting funds when the chosen Starting Money method uses those adjustments.",
+      },
+      {
+        key: "skills.info.specifics.restrictions",
+        fallback: "Class Restrictions and Race Restrictions limit which character options may access the Skill. Leave both lists empty for general availability. Effects attach reusable outcomes or rules behavior, and a new Effect can be created directly from the Skill editor.",
+      },
+      {
+        key: "skills.info.specifics.manage",
+        fallback: "Edit revises the Skill and Remove deletes it from the shared list. The optional system name changes what Skills are called throughout the ruleset.",
+      },
+    ],
+  },
+  spells: {
+    titleKey: "spells.info.specifics.title",
+    titleFallback: "Using Spells",
+    paragraphs: [
+      {
+        key: "spells.info.specifics.entries",
+        fallback: "Add Spell opens an editor for a magical, supernatural, technological, or otherwise special ability. Name and creator-written Description explain what it does and provide any casting rules not captured by the structured fields.",
+      },
+      {
+        key: "spells.info.specifics.classification",
+        fallback: "Level represents the Spell's relative tier or access requirement. School is a creator-defined classification such as Evocation, Healing, Psionics, or Hacking; it remains flexible so the terminology can match your setting.",
+      },
+      {
+        key: "spells.info.specifics.timing",
+        fallback: "Casting Time states how long activation takes, Range states how far or where it can reach, and Duration states how long its result lasts. These are creator-written values so they can use the time and measurement vocabulary of your game.",
+      },
+      {
+        key: "spells.info.specifics.damage",
+        fallback: "Damage Type is optional and classifies the Spell's harm when applicable. Leave it set to None for utility, healing, defensive, or other Spells that do not cause a defined damage type.",
+      },
+      {
+        key: "spells.info.specifics.effects",
+        fallback: "Effects attach reusable rule results to the Spell. Add every Effect the Spell produces, or create a new Effect from the editor when the required behavior does not exist yet.",
+      },
+      {
+        key: "spells.info.specifics.manage",
+        fallback: "Edit revises the complete Spell and Remove deletes it. The optional system name changes what this collection is called throughout the ruleset.",
+      },
+    ],
+  },
+  pantheons: {
+    titleKey: "pantheons.info.specifics.title",
+    titleFallback: "Using Pantheons",
+    paragraphs: [
+      {
+        key: "pantheons.info.specifics.purpose",
+        fallback: "Pantheons organize related Deities into the religious traditions, divine families, alliances, or rival groups used by your setting. A Deity can belong to more than one Pantheon when your mythology overlaps.",
+      },
+      {
+        key: "pantheons.info.specifics.entries",
+        fallback: "Enter a Pantheon Name and use Description to explain its origin, shared beliefs, relationships, and place in the world. Save creates the Pantheon; Edit loads an existing one back into these fields.",
+      },
+      {
+        key: "pantheons.info.specifics.membership",
+        fallback: "The Deities list assigns existing Deities to this Pantheon. Because the Deities screen comes next, you may save a Pantheon without members, create the Deities afterward, and then return here to complete its membership.",
+      },
+      {
+        key: "pantheons.info.specifics.manage",
+        fallback: "Cancel clears the current form without removing saved entries. Remove deletes the selected Pantheon, and the optional system name changes what this collection is called throughout the ruleset.",
+      },
+    ],
+  },
+  deities: {
+    titleKey: "deities.info.specifics.title",
+    titleFallback: "Using Deities",
+    paragraphs: [
+      {
+        key: "deities.info.specifics.identity",
+        fallback: "Deity Name identifies the divine figure. Deity Type and Divine Rank let you record classifications such as ancestral spirit, demigod, greater deity, or any hierarchy used by your game.",
+      },
+      {
+        key: "deities.info.specifics.portfolio",
+        fallback: "Primary Portfolio states the Deity's principal area of influence, while Alignment records any moral, ethical, elemental, or factional outlook your rules use. Holy Symbol and Worship Style describe how followers recognize and honor the Deity.",
+      },
+      {
+        key: "deities.info.specifics.pantheons",
+        fallback: "Pantheons assigns the Deity to one or more groups created on the previous screen. Select every applicable Pantheon, or leave the list empty for an independent Deity.",
+      },
+      {
+        key: "deities.info.specifics.spells",
+        fallback: "Can grant spells determines whether worship of this Deity can provide spellcasting. Max Spell Level places an upper limit on the Spell levels the Deity may grant; set it to match the power and role you intend.",
+      },
+      {
+        key: "deities.info.specifics.description",
+        fallback: "Use Description for the Deity's mythology, goals, commandments, relationships, followers, or any rules that are not represented by the structured fields.",
+      },
+      {
+        key: "deities.info.specifics.manage",
+        fallback: "Save adds or updates the Deity, Cancel clears the current form, Edit reopens an entry, and Remove deletes it. The optional system name changes what this collection is called throughout the ruleset.",
+      },
+    ],
+  },
+  races: {
+    titleKey: "races.info.specifics.title",
+    titleFallback: "Using Races",
+    paragraphs: [
+      {
+        key: "races.info.specifics.entries",
+        fallback: "Add Race opens the Race editor. Give the option a Name and use Description to explain its people, species, ancestry, culture, physiology, or whatever character origin this element represents in your game.",
+      },
+      {
+        key: "races.info.specifics.traits",
+        fallback: "Racial Traits assigns Skills that characters receive from this Race. Select an existing Skill and add it, or create a new Skill from the editor when the required trait is not yet part of the ruleset.",
+      },
+      {
+        key: "races.info.specifics.attributes",
+        fallback: "Attribute Limits restrict the scores available to members of this Race. Select an Attribute and enter its minimum and maximum; add only the limits your rules require.",
+      },
+      {
+        key: "races.info.specifics.money",
+        fallback: "Race Starting Money Modifier adjusts the character's starting funds because of this Race. Use zero when Race has no effect, a positive value for additional money, or a negative value for a reduction.",
+      },
+      {
+        key: "races.info.specifics.manage",
+        fallback: "Save creates or updates the Race. Edit revises an existing entry, Remove deletes it, and the optional system name changes what this collection is called throughout the ruleset.",
+      },
+    ],
+  },
+  classes: {
+    titleKey: "classes.info.specifics.title",
+    titleFallback: "Using Classes",
+    paragraphs: [
+      {
+        key: "classes.info.specifics.entries",
+        fallback: "Add Class opens the Class editor. Name and creator-written Description establish the Class's role, theme, abilities, advancement, and any rules not represented by the structured fields.",
+      },
+      {
+        key: "classes.info.specifics.core",
+        fallback: "Primary Attribute identifies the score most important to the Class. Hit Die and its Modifier define the die expression associated with Class-based health when your Hit Points rules use it.",
+      },
+      {
+        key: "classes.info.specifics.skills",
+        fallback: "Class Skills lists the Skills associated with this Class. Select existing Skills to add them, or create a new Skill from the editor when the Class requires one that does not yet exist.",
+      },
+      {
+        key: "classes.info.specifics.skill_points",
+        fallback: "Skill Points per Level controls how many points this Class provides for Skill advancement. Keep Same at all levels selected for one repeating value, or clear it to enter different Skill Point values for individual levels.",
+      },
+      {
+        key: "classes.info.specifics.requirements",
+        fallback: "Required Attributes set minimum scores a character must meet to select the Class. Choose an Attribute, enter the minimum score, and add each prerequisite your rules require.",
+      },
+      {
+        key: "classes.info.specifics.money",
+        fallback: "Class Starting Money overrides the general starting-money value for characters of this Class. Leave it at zero when your rules do not use a Class-specific amount.",
+      },
+      {
+        key: "classes.info.specifics.manage",
+        fallback: "Save creates or updates the Class. Edit revises an entry, Remove deletes it, and the optional system name changes what this collection is called. Done offers to download the completed ruleset.",
+      },
+    ],
+  },
+};
+
 const stepRoutes = {};
 const historyRoutes = {};
 const visitedSteps = new Set();
@@ -305,12 +941,13 @@ const appBackStack = [];
 const SESSION_TOKEN_KEY = "gmrules.web.sessionToken";
 const LOCAL_SESSION_FRAGMENT_KEY = "local-session";
 const TUTORIAL_SCREEN_KEY_PATTERN = /^[a-z0-9][a-z0-9._:-]{0,79}$/;
-const TUTORIAL_CONTENT_VERSION = "builder-intros-20260728";
+const TUTORIAL_CONTENT_VERSION = "builder-detailed-guidance-20260728";
 const TUTORIAL_CONTENT_VERSION_BY_SCREEN = {
   home: "home-intro-expanded-20260728",
-  setup: "setup-intro-save-limit-20260728",
-  measurements: "measurements-intro-expanded-20260728",
-  "attribute-generation": "attribute-generation-paged-info-20260728",
+  setup: "setup-detailed-guidance-20260728",
+  measurements: "measurements-detailed-guidance-20260728",
+  "attribute-generation": "attribute-generation-specific-guidance-20260728",
+  "hit-points": "hit-points-attribute-modifier-20260729",
 };
 
 let historyReady = false;
@@ -322,6 +959,10 @@ const stepIndicator = document.getElementById("stepIndicator");
 const saveStatus = document.getElementById("saveStatus");
 const homeBtn = document.getElementById("homeBtn");
 const tutorialInfoBtn = document.getElementById("tutorialInfoBtn");
+const fontSizeSlider = document.getElementById("fontSizeSlider");
+const fontSizeSliderLabel = document.getElementById("fontSizeSliderLabel");
+const fontSizeAllScreens = document.getElementById("fontSizeAllScreens");
+const fontSizeAllScreensLabel = document.getElementById("fontSizeAllScreensLabel");
 const adminBtn = document.getElementById("adminBtn");
 const feedbackBtn = document.getElementById("feedbackBtn");
 const downloadBtn = document.getElementById("downloadBtn");
@@ -343,6 +984,65 @@ const tutorialMessage = document.getElementById("tutorialMessage");
 const tutorialBack = document.getElementById("tutorialBack");
 const tutorialNext = document.getElementById("tutorialNext");
 const tutorialOk = document.getElementById("tutorialOk");
+
+const FONT_SIZE_STEP_PIXELS = 3;
+
+function clampFontSizeLevel(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(2, Math.round(numericValue)));
+}
+
+function currentFontSizeScreenKey() {
+  const mode = String(state.mode || "home").trim() || "home";
+  const step = String(state.step || "home").trim() || "home";
+  return `${mode}:${step}`;
+}
+
+function currentFontSizeLevel() {
+  if (state.fontSizeAllScreens) {
+    return clampFontSizeLevel(state.fontSizeGlobalLevel);
+  }
+  return clampFontSizeLevel(state.fontSizeLevelsByScreen[currentFontSizeScreenKey()] || 0);
+}
+
+function fontSizeLevelLabel(level) {
+  const labels = [
+    t("web.font_size.current", "Current"),
+    t("web.font_size.larger", "Larger"),
+    t("web.font_size.largest", "Largest"),
+  ];
+  return labels[clampFontSizeLevel(level)];
+}
+
+function applyFontSizePreference() {
+  const level = currentFontSizeLevel();
+  const offset = `${level * FONT_SIZE_STEP_PIXELS}px`;
+  const universalOffset = state.fontSizeAllScreens ? offset : "0px";
+  document.body.style.setProperty("--font-size-adjust", universalOffset);
+
+  const screenOffset = state.fontSizeAllScreens ? "" : offset;
+  [view, ...document.querySelectorAll(".modal"), toast].forEach((element) => {
+    if (!element) {
+      return;
+    }
+    if (screenOffset) {
+      element.style.setProperty("--font-size-adjust", screenOffset);
+    } else {
+      element.style.removeProperty("--font-size-adjust");
+    }
+  });
+
+  if (fontSizeSlider) {
+    fontSizeSlider.value = String(level);
+    fontSizeSlider.setAttribute("aria-valuetext", fontSizeLevelLabel(level));
+  }
+  if (fontSizeAllScreens) {
+    fontSizeAllScreens.checked = state.fontSizeAllScreens;
+  }
+}
 
 const timeUnitEditModal = document.getElementById("timeUnitEditModal");
 const timeUnitEditTitle = document.getElementById("timeUnitEditTitle");
@@ -678,6 +1378,186 @@ function t(key, fallback) {
   return fallback || key;
 }
 
+function isMechanicDescriptionScreen(screenKey) {
+  return steps.some((entry) => entry.id === screenKey);
+}
+
+async function loadMechanicDescriptions() {
+  const draftId = String(state.draftId || "").trim();
+  if (!draftId) {
+    return {};
+  }
+  if (state.mechanicDescriptionsDraftId === draftId) {
+    return state.mechanicDescriptions;
+  }
+  if (
+    state.mechanicDescriptionsLoadingDraftId === draftId
+    && state.mechanicDescriptionsLoadPromise
+  ) {
+    return state.mechanicDescriptionsLoadPromise;
+  }
+
+  state.mechanicDescriptionsLoadingDraftId = draftId;
+  const loadPromise = (async () => {
+    const data = await api("GET", `/api/drafts/${draftId}/mechanic-descriptions`);
+    const rawDescriptions = data && typeof data.descriptions === "object"
+      ? data.descriptions
+      : {};
+    const descriptions = {};
+    Object.entries(rawDescriptions || {}).forEach(([key, value]) => {
+      const safeKey = String(key || "").trim().toLowerCase();
+      if (isMechanicDescriptionScreen(safeKey)) {
+        descriptions[safeKey] = String(value || "");
+      }
+    });
+    if (state.draftId === draftId) {
+      state.mechanicDescriptions = descriptions;
+      state.mechanicDescriptionsDraftId = draftId;
+    }
+    return descriptions;
+  })();
+  state.mechanicDescriptionsLoadPromise = loadPromise;
+
+  try {
+    return await loadPromise;
+  } finally {
+    if (state.mechanicDescriptionsLoadPromise === loadPromise) {
+      state.mechanicDescriptionsLoadPromise = null;
+      state.mechanicDescriptionsLoadingDraftId = "";
+    }
+  }
+}
+
+async function ensureMechanicDescriptionSection() {
+  const screenKey = String(state.step || "").trim();
+  if (
+    state.mode !== "builder"
+    || !state.draftId
+    || !isMechanicDescriptionScreen(screenKey)
+  ) {
+    return;
+  }
+
+  const title = view.querySelector(".panel > h1");
+  if (!title) {
+    return;
+  }
+  const existing = view.querySelector(".mechanic-description-section");
+  if (existing && existing.dataset.mechanicDescriptionScreen === screenKey) {
+    return;
+  }
+  if (existing) {
+    existing.remove();
+  }
+
+  const section = document.createElement("details");
+  section.className = "mechanic-description-section";
+  section.dataset.mechanicDescriptionScreen = screenKey;
+  section.innerHTML = `
+    <summary>
+      <span>${escapeHtml(t("web.mechanic_description.title", "Describe This Section"))}</span>
+      <span class="mechanic-description-summary-note">${escapeHtml(
+        t("web.mechanic_description.optional", "Creator description")
+      )}</span>
+    </summary>
+    <div class="mechanic-description-content">
+      <p>${escapeHtml(t(
+        "web.mechanic_description.help",
+        "Describe this part of your game in your own words. This creator-written description, not the GMRules guidance, will be available to players in other applications."
+      ))}</p>
+      <textarea
+        class="mechanic-description-input"
+        rows="8"
+        maxlength="20000"
+        disabled
+        aria-label="${escapeHtml(t("web.mechanic_description.input_label", "Mechanic description"))}"
+        placeholder="${escapeHtml(t("web.loading", "Loading..."))}"
+      ></textarea>
+      <div class="mechanic-description-actions">
+        <span class="mechanic-description-status" aria-live="polite"></span>
+        <button class="btn" type="button" data-save-mechanic-description disabled>
+          ${escapeHtml(t("web.mechanic_description.save", "Save Description"))}
+        </button>
+      </div>
+    </div>
+  `;
+  title.insertAdjacentElement("afterend", section);
+
+  const input = section.querySelector(".mechanic-description-input");
+  const saveButton = section.querySelector("[data-save-mechanic-description]");
+  const status = section.querySelector(".mechanic-description-status");
+  try {
+    const descriptions = await loadMechanicDescriptions();
+    if (
+      !section.isConnected
+      || state.step !== screenKey
+      || state.mode !== "builder"
+    ) {
+      return;
+    }
+    input.value = String(descriptions[screenKey] || "");
+    input.placeholder = t(
+      "web.mechanic_description.placeholder",
+      "Enter the description players will see for this mechanic."
+    );
+    input.disabled = false;
+    saveButton.disabled = false;
+  } catch (error) {
+    if (!section.isConnected) {
+      return;
+    }
+    status.textContent = error.message || t("common.error", "Something went wrong.");
+    input.placeholder = t(
+      "web.mechanic_description.load_failed",
+      "Description could not be loaded."
+    );
+  }
+}
+
+new MutationObserver(() => {
+  void ensureMechanicDescriptionSection();
+}).observe(view, {
+  childList: true,
+  subtree: true,
+});
+
+view.addEventListener("click", async (event) => {
+  const saveButton = event.target.closest("[data-save-mechanic-description]");
+  if (!saveButton) {
+    return;
+  }
+  const section = saveButton.closest(".mechanic-description-section");
+  const input = section ? section.querySelector(".mechanic-description-input") : null;
+  const status = section ? section.querySelector(".mechanic-description-status") : null;
+  const screenKey = section
+    ? String(section.dataset.mechanicDescriptionScreen || "").trim()
+    : "";
+  if (!input || !status || !isMechanicDescriptionScreen(screenKey)) {
+    return;
+  }
+
+  saveButton.disabled = true;
+  input.disabled = true;
+  status.textContent = t("web.mechanic_description.saving", "Saving...");
+  try {
+    const description = String(input.value || "");
+    await api("POST", `/api/drafts/${state.draftId}/mechanic-descriptions`, {
+      screenKey,
+      description,
+    });
+    state.mechanicDescriptions[screenKey] = description;
+    status.textContent = t("web.mechanic_description.saved", "Description saved.");
+    markSaved(t("web.mechanic_description.saved", "Description saved."));
+  } catch (error) {
+    status.textContent = error.message || t("common.error", "Something went wrong.");
+  } finally {
+    if (section.isConnected) {
+      input.disabled = false;
+      saveButton.disabled = false;
+    }
+  }
+});
+
 function normalizeLocale(value) {
   const raw = String(value || "").toLowerCase();
   if (raw.startsWith("fr")) {
@@ -751,6 +1631,13 @@ function applyStaticLabels() {
   if (tutorialInfoBtn) {
     tutorialInfoBtn.textContent = t("web.tutorial.info_button", "Info");
   }
+  if (fontSizeSliderLabel) {
+    fontSizeSliderLabel.textContent = t("web.font_size.label", "Text size");
+  }
+  if (fontSizeAllScreensLabel) {
+    fontSizeAllScreensLabel.textContent = t("web.font_size.all_screens", "Change all screens");
+  }
+  applyFontSizePreference();
   if (adminBtn) {
     adminBtn.textContent = t("web.admin.button", "Admin");
   }
@@ -1316,6 +2203,7 @@ function setLoggedIn(isLoggedIn) {
 function setMode(mode) {
   const safeMode = ["home", "builder", "chargen"].includes(mode) ? mode : "home";
   state.mode = safeMode;
+  applyFontSizePreference();
   document.body.classList.toggle("mode-home", safeMode === "home");
   document.body.classList.toggle("mode-builder", safeMode === "builder");
   document.body.classList.toggle("mode-chargen", safeMode === "chargen");
@@ -1395,6 +2283,7 @@ function setStep(stepId) {
     recordAppBack(previousStep);
   }
   state.step = safeStep;
+  applyFontSizePreference();
   if (!isSameStep) {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }
@@ -1545,11 +2434,16 @@ function buildTutorialPages(tutorialStep) {
   const paragraphs = Array.isArray(tutorialStep.tutorialParagraphs)
     ? tutorialStep.tutorialParagraphs
     : [{ key: tutorialStep.tutorialKey, fallback: tutorialStep.tutorialFallback }];
-  return [{
+  const pages = [{
     titleKey: tutorialStep.labelKey,
     titleFallback: tutorialStep.fallback,
     paragraphs,
   }];
+  const specificPage = tutorialSpecificPages[tutorialStep.id];
+  if (specificPage) {
+    pages.push(specificPage);
+  }
+  return pages;
 }
 
 function renderActiveTutorialPage() {
@@ -2057,6 +2951,29 @@ if (homeBtn) {
 }
 if (tutorialInfoBtn) {
   tutorialInfoBtn.addEventListener("click", () => openTutorialPopup());
+}
+if (fontSizeSlider) {
+  fontSizeSlider.addEventListener("input", () => {
+    const level = clampFontSizeLevel(fontSizeSlider.value);
+    if (state.fontSizeAllScreens) {
+      state.fontSizeGlobalLevel = level;
+    } else {
+      state.fontSizeLevelsByScreen[currentFontSizeScreenKey()] = level;
+    }
+    applyFontSizePreference();
+  });
+}
+if (fontSizeAllScreens) {
+  fontSizeAllScreens.addEventListener("change", () => {
+    const level = clampFontSizeLevel(fontSizeSlider ? fontSizeSlider.value : currentFontSizeLevel());
+    state.fontSizeAllScreens = fontSizeAllScreens.checked;
+    if (state.fontSizeAllScreens) {
+      state.fontSizeGlobalLevel = level;
+    } else {
+      state.fontSizeLevelsByScreen[currentFontSizeScreenKey()] = level;
+    }
+    applyFontSizePreference();
+  });
 }
 
 feedbackCancel.addEventListener("click", closeFeedbackModal);
@@ -11640,6 +12557,8 @@ async function renderHitPoints() {
     const data = await api("GET", `/api/drafts/${state.draftId}/hit-points`);
     const hpGainMethod = String(data.hpGainMethod || "");
     const averageRounding = String(data.averageRoundingMethod || "");
+    const hpModifierAttributeId = String(data.hpModifierAttributeId || "");
+    const hpAttributes = Array.isArray(data.attributes) ? data.attributes : [];
 
     const buildOptions = (options, selected) =>
       options
@@ -11667,6 +12586,15 @@ async function renderHitPoints() {
       ],
       averageRounding
     );
+    const hpAttributeOptions = [
+      `<option value="">${t("hp.modifier.attribute.none", "None")}</option>`,
+      ...hpAttributes.map((attribute) => {
+        const id = String(attribute.id || "");
+        const label = String(attribute.displayName || attribute.name || id);
+        const selected = id === hpModifierAttributeId ? " selected" : "";
+        return `<option value="${escapeHtml(id)}"${selected}>${escapeHtml(label)}</option>`;
+      }),
+    ].join("");
 
     view.innerHTML = `
       <section class="panel">
@@ -11691,17 +12619,14 @@ async function renderHitPoints() {
         </div>
         <div class="grid two">
           <div class="field">
-            <label>${t("hp.modifier.apply_con", "Apply Constitution Modifier")}</label>
-            <select id="hpApplyCon">
-              <option value="true" ${data.appliesConstitutionModifier ? "selected" : ""}>${t("common.yes", "Yes")}</option>
-              <option value="false" ${data.appliesConstitutionModifier ? "" : "selected"}>${t("common.no", "No")}</option>
-            </select>
+            <label>${t("hp.modifier.attribute", "Attribute Modifier")}</label>
+            <select id="hpModifierAttribute">${hpAttributeOptions}</select>
           </div>
           <div class="field">
-            <label>${t("hp.modifier.allow_negative_con", "Allow Negative Constitution Modifier")}</label>
-            <select id="hpAllowNegativeCon">
-              <option value="true" ${data.allowNegativeConModifier ? "selected" : ""}>${t("common.yes", "Yes")}</option>
-              <option value="false" ${data.allowNegativeConModifier ? "" : "selected"}>${t("common.no", "No")}</option>
+            <label>${t("hp.modifier.allow_negative_attribute", "Allow Negative Attribute Modifier")}</label>
+            <select id="hpAllowNegativeAttribute">
+              <option value="true" ${data.allowNegativeAttributeModifier ? "selected" : ""}>${t("common.yes", "Yes")}</option>
+              <option value="false" ${data.allowNegativeAttributeModifier ? "" : "selected"}>${t("common.no", "No")}</option>
             </select>
           </div>
         </div>
@@ -11739,14 +12664,23 @@ async function renderHitPoints() {
       roundingSelect.disabled = !averageEnabled;
     };
 
+    const updateAttributeModifierControls = () => {
+      const hasAttribute = document.getElementById("hpModifierAttribute").value !== "";
+      const negativeSelect = document.getElementById("hpAllowNegativeAttribute");
+      negativeSelect.disabled = !hasAttribute;
+      if (!hasAttribute) {
+        negativeSelect.value = "false";
+      }
+    };
+
     const saveHitPoints = async () => {
       const payload = {
         hpGainMethod: document.getElementById("hpGainMethod").value,
         fixedHPPerLevel: Number(document.getElementById("hpFixedPerLevel").value),
         averageRoundingMethod: document.getElementById("hpAverageRounding").value,
         minimumHPPerLevel: Number(document.getElementById("hpMinimumPerLevel").value),
-        appliesConstitutionModifier: document.getElementById("hpApplyCon").value === "true",
-        allowNegativeConModifier: document.getElementById("hpAllowNegativeCon").value === "true",
+        hpModifierAttributeId: document.getElementById("hpModifierAttribute").value,
+        allowNegativeAttributeModifier: document.getElementById("hpAllowNegativeAttribute").value === "true",
         firstLevelMaxHP: document.getElementById("hpFirstLevelMax").value === "true",
         firstLevelBonusHP: Number(document.getElementById("hpFirstLevelBonus").value),
       };
@@ -11759,6 +12693,7 @@ async function renderHitPoints() {
     };
 
     updateMethodControls();
+    updateAttributeModifierControls();
     document.getElementById("hpGainMethod").addEventListener("change", () => {
       updateMethodControls();
       saveHitPoints();
@@ -11766,8 +12701,11 @@ async function renderHitPoints() {
     document.getElementById("hpFixedPerLevel").addEventListener("change", saveHitPoints);
     document.getElementById("hpAverageRounding").addEventListener("change", saveHitPoints);
     document.getElementById("hpMinimumPerLevel").addEventListener("change", saveHitPoints);
-    document.getElementById("hpApplyCon").addEventListener("change", saveHitPoints);
-    document.getElementById("hpAllowNegativeCon").addEventListener("change", saveHitPoints);
+    document.getElementById("hpModifierAttribute").addEventListener("change", () => {
+      updateAttributeModifierControls();
+      saveHitPoints();
+    });
+    document.getElementById("hpAllowNegativeAttribute").addEventListener("change", saveHitPoints);
     document.getElementById("hpFirstLevelMax").addEventListener("change", saveHitPoints);
     document.getElementById("hpFirstLevelBonus").addEventListener("change", saveHitPoints);
 

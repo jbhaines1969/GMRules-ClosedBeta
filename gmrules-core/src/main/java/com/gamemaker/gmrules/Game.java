@@ -56,6 +56,7 @@ public class Game extends GameElement {
     private Map<String, ArrayList<?>> arrayRegistry = new HashMap<>();
     private Map<String, Boolean> systemConfig = new HashMap<>();
     private Map<String, String> systemNames = new HashMap<>();
+    private Map<String, String> mechanicDescriptions = new LinkedHashMap<>();
     private Map<String, Integer> timeUnits = new LinkedHashMap<>();
     private String startingMoneyMethod = "base";
     private int baseStartingMoney = 0;
@@ -680,6 +681,39 @@ public class Game extends GameElement {
         return Objects.toString(key, "").trim().toLowerCase(Locale.ROOT);
     }
 
+    // ===== CREATOR MECHANIC DESCRIPTION METHODS =====
+    public String getMechanicDescription(String screenKey) {
+        String safeKey = normalizeMechanicDescriptionKey(screenKey);
+        if (safeKey.isEmpty()) {
+            return "";
+        }
+        return Objects.toString(mechanicDescriptions.get(safeKey), "");
+    }
+
+    public Map<String, String> getMechanicDescriptions() {
+        return new LinkedHashMap<>(mechanicDescriptions);
+    }
+
+    public void setMechanicDescription(String screenKey, String description) {
+        String safeKey = normalizeMechanicDescriptionKey(screenKey);
+        if (safeKey.isEmpty()) {
+            return;
+        }
+        String safeDescription = Objects.toString(description, "");
+        if (safeDescription.isBlank()) {
+            if (mechanicDescriptions.remove(safeKey) != null) {
+                updateLastModified();
+            }
+            return;
+        }
+        mechanicDescriptions.put(safeKey, safeDescription);
+        updateLastModified();
+    }
+
+    private String normalizeMechanicDescriptionKey(String key) {
+        return Objects.toString(key, "").trim().toLowerCase(Locale.ROOT);
+    }
+
     // ===== TIME UNIT METHODS =====
     public Map<String, Integer> getTimeUnits() {
         return new LinkedHashMap<>(timeUnits);
@@ -1263,6 +1297,9 @@ public class Game extends GameElement {
         if (systemNames == null) {
             systemNames = new HashMap<>();
         }
+        if (mechanicDescriptions == null) {
+            mechanicDescriptions = new LinkedHashMap<>();
+        }
         if (timeUnits == null) {
             timeUnits = new LinkedHashMap<>();
         }
@@ -1330,6 +1367,16 @@ public class Game extends GameElement {
         ensureAttributeGenerationOptions();
         saveMethod = Objects.requireNonNullElseGet(saveMethod, () -> new SaveMethod("Saves"));
         hpMethod = Objects.requireNonNullElseGet(hpMethod, () -> new HPMethod("Hit Points"));
+        if (hpMethod.isAppliesAttributeModifier() && hpMethod.getHpModifierAttributeId().isBlank()) {
+            for (Attribute attribute : getElementRegistry(ElementRegistryKey.ATTRIBUTES).getAll()) {
+                String name = Objects.toString(attribute.getName(), "").trim();
+                String displayName = Objects.toString(attribute.getDisplayName(), "").trim();
+                if ("constitution".equalsIgnoreCase(name) || "constitution".equalsIgnoreCase(displayName)) {
+                    hpMethod.setHpModifierAttributeId(attribute.getId());
+                    break;
+                }
+            }
+        }
         armorClassMethod = Objects.requireNonNullElseGet(armorClassMethod, () -> new ArmorClassMethod("Armor Class"));
         combatMethod = Objects.requireNonNullElseGet(combatMethod, () -> new CombatMethod("Combat"));
         levelingMethod = Objects.requireNonNullElseGet(levelingMethod, () -> new LevelingMethod("Leveling"));

@@ -1,6 +1,6 @@
 # GMRules Closed Beta Project Notes
 
-Updated: 2026-07-28
+Updated: 2026-07-29
 
 ## Current Status
 
@@ -74,6 +74,8 @@ Ruleset builder:
 
 - Server-backed draft creation/import/open/delete/export.
 - Local `.gmrf` download.
+- Web checkboxes use a shared 22px CSS size. A three-position topbar text-size control applies the baseline, +3px, or +6px either per screen or universally through the Change all screens option.
+- Every Rules Builder stage exposes a reusable, collapsed Describe This Section editor directly below its title. Creator-written collection/section descriptions are stored by stable stage ID in `Game.mechanicDescriptions`, saved with server drafts, and serialized into `.gmrf` exports so descendant applications can present creator copy without receiving internal GMRules tutorial text. These remain separate from the inherited description on each individual `GameElement`.
 - Deferred formatted-description requirement: every ruleset element Description field must eventually support formatted-text entry, and the corresponding Java class members plus `.gmrf` persistence must preserve that formatting for presentation in descendant applications across the suite. The refactor must retain compatibility with existing plain-text descriptions and define a safely renderable stored format.
 - Server-backed web character draft saves are stored as lightweight `.gmcf` text under `drafts/characters/`, associated with the account and saved ruleset draft. The closed-beta cap is four character drafts per account and two character drafts per saved ruleset.
 - Logged-in users can start character creation directly from a saved server-side ruleset without uploading a local `.gmrf` file.
@@ -81,7 +83,7 @@ Ruleset builder:
 - Attribute Generation now has player-option recipes on `Game`: each option is exclusive, and each option can contain ordered steps that set, add to, or spend from attribute scores. The standalone method checkboxes were removed; methods selected in option steps now derive the stored single/hybrid method state and control which detail screens apply. Existing legacy settings still derive default options until the option-based configuration is saved.
 - Attribute Generation places the Add Option controls above the existing option list, matching the input-then-results flow used elsewhere.
 - Attribute Generation Info now uses five paragraph-level resources to explain what attributes represent, how their values affect play, the distinction between broad attributes and specific skills, and the six-screen flow through method selection, optional categories, attributes, and the three method-specific data-entry screens.
-- Attribute Generation's second Info page currently uses the placeholder resource "Attribution Generation specifics go here" so its screen-specific instructions can be refined without further modal code changes.
+- Attribute Generation's second Info page explains option names, player choices, ordered steps, Standard Array, Dice Rolling, Point Buy, and the Set/Add/Spend application modes through paragraph-level resources.
 - Attribute modifier lists now render in ascending score order in both Attribute Generation default modifiers and per-Attribute modifier editing, including immediately after add/remove and after API refresh.
 - Armor Class method entry now uses a required base armor class plus optional AC attribute. The old gear-based/base-plus method selections were removed from the web screen, Swing screen, API payloads, and core model during Cities Without Number data entry.
 - Damage Types are now registry-backed ruleset elements with name and description. Effects, spells, equipment, weapons, and armor can carry an optional damage type reference, which gives later armor/resistance automation a clean data hook without adding special gear-based HP/AC paths now.
@@ -140,7 +142,9 @@ UX and copy:
 - The closed-beta signup screen has been reviewed on desktop/mobile and accepted for beta.
 - Rules Builder screen introductions now live in the reusable tutorial modal instead of occupying each form. The topbar Info button reopens the current screen's guidance, sidebar Info buttons preview guidance for any visited section without navigating, and changing screens resets the page scroll to the top.
 - The tutorial/Info modal uses the responsive wide-card layout: up to 720px on desktop and 92% of the viewport on smaller screens, with height-limited scrolling for long guidance.
-- The tutorial modal supports multiple pages with Back, Next, and Done controls while retaining the original single-page behavior for other tutorials and informational alerts. Attribute Generation uses page one for the general attribute overview and page two for screen-specific guidance.
+- The tutorial modal supports multiple pages with Back, Next, and Done controls while retaining single-page behavior for informational alerts. All 24 Rules Builder screens use page one for conceptual introduction and page two for paragraph-level practical guidance covering that screen's fields and actions. Hit Points page one gives a fuller explanation of what Hit Points represent, their damage/recovery role during play, and how their scale influences the game's tone.
+- Hit Point Attribute modifiers are system-agnostic. `HPMethod` stores the selected Attribute ID, the web screen offers all draft Attributes plus None, and the negative-modifier setting applies to whichever Attribute was selected. Legacy serialized rulesets that enabled the old Constitution flag automatically link an existing Attribute named Constitution during load.
+- Rules Builder smoke passed for the Hit Points Attribute selector on 2026-07-29, including legacy Constitution migration and changing the selected Attribute followed by reopening the screen. Character-generator consumption remains a separate later smoke.
 - The Home screen's four-paragraph introductory explanation lives in its tutorial modal; it now explains optional builder sections, downstream application use of the ruleset description, and the "You make the rules, we make the tools" product promise. The action-oriented choice prompt remains inline.
 - A Rules Builder draft shows the full sidebar only after Game Setup has been saved with a nonblank game name; first-visit tutorial tracking no longer controls navigation visibility. The whole panel stays hidden on the splash and incomplete Setup screens.
 - Game Setup provides a 25-row description field for longer ruleset summaries.

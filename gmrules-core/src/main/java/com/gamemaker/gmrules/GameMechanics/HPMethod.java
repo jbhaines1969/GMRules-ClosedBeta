@@ -26,6 +26,8 @@ import java.util.*;
 public class HPMethod extends GameElement {
 
 // *** MEMBERS ***
+    private static final long serialVersionUID = 8335684502958490484L;
+
     // === HIT DIE SYSTEM ===
     private String hitDieType = "d8";
     private int hitDieSides = 8;
@@ -41,8 +43,10 @@ public class HPMethod extends GameElement {
     private String poolResetFrequency = "longRest";
     private boolean poolIncludesAllClasses = true;
 
-    // === CONSTITUTION MODIFIER INTEGRATION ===
-    private boolean appliesConstitutionModifier = true;
+    // === ATTRIBUTE MODIFIER INTEGRATION ===
+    // Legacy field names are retained for Java serialization compatibility.
+    private boolean appliesConstitutionModifier = false;
+    private String hpModifierAttributeId = "";
     private String conModifierTiming = "perLevel";
     private boolean conModifierRetroactive = true;
     private int minimumHPPerLevel = 1;
@@ -467,6 +471,23 @@ public class HPMethod extends GameElement {
     public boolean isAppliesConstitutionModifier() { return appliesConstitutionModifier; }
     public void setAppliesConstitutionModifier(boolean appliesConstitutionModifier) {
         this.appliesConstitutionModifier = appliesConstitutionModifier;
+        if (!appliesConstitutionModifier) {
+            this.hpModifierAttributeId = "";
+        }
+    }
+
+    public boolean isAppliesAttributeModifier() { return appliesConstitutionModifier; }
+    public void setAppliesAttributeModifier(boolean appliesAttributeModifier) {
+        this.appliesConstitutionModifier = appliesAttributeModifier;
+        if (!appliesAttributeModifier) {
+            this.hpModifierAttributeId = "";
+        }
+    }
+
+    public String getHpModifierAttributeId() { return hpModifierAttributeId; }
+    public void setHpModifierAttributeId(String hpModifierAttributeId) {
+        this.hpModifierAttributeId = Objects.toString(hpModifierAttributeId, "").trim();
+        this.appliesConstitutionModifier = !this.hpModifierAttributeId.isEmpty();
     }
 
     public String getConModifierTiming() { return conModifierTiming; }
@@ -486,6 +507,11 @@ public class HPMethod extends GameElement {
     public boolean isAllowNegativeConModifier() { return allowNegativeConModifier; }
     public void setAllowNegativeConModifier(boolean allowNegativeConModifier) {
         this.allowNegativeConModifier = allowNegativeConModifier;
+    }
+
+    public boolean isAllowNegativeAttributeModifier() { return allowNegativeConModifier; }
+    public void setAllowNegativeAttributeModifier(boolean allowNegativeAttributeModifier) {
+        this.allowNegativeConModifier = allowNegativeAttributeModifier;
     }
 
     public boolean isDoublesConModifierAtFirst() { return doublesConModifierAtFirst; }
@@ -1022,9 +1048,9 @@ public class HPMethod extends GameElement {
                 break;
         }
 
-        // CON modifier
+        // Attribute modifier
         if (appliesConstitutionModifier) {
-            desc.append(" + CON");
+            desc.append(" + attribute modifier");
         }
 
         // First level
@@ -1153,6 +1179,14 @@ public class HPMethod extends GameElement {
             return Math.max(0, sides);
         } catch (NumberFormatException ignored) {
             return 0;
+        }
+    }
+
+    private void readObject(java.io.ObjectInputStream stream) throws java.io.IOException, ClassNotFoundException {
+        stream.defaultReadObject();
+        hpModifierAttributeId = Objects.toString(hpModifierAttributeId, "").trim();
+        if (!hpModifierAttributeId.isEmpty()) {
+            appliesConstitutionModifier = true;
         }
     }
 }

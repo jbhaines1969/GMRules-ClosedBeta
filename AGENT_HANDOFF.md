@@ -1,9 +1,44 @@
 # GMRules Closed Beta Agent Handoff
 
-Updated: 2026-07-28
+Updated: 2026-07-29
 Repo root: `C:\Users\John\IdeaProjects\GMRules-ClosedBeta`
 
 This is the start-here snapshot for recovering the project after context loss or a machine failure.
+
+## Detailed Tutorial Guidance Progress
+
+The current pass adds a practical second page to each Rules Builder Info modal. Check off a screen only after its paragraph-level resources and page wiring are present.
+
+- [x] Game Setup
+- [x] Measurements
+- [x] Dice Options
+- [x] Attribute Generation
+- [x] Attribute Categories
+- [x] Attributes
+- [x] Standard Arrays
+- [x] Dice Rolling
+- [x] Points Buy
+- [x] Hit Points
+- [x] Armor Class
+- [x] Currency
+- [x] Effect Types
+- [x] Damage Types
+- [x] Statuses
+- [x] Effects
+- [x] Equipment
+- [x] Weapons
+- [x] Skills
+- [x] Spells
+- [x] Pantheons
+- [x] Deities
+- [x] Races
+- [x] Classes
+
+All 24 Rules Builder screens now have paragraph-level practical guidance on the second page of their Info modal. A completeness check found 24 covered steps, 137 matching page/string keys with no missing or duplicate resources, and no remaining placeholder copy. `mvn test` and `git diff --check` passed on 2026-07-28; JavaScript syntax could not be checked with Node because it is unavailable on the sandbox command path. This batch still needs John's launcher smoke.
+
+Hit Points page one was expanded into three conceptual paragraphs explaining what Hit Points represent, how damage/recovery/zero Hit Points function during play, and how totals and progression affect a game's tone. Its screen-specific content version was advanced. John confirmed the expanded guidance through the launcher smoke on 2026-07-29.
+
+The web Hit Points screen is now system-agnostic: the Constitution yes/no field was replaced by an Attribute Modifier selector populated from the draft's Attributes, with None representing no modifier. The negative-modifier option is disabled and normalized false when no Attribute is selected. `HPMethod` stores the selected Attribute ID and exposes system-neutral accessors while retaining its legacy serialized fields/methods; its explicit `serialVersionUID` matches the value from the pre-change compiled class. When an older `.gmrf` has the legacy modifier flag and an Attribute named Constitution, `Game.readObject` links that Attribute automatically. Character rule-mode snapshots now carry the selected Attribute ID and neutral negative-modifier key. `mvn test` passed on 2026-07-29. John’s launcher smoke also passed on 2026-07-29, including opening a legacy Constitution-based game, changing the selected Attribute, and reopening the screen to confirm persistence.
 
 ## Startup Checklist
 
@@ -38,6 +73,7 @@ This repo is the current closed-beta deploy release for GMRules.
 - `run-local.ps1` is intentionally ignored as machine-local setup and will not travel with the repository. On a fresh clone, recreate the launcher and Desktop shortcut from the documented local-mode requirements; the Java/API/SPA support remains tracked.
 - Production route-debugging on 2026-07-05 confirmed the service currently launches Maven directly with `ExecStart=/usr/bin/mvn -pl gmrules-builder exec:java -Dexec.mainClass=com.gamemaker.gmrules.web.WebMain`, not `target/gmrules-app.jar`. Runtime debugging on 2026-07-08 confirmed compile-only deploys can leave stale `~/.m2` snapshots for this launcher. `deploy.sh` now runs `mvn -q -DskipTests clean install`, verifies compiled character routes, verifies the installed core snapshot has `AttributeGenerationMethod.getStandardArrayAssignmentMode()`, then restarts.
 - There are currently no automated test sources, so successful Maven runs are compile/build verification, not behavioral coverage.
+- The 2026-07-28 web UI batch through the paged Attribute Generation tutorial modal was smoke-tested by John, pushed, and deployed successfully; the hosted interface is working and visually sound.
 - New continuity docs were added at the repo root: `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `AGENTS.md`, and `AGENT_HANDOFF.md`.
 
 ## Active Resume Point
@@ -86,7 +122,9 @@ Implemented so far:
 - Account-backed tutorial visited-screen tracking is now wired for logged-in users. The client records first visits to screen keys through `POST /api/tutorial/visited`, reads the set from `/api/session` and `GET /api/tutorial/visited`, and intentionally does not expose this data in admin views. A temporary reusable tutorial modal appears with "The tutorial explanations are triggering this popup"; it uses versioned `placeholder-20260706:<screen>` acknowledgement keys so accounts that were tracked before the popup existed can still smoke-test the placeholder once. A centered topbar Info button sits next to Home and reopens the current screen's tutorial modal on demand. `node --check gmrules-builder/src/main/resources/web/app.js` and `mvn test` passed locally on 2026-07-06 after this change. Hosted smoke passed for the Home button, tutorial progression, and Info button on 2026-07-06.
 - Rules Builder tutorial modals now use the current screen's localized title and introduction across all 24 builder screens. The duplicated screen-level introductions were removed while field-specific guidance remained, shared screen transitions reset the document scroll to the top when the screen ID changes, and each visited sidebar section has an Info button that opens its guidance without navigation. `mvn test` passed locally, and John confirmed successful visual/functional launcher smokes for the tutorial migration, scroll reset, and sidebar Info buttons through `run-local.ps1` on 2026-07-28.
 - The tutorial/Info modal now uses the existing responsive wide-card layout: up to 720px on desktop, 92% of the viewport on smaller screens, and the existing height-limited internal scrolling for long copy. John confirmed the responsive modal size through the launcher smoke on 2026-07-28.
-- The tutorial/Info modal now supports page arrays with Back, Next, and Done controls while preserving single-page behavior for other tutorials and limit/information alerts. Attribute Generation is the first two-page tutorial: Understanding Attributes contains the five-paragraph overview, and Using Attribute Generation currently contains the placeholder resource "Attribution Generation specifics go here." Its screen-specific content version was advanced. John confirmed both the paged flow and ordinary single-page Info behavior through the launcher smoke on 2026-07-28.
+- The tutorial/Info modal supports page arrays with Back, Next, and Done controls while preserving single-page behavior for limit/information alerts. Every Rules Builder screen now has a conceptual introduction on page one and paragraph-level practical guidance for its fields and actions on page two. Attribute Generation retains its custom overview and detailed option/method guidance. Tutorial content versions and the `app.js` cache token were advanced so existing accounts and browsers receive the new pages. This all-screen guidance batch still needs John's launcher smoke.
+- Native checkboxes now share a 22px square size. The top bar also has a three-position text-size slider at the right of Info: current size, +3px, and +6px. By default it remembers levels per screen; selecting Change all screens applies the chosen CSS font-size offset across the interface. John confirmed the checkbox size, per-screen sizing, and universal sizing through the launcher smoke on 2026-07-28.
+- Every one of the 24 Rules Builder stages now receives a conspicuous, collapsed Describe This Section editor directly below its title. The reusable editor saves creator-written collection/section copy by stable stage ID through `/api/drafts/{id}/mechanic-descriptions`; `Game.mechanicDescriptions` carries it in drafts and `.gmrf` exports separately from each individual `GameElement` description, while internal tutorial resources remain separate and are not used as descendant-app fallback text. Older serialized games initialize the new map empty, blank saves remove the entry, and descriptions are currently plain text pending the broader formatted-description refactor. `mvn test` passed, and John confirmed the drawer layout plus successful description saving through the launcher smoke on 2026-07-28. Character-generator consumption still needs a later smoke.
 - The Home screen's two introductory paragraphs now appear as two paragraphs in its tutorial modal and were removed from the page; the action-oriented choice prompt remains inline. Home uses its own tutorial content version so the new explanation appears once without retriggering every builder tutorial. John confirmed the behavior through `run-local.ps1`, pushed it, and deployed it successfully on 2026-07-28.
 - The Home Info modal now appends two paragraphs explaining that every builder section is optional and that the ruleset description is presented throughout the application suite, ending with "You make the rules, we make the tools." The Home-only tutorial content version was advanced so existing accounts see the expanded guidance once without retriggering builder tutorials. John confirmed the expanded copy through the launcher smoke on 2026-07-28.
 - The Rules Builder sidebar now shows all 24 sections after Game Setup has been saved with a nonblank game name instead of revealing them according to `visitedSteps`; the splash screen and incomplete Setup screen hide the entire navigation panel. Setup completion is now recorded only after a valid Setup save, and API completion payloads derive Setup validity from the actual saved name to repair stale completion markers. Attribute-generation detail-screen visibility is intentionally unchanged and will be handled separately. JavaScript syntax verification, `mvn test`, and `git diff --check` passed on 2026-07-28, and John confirmed the gate through the launcher smoke.
@@ -125,7 +163,7 @@ External setup completed:
 
 Next repo steps:
 
-- John is manually entering a complete Cities Without Number ruleset from the included CL-Open SRD first, both to create a realistic smoke-test `.gmrf` and to identify builder workflow weaknesses during real data entry. As of the Hit Points pass, John considers the HP entry screen beta-adequate: static health tracks can be modeled as fixed first-level HP with zero per-level gain, zero minimum per-level gain, and no Constitution modifier; gear-based HP can be handled for now as gear modifiers on top of a zero base and cleaned up later. As of the Armor Class pass, AC method entry has been simplified to a required base AC plus optional AC attribute; gear/base-plus toggles were removed from web, Swing, API, and core model. Character-generation AC calculation now treats armor replacement AC values separately from armor/shield AC modifiers; later character-file cleanup should keep resolved AC, replacement AC, and modifier contributions distinct. As of the Damage Types pass, damage types are defined before Statuses/Effects/Equipment and can be attached to effects, spells, equipment, weapons, and armor; later modeling cleanup should add explicit armor/resistance/vulnerability rules by incoming damage type. Attribute modifier lists now render sorted ascending by attribute score in both Attribute Generation defaults and per-Attribute editing.
+- John is manually entering a complete Cities Without Number ruleset from the included CL-Open SRD first, both to create a realistic smoke-test `.gmrf` and to identify builder workflow weaknesses during real data entry. As of the Hit Points pass, John considers the HP entry screen beta-adequate: static health tracks can be modeled as fixed first-level HP with zero per-level gain, zero minimum per-level gain, and no Attribute Modifier; gear-based HP can be handled for now as gear modifiers on top of a zero base and cleaned up later. As of the Armor Class pass, AC method entry has been simplified to a required base AC plus optional AC attribute; gear/base-plus toggles were removed from web, Swing, API, and core model. Character-generation AC calculation now treats armor replacement AC values separately from armor/shield AC modifiers; later character-file cleanup should keep resolved AC, replacement AC, and modifier contributions distinct. As of the Damage Types pass, damage types are defined before Statuses/Effects/Equipment and can be attached to effects, spells, equipment, weapons, and armor; later modeling cleanup should add explicit armor/resistance/vulnerability rules by incoming damage type. Attribute modifier lists now render sorted ascending by attribute score in both Attribute Generation defaults and per-Attribute editing.
 - Then hosted-smoke the completed character generator flow after class selection: skills, spells, equipment, weapons, armor, and final `.gmcf` export using that complete ruleset.
 - Then smoke-test ruleset and character migration behavior: edit a saved server game, upload/download the changed ruleset, and load older saved character drafts plus object-backed `.gmcf` files against the edited ruleset.
 - Then add compatibility coverage for older `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` files before future `Game.java`, registry, or character-format changes.

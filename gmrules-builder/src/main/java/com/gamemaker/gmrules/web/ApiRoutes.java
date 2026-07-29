@@ -84,6 +84,33 @@ public final class ApiRoutes {
     private static final String NDA_RESOURCE = "legal/nda/nda-v1-en.txt";
     private static final String ARRAY_HYBRID = "hybridStages";
     private static final String CHARACTER_RULE_MODE_PREFIX = "ruleMode.";
+    private static final int MECHANIC_DESCRIPTION_MAX_LENGTH = 20_000;
+    private static final List<String> MECHANIC_DESCRIPTION_KEYS = List.of(
+        "setup",
+        "measurements",
+        "dice",
+        "attribute-generation",
+        "attribute-types",
+        "attributes",
+        "standard-array",
+        "dice-rolling",
+        "points-buy",
+        "hit-points",
+        "armor-class",
+        "currency",
+        "effect-types",
+        "damage-types",
+        "statuses",
+        "effects",
+        "equipment",
+        "weapons",
+        "skills",
+        "spells",
+        "pantheons",
+        "deities",
+        "races",
+        "classes"
+    );
     private static final long FEEDBACK_MAX_BODY_BYTES = 16L * 1024;
     private static final int FEEDBACK_TITLE_MAX_LENGTH = 120;
     private static final int FEEDBACK_MESSAGE_MAX_LENGTH = 4000;
@@ -151,6 +178,8 @@ public final class ApiRoutes {
         router.add("POST", "/api/drafts/{id}/locale", ApiRoutes::updateLocale);
         router.add("GET", "/api/drafts/{id}/system-names", ApiRoutes::getSystemNames);
         router.add("POST", "/api/drafts/{id}/system-names", ApiRoutes::updateSystemName);
+        router.add("GET", "/api/drafts/{id}/mechanic-descriptions", ApiRoutes::getMechanicDescriptions);
+        router.add("POST", "/api/drafts/{id}/mechanic-descriptions", ApiRoutes::updateMechanicDescription);
         router.add("GET", "/api/characters", ApiRoutes::listCharacterDrafts);
         router.add("POST", "/api/characters", ApiRoutes::saveCharacterDraft);
         router.add("POST", "/api/characters/import", ApiRoutes::importCharacterFile);
@@ -1559,6 +1588,44 @@ public final class ApiRoutes {
         ctx.json(200, Map.of("ok", true));
     }
 
+    private static void getMechanicDescriptions(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("descriptions", game.getMechanicDescriptions());
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void updateMechanicDescription(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String screenKey = getString(body, "screenKey").trim().toLowerCase(Locale.ROOT);
+        String description = getString(body, "description");
+        if (!MECHANIC_DESCRIPTION_KEYS.contains(screenKey)) {
+            ctx.json(400, Map.of("error", "Unknown Rules Builder screen"));
+            return;
+        }
+        if (description.length() > MECHANIC_DESCRIPTION_MAX_LENGTH) {
+            ctx.json(400, Map.of("error", "Mechanic description is too long"));
+            return;
+        }
+        ctx.getDraftStore().updateDraft(
+            draftId,
+            game -> game.setMechanicDescription(screenKey, description)
+        );
+        ctx.json(200, Map.of("ok", true));
+    }
+
     private static void getSetup(RequestContext ctx) throws IOException {
         SessionStore.Session session = requireSession(ctx);
         if (session == null) {
@@ -2863,8 +2930,9 @@ public final class ApiRoutes {
             response.put("hpGainMethod", Objects.toString(method.getHpGainMethod(), ""));
             response.put("fixedHPPerLevel", method.getFixedHPPerLevel());
             response.put("averageRoundingMethod", Objects.toString(method.getAverageRoundingMethod(), ""));
-            response.put("appliesConstitutionModifier", method.isAppliesConstitutionModifier());
-            response.put("allowNegativeConModifier", method.isAllowNegativeConModifier());
+            response.put("hpModifierAttributeId", method.getHpModifierAttributeId());
+            response.put("allowNegativeAttributeModifier", method.isAllowNegativeAttributeModifier());
+            response.put("attributes", getAttributesForSelect(game));
             response.put("minimumHPPerLevel", method.getMinimumHPPerLevel());
             response.put("firstLevelMaxHP", method.isFirstLevelMaxHP());
             response.put("firstLevelBonusHP", method.getFirstLevelBonusHP());
@@ -2883,8 +2951,10 @@ public final class ApiRoutes {
         String hpGainMethod = getString(body, "hpGainMethod");
         int fixedHPPerLevel = getInt(body, "fixedHPPerLevel", 0);
         String averageRoundingMethod = getString(body, "averageRoundingMethod");
-        boolean appliesConstitutionModifier = getBoolean(body, "appliesConstitutionModifier", false);
-        boolean allowNegativeConModifier = getBoolean(body, "allowNegativeConModifier", false);
+        String hpModifierAttributeId = getString(body, "hpModifierAttributeId").trim();
+        boolean allowNegativeAttributeModifier = body.containsKey("allowNegativeAttributeModifier")
+            ? getBoolean(body, "allowNegativeAttributeModifier", false)
+            : getBoolean(body, "allowNegativeConModifier", false);
         int minimumHPPerLevel = getInt(body, "minimumHPPerLevel", 0);
         boolean firstLevelMaxHP = getBoolean(body, "firstLevelMaxHP", false);
         int firstLevelBonusHP = getInt(body, "firstLevelBonusHP", 0);
@@ -2894,8 +2964,10 @@ public final class ApiRoutes {
             method.setHpGainMethod(hpGainMethod);
             method.setFixedHPPerLevel(fixedHPPerLevel);
             method.setAverageRoundingMethod(averageRoundingMethod);
-            method.setAppliesConstitutionModifier(appliesConstitutionModifier);
-            method.setAllowNegativeConModifier(allowNegativeConModifier);
+            method.setHpModifierAttributeId(hpModifierAttributeId);
+            method.setAllowNegativeAttributeModifier(
+                !hpModifierAttributeId.isEmpty() && allowNegativeAttributeModifier
+            );
             method.setMinimumHPPerLevel(minimumHPPerLevel);
             method.setFirstLevelMaxHP(firstLevelMaxHP);
             method.setFirstLevelBonusHP(firstLevelBonusHP);

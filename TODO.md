@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-07-28
+Updated: 2026-07-29
 
 ## Beta Launch Blockers
 
@@ -35,13 +35,17 @@ Updated: 2026-07-28
 
 ## UI Polish
 
-- [ ] Refactor every ruleset element Description field for formatted-text entry and preserve the formatting through Java model members, `.gmrf` serialization/import, and descendant-application rendering. Keep existing plain-text files compatible and choose a safely renderable storage format before implementation.
+- [ ] Refactor every ruleset element Description field, including screen-level mechanic descriptions, for formatted-text entry and preserve the formatting through Java model members, `.gmrf` serialization/import, and descendant-application rendering. Keep existing plain-text files compatible and choose a safely renderable storage format before implementation.
+- [ ] Add early tutorial guidance explaining that Describe This Section contains creator-authored copy for users of descendant applications and is distinct from internal GMRules guidance.
+- [ ] Review all Rules Builder stages and identify which screens do not need a Describe This Section editor; keep it visible everywhere until that review is complete.
+- [ ] When the character generator begins presenting ruleset reference content, smoke-test that it can read collection/section descriptions from `Game.mechanicDescriptions` separately from each individual `GameElement.getDescription()` value.
 - [x] Review the closed-beta signup screen on desktop and mobile.
 - [x] Make the account/home screen clearer for new users choosing builder vs character generation, including context-specific saved-ruleset actions.
 - [x] Move Rules Builder screen introductions into current-screen tutorial modals, remove the duplicated inline copy, and reset scroll position when changing screens.
 - [x] Add sidebar Info buttons so users can open tutorial guidance for non-current Rules Builder screens without navigating away.
 - [x] Show the complete Rules Builder sidebar after Game Setup has been saved with a nonblank game name instead of revealing sections only after visits; hide the panel while Setup is incomplete.
-- [ ] Add Hit Points explanation/help copy showing how to model a static health track with fixed first-level HP, zero per-level gain, zero minimum per-level gain, and no Constitution modifier; gear-based HP can be modeled for beta as gear modifiers on top of `(0,0,0,0)` base HP.
+- [x] Add Hit Points explanation/help copy showing how to model a static health track with fixed first-level HP, zero per-level gain, zero minimum per-level gain, and no Attribute Modifier; gear-based HP can be modeled for beta as gear modifiers on top of `(0,0,0,0)` base HP.
+- [ ] Smoke character generation against a ruleset whose Hit Points use a non-Constitution Attribute Modifier, confirming the selected Attribute ID and negative-modifier policy reach descendant calculations.
 - [x] Simplify Armor Class method entry to required base AC plus optional AC attribute; remove gear-based/base-plus method selections from the web screen, Swing screen, API, and core model.
 - [x] Add Damage Types before Statuses/Effects/Equipment so effects, spells, equipment, weapons, and armor can carry an optional damage type reference.
 - [x] Sort Attribute Generation default modifiers and per-Attribute modifier lists ascending by attribute score on render and refresh.

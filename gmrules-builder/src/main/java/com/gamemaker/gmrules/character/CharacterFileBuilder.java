@@ -109,8 +109,8 @@ public class CharacterFileBuilder {
         putMode(modes, "hitPoints.averageRoundingMethod", hp.getAverageRoundingMethod());
         putMode(modes, "hitPoints.firstLevelMethod", hp.getFirstLevelMethod());
         putMode(modes, "hitPoints.firstLevelMaxHP", hp.isFirstLevelMaxHP());
-        putMode(modes, "hitPoints.appliesConstitutionModifier", hp.isAppliesConstitutionModifier());
-        putMode(modes, "hitPoints.allowNegativeConModifier", hp.isAllowNegativeConModifier());
+        putMode(modes, "hitPoints.hpModifierAttributeId", hp.getHpModifierAttributeId());
+        putMode(modes, "hitPoints.allowNegativeAttributeModifier", hp.isAllowNegativeAttributeModifier());
         putMode(modes, "hitPoints.multiclassHPMethod", hp.getMulticlassHPMethod());
 
         ArmorClassMethod armorClass = safeGame.getArmorClassMethod();
