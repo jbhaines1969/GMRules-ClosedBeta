@@ -35,6 +35,7 @@ Updated: 2026-07-28
 
 ## UI Polish
 
+- [ ] Refactor every ruleset element Description field for formatted-text entry and preserve the formatting through Java model members, `.gmrf` serialization/import, and descendant-application rendering. Keep existing plain-text files compatible and choose a safely renderable storage format before implementation.
 - [x] Review the closed-beta signup screen on desktop and mobile.
 - [x] Make the account/home screen clearer for new users choosing builder vs character generation, including context-specific saved-ruleset actions.
 - [x] Move Rules Builder screen introductions into current-screen tutorial modals, remove the duplicated inline copy, and reset scroll position when changing screens.
@@ -70,7 +71,7 @@ Updated: 2026-07-28
 - [x] Continue the web character flow after class selection: skills, spells, equipment, weapons, armor, starting money, armor class, final `.gmcf` export.
 - [x] Show explicit empty-system messages on character Race, Class, and Spell screens when the ruleset has no entries.
 - [x] Add player-choice handling for rulesets that allow multiple attribute generation methods, such as Dice Rolling or Standard Array.
-- [x] Add Attribute Generation player-option recipes so creators can model either/or options and additive sequences like Standard Array plus Dice or Standard Array plus Point Buy.
+- [x] Add Attribute Generation player-option recipes so creators can model either/or options and additive sequences like Standard Array plus Dice or Standard Array plus Point Buy; derive active methods directly from option steps instead of separate checkboxes.
 - [x] Confirm the Attribute Generation player-option recipe controls record the intended builder mechanics; UI cleanup remains deferred until after character-generation smoke testing.
 - [ ] Consider hiding character Race, Class, and Spell screens entirely when the ruleset has no entries, instead of showing an informational screen.
 - [ ] Character file AC cleanup: ensure final character data keeps resolved AC, armor replacement AC values, and armor/shield AC modifiers distinct so games where armor changes the base AC do not collapse into modifier-only math.

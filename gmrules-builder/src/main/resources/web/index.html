@@ -49,11 +49,35 @@
   </div>
 
   <div class="modal hidden" id="tutorialModal" role="dialog" aria-modal="true">
-    <div class="modal-card">
+    <div class="modal-card wide">
       <h3 id="tutorialTitle">Tutorial</h3>
       <p id="tutorialMessage">The tutorial explanations are triggering this popup</p>
       <div class="modal-actions">
         <button class="btn" id="tutorialOk" type="button">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="timeUnitEditModal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h3 id="timeUnitEditTitle">Edit Time Unit</h3>
+      <div class="grid">
+        <div class="field">
+          <label for="timeUnitEditName" id="timeUnitEditNameLabel">Unit Name</label>
+          <input type="text" id="timeUnitEditName">
+        </div>
+        <div class="field">
+          <label for="timeUnitEditAmount" id="timeUnitEditAmountLabel">Amount</label>
+          <input type="number" id="timeUnitEditAmount" min="1" step="1">
+        </div>
+        <div class="field">
+          <label for="timeUnitEditBase" id="timeUnitEditBaseLabel">Unit</label>
+          <select id="timeUnitEditBase"></select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="timeUnitEditCancel" type="button">Cancel</button>
+        <button class="btn" id="timeUnitEditSave" type="button">Save</button>
       </div>
     </div>
   </div>

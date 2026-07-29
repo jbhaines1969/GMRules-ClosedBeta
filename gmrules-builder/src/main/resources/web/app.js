@@ -58,14 +58,22 @@ const steps = [
     labelKey: "setup.title",
     fallback: "Game Setup",
     tutorialKey: "web.download.note",
-    tutorialFallback: "Game rules are automatically saved to your account for easy access. Use the Download .gmrf button in the top bar anytime if you'd like to save the file to your computer.",
+    tutorialFallback: "Two Game rule files are saved to your account at a time for easy access. Use the Download .gmrf button in the top bar anytime if you'd like to save the file to your computer.",
   },
   {
     id: "measurements",
     labelKey: "measurements.title",
     fallback: "Measurements",
-    tutorialKey: "measurements.intro",
-    tutorialFallback: "Time units help define how long things take in your game, from combat order like rounds and turns to longer actions such as travel, rest, or crafting.",
+    tutorialParagraphs: [
+      {
+        key: "measurements.intro",
+        fallback: "Choose which system of measurement your game will use by default, Metric or Imperial (US Customary).",
+      },
+      {
+        key: "measurements.intro_time_units",
+        fallback: "On this screen you will also enter time units for different game actions and events. The standard set is included, and you can remove any you don't use and add any that your game uses that aren't included. A round is usually the length of time for one simple action to complete, a turn is generally the length of time for more complex operations. Include as many as you'd like, if it isn't needed later it can always be removed or ignored.",
+      },
+    ],
   },
   {
     id: "dice",
@@ -78,8 +86,24 @@ const steps = [
     id: "attribute-generation",
     labelKey: "attrgen.title",
     fallback: "Attribute Generation",
-    tutorialKey: "attrgen.intro",
-    tutorialFallback: "Choose how players generate attribute scores: dice rolling for randomness, point buy for controlled balance, or a standard array for a fixed spread. You can select more than one to support hybrid systems.",
+    tutorialParagraphs: [
+      {
+        key: "attrgen.intro",
+        fallback: "Attributes describe a character's fundamental capabilities—the broad qualities that help define what they are naturally good or bad at. Common examples include Strength, Intelligence, Agility, or Charisma, but your game can use any qualities that fit its setting and rules. A political drama might emphasize Influence and Reputation, while a survival game might focus on Endurance, Awareness, and Resourcefulness.",
+      },
+      {
+        key: "attrgen.intro_values",
+        fallback: "An attribute usually has a score or value that represents the character's capability. That value can affect dice rolls, determine whether the character qualifies for an option, modify another statistic, or establish limits within the game. Higher does not have to mean better, and attributes do not have to work identically; the important part is deciding what each attribute represents and how its value affects play.",
+      },
+      {
+        key: "attrgen.intro_scope",
+        fallback: "Attributes should describe broad capabilities rather than individual actions. For example, Agility might influence many activities involving speed or coordination, while Lockpicking would usually be modeled as a more specific skill. Your game may use only a few broad attributes, many specialized attributes, or no attributes at all. Every part of this section is optional.",
+      },
+      {
+        key: "attrgen.intro_flow",
+        fallback: "Attribute setup is divided across the next three screens. First, Attribute Generation defines how players receive or choose their starting attribute scores, using methods such as dice rolling, point buy, standard arrays, or combinations of those methods. Next, Attribute Categories lets you create optional groups for organizing related attributes. Finally, Attributes is where you define the attributes themselves, explain what they represent, assign them to categories, and configure their allowed values and mechanical effects.",
+      },
+    ],
   },
   {
     id: "attribute-types",
@@ -241,6 +265,14 @@ const tutorialScreens = steps.concat([
         key: "web.home.intro_purpose",
         fallback: "GMRules helps you turn your custom game's rules, options, and content into a portable file that can power a digital ecosystem for your creation.",
       },
+      {
+        key: "web.home.intro_optional_sections",
+        fallback: "In the following screens, you will enter the details and descriptions for your game rules. Every section is optional, if your game doesn't use them or if you just don't want that level of complexity from this specific tool.",
+      },
+      {
+        key: "web.home.intro_application_suite",
+        fallback: "The description you enter here will be presented to users of the suite of applications designed to bring your game to life, from character generation to world building and campaign management. You make the rules, we make the tools.",
+      },
     ],
   },
 ]);
@@ -255,7 +287,10 @@ const LOCAL_SESSION_FRAGMENT_KEY = "local-session";
 const TUTORIAL_SCREEN_KEY_PATTERN = /^[a-z0-9][a-z0-9._:-]{0,79}$/;
 const TUTORIAL_CONTENT_VERSION = "builder-intros-20260728";
 const TUTORIAL_CONTENT_VERSION_BY_SCREEN = {
-  home: "home-intro-20260728",
+  home: "home-intro-expanded-20260728",
+  setup: "setup-intro-save-limit-20260728",
+  measurements: "measurements-intro-expanded-20260728",
+  "attribute-generation": "attribute-generation-intro-expanded-20260728",
 };
 
 let historyReady = false;
@@ -286,6 +321,17 @@ const tutorialModal = document.getElementById("tutorialModal");
 const tutorialTitle = document.getElementById("tutorialTitle");
 const tutorialMessage = document.getElementById("tutorialMessage");
 const tutorialOk = document.getElementById("tutorialOk");
+
+const timeUnitEditModal = document.getElementById("timeUnitEditModal");
+const timeUnitEditTitle = document.getElementById("timeUnitEditTitle");
+const timeUnitEditNameLabel = document.getElementById("timeUnitEditNameLabel");
+const timeUnitEditName = document.getElementById("timeUnitEditName");
+const timeUnitEditAmountLabel = document.getElementById("timeUnitEditAmountLabel");
+const timeUnitEditAmount = document.getElementById("timeUnitEditAmount");
+const timeUnitEditBaseLabel = document.getElementById("timeUnitEditBaseLabel");
+const timeUnitEditBase = document.getElementById("timeUnitEditBase");
+const timeUnitEditCancel = document.getElementById("timeUnitEditCancel");
+const timeUnitEditSave = document.getElementById("timeUnitEditSave");
 
 const typeModal = document.getElementById("typeModal");
 const typeTitle = document.getElementById("typeTitle");
@@ -9772,6 +9818,7 @@ async function renderMeasurements() {
           <div class="list-item">
             <div><strong>${name}</strong> ${displayAmount} ${displayUnit}</div>
             <div>
+              <button class="btn ghost small" type="button" data-edit-time-unit="${key}">${t("common.edit", "Edit")}</button>
               <button class="btn danger small" data-remove-time-unit="${key}">${t("common.remove", "Remove")}</button>
             </div>
           </div>
@@ -9871,6 +9918,85 @@ async function renderMeasurements() {
       } catch (error) {
         showToast(error.message);
       }
+    });
+
+    document.querySelectorAll("[data-edit-time-unit]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const originalKey = String(button.dataset.editTimeUnit || "").trim().toLowerCase();
+        const unit = displayTimeUnits.find((entry) => {
+          return String(entry.name || "").trim().toLowerCase() === originalKey;
+        });
+        if (!unit) {
+          return;
+        }
+        const displayBase = baseTimeUnits.find((entry) => {
+          return String(entry.name || "").trim().toLowerCase()
+            === String(unit.displayUnit || secondsLabel).trim().toLowerCase();
+        });
+
+        timeUnitEditTitle.textContent = t("measurements.timeUnits.edit", "Edit Time Unit");
+        timeUnitEditNameLabel.textContent = t("measurements.timeUnits.name", "Unit Name");
+        timeUnitEditAmountLabel.textContent = t("measurements.timeUnits.amount", "Amount");
+        timeUnitEditBaseLabel.textContent = t("measurements.timeUnits.base", "Unit");
+        timeUnitEditCancel.textContent = t("common.cancel", "Cancel");
+        timeUnitEditSave.textContent = t("common.save", "Save");
+        timeUnitEditName.value = String(unit.name || "");
+        timeUnitEditAmount.value = String(unit.displayAmount || "");
+        timeUnitEditBase.innerHTML = baseUnitOptions;
+        timeUnitEditBase.value = String(displayBase ? displayBase.duration : 1);
+        timeUnitEditSave.disabled = false;
+        timeUnitEditModal.classList.remove("hidden");
+        window.requestAnimationFrame(() => timeUnitEditName.focus());
+
+        timeUnitEditCancel.onclick = () => {
+          timeUnitEditModal.classList.add("hidden");
+        };
+        timeUnitEditSave.onclick = async () => {
+          const name = timeUnitEditName.value.trim();
+          const nameKey = name.toLowerCase();
+          const amount = Number.parseInt(timeUnitEditAmount.value.trim(), 10);
+          const baseDuration = Number.parseInt(timeUnitEditBase.value, 10);
+          if (!name) {
+            showToast(t("common.name.required", "Name is required."));
+            return;
+          }
+          if (nameKey !== originalKey && timeUnits.some((entry) => {
+            return String(entry.name || "").trim().toLowerCase() === nameKey;
+          })) {
+            showToast(t("measurements.timeUnits.name.exists", "A time unit with that name already exists."));
+            return;
+          }
+          if (!Number.isFinite(amount) || amount <= 0) {
+            showToast(t("web.toast.time_unit_invalid", "Duration must be a positive number."));
+            return;
+          }
+          if (!Number.isFinite(baseDuration) || baseDuration <= 0) {
+            showToast(t("measurements.timeUnits.base.invalid", "Select a valid base unit."));
+            return;
+          }
+          let duration = 0;
+          if (amount <= Math.floor(Number.MAX_SAFE_INTEGER / baseDuration)) {
+            duration = amount * baseDuration;
+          }
+          if (!Number.isSafeInteger(duration) || duration <= 0) {
+            showToast(t("measurements.timeUnits.duration.invalid", "Duration must be a positive whole number."));
+            return;
+          }
+          const updated = timeUnits.map((entry) => {
+            const entryKey = String(entry.name || "").trim().toLowerCase();
+            return entryKey === originalKey ? { name, duration } : entry;
+          });
+          timeUnitEditSave.disabled = true;
+          try {
+            await saveMeasurements(updated, "web.toast.time_unit_updated", "Time unit updated");
+            timeUnitEditModal.classList.add("hidden");
+            renderMeasurements();
+          } catch (error) {
+            showToast(error.message);
+            timeUnitEditSave.disabled = false;
+          }
+        };
+      });
     });
 
     document.querySelectorAll("[data-remove-time-unit]").forEach((button) => {
@@ -10389,18 +10515,6 @@ function normalizeAttributeGenerationOptions(options) {
   return normalized;
 }
 
-function buildDefaultAttributeGenerationOptions(methodTypes) {
-  const selected = Array.isArray(methodTypes) ? methodTypes : [];
-  return selected
-    .map((methodType) => normalizeAttributeGenerationMethodType(methodType))
-    .filter((methodType, index, values) => methodType && values.indexOf(methodType) === index)
-    .map((methodType) => ({
-      id: `option-${methodType}`,
-      name: formatCharGenType(methodType),
-      steps: [{ methodType, applicationMode: "set" }],
-    }));
-}
-
 function getAttributeGenerationOrder(generationType, hybridStages) {
   const safeType = String(generationType || "").toLowerCase();
   const order = [];
@@ -10515,36 +10629,13 @@ async function renderAttributeGeneration() {
     state.applyAttributeModifiersToAllAttributes = Boolean(data.applyAttributeModifiersToAllAttributes);
     state.attributeModifiers = normalizeModifierEntries(data.attributeModifiers || []);
 
-    const resolveSelection = () => {
-      const isHybrid = state.attributeGenerationType === "hybrid";
-      const hybridStages = state.attributeGenerationStages;
-      const includeAll = isHybrid && !hybridStages.length;
-      return {
-        dice: isHybrid ? includeAll || hybridStages.includes("dice") : state.attributeGenerationType === "dice",
-        point: isHybrid ? includeAll || hybridStages.includes("point_buy") : state.attributeGenerationType === "point_buy",
-        standard: isHybrid
-          ? includeAll || hybridStages.includes("standard_array")
-          : state.attributeGenerationType === "standard_array",
-      };
-    };
-
-    const selection = resolveSelection();
-    const diceChecked = selection.dice;
-    const pointChecked = selection.point;
-    const standardChecked = selection.standard;
     const defaultScoreRangeChecked = usesDefaultAttributeScoreRange();
     let defaultModifiers = getStandardAttributeModifiers();
-    let generationOptionsCustomized = Boolean(data.customAttributeGenerationOptions);
     let generationOptions = normalizeAttributeGenerationOptions(data.attributeGenerationOptions || []);
 
     view.innerHTML = `
       <section class="panel">
         <h1>${t("attrgen.title", "Attribute Generation")}</h1>
-        <div class="toggle-group" id="generationOptions">
-          <label class="toggle"><input type="checkbox" id="genStandard" ${standardChecked ? "checked" : ""}> ${t("attrgen.type.standard_array", "Standard Array")}</label>
-          <label class="toggle"><input type="checkbox" id="genDice" ${diceChecked ? "checked" : ""}> ${t("attrgen.type.dice", "Dice Rolling")}</label>
-          <label class="toggle"><input type="checkbox" id="genPoint" ${pointChecked ? "checked" : ""}> ${t("attrgen.type.point_buy", "Point Buy")}</label>
-        </div>
         <div class="edit-section">
           <h2>${t("attrgen.options.title", "Player Options")}</h2>
           <p class="field-hint">${t(
@@ -10624,13 +10715,6 @@ async function renderAttributeGeneration() {
       </section>
     `;
 
-    const applySelection = () => {
-      const current = resolveSelection();
-      document.getElementById("genDice").checked = current.dice;
-      document.getElementById("genPoint").checked = current.point;
-      document.getElementById("genStandard").checked = current.standard;
-    };
-
     const updateDefaultScoreControls = () => {
       const enabled = document.getElementById("defaultScoreRange").checked;
       document.getElementById("defaultScoreMin").disabled = !enabled;
@@ -10664,15 +10748,14 @@ async function renderAttributeGeneration() {
 
     const getSelectedGenerationMethods = () => {
       const selected = [];
-      if (document.getElementById("genStandard").checked) {
-        selected.push("standard_array");
-      }
-      if (document.getElementById("genDice").checked) {
-        selected.push("dice");
-      }
-      if (document.getElementById("genPoint").checked) {
-        selected.push("point_buy");
-      }
+      generationOptions.forEach((option) => {
+        option.steps.forEach((step) => {
+          const methodType = normalizeAttributeGenerationMethodType(step.methodType);
+          if (methodType && !selected.includes(methodType)) {
+            selected.push(methodType);
+          }
+        });
+      });
       return selected;
     };
 
@@ -10680,28 +10763,13 @@ async function renderAttributeGeneration() {
       const options = includeEmpty
         ? [`<option value="">${t("common.none", "None")}</option>`]
         : [];
-      getSelectedGenerationMethods().forEach((methodType) => {
+      ["standard_array", "dice", "point_buy"].forEach((methodType) => {
         options.push(`<option value="${methodType}">${escapeHtml(formatCharGenType(methodType))}</option>`);
       });
       return options.join("");
     };
 
-    const ensureGenerationOptionsForSelection = () => {
-      const selected = getSelectedGenerationMethods();
-      if (generationOptionsCustomized) {
-        generationOptions = generationOptions
-          .map((option) => ({
-            ...option,
-            steps: option.steps.filter((step) => selected.includes(step.methodType)),
-          }))
-          .filter((option) => option.steps.length > 0);
-        return;
-      }
-      generationOptions = buildDefaultAttributeGenerationOptions(selected);
-    };
-
     const renderGenerationOptions = () => {
-      ensureGenerationOptionsForSelection();
       state.attributeGenerationOptions = generationOptions.slice();
       const list = document.getElementById("generationOptionList");
       const step1 = document.getElementById("generationOptionStep1");
@@ -10759,9 +10827,6 @@ async function renderAttributeGeneration() {
     };
 
     const syncSelection = async () => {
-      const dice = document.getElementById("genDice").checked;
-      const point = document.getElementById("genPoint").checked;
-      const standard = document.getElementById("genStandard").checked;
       const defaultScoreRange = readDefaultScoreRange();
       if (!defaultScoreRange) {
         return false;
@@ -10770,20 +10835,7 @@ async function renderAttributeGeneration() {
         || defaultScoreRange.defaultAttributeMaxScore !== 0;
       const applyAttributeModifiers = document.getElementById("defaultModifiersEnabled").checked
         && hasDefaultScoreRange;
-      const selected = [];
-      if (standard) {
-        selected.push("standard_array");
-      }
-      if (dice) {
-        selected.push("dice");
-      }
-      if (point) {
-        selected.push("point_buy");
-      }
-      if (!selected.length) {
-        applySelection();
-        return false;
-      }
+      const selected = getSelectedGenerationMethods();
       let generationType = "";
       let hybridStages = [];
       if (selected.length === 1) {
@@ -10792,7 +10844,6 @@ async function renderAttributeGeneration() {
         generationType = "hybrid";
         hybridStages = selected;
       }
-      ensureGenerationOptionsForSelection();
       try {
         const payload = {
           generationType,
@@ -10801,10 +10852,8 @@ async function renderAttributeGeneration() {
           defaultAttributeMaxScore: defaultScoreRange.defaultAttributeMaxScore,
           applyAttributeModifiersToAllAttributes: applyAttributeModifiers,
           attributeModifiers: defaultModifiers,
+          attributeGenerationOptions: generationOptions,
         };
-        if (generationOptionsCustomized) {
-          payload.attributeGenerationOptions = generationOptions;
-        }
         await api("POST", `/api/drafts/${state.draftId}/attribute-generation`, payload);
         state.attributeGenerationType = generationType;
         state.attributeGenerationStages = normalizeHybridStages(hybridStages);
@@ -10824,13 +10873,6 @@ async function renderAttributeGeneration() {
     updateDefaultScoreControls();
     renderDefaultModifiers();
     renderGenerationOptions();
-    const generationMethodChanged = async () => {
-      renderGenerationOptions();
-      await syncSelection();
-    };
-    document.getElementById("genDice").addEventListener("change", generationMethodChanged);
-    document.getElementById("genPoint").addEventListener("change", generationMethodChanged);
-    document.getElementById("genStandard").addEventListener("change", generationMethodChanged);
     document.getElementById("addGenerationOption").addEventListener("click", async () => {
       const name = String(document.getElementById("generationOptionName").value || "").trim();
       const firstStep = normalizeAttributeGenerationMethodType(document.getElementById("generationOptionStep1").value);
@@ -10844,7 +10886,6 @@ async function renderAttributeGeneration() {
       if (secondStep) {
         steps.push({ methodType: secondStep, applicationMode: secondMode });
       }
-      generationOptionsCustomized = true;
       generationOptions.push({
         id: `option-${Date.now()}`,
         name: name || t("attrgen.options.default_name", "Option"),
@@ -10863,7 +10904,6 @@ async function renderAttributeGeneration() {
       if (!Number.isInteger(index) || index < 0 || index >= generationOptions.length) {
         return;
       }
-      generationOptionsCustomized = true;
       generationOptions.splice(index, 1);
       renderGenerationOptions();
       await syncSelection();

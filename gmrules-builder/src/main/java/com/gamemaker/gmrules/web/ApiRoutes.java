@@ -2331,13 +2331,24 @@ public final class ApiRoutes {
         List<Game.AttributeGenerationOption> attributeGenerationOptions = parseAttributeGenerationOptions(
             getMapList(body, "attributeGenerationOptions")
         );
+        if (hasAttributeGenerationOptions) {
+            List<String> selectedMethods = collectAttributeGenerationMethods(attributeGenerationOptions);
+            generationType = selectedMethods.size() == 1
+                ? selectedMethods.get(0)
+                : selectedMethods.size() > 1 ? "hybrid" : "";
+            hybridStages = selectedMethods;
+            hasHybridStages = true;
+        }
+        String savedGenerationType = generationType;
+        List<String> savedHybridStages = new ArrayList<>(hybridStages);
+        boolean saveHybridStages = hasHybridStages;
         if (defaultMinScore > defaultMaxScore) {
             ctx.json(400, Map.of("error", "Minimum score cannot exceed maximum"));
             return;
         }
         ctx.getDraftStore().updateDraft(draftId, game -> {
             AttributeGenerationMethod method = game.getAttributeGenerationMethod();
-            method.setGenerationType(generationType);
+            method.setGenerationType(savedGenerationType);
             game.setDefaultAttributeScoreRange(defaultMinScore, defaultMaxScore);
             game.setApplyAttributeModifiersToAllAttributes(applyModifiersToAllAttributes);
             if (applyModifiersToAllAttributes) {
@@ -2352,9 +2363,9 @@ public final class ApiRoutes {
                     target.setModifierMap(game.getAttributeModifiers().getModifierMap());
                 }
             }
-            if (hasHybridStages) {
+            if (saveHybridStages) {
                 method.clearArray(ARRAY_HYBRID);
-                for (String stage : hybridStages) {
+                for (String stage : savedHybridStages) {
                     method.addToArray(ARRAY_HYBRID, stage);
                 }
             }
@@ -2363,6 +2374,30 @@ public final class ApiRoutes {
             }
         });
         ctx.json(200, Map.of("ok", true));
+    }
+
+    private static List<String> collectAttributeGenerationMethods(
+        List<Game.AttributeGenerationOption> options
+    ) {
+        List<String> selectedMethods = new ArrayList<>();
+        for (String supportedMethod : List.of("standard_array", "dice", "point_buy")) {
+            boolean selected = false;
+            for (Game.AttributeGenerationOption option : options) {
+                for (Game.AttributeGenerationStep step : option.getSteps()) {
+                    if (supportedMethod.equals(step.getMethodType())) {
+                        selected = true;
+                        break;
+                    }
+                }
+                if (selected) {
+                    break;
+                }
+            }
+            if (selected) {
+                selectedMethods.add(supportedMethod);
+            }
+        }
+        return selectedMethods;
     }
 
     private static void getCharGenAttributeGeneration(RequestContext ctx) throws IOException {
