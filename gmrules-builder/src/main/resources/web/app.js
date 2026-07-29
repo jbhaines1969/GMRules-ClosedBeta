@@ -86,22 +86,42 @@ const steps = [
     id: "attribute-generation",
     labelKey: "attrgen.title",
     fallback: "Attribute Generation",
-    tutorialParagraphs: [
+    tutorialPages: [
       {
-        key: "attrgen.intro",
-        fallback: "Attributes describe a character's fundamental capabilities—the broad qualities that help define what they are naturally good or bad at. Common examples include Strength, Intelligence, Agility, or Charisma, but your game can use any qualities that fit its setting and rules. A political drama might emphasize Influence and Reputation, while a survival game might focus on Endurance, Awareness, and Resourcefulness.",
+        titleKey: "attrgen.info.overview.title",
+        titleFallback: "Understanding Attributes",
+        paragraphs: [
+          {
+            key: "attrgen.intro",
+            fallback: "Attributes describe a character's fundamental capabilities—the broad qualities that help define what they are naturally good or bad at. Common examples include Strength, Intelligence, Agility, or Charisma, but your game can use any qualities that fit its setting and rules. A political drama might emphasize Influence and Reputation, while a survival game might focus on Endurance, Awareness, and Resourcefulness.",
+          },
+          {
+            key: "attrgen.intro_values",
+            fallback: "An attribute usually has a score or value that represents the character's capability. That value can affect dice rolls, determine whether the character qualifies for an option, modify another statistic, or establish limits within the game. Higher does not have to mean better, and attributes do not have to work identically; the important part is deciding what each attribute represents and how its value affects play.",
+          },
+          {
+            key: "attrgen.intro_scope",
+            fallback: "Attributes should describe broad capabilities rather than individual actions. For example, Agility might influence many activities involving speed or coordination, while Lockpicking would usually be modeled as a more specific skill. Your game may use only a few broad attributes, many specialized attributes, or no attributes at all. Every part of this section is optional.",
+          },
+          {
+            key: "attrgen.intro_flow",
+            fallback: "Attribute setup is divided across the next six screens. First, Attribute Generation defines how players receive or choose their starting attribute scores, using methods such as dice rolling, point buy, standard arrays, or combinations of those methods. Next, Attribute Categories lets you create optional groups for organizing related attributes. Then, Attributes is where you define the attributes themselves, explain what they represent, assign them to categories, and configure their allowed values and mechanical effects.",
+          },
+          {
+            key: "attrgen.intro_detail_screens",
+            fallback: "The final three screens are data-entry screens for the generation methods used by your player options. Use them to define the actual standard arrays, dice procedures, and point-buy rules that characters will use. They come after Attributes because some entries may depend on the completed attribute list. Methods your game does not use can be left alone.",
+          },
+        ],
       },
       {
-        key: "attrgen.intro_values",
-        fallback: "An attribute usually has a score or value that represents the character's capability. That value can affect dice rolls, determine whether the character qualifies for an option, modify another statistic, or establish limits within the game. Higher does not have to mean better, and attributes do not have to work identically; the important part is deciding what each attribute represents and how its value affects play.",
-      },
-      {
-        key: "attrgen.intro_scope",
-        fallback: "Attributes should describe broad capabilities rather than individual actions. For example, Agility might influence many activities involving speed or coordination, while Lockpicking would usually be modeled as a more specific skill. Your game may use only a few broad attributes, many specialized attributes, or no attributes at all. Every part of this section is optional.",
-      },
-      {
-        key: "attrgen.intro_flow",
-        fallback: "Attribute setup is divided across the next three screens. First, Attribute Generation defines how players receive or choose their starting attribute scores, using methods such as dice rolling, point buy, standard arrays, or combinations of those methods. Next, Attribute Categories lets you create optional groups for organizing related attributes. Finally, Attributes is where you define the attributes themselves, explain what they represent, assign them to categories, and configure their allowed values and mechanical effects.",
+        titleKey: "attrgen.info.specifics.title",
+        titleFallback: "Using Attribute Generation",
+        paragraphs: [
+          {
+            key: "attrgen.intro_specifics",
+            fallback: "Attribution Generation specifics go here",
+          },
+        ],
       },
     ],
   },
@@ -290,7 +310,7 @@ const TUTORIAL_CONTENT_VERSION_BY_SCREEN = {
   home: "home-intro-expanded-20260728",
   setup: "setup-intro-save-limit-20260728",
   measurements: "measurements-intro-expanded-20260728",
-  "attribute-generation": "attribute-generation-intro-expanded-20260728",
+  "attribute-generation": "attribute-generation-paged-info-20260728",
 };
 
 let historyReady = false;
@@ -320,6 +340,8 @@ const confirmOk = document.getElementById("confirmOk");
 const tutorialModal = document.getElementById("tutorialModal");
 const tutorialTitle = document.getElementById("tutorialTitle");
 const tutorialMessage = document.getElementById("tutorialMessage");
+const tutorialBack = document.getElementById("tutorialBack");
+const tutorialNext = document.getElementById("tutorialNext");
 const tutorialOk = document.getElementById("tutorialOk");
 
 const timeUnitEditModal = document.getElementById("timeUnitEditModal");
@@ -570,6 +592,8 @@ const spellCancel = document.getElementById("spellCancel");
 const spellSave = document.getElementById("spellSave");
 
 let confirmResolve = null;
+let activeTutorialPages = [];
+let activeTutorialPageIndex = 0;
 let pendingTypeUpdate = null;
 let editContext = null;
 let editReturnTo = "";
@@ -1507,31 +1531,76 @@ function markTutorialScreenVisited(screenKey) {
     });
 }
 
+function buildTutorialPages(tutorialStep) {
+  if (!tutorialStep) {
+    return [{
+      titleKey: "web.tutorial.title",
+      titleFallback: "Tutorial",
+      paragraphs: [],
+    }];
+  }
+  if (Array.isArray(tutorialStep.tutorialPages) && tutorialStep.tutorialPages.length) {
+    return tutorialStep.tutorialPages;
+  }
+  const paragraphs = Array.isArray(tutorialStep.tutorialParagraphs)
+    ? tutorialStep.tutorialParagraphs
+    : [{ key: tutorialStep.tutorialKey, fallback: tutorialStep.tutorialFallback }];
+  return [{
+    titleKey: tutorialStep.labelKey,
+    titleFallback: tutorialStep.fallback,
+    paragraphs,
+  }];
+}
+
+function renderActiveTutorialPage() {
+  const pageCount = activeTutorialPages.length;
+  const safeIndex = Math.max(0, Math.min(activeTutorialPageIndex, Math.max(0, pageCount - 1)));
+  activeTutorialPageIndex = safeIndex;
+  const page = activeTutorialPages[safeIndex] || {};
+  const paragraphs = Array.isArray(page.paragraphs) ? page.paragraphs : [];
+  if (tutorialTitle) {
+    tutorialTitle.textContent = page.titleText || t(
+      page.titleKey || "web.tutorial.title",
+      page.titleFallback || "Tutorial"
+    );
+  }
+  if (tutorialMessage) {
+    tutorialMessage.textContent = paragraphs.length
+      ? paragraphs.map((paragraph) => {
+        return paragraph.text || t(paragraph.key, paragraph.fallback);
+      }).join("\n\n")
+      : t("web.tutorial.placeholder", "Tutorial guidance for this screen is coming soon.");
+  }
+  const hasMultiplePages = pageCount > 1;
+  const isLastPage = safeIndex >= pageCount - 1;
+  if (tutorialBack) {
+    tutorialBack.textContent = t("common.back", "Back");
+    tutorialBack.classList.toggle("hidden", !hasMultiplePages || safeIndex === 0);
+  }
+  if (tutorialNext) {
+    tutorialNext.textContent = t("common.next", "Next");
+    tutorialNext.classList.toggle("hidden", !hasMultiplePages || isLastPage);
+  }
+  if (tutorialOk) {
+    tutorialOk.textContent = hasMultiplePages ? t("common.done", "Done") : t("common.ok", "OK");
+    tutorialOk.classList.toggle("hidden", hasMultiplePages && !isLastPage);
+  }
+}
+
 function openTutorialPopup(screenKey = state.step) {
   if (!tutorialModal) {
     return;
   }
   const safeKey = normalizeTutorialScreenKey(screenKey);
   const tutorialStep = tutorialScreens.find((entry) => entry.id === safeKey);
-  if (tutorialTitle) {
-    tutorialTitle.textContent = tutorialStep
-      ? t(tutorialStep.labelKey, tutorialStep.fallback)
-      : t("web.tutorial.title", "Tutorial");
-  }
-  if (tutorialMessage) {
-    const tutorialParagraphs = tutorialStep && Array.isArray(tutorialStep.tutorialParagraphs)
-      ? tutorialStep.tutorialParagraphs
-      : tutorialStep
-        ? [{ key: tutorialStep.tutorialKey, fallback: tutorialStep.tutorialFallback }]
-        : [];
-    tutorialMessage.textContent = tutorialParagraphs.length
-      ? tutorialParagraphs.map((paragraph) => t(paragraph.key, paragraph.fallback)).join("\n\n")
-      : t("web.tutorial.placeholder", "Tutorial guidance for this screen is coming soon.");
-  }
+  activeTutorialPages = buildTutorialPages(tutorialStep);
+  activeTutorialPageIndex = 0;
+  renderActiveTutorialPage();
   tutorialModal.classList.remove("hidden");
   window.requestAnimationFrame(() => {
-    if (tutorialOk) {
-      tutorialOk.focus();
+    const focusTarget = activeTutorialPages.length > 1 ? tutorialNext : tutorialOk;
+    if (focusTarget) {
+      focusTarget.focus();
     }
   });
 }
@@ -1540,18 +1609,20 @@ function closeTutorialPopup() {
   if (tutorialModal) {
     tutorialModal.classList.add("hidden");
   }
+  activeTutorialPages = [];
+  activeTutorialPageIndex = 0;
 }
 
 function openInformationPopup(title, message) {
   if (!tutorialModal) {
     return;
   }
-  if (tutorialTitle) {
-    tutorialTitle.textContent = title;
-  }
-  if (tutorialMessage) {
-    tutorialMessage.textContent = message;
-  }
+  activeTutorialPages = [{
+    titleText: title,
+    paragraphs: [{ text: message }],
+  }];
+  activeTutorialPageIndex = 0;
+  renderActiveTutorialPage();
   tutorialModal.classList.remove("hidden");
   window.requestAnimationFrame(() => {
     if (tutorialOk) {
@@ -1940,6 +2011,31 @@ confirmOk.addEventListener("click", () => {
 
 if (tutorialOk) {
   tutorialOk.addEventListener("click", closeTutorialPopup);
+}
+if (tutorialBack) {
+  tutorialBack.addEventListener("click", () => {
+    if (activeTutorialPageIndex <= 0) {
+      return;
+    }
+    activeTutorialPageIndex -= 1;
+    renderActiveTutorialPage();
+    window.requestAnimationFrame(() => tutorialNext?.focus());
+  });
+}
+if (tutorialNext) {
+  tutorialNext.addEventListener("click", () => {
+    if (activeTutorialPageIndex >= activeTutorialPages.length - 1) {
+      return;
+    }
+    activeTutorialPageIndex += 1;
+    renderActiveTutorialPage();
+    window.requestAnimationFrame(() => {
+      const focusTarget = activeTutorialPageIndex >= activeTutorialPages.length - 1
+        ? tutorialOk
+        : tutorialNext;
+      focusTarget?.focus();
+    });
+  });
 }
 
 deleteAccountCancel.addEventListener("click", closeDeleteAccountModal);
@@ -6778,7 +6874,7 @@ function renderHome() {
   });
 
   homeOpenSavedRulesets.addEventListener("click", () => {
-    setHomePanelMode(homePanelMode === "rulesets" ? "" : "rulesets");
+    setHomePanelMode("rulesets");
   });
 
   document.getElementById("homeUploadRuleFile").addEventListener("click", async (event) => {
@@ -6795,7 +6891,7 @@ function renderHome() {
       openCharacterRulesetRequiredPopup();
       return;
     }
-    setHomePanelMode(homePanelMode === "characters" ? "" : "characters");
+    setHomePanelMode("characters");
   });
 
   document.getElementById("homeCharacterChoose").addEventListener("click", async () => {
@@ -10642,7 +10738,6 @@ async function renderAttributeGeneration() {
             "attrgen.options.help",
             "Each option is a player-facing choice. Steps inside one option happen in order, so later steps can add to or spend from earlier scores."
           )}</p>
-          <div class="list" id="generationOptionList"></div>
           <div class="grid two">
             <div class="field">
               <label for="generationOptionName">${t("attrgen.options.name", "Option Name")}</label>
@@ -10666,6 +10761,7 @@ async function renderAttributeGeneration() {
             </div>
           </div>
           <button class="btn ghost" id="addGenerationOption" type="button">${t("attrgen.options.add", "Add Option")}</button>
+          <div class="list" id="generationOptionList"></div>
         </div>
         <div class="edit-section">
           <h2>${t("attrgen.score_limits.title", "Score Limits")}</h2>
