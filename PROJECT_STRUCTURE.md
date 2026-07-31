@@ -1,6 +1,6 @@
 # GMRules Closed Beta Deploy Structure
 
-Updated: 2026-07-28
+Updated: 2026-07-30
 
 This file is the deploy-release filesystem map for `GMRules-ClosedBeta`.
 Update it whenever tracked files or deploy-relevant directories are added, removed, or moved. Its purpose is to let agents find known paths from this document before falling back to repository searches.
@@ -26,6 +26,7 @@ GMRules-ClosedBeta/
 |-- AGENTS.md
 |-- AGENT_HANDOFF.md
 |-- PROJECT_NOTES.md
+|-- PRODUCT_DESIGN_CONTEXT.md
 |-- PROJECT_STRUCTURE.md
 |-- TODO.md
 |-- deploy.sh
@@ -59,6 +60,7 @@ deploy.sh           # Pull, clean-compile the Maven exec:java service classes, v
 makebackup.sh       # Create encrypted droplet backup and remove unencrypted archive.
 restore.sh          # Restore runtime data from encrypted backup after confirmation.
 PROJECT_NOTES.md    # Current project status, risks, and launch path.
+PRODUCT_DESIGN_CONTEXT.md # Concise product vision, journeys, terminology, UX invariants, concerns, and design-review resume point.
 TODO.md             # Launch-ordered beta checklist.
 AGENTS.md           # Operating instructions for future agents.
 AGENT_HANDOFF.md    # Current handoff snapshot for recovery/continuation.

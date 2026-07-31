@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GMRules Web</title>
-  <link rel="stylesheet" href="/styles.css?v=20260728b">
+  <link rel="stylesheet" href="/styles.css?v=20260801o">
 </head>
 <body class="logged-out">
   <div class="backdrop"></div>
@@ -27,7 +27,7 @@
             min="0"
             max="2"
             step="1"
-            value="0"
+            value="1"
             list="fontSizeSteps"
             aria-labelledby="fontSizeSliderLabel"
           >
@@ -103,6 +103,162 @@
       <div class="modal-actions">
         <button class="btn ghost" id="timeUnitEditCancel" type="button">Cancel</button>
         <button class="btn" id="timeUnitEditSave" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="diceRangeModal" role="dialog" aria-modal="true" aria-labelledby="diceRangeTitle">
+    <div class="modal-card">
+      <h3 id="diceRangeTitle">Add Range</h3>
+      <div class="grid two">
+        <div class="field">
+          <label for="diceRangeMin" id="diceRangeMinLabel">Min</label>
+          <input type="number" id="diceRangeMin" value="1">
+        </div>
+        <div class="field">
+          <label for="diceRangeMax" id="diceRangeMaxLabel">Max</label>
+          <input type="number" id="diceRangeMax" value="6">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="diceRangeCancel" type="button">Cancel</button>
+        <button class="btn" id="diceRangeSave" type="button">Add Range</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="generationOptionModal" role="dialog" aria-modal="true" aria-labelledby="generationOptionModalTitle">
+    <div class="modal-card">
+      <h3 id="generationOptionModalTitle">Add Option</h3>
+      <div class="grid two">
+        <div class="field">
+          <label for="generationOptionModalName" id="generationOptionModalNameLabel">Option Name</label>
+          <input type="text" id="generationOptionModalName" maxlength="80">
+        </div>
+        <div class="field">
+          <label for="generationOptionModalStep1" id="generationOptionModalStep1Label">First Step</label>
+          <select id="generationOptionModalStep1"></select>
+        </div>
+        <div class="field">
+          <label for="generationOptionModalStep2" id="generationOptionModalStep2Label">Second Step</label>
+          <select id="generationOptionModalStep2"></select>
+        </div>
+        <div class="field" id="generationOptionModalStep2ModeField">
+          <label for="generationOptionModalStep2Mode" id="generationOptionModalStep2ModeLabel">Second Step Applies</label>
+          <select id="generationOptionModalStep2Mode"></select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="generationOptionModalCancel" type="button">Cancel</button>
+        <button class="btn" id="generationOptionModalSave" type="button">Add Option</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="defaultModifierModal" role="dialog" aria-modal="true" aria-labelledby="defaultModifierModalTitle">
+    <div class="modal-card">
+      <h3 id="defaultModifierModalTitle">Add Modifier</h3>
+      <div class="grid two">
+        <div class="field">
+          <label for="defaultModifierModalScore" id="defaultModifierModalScoreLabel">Starting Score</label>
+          <input type="number" id="defaultModifierModalScore" step="0.1">
+        </div>
+        <div class="field">
+          <label for="defaultModifierModalValue" id="defaultModifierModalValueLabel">Modifier</label>
+          <input type="number" id="defaultModifierModalValue" step="0.1">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="defaultModifierModalCancel" type="button">Cancel</button>
+        <button class="btn" id="defaultModifierModalSave" type="button">Add Modifier</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="arrayValueModal" role="dialog" aria-modal="true" aria-labelledby="arrayValueModalTitle">
+    <div class="modal-card">
+      <h3 id="arrayValueModalTitle">Add Value</h3>
+      <div class="grid">
+        <div class="field" id="arrayValueModalAttributeField">
+          <label for="arrayValueModalAttribute" id="arrayValueModalAttributeLabel">Attribute</label>
+          <select id="arrayValueModalAttribute"></select>
+        </div>
+        <div class="field">
+          <label for="arrayValueModalValue" id="arrayValueModalValueLabel">Array Value</label>
+          <input type="number" id="arrayValueModalValue" value="0">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="arrayValueModalCancel" type="button">Cancel</button>
+        <button class="btn" id="arrayValueModalSave" type="button">Add Value</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="diceTermModal" role="dialog" aria-modal="true" aria-labelledby="diceTermModalTitle">
+    <div class="modal-card">
+      <h3 id="diceTermModalTitle">Add Dice Term</h3>
+      <div class="grid two">
+        <div class="field">
+          <label for="diceTermModalCount" id="diceTermModalCountLabel">Number of Rolls</label>
+          <input type="number" id="diceTermModalCount" value="3">
+        </div>
+        <div class="field">
+          <label for="diceTermModalSides" id="diceTermModalSidesLabel">Dice Sides</label>
+          <select id="diceTermModalSides"></select>
+        </div>
+        <div class="field">
+          <label for="diceTermModalReroll" id="diceTermModalRerollLabel">Reroll Below</label>
+          <input type="number" id="diceTermModalReroll" min="0" step="1" value="0">
+        </div>
+        <div class="field">
+          <label for="diceTermModalDropLowest" id="diceTermModalDropLowestLabel">Drop lowest roll</label>
+          <input type="checkbox" id="diceTermModalDropLowest">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="diceTermModalCancel" type="button">Cancel</button>
+        <button class="btn" id="diceTermModalSave" type="button">Add Dice Term</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="currencyCreateModal" role="dialog" aria-modal="true" aria-labelledby="currencyCreateModalTitle">
+    <div class="modal-card">
+      <h3 id="currencyCreateModalTitle">Add Currency</h3>
+      <div class="grid two">
+        <div class="field">
+          <label for="currencyCreateModalName" id="currencyCreateModalNameLabel">Currency Name</label>
+          <input type="text" id="currencyCreateModalName">
+        </div>
+        <div class="field">
+          <label for="currencyCreateModalBase" id="currencyCreateModalBaseLabel">Base Denomination</label>
+          <input type="text" id="currencyCreateModalBase">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="currencyCreateModalCancel" type="button">Cancel</button>
+        <button class="btn" id="currencyCreateModalSave" type="button">Add Currency</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="denominationCreateModal" role="dialog" aria-modal="true" aria-labelledby="denominationCreateModalTitle">
+    <div class="modal-card">
+      <h3 id="denominationCreateModalTitle">Add Denomination</h3>
+      <div class="grid two">
+        <div class="field">
+          <label for="denominationCreateModalName" id="denominationCreateModalNameLabel">Denomination</label>
+          <input type="text" id="denominationCreateModalName">
+        </div>
+        <div class="field">
+          <label for="denominationCreateModalValue" id="denominationCreateModalValueLabel">Value</label>
+          <input type="number" id="denominationCreateModalValue" value="1" step="0.01" min="0.01">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="denominationCreateModalCancel" type="button">Cancel</button>
+        <button class="btn" id="denominationCreateModalSave" type="button">Add Denomination</button>
       </div>
     </div>
   </div>
@@ -628,6 +784,6 @@
     })();
   </script>
 
-  <script src="/app.js?v=20260729a"></script>
+  <script src="/app.js?v=20260801o"></script>
 </body>
 </html>

@@ -1,3 +1,5 @@
+const DEFAULT_FONT_SIZE_LEVEL = 1;
+
 const state = {
   draftId: "",
   step: "splash",
@@ -51,7 +53,7 @@ const state = {
   defaultAttributeMaxScore: 0,
   systemNames: {},
   fontSizeAllScreens: false,
-  fontSizeGlobalLevel: 0,
+  fontSizeGlobalLevel: DEFAULT_FONT_SIZE_LEVEL,
   fontSizeLevelsByScreen: {},
   mechanicDescriptions: {},
   mechanicDescriptionsDraftId: "",
@@ -377,7 +379,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "measurements.info.specifics.manage",
-        fallback: "The list shows the units currently available to the ruleset. Edit changes an existing unit without rebuilding it, Remove deletes one you do not use, and Add Time Unit saves a new entry. Include only the units that help descendant applications describe durations or schedule game events.",
+        fallback: "The list shows the units currently available to the ruleset. Add Time Unit opens a blank editor, Edit opens that editor for an existing unit, and Remove deletes one you do not use. Include only the units that help descendant applications describe durations or schedule game events.",
       },
     ],
   },
@@ -391,7 +393,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "dice.info.specifics.custom",
-        fallback: "Custom Ranges represent random values that are not covered by the standard dice list. Enter the inclusive minimum and maximum result, then add the range. This can support unusual dice, tables, cards, spinners, or digital randomizers whose results follow a custom numeric span.",
+        fallback: "Custom Ranges represent random values that are not covered by the standard dice list. Add Range opens an editor for the inclusive minimum and maximum result. This can support unusual dice, tables, cards, spinners, or digital randomizers whose results follow a custom numeric span.",
       },
       {
         key: "dice.info.specifics.use",
@@ -953,6 +955,7 @@ const TUTORIAL_CONTENT_VERSION_BY_SCREEN = {
 let historyReady = false;
 let historyLocked = false;
 let appBackLocked = false;
+let activeInformationAction = null;
 
 const view = document.getElementById("view");
 const stepIndicator = document.getElementById("stepIndicator");
@@ -990,7 +993,7 @@ const FONT_SIZE_STEP_PIXELS = 3;
 function clampFontSizeLevel(value) {
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue)) {
-    return 0;
+    return DEFAULT_FONT_SIZE_LEVEL;
   }
   return Math.max(0, Math.min(2, Math.round(numericValue)));
 }
@@ -1005,7 +1008,9 @@ function currentFontSizeLevel() {
   if (state.fontSizeAllScreens) {
     return clampFontSizeLevel(state.fontSizeGlobalLevel);
   }
-  return clampFontSizeLevel(state.fontSizeLevelsByScreen[currentFontSizeScreenKey()] || 0);
+  return clampFontSizeLevel(
+    state.fontSizeLevelsByScreen[currentFontSizeScreenKey()] ?? DEFAULT_FONT_SIZE_LEVEL
+  );
 }
 
 function fontSizeLevelLabel(level) {
@@ -1054,6 +1059,79 @@ const timeUnitEditBaseLabel = document.getElementById("timeUnitEditBaseLabel");
 const timeUnitEditBase = document.getElementById("timeUnitEditBase");
 const timeUnitEditCancel = document.getElementById("timeUnitEditCancel");
 const timeUnitEditSave = document.getElementById("timeUnitEditSave");
+
+const diceRangeModal = document.getElementById("diceRangeModal");
+const diceRangeTitle = document.getElementById("diceRangeTitle");
+const diceRangeMinLabel = document.getElementById("diceRangeMinLabel");
+const diceRangeMin = document.getElementById("diceRangeMin");
+const diceRangeMaxLabel = document.getElementById("diceRangeMaxLabel");
+const diceRangeMax = document.getElementById("diceRangeMax");
+const diceRangeCancel = document.getElementById("diceRangeCancel");
+const diceRangeSave = document.getElementById("diceRangeSave");
+
+const generationOptionModal = document.getElementById("generationOptionModal");
+const generationOptionModalTitle = document.getElementById("generationOptionModalTitle");
+const generationOptionModalNameLabel = document.getElementById("generationOptionModalNameLabel");
+const generationOptionModalName = document.getElementById("generationOptionModalName");
+const generationOptionModalStep1Label = document.getElementById("generationOptionModalStep1Label");
+const generationOptionModalStep1 = document.getElementById("generationOptionModalStep1");
+const generationOptionModalStep2Label = document.getElementById("generationOptionModalStep2Label");
+const generationOptionModalStep2 = document.getElementById("generationOptionModalStep2");
+const generationOptionModalStep2ModeField = document.getElementById("generationOptionModalStep2ModeField");
+const generationOptionModalStep2ModeLabel = document.getElementById("generationOptionModalStep2ModeLabel");
+const generationOptionModalStep2Mode = document.getElementById("generationOptionModalStep2Mode");
+const generationOptionModalCancel = document.getElementById("generationOptionModalCancel");
+const generationOptionModalSave = document.getElementById("generationOptionModalSave");
+
+const defaultModifierModal = document.getElementById("defaultModifierModal");
+const defaultModifierModalTitle = document.getElementById("defaultModifierModalTitle");
+const defaultModifierModalScoreLabel = document.getElementById("defaultModifierModalScoreLabel");
+const defaultModifierModalScore = document.getElementById("defaultModifierModalScore");
+const defaultModifierModalValueLabel = document.getElementById("defaultModifierModalValueLabel");
+const defaultModifierModalValue = document.getElementById("defaultModifierModalValue");
+const defaultModifierModalCancel = document.getElementById("defaultModifierModalCancel");
+const defaultModifierModalSave = document.getElementById("defaultModifierModalSave");
+
+const arrayValueModal = document.getElementById("arrayValueModal");
+const arrayValueModalTitle = document.getElementById("arrayValueModalTitle");
+const arrayValueModalAttributeField = document.getElementById("arrayValueModalAttributeField");
+const arrayValueModalAttributeLabel = document.getElementById("arrayValueModalAttributeLabel");
+const arrayValueModalAttribute = document.getElementById("arrayValueModalAttribute");
+const arrayValueModalValueLabel = document.getElementById("arrayValueModalValueLabel");
+const arrayValueModalValue = document.getElementById("arrayValueModalValue");
+const arrayValueModalCancel = document.getElementById("arrayValueModalCancel");
+const arrayValueModalSave = document.getElementById("arrayValueModalSave");
+
+const diceTermModal = document.getElementById("diceTermModal");
+const diceTermModalTitle = document.getElementById("diceTermModalTitle");
+const diceTermModalCountLabel = document.getElementById("diceTermModalCountLabel");
+const diceTermModalCount = document.getElementById("diceTermModalCount");
+const diceTermModalSidesLabel = document.getElementById("diceTermModalSidesLabel");
+const diceTermModalSides = document.getElementById("diceTermModalSides");
+const diceTermModalRerollLabel = document.getElementById("diceTermModalRerollLabel");
+const diceTermModalReroll = document.getElementById("diceTermModalReroll");
+const diceTermModalDropLowestLabel = document.getElementById("diceTermModalDropLowestLabel");
+const diceTermModalDropLowest = document.getElementById("diceTermModalDropLowest");
+const diceTermModalCancel = document.getElementById("diceTermModalCancel");
+const diceTermModalSave = document.getElementById("diceTermModalSave");
+
+const currencyCreateModal = document.getElementById("currencyCreateModal");
+const currencyCreateModalTitle = document.getElementById("currencyCreateModalTitle");
+const currencyCreateModalNameLabel = document.getElementById("currencyCreateModalNameLabel");
+const currencyCreateModalName = document.getElementById("currencyCreateModalName");
+const currencyCreateModalBaseLabel = document.getElementById("currencyCreateModalBaseLabel");
+const currencyCreateModalBase = document.getElementById("currencyCreateModalBase");
+const currencyCreateModalCancel = document.getElementById("currencyCreateModalCancel");
+const currencyCreateModalSave = document.getElementById("currencyCreateModalSave");
+
+const denominationCreateModal = document.getElementById("denominationCreateModal");
+const denominationCreateModalTitle = document.getElementById("denominationCreateModalTitle");
+const denominationCreateModalNameLabel = document.getElementById("denominationCreateModalNameLabel");
+const denominationCreateModalName = document.getElementById("denominationCreateModalName");
+const denominationCreateModalValueLabel = document.getElementById("denominationCreateModalValueLabel");
+const denominationCreateModalValue = document.getElementById("denominationCreateModalValue");
+const denominationCreateModalCancel = document.getElementById("denominationCreateModalCancel");
+const denominationCreateModalSave = document.getElementById("denominationCreateModalSave");
 
 const typeModal = document.getElementById("typeModal");
 const typeTitle = document.getElementById("typeTitle");
@@ -2485,6 +2563,7 @@ function openTutorialPopup(screenKey = state.step) {
   if (!tutorialModal) {
     return;
   }
+  activeInformationAction = null;
   const safeKey = normalizeTutorialScreenKey(screenKey);
   const tutorialStep = tutorialScreens.find((entry) => entry.id === safeKey);
   activeTutorialPages = buildTutorialPages(tutorialStep);
@@ -2505,18 +2584,23 @@ function closeTutorialPopup() {
   }
   activeTutorialPages = [];
   activeTutorialPageIndex = 0;
+  activeInformationAction = null;
 }
 
-function openInformationPopup(title, message) {
+function openInformationPopup(title, message, actionLabel = "", action = null) {
   if (!tutorialModal) {
     return;
   }
+  activeInformationAction = typeof action === "function" ? action : null;
   activeTutorialPages = [{
     titleText: title,
     paragraphs: [{ text: message }],
   }];
   activeTutorialPageIndex = 0;
   renderActiveTutorialPage();
+  if (tutorialOk && actionLabel) {
+    tutorialOk.textContent = actionLabel;
+  }
   tutorialModal.classList.remove("hidden");
   window.requestAnimationFrame(() => {
     if (tutorialOk) {
@@ -2525,13 +2609,18 @@ function openInformationPopup(title, message) {
   });
 }
 
-function openRulesetLimitPopup() {
+function openRulesetLimitPopup(rulesetListVisible, revealRulesets) {
+  const listVisible = Boolean(rulesetListVisible);
   openInformationPopup(
     t("web.home.ruleset_limit_title", "Ruleset Limit"),
     t(
       "web.home.ruleset_limit_message",
-      "Only two rulesets are allowed per account. If you wish to work on a different ruleset, please download one of the current saves and delete it from server."
-    )
+      "Closed beta accounts can store up to two rulesets online. To start or import another, download any ruleset you want to keep, then delete that online save."
+    ),
+    listVisible
+      ? t("common.close", "Close")
+      : t("web.home.manage_saved_rulesets", "Manage saved rulesets"),
+    listVisible ? null : revealRulesets
   );
 }
 
@@ -2650,7 +2739,7 @@ function updateActions() {
     return;
   }
   if (homeBtn) {
-    homeBtn.style.display = state.sessionToken ? "" : "none";
+    homeBtn.style.display = state.sessionToken && state.mode !== "home" ? "" : "none";
   }
   if (tutorialInfoBtn) {
     tutorialInfoBtn.style.display = state.sessionToken ? "" : "none";
@@ -2904,7 +2993,13 @@ confirmOk.addEventListener("click", () => {
 });
 
 if (tutorialOk) {
-  tutorialOk.addEventListener("click", closeTutorialPopup);
+  tutorialOk.addEventListener("click", () => {
+    const informationAction = activeInformationAction;
+    closeTutorialPopup();
+    if (informationAction) {
+      informationAction();
+    }
+  });
 }
 if (tutorialBack) {
   tutorialBack.addEventListener("click", () => {
@@ -6999,21 +7094,36 @@ async function renderSavedDraftList() {
     const maxDrafts = data.maxDrafts || 2;
     const canCreate = !!data.canCreate;
     const transientGuest = !!data.transientGuest;
-    meta.textContent = `${drafts.length}/${maxDrafts} ${t("web.home.save_slots", "server save slots used")}`;
-    if (transientGuest) {
-      meta.textContent = t("web.home.guest_badge", "Guest");
-    }
+    const capacityMessage = t(
+      "web.home.save_capacity",
+      "{used} of {limit} online save slots used"
+    )
+      .replace("{used}", String(drafts.length))
+      .replace("{limit}", String(maxDrafts));
+    meta.textContent = transientGuest
+      ? `${t("web.home.guest_badge", "Guest")} · ${capacityMessage}`
+      : capacityMessage;
     const newDraftButton = document.getElementById("homeNewDraft");
     const uploadRuleFileButton = document.getElementById("homeUploadRuleFile");
     const characterButton = document.getElementById("homeCharacterActions");
     if (newDraftButton) {
-      newDraftButton.classList.toggle("is-disabled", !canCreate);
-      newDraftButton.setAttribute("aria-disabled", String(!canCreate));
+      newDraftButton.classList.toggle("is-limit-reached", !canCreate);
+      newDraftButton.setAttribute(
+        "aria-label",
+        !canCreate
+          ? `${t("web.home.limit_reached", "Online save limit reached")}: ${t("web.splash.start", "Start new ruleset")}`
+          : t("web.splash.start", "Start new ruleset")
+      );
       newDraftButton.dataset.rulesetSlotsFull = String(!canCreate);
     }
     if (uploadRuleFileButton) {
-      uploadRuleFileButton.classList.toggle("is-disabled", !canCreate);
-      uploadRuleFileButton.setAttribute("aria-disabled", String(!canCreate));
+      uploadRuleFileButton.classList.toggle("is-limit-reached", !canCreate);
+      uploadRuleFileButton.setAttribute(
+        "aria-label",
+        !canCreate
+          ? `${t("web.home.limit_reached", "Online save limit reached")}: ${t("web.home.import_rule_file", "Import rule file")}`
+          : t("web.home.import_rule_file", "Import rule file")
+      );
       uploadRuleFileButton.dataset.rulesetSlotsFull = String(!canCreate);
     }
     if (characterButton) {
@@ -7040,7 +7150,6 @@ async function renderSavedDraftList() {
       .map((draft) => {
         const id = escapeHtml(draft.id || "");
         const name = escapeHtml(draft.name || t("web.home.untitled_ruleset", "Untitled Ruleset"));
-        const description = String(draft.description || "").trim();
         const savedAt = escapeHtml(formatSavedDate(draft.lastSaved));
         return `
           <div class="list-item saved-draft-item">
@@ -7048,11 +7157,10 @@ async function renderSavedDraftList() {
               <strong class="saved-draft-name">${name}</strong>
               <div class="saved-draft-actions">
                 <button class="btn small" type="button" data-open-draft="${id}" data-ruleset-management-action>${t("web.home.open_saved", "Open")}</button>
-                <button class="btn ghost small" type="button" data-create-character="${id}">${t("web.home.create_character_from_saved", "Create Character")}</button>
-                <button class="btn danger small" type="button" data-delete-draft="${id}" data-delete-draft-name="${name}" data-ruleset-management-action>${t("web.home.delete_saved", "Delete Save")}</button>
+                <button class="btn ghost small" type="button" data-create-character="${id}">${t("web.home.create_character_from_saved", "Create character")}</button>
+                <button class="btn danger small" type="button" data-delete-draft="${id}" data-delete-draft-name="${name}" data-ruleset-management-action>${t("web.home.delete_saved", "Delete save")}</button>
               </div>
             </div>
-            ${description ? `<div class="field-hint">${escapeHtml(description)}</div>` : ""}
             <div class="field-hint">${t("web.home.last_saved", "Last saved")}: ${savedAt}</div>
           </div>
         `;
@@ -7110,7 +7218,10 @@ async function renderSavedCharacterList() {
       return;
     }
     if (!characters.length) {
-      list.innerHTML = `<div class="field-hint">${t("web.home.no_saved_characters", "No characters are saved to this account yet.")}</div>`;
+      list.innerHTML = `<div class="field-hint">${t(
+        "web.home.no_saved_characters",
+        "No characters are saved yet. Choose a saved ruleset on the left to create one, or upload a character file to continue."
+      )}</div>`;
       return;
     }
     list.innerHTML = characters
@@ -7128,7 +7239,7 @@ async function renderSavedCharacterList() {
             </div>
             <div class="saved-draft-actions">
               <button class="btn small" type="button" data-open-character="${id}">${t("web.home.open_saved", "Open")}</button>
-              <button class="btn danger small" type="button" data-delete-character="${id}" data-delete-character-name="${name}">${t("web.home.delete_saved", "Delete Save")}</button>
+                <button class="btn danger small" type="button" data-delete-character="${id}" data-delete-character-name="${name}">${t("web.home.delete_saved", "Delete save")}</button>
             </div>
           </div>
         `;
@@ -7594,63 +7705,84 @@ function renderHome() {
   setMode("home");
   setStep("home");
   view.innerHTML = `
-    <section class="panel">
+    <section class="panel home-panel">
       <h1>${t("web.home.title", "Welcome to GMRules")}</h1>
-      <p class="home-choice-prompt">${t(
-        "web.home.question",
-        "Choose whether to create a ruleset, edit an existing ruleset, or create a character."
-      )}</p>
-      <div class="home-primary-actions">
-        <button class="btn" id="homeNewDraft" type="button">${t("web.splash.start", "Start New Ruleset")}</button>
-        <button
-          class="btn ghost"
-          id="homeOpenSavedRulesets"
-          type="button"
-          aria-controls="savedDraftsPanel"
-          aria-expanded="false"
-        >${t("web.home.open_saved_ruleset", "Open/Manage saved rulesets")}</button>
-        <button class="btn ghost" id="homeUploadRuleFile" type="button">${t("web.home.upload_rule_file", "Upload Rule File")}</button>
-        <button
-          class="btn ghost is-disabled"
-          id="homeCharacterActions"
-          type="button"
-          aria-controls="savedDraftsPanel savedCharactersPanel homeCharacterUploadActions"
-          aria-expanded="false"
-          aria-disabled="true"
-          data-rulesets-available="false"
-        >${t("web.home.create_edit_character", "Create/Edit character")}</button>
+      <div class="home-action-groups">
+        <section class="home-action-group" aria-labelledby="homeRulesetsTitle">
+          <div class="home-action-group-heading">
+            <h2 id="homeRulesetsTitle">${t("web.home.rulesets_title", "Rulesets")}</h2>
+            <p>${t(
+              "web.home.rulesets_description",
+              "Create a game or continue building an existing one."
+            )}</p>
+          </div>
+          <div class="home-primary-actions">
+            <button class="btn" id="homeNewDraft" type="button" aria-describedby="savedDraftsMeta">${t("web.splash.start", "Start new ruleset")}</button>
+            <button
+              class="btn ghost"
+              id="homeOpenSavedRulesets"
+              type="button"
+              aria-controls="savedDraftsPanel"
+              aria-expanded="false"
+            >${t("web.home.manage_saved_rulesets", "Manage saved rulesets")}</button>
+            <button class="btn ghost" id="homeUploadRuleFile" type="button" aria-describedby="savedDraftsMeta">${t("web.home.import_rule_file", "Import rule file")}</button>
+          </div>
+          <div class="home-save-capacity" id="savedDraftsMeta" aria-live="polite">${t("web.loading", "Loading...")}</div>
+          <input class="hidden" type="file" id="homeEditFile" accept=".gmrf">
+          <div class="saved-drafts hidden" id="savedDraftsPanel">
+            <div class="saved-drafts-header">
+              <h3>${t("web.home.saved_title", "Saved rulesets")}</h3>
+            </div>
+            <div class="list saved-drafts-list" id="savedDraftsList">
+              <div class="field-hint">${t("web.loading", "Loading...")}</div>
+            </div>
+          </div>
+        </section>
+        <section class="home-action-group" aria-labelledby="homeCharactersTitle">
+          <div class="home-action-group-heading">
+            <h2 id="homeCharactersTitle">${t("web.home.characters_title", "Characters")}</h2>
+            <p>${t(
+              "web.home.characters_description",
+              "Create or continue a character using one of your rulesets."
+            )}</p>
+          </div>
+          <div class="home-primary-actions">
+            <button
+              class="btn ghost is-disabled"
+              id="homeCharacterActions"
+              type="button"
+              aria-controls="savedDraftsPanel savedCharactersPanel homeCharacterUploadActions"
+              aria-expanded="false"
+              aria-disabled="true"
+              data-rulesets-available="false"
+            >${t("web.home.create_edit_character", "Create or edit character")}</button>
+          </div>
+          <div class="saved-drafts hidden" id="savedCharactersPanel">
+            <div class="saved-drafts-header saved-characters-header">
+              <h3>${t("web.home.saved_characters_title", "Saved characters")}</h3>
+              <span class="badge" id="savedCharactersMeta">${t("web.loading", "Loading...")}</span>
+            </div>
+            <div class="list saved-character-list" id="savedCharactersList">
+              <div class="field-hint">${t("web.loading", "Loading...")}</div>
+            </div>
+          </div>
+          <div class="home-character-upload-actions hidden" id="homeCharacterUploadActions">
+            <input class="hidden" type="file" id="homeCharacterFile" accept=".gmcf">
+            <h3>${t("web.home.character_file_title", "Continue from a file")}</h3>
+            <button class="btn" id="homeCharacterChoose" type="button">${t("web.home.create_character", "Upload character file")}</button>
+          </div>
+        </section>
       </div>
-      <input class="hidden" type="file" id="homeEditFile" accept=".gmrf">
-      <div class="saved-drafts hidden" id="savedDraftsPanel">
-        <div class="saved-drafts-header">
-          <h2>${t("web.home.saved_title", "Saved on This Server")}</h2>
-          <span class="badge" id="savedDraftsMeta">${t("web.loading", "Loading...")}</span>
+      <details class="account-settings">
+        <summary>${t("web.account_delete.settings_title", "Account settings")}</summary>
+        <div class="account-settings-content">
+          <p class="field-hint">${t(
+            "web.account_delete.zone_hint",
+            "This deletes your account and every saved ruleset for it. To keep work offline, log in, open each ruleset you want to keep, and use Download .gmrf before deleting the account. To delete only one save, use the Delete save buttons in the saved-ruleset list."
+          )}</p>
+          <button class="btn danger" id="homeDeleteAccount" type="button">${t("web.account_delete.permanent_button", "Permanently delete account")}</button>
         </div>
-        <div class="list saved-drafts-list" id="savedDraftsList">
-          <div class="field-hint">${t("web.loading", "Loading...")}</div>
-        </div>
-      </div>
-      <div class="saved-drafts hidden" id="savedCharactersPanel">
-        <div class="saved-drafts-header">
-          <h2>${t("web.home.saved_characters_title", "Saved Characters")}</h2>
-          <span class="badge" id="savedCharactersMeta">${t("web.loading", "Loading...")}</span>
-        </div>
-        <div class="list saved-character-list" id="savedCharactersList">
-          <div class="field-hint">${t("web.loading", "Loading...")}</div>
-        </div>
-      </div>
-      <div class="home-character-upload-actions hidden" id="homeCharacterUploadActions">
-        <input class="hidden" type="file" id="homeCharacterFile" accept=".gmrf,.gmcf">
-        <button class="btn ghost" id="homeCharacterChoose" type="button">${t("web.home.create_character", "Upload Character File")}</button>
-      </div>
-      <div class="account-danger-zone">
-        <h2>${t("web.account_delete.zone_title", "Account Danger Zone")}</h2>
-        <p class="field-hint">${t(
-          "web.account_delete.zone_hint",
-          "This deletes your account and every saved ruleset for it. To keep work offline, log in, open each ruleset you want to keep, and use Download .gmrf before deleting the account. To delete only one save, use the Delete Save buttons in the saved-ruleset list."
-        )}</p>
-        <button class="btn danger" id="homeDeleteAccount" type="button">${t("web.account_delete.permanent_button", "Permanently Delete Account")}</button>
-      </div>
+      </details>
     </section>
   `;
 
@@ -7745,7 +7877,10 @@ function renderHome() {
 
   document.getElementById("homeNewDraft").addEventListener("click", async (event) => {
     if (event.currentTarget.dataset.rulesetSlotsFull === "true") {
-      openRulesetLimitPopup();
+      openRulesetLimitPopup(
+        !savedDraftsPanel.classList.contains("hidden"),
+        () => setHomePanelMode("rulesets")
+      );
       return;
     }
     try {
@@ -7796,7 +7931,10 @@ function renderHome() {
 
   document.getElementById("homeUploadRuleFile").addEventListener("click", async (event) => {
     if (event.currentTarget.dataset.rulesetSlotsFull === "true") {
-      openRulesetLimitPopup();
+      openRulesetLimitPopup(
+        !savedDraftsPanel.classList.contains("hidden"),
+        () => setHomePanelMode("rulesets")
+      );
       return;
     }
     const file = await openHomeFilePicker(homeEditFile, "gmrules-edit-game", [".gmrf"]);
@@ -7812,7 +7950,7 @@ function renderHome() {
   });
 
   document.getElementById("homeCharacterChoose").addEventListener("click", async () => {
-    const file = await openHomeFilePicker(homeCharacterFile, "gmrules-create-character", [".gmrf", ".gmcf"]);
+    const file = await openHomeFilePicker(homeCharacterFile, "gmrules-create-character", [".gmcf"]);
     await importCharacterSource(file);
   });
 
@@ -10748,7 +10886,7 @@ async function renderSetup() {
           </div>
           <div class="field">
             <label for="gameDescription">${t("setup.game.description", "Game Description")}</label>
-            <textarea id="gameDescription" rows="25">${escapeHtml(data.description)}</textarea>
+            <textarea id="gameDescription" class="game-description-input" rows="15">${escapeHtml(data.description)}</textarea>
           </div>
           <div class="field">
             <label for="gameType">${t("setup.game.type", "Game Type")}</label>
@@ -10846,22 +10984,8 @@ async function renderMeasurements() {
           <label for="weightSystem">${t("measurements.weight.label", "Weight System")}</label>
           <select id="weightSystem">${weightOptions}</select>
         </div>
-        <h2>${t("measurements.timeUnits.title", "Time Units")}</h2>
-        <div class="grid three">
-          <div class="field">
-            <label for="timeUnitName">${t("measurements.timeUnits.name", "Unit Name")}</label>
-            <input type="text" id="timeUnitName" placeholder="${t("measurements.timeUnits.name.placeholder", "e.g., round")}">
-          </div>
-          <div class="field">
-            <label for="timeUnitAmount">${t("measurements.timeUnits.amount", "Amount")}</label>
-            <input type="number" id="timeUnitAmount" min="1" step="1" placeholder="${t("measurements.timeUnits.duration.placeholder", "e.g., 6")}">
-          </div>
-          <div class="field">
-            <label for="timeUnitBase">${t("measurements.timeUnits.base", "Unit")}</label>
-            <select id="timeUnitBase">${baseUnitOptions}</select>
-          </div>
-        </div>
-        <button class="btn" id="addTimeUnit" type="button">${t("measurements.timeUnits.add", "Add Time Unit")}</button>
+        <h2 class="time-units-title">${t("measurements.timeUnits.title", "Time Units")}</h2>
+        <button class="btn time-unit-add-button" id="addTimeUnit" type="button">${t("measurements.timeUnits.add", "Add Time Unit")}</button>
         <div class="list" id="timeUnitList">
           ${timeUnitRows || `<div class="list-item">${t("measurements.timeUnits.none", "No time units yet.")}</div>`}
         </div>
@@ -10887,50 +11011,97 @@ async function renderMeasurements() {
       }
     };
 
-    document.getElementById("addTimeUnit").addEventListener("click", async () => {
-      const name = document.getElementById("timeUnitName").value.trim();
-      const amountRaw = document.getElementById("timeUnitAmount").value.trim();
-      const amount = Number.parseInt(amountRaw, 10);
-      const baseDuration = Number.parseInt(document.getElementById("timeUnitBase").value, 10);
-      if (!name) {
-        showToast(t("common.name.required", "Name is required."));
-        return;
-      }
-      if (!Number.isFinite(amount) || amount <= 0) {
-        showToast(t("web.toast.time_unit_invalid", "Duration must be a positive number."));
-        return;
-      }
-      if (!Number.isFinite(baseDuration) || baseDuration <= 0) {
-        showToast(t("measurements.timeUnits.base.invalid", "Select a valid base unit."));
-        return;
-      }
-      let duration = 0;
-      if (amount <= Math.floor(Number.MAX_SAFE_INTEGER / baseDuration)) {
-        duration = amount * baseDuration;
-      }
-      if (!Number.isSafeInteger(duration) || duration <= 0) {
-        showToast(t("measurements.timeUnits.duration.invalid", "Duration must be a positive whole number."));
-        return;
-      }
-      const updated = [];
-      let replaced = false;
-      timeUnits.forEach((unit) => {
-        if (String(unit.name || "").trim().toLowerCase() === name.toLowerCase()) {
-          updated.push({ name, duration });
-          replaced = true;
-        } else {
-          updated.push(unit);
+    const openTimeUnitEditor = (unit = null) => {
+      const editing = Boolean(unit);
+      const originalKey = editing
+        ? String(unit.name || "").trim().toLowerCase()
+        : "";
+      const displayBase = editing
+        ? baseTimeUnits.find((entry) => {
+          return String(entry.name || "").trim().toLowerCase()
+            === String(unit.displayUnit || secondsLabel).trim().toLowerCase();
+        })
+        : baseTimeUnits[0];
+
+      timeUnitEditTitle.textContent = editing
+        ? t("measurements.timeUnits.edit", "Edit Time Unit")
+        : t("measurements.timeUnits.add", "Add Time Unit");
+      timeUnitEditNameLabel.textContent = t("measurements.timeUnits.name", "Unit Name");
+      timeUnitEditAmountLabel.textContent = t("measurements.timeUnits.amount", "Amount");
+      timeUnitEditBaseLabel.textContent = t("measurements.timeUnits.base", "Unit");
+      timeUnitEditCancel.textContent = t("common.cancel", "Cancel");
+      timeUnitEditSave.textContent = editing
+        ? t("common.save", "Save")
+        : t("measurements.timeUnits.add", "Add Time Unit");
+      timeUnitEditName.placeholder = t("measurements.timeUnits.name.placeholder", "e.g., round");
+      timeUnitEditAmount.placeholder = t("measurements.timeUnits.duration.placeholder", "e.g., 6");
+      timeUnitEditName.value = editing ? String(unit.name || "") : "";
+      timeUnitEditAmount.value = editing ? String(unit.displayAmount || "") : "";
+      timeUnitEditBase.innerHTML = baseUnitOptions;
+      timeUnitEditBase.value = String(displayBase ? displayBase.duration : 1);
+      timeUnitEditSave.disabled = false;
+      timeUnitEditModal.classList.remove("hidden");
+      window.requestAnimationFrame(() => timeUnitEditName.focus());
+
+      timeUnitEditCancel.onclick = () => {
+        timeUnitEditModal.classList.add("hidden");
+      };
+      timeUnitEditSave.onclick = async () => {
+        const name = timeUnitEditName.value.trim();
+        const nameKey = name.toLowerCase();
+        const amount = Number.parseInt(timeUnitEditAmount.value.trim(), 10);
+        const baseDuration = Number.parseInt(timeUnitEditBase.value, 10);
+        if (!name) {
+          showToast(t("common.name.required", "Name is required."));
+          return;
         }
-      });
-      if (!replaced) {
-        updated.push({ name, duration });
-      }
-      try {
-        await saveMeasurements(updated, "web.toast.time_unit_added", "Time unit added");
-        renderMeasurements();
-      } catch (error) {
-        showToast(error.message);
-      }
+        if (timeUnits.some((entry) => {
+          const entryKey = String(entry.name || "").trim().toLowerCase();
+          return entryKey === nameKey && entryKey !== originalKey;
+        })) {
+          showToast(t("measurements.timeUnits.name.exists", "A time unit with that name already exists."));
+          return;
+        }
+        if (!Number.isFinite(amount) || amount <= 0) {
+          showToast(t("web.toast.time_unit_invalid", "Duration must be a positive number."));
+          return;
+        }
+        if (!Number.isFinite(baseDuration) || baseDuration <= 0) {
+          showToast(t("measurements.timeUnits.base.invalid", "Select a valid base unit."));
+          return;
+        }
+        let duration = 0;
+        if (amount <= Math.floor(Number.MAX_SAFE_INTEGER / baseDuration)) {
+          duration = amount * baseDuration;
+        }
+        if (!Number.isSafeInteger(duration) || duration <= 0) {
+          showToast(t("measurements.timeUnits.duration.invalid", "Duration must be a positive whole number."));
+          return;
+        }
+        const updated = editing
+          ? timeUnits.map((entry) => {
+            const entryKey = String(entry.name || "").trim().toLowerCase();
+            return entryKey === originalKey ? { name, duration } : entry;
+          })
+          : [...timeUnits, { name, duration }];
+        timeUnitEditSave.disabled = true;
+        try {
+          await saveMeasurements(
+            updated,
+            editing ? "web.toast.time_unit_updated" : "web.toast.time_unit_added",
+            editing ? "Time unit updated" : "Time unit added"
+          );
+          timeUnitEditModal.classList.add("hidden");
+          renderMeasurements();
+        } catch (error) {
+          showToast(error.message);
+          timeUnitEditSave.disabled = false;
+        }
+      };
+    };
+
+    document.getElementById("addTimeUnit").addEventListener("click", () => {
+      openTimeUnitEditor();
     });
 
     document.querySelectorAll("[data-edit-time-unit]").forEach((button) => {
@@ -10939,76 +11110,9 @@ async function renderMeasurements() {
         const unit = displayTimeUnits.find((entry) => {
           return String(entry.name || "").trim().toLowerCase() === originalKey;
         });
-        if (!unit) {
-          return;
+        if (unit) {
+          openTimeUnitEditor(unit);
         }
-        const displayBase = baseTimeUnits.find((entry) => {
-          return String(entry.name || "").trim().toLowerCase()
-            === String(unit.displayUnit || secondsLabel).trim().toLowerCase();
-        });
-
-        timeUnitEditTitle.textContent = t("measurements.timeUnits.edit", "Edit Time Unit");
-        timeUnitEditNameLabel.textContent = t("measurements.timeUnits.name", "Unit Name");
-        timeUnitEditAmountLabel.textContent = t("measurements.timeUnits.amount", "Amount");
-        timeUnitEditBaseLabel.textContent = t("measurements.timeUnits.base", "Unit");
-        timeUnitEditCancel.textContent = t("common.cancel", "Cancel");
-        timeUnitEditSave.textContent = t("common.save", "Save");
-        timeUnitEditName.value = String(unit.name || "");
-        timeUnitEditAmount.value = String(unit.displayAmount || "");
-        timeUnitEditBase.innerHTML = baseUnitOptions;
-        timeUnitEditBase.value = String(displayBase ? displayBase.duration : 1);
-        timeUnitEditSave.disabled = false;
-        timeUnitEditModal.classList.remove("hidden");
-        window.requestAnimationFrame(() => timeUnitEditName.focus());
-
-        timeUnitEditCancel.onclick = () => {
-          timeUnitEditModal.classList.add("hidden");
-        };
-        timeUnitEditSave.onclick = async () => {
-          const name = timeUnitEditName.value.trim();
-          const nameKey = name.toLowerCase();
-          const amount = Number.parseInt(timeUnitEditAmount.value.trim(), 10);
-          const baseDuration = Number.parseInt(timeUnitEditBase.value, 10);
-          if (!name) {
-            showToast(t("common.name.required", "Name is required."));
-            return;
-          }
-          if (nameKey !== originalKey && timeUnits.some((entry) => {
-            return String(entry.name || "").trim().toLowerCase() === nameKey;
-          })) {
-            showToast(t("measurements.timeUnits.name.exists", "A time unit with that name already exists."));
-            return;
-          }
-          if (!Number.isFinite(amount) || amount <= 0) {
-            showToast(t("web.toast.time_unit_invalid", "Duration must be a positive number."));
-            return;
-          }
-          if (!Number.isFinite(baseDuration) || baseDuration <= 0) {
-            showToast(t("measurements.timeUnits.base.invalid", "Select a valid base unit."));
-            return;
-          }
-          let duration = 0;
-          if (amount <= Math.floor(Number.MAX_SAFE_INTEGER / baseDuration)) {
-            duration = amount * baseDuration;
-          }
-          if (!Number.isSafeInteger(duration) || duration <= 0) {
-            showToast(t("measurements.timeUnits.duration.invalid", "Duration must be a positive whole number."));
-            return;
-          }
-          const updated = timeUnits.map((entry) => {
-            const entryKey = String(entry.name || "").trim().toLowerCase();
-            return entryKey === originalKey ? { name, duration } : entry;
-          });
-          timeUnitEditSave.disabled = true;
-          try {
-            await saveMeasurements(updated, "web.toast.time_unit_updated", "Time unit updated");
-            timeUnitEditModal.classList.add("hidden");
-            renderMeasurements();
-          } catch (error) {
-            showToast(error.message);
-            timeUnitEditSave.disabled = false;
-          }
-        };
       });
     });
 
@@ -11173,17 +11277,7 @@ async function renderDice() {
         <h2>${t("dice.standard", "Standard Dice")}</h2>
         <div class="toggle-group" id="standardDice">${toggles}</div>
         <h2>${t("dice.custom", "Custom Ranges")}</h2>
-        <div class="grid two">
-          <div class="field">
-            <label for="customMin">${t("dice.min", "Min")}</label>
-            <input type="number" id="customMin" value="1">
-          </div>
-          <div class="field">
-            <label for="customMax">${t("dice.max", "Max")}</label>
-            <input type="number" id="customMax" value="6">
-          </div>
-        </div>
-        <button class="btn" id="addRange" type="button">${t("dice.add", "Add Range")}</button>
+        <button class="btn custom-range-add-button" id="addRange" type="button">${t("dice.add", "Add Range")}</button>
         <div class="list" id="rangeList">${ranges || `<div class="list-item">${t("web.dice.custom.none", "No custom ranges yet.")}</div>`}</div>
         <div class="actions-row">
           <div class="left">
@@ -11209,16 +11303,35 @@ async function renderDice() {
       });
     });
 
-    document.getElementById("addRange").addEventListener("click", async () => {
-      const min = Number(document.getElementById("customMin").value);
-      const max = Number(document.getElementById("customMax").value);
-      try {
-        await api("POST", `/api/drafts/${state.draftId}/dice/custom`, { min, max });
-        markSaved(t("web.toast.range_added", "Range added"));
-        renderDice();
-      } catch (error) {
-        showToast(error.message);
-      }
+    document.getElementById("addRange").addEventListener("click", () => {
+      diceRangeTitle.textContent = t("dice.add", "Add Range");
+      diceRangeMinLabel.textContent = t("dice.min", "Min");
+      diceRangeMaxLabel.textContent = t("dice.max", "Max");
+      diceRangeCancel.textContent = t("common.cancel", "Cancel");
+      diceRangeSave.textContent = t("dice.add", "Add Range");
+      diceRangeMin.value = "1";
+      diceRangeMax.value = "6";
+      diceRangeSave.disabled = false;
+      diceRangeModal.classList.remove("hidden");
+      window.requestAnimationFrame(() => diceRangeMin.focus());
+
+      diceRangeCancel.onclick = () => {
+        diceRangeModal.classList.add("hidden");
+      };
+      diceRangeSave.onclick = async () => {
+        const min = Number(diceRangeMin.value);
+        const max = Number(diceRangeMax.value);
+        diceRangeSave.disabled = true;
+        try {
+          await api("POST", `/api/drafts/${state.draftId}/dice/custom`, { min, max });
+          markSaved(t("web.toast.range_added", "Range added"));
+          diceRangeModal.classList.add("hidden");
+          renderDice();
+        } catch (error) {
+          showToast(error.message);
+          diceRangeSave.disabled = false;
+        }
+      };
     });
 
     document.querySelectorAll("#rangeList button").forEach((button) => {
@@ -11650,34 +11763,12 @@ async function renderAttributeGeneration() {
       <section class="panel">
         <h1>${t("attrgen.title", "Attribute Generation")}</h1>
         <div class="edit-section">
-          <h2>${t("attrgen.options.title", "Player Options")}</h2>
+          <h2 class="collection-editor-heading">${t("attrgen.options.title", "Player Options")}</h2>
           <p class="field-hint">${t(
             "attrgen.options.help",
             "Each option is a player-facing choice. Steps inside one option happen in order, so later steps can add to or spend from earlier scores."
           )}</p>
-          <div class="grid two">
-            <div class="field">
-              <label for="generationOptionName">${t("attrgen.options.name", "Option Name")}</label>
-              <input type="text" id="generationOptionName" maxlength="80">
-            </div>
-            <div class="field">
-              <label for="generationOptionStep1">${t("attrgen.options.step1", "First Step")}</label>
-              <select id="generationOptionStep1"></select>
-            </div>
-            <div class="field">
-              <label for="generationOptionStep2">${t("attrgen.options.step2", "Second Step")}</label>
-              <select id="generationOptionStep2"></select>
-            </div>
-            <div class="field">
-              <label for="generationOptionStep2Mode">${t("attrgen.options.step2_mode", "Second Step Applies")}</label>
-              <select id="generationOptionStep2Mode">
-                <option value="add">${t("attrgen.options.mode.add", "Add to existing scores")}</option>
-                <option value="spend">${t("attrgen.options.mode.spend", "Spend from existing scores")}</option>
-                <option value="set">${t("attrgen.options.mode.set", "Replace existing scores")}</option>
-              </select>
-            </div>
-          </div>
-          <button class="btn ghost" id="addGenerationOption" type="button">${t("attrgen.options.add", "Add Option")}</button>
+          <button class="btn ghost collection-add-button" id="addGenerationOption" type="button">${t("attrgen.options.add", "Add Option")}</button>
           <div class="list" id="generationOptionList"></div>
         </div>
         <div class="edit-section">
@@ -11699,22 +11790,12 @@ async function renderAttributeGeneration() {
           <button class="btn ghost" id="saveDefaultScoreRange" type="button">${t("attrgen.score_limits.save", "Save Score Limits")}</button>
         </div>
         <div class="edit-section" id="defaultModifierSection">
-          <h2>${t("attrgen.modifiers.title", "Default Modifiers")}</h2>
+          <h2 class="collection-editor-heading">${t("attrgen.modifiers.title", "Default Modifiers")}</h2>
           <label class="toggle">
             <input type="checkbox" id="defaultModifiersEnabled" ${state.applyAttributeModifiersToAllAttributes ? "checked" : ""}>
             ${t("attrgen.modifiers.same_all", "All attributes use the same modifier list")}
           </label>
-          <div class="grid two" id="defaultModifierFields">
-            <div class="field">
-              <label for="defaultModifierScore">${t("attributes.edit.modifier.score", "Score")}</label>
-              <input type="number" id="defaultModifierScore" step="0.1">
-            </div>
-            <div class="field">
-              <label for="defaultModifierValue">${t("attributes.edit.modifier.value", "Modifier")}</label>
-              <input type="number" id="defaultModifierValue" step="0.1">
-            </div>
-          </div>
-          <button class="btn ghost" id="addDefaultModifier" type="button">${t("attributes.edit.modifier.add", "Add Modifier")}</button>
+          <button class="btn ghost collection-add-button" id="addDefaultModifier" type="button">${t("attributes.edit.modifier.add", "Add Modifier")}</button>
           <div class="list" id="defaultModifierList"></div>
         </div>
         <div class="actions-row">
@@ -11735,8 +11816,6 @@ async function renderAttributeGeneration() {
       document.getElementById("saveDefaultScoreRange").disabled = !enabled;
       document.getElementById("defaultModifierSection").classList.toggle("hidden", !enabled);
       const modifiersEnabled = enabled && document.getElementById("defaultModifiersEnabled").checked;
-      document.getElementById("defaultModifierScore").disabled = !modifiersEnabled;
-      document.getElementById("defaultModifierValue").disabled = !modifiersEnabled;
       document.getElementById("addDefaultModifier").disabled = !modifiersEnabled;
     };
 
@@ -11747,14 +11826,37 @@ async function renderAttributeGeneration() {
         return;
       }
       defaultModifiers = normalizeModifierEntries(defaultModifiers);
+      const configuredMaximum = Number.parseInt(document.getElementById("defaultScoreMax").value, 10);
+      const maximumScore = Number.isFinite(configuredMaximum)
+        ? configuredMaximum
+        : Number(state.defaultAttributeMaxScore || 0);
+      const formatModifierValue = (value) => {
+        if (value > 0) {
+          return `+${value}`;
+        }
+        if (value < 0) {
+          return `−${Math.abs(value)}`;
+        }
+        return "0";
+      };
       list.innerHTML = defaultModifiers
         .map(
-          (entry, index) => `
-            <div class="list-item">
-              <span>${entry.score} -> ${entry.modifier}</span>
-              <button class="btn danger small" data-remove-default-modifier="${index}">${t("common.remove", "Remove")}</button>
-            </div>
-          `
+          (entry, index) => {
+            const nextEntry = defaultModifiers[index + 1];
+            const derivedEnd = nextEntry ? nextEntry.score - 1 : maximumScore;
+            const rangeLabel = derivedEnd > entry.score
+              ? `${entry.score}–${derivedEnd}`
+              : String(entry.score);
+            return `
+              <div class="list-item">
+                <span>${rangeLabel}: ${formatModifierValue(entry.modifier)}</span>
+                <div>
+                  <button class="btn ghost small" data-edit-default-modifier="${index}">${t("common.edit", "Edit")}</button>
+                  <button class="btn danger small" data-remove-default-modifier="${index}">${t("common.remove", "Remove")}</button>
+                </div>
+              </div>
+            `;
+          }
         )
         .join("");
     };
@@ -11785,10 +11887,6 @@ async function renderAttributeGeneration() {
     const renderGenerationOptions = () => {
       state.attributeGenerationOptions = generationOptions.slice();
       const list = document.getElementById("generationOptionList");
-      const step1 = document.getElementById("generationOptionStep1");
-      const step2 = document.getElementById("generationOptionStep2");
-      step1.innerHTML = buildMethodSelectOptions(false);
-      step2.innerHTML = buildMethodSelectOptions(true);
       if (!generationOptions.length) {
         list.innerHTML = `<div class="list-item">${t("attrgen.options.none", "No player options yet.")}</div>`;
         return;
@@ -11886,27 +11984,57 @@ async function renderAttributeGeneration() {
     updateDefaultScoreControls();
     renderDefaultModifiers();
     renderGenerationOptions();
-    document.getElementById("addGenerationOption").addEventListener("click", async () => {
-      const name = String(document.getElementById("generationOptionName").value || "").trim();
-      const firstStep = normalizeAttributeGenerationMethodType(document.getElementById("generationOptionStep1").value);
-      const secondStep = normalizeAttributeGenerationMethodType(document.getElementById("generationOptionStep2").value);
-      const secondMode = normalizeAttributeGenerationApplicationMode(document.getElementById("generationOptionStep2Mode").value);
-      if (!firstStep) {
-        showToast(t("attrgen.options.step_required", "Choose at least one option step."));
-        return;
-      }
-      const steps = [{ methodType: firstStep, applicationMode: "set" }];
-      if (secondStep) {
-        steps.push({ methodType: secondStep, applicationMode: secondMode });
-      }
-      generationOptions.push({
-        id: `option-${Date.now()}`,
-        name: name || t("attrgen.options.default_name", "Option"),
-        steps,
-      });
-      document.getElementById("generationOptionName").value = "";
-      renderGenerationOptions();
-      await syncSelection();
+    document.getElementById("addGenerationOption").addEventListener("click", () => {
+      generationOptionModalTitle.textContent = t("attrgen.options.add", "Add Option");
+      generationOptionModalNameLabel.textContent = t("attrgen.options.name", "Option Name");
+      generationOptionModalStep1Label.textContent = t("attrgen.options.step1", "First Step");
+      generationOptionModalStep2Label.textContent = t("attrgen.options.step2", "Second Step");
+      generationOptionModalStep2ModeLabel.textContent = t("attrgen.options.step2_mode", "Second Step Applies");
+      generationOptionModalCancel.textContent = t("common.cancel", "Cancel");
+      generationOptionModalSave.textContent = t("attrgen.options.add", "Add Option");
+      generationOptionModalName.value = "";
+      generationOptionModalStep1.innerHTML = buildMethodSelectOptions(false);
+      generationOptionModalStep2.innerHTML = buildMethodSelectOptions(true);
+      generationOptionModalStep2Mode.innerHTML = `
+        <option value="add">${t("attrgen.options.mode.add", "Add to existing scores")}</option>
+        <option value="spend">${t("attrgen.options.mode.spend", "Spend from existing scores")}</option>
+        <option value="set">${t("attrgen.options.mode.set", "Replace existing scores")}</option>
+      `;
+      generationOptionModalStep2Mode.value = "add";
+      const updateSecondStepModeVisibility = () => {
+        generationOptionModalStep2ModeField.classList.toggle("hidden", !generationOptionModalStep2.value);
+      };
+      generationOptionModalStep2.onchange = updateSecondStepModeVisibility;
+      updateSecondStepModeVisibility();
+      generationOptionModalSave.disabled = false;
+      generationOptionModal.classList.remove("hidden");
+      window.requestAnimationFrame(() => generationOptionModalName.focus());
+
+      generationOptionModalCancel.onclick = () => {
+        generationOptionModal.classList.add("hidden");
+      };
+      generationOptionModalSave.onclick = async () => {
+        const name = String(generationOptionModalName.value || "").trim();
+        const firstStep = normalizeAttributeGenerationMethodType(generationOptionModalStep1.value);
+        const secondStep = normalizeAttributeGenerationMethodType(generationOptionModalStep2.value);
+        const secondMode = normalizeAttributeGenerationApplicationMode(generationOptionModalStep2Mode.value);
+        if (!firstStep) {
+          showToast(t("attrgen.options.step_required", "Choose at least one option step."));
+          return;
+        }
+        const optionSteps = [{ methodType: firstStep, applicationMode: "set" }];
+        if (secondStep) {
+          optionSteps.push({ methodType: secondStep, applicationMode: secondMode });
+        }
+        generationOptions.push({
+          id: `option-${Date.now()}`,
+          name: name || t("attrgen.options.default_name", "Option"),
+          steps: optionSteps,
+        });
+        renderGenerationOptions();
+        generationOptionModal.classList.add("hidden");
+        await syncSelection();
+      };
     });
     document.getElementById("generationOptionList").addEventListener("click", async (event) => {
       const button = event.target.closest("button[data-remove-generation-option]");
@@ -11932,21 +12060,82 @@ async function renderAttributeGeneration() {
       updateDefaultScoreControls();
       await syncSelection();
     });
-    document.getElementById("addDefaultModifier").addEventListener("click", async () => {
-      const score = Number(document.getElementById("defaultModifierScore").value || 0);
-      const modifier = Number(document.getElementById("defaultModifierValue").value || 0);
-      if (!Number.isFinite(score) || !Number.isFinite(modifier)) {
-        showToast(t("attrgen.modifiers.invalid", "Enter a valid modifier."));
-        return;
-      }
-      defaultModifiers.push({ score, modifier });
-      defaultModifiers = normalizeModifierEntries(defaultModifiers);
-      renderDefaultModifiers();
-      await syncSelection();
+    const openDefaultModifierEditor = (index = -1) => {
+      const isEditing = Number.isInteger(index) && index >= 0 && index < defaultModifiers.length;
+      const entry = isEditing ? defaultModifiers[index] : { score: "", modifier: "" };
+      defaultModifierModalTitle.textContent = isEditing
+        ? t("attrgen.modifiers.edit", "Edit Modifier")
+        : t("attributes.edit.modifier.add", "Add Modifier");
+      defaultModifierModalScoreLabel.textContent = t("attrgen.modifiers.starting_score", "Starting Score");
+      defaultModifierModalValueLabel.textContent = t("attributes.edit.modifier.value", "Modifier");
+      defaultModifierModalCancel.textContent = t("common.cancel", "Cancel");
+      defaultModifierModalSave.textContent = isEditing
+        ? t("attrgen.modifiers.save", "Save Modifier")
+        : t("attributes.edit.modifier.add", "Add Modifier");
+      const configuredMinimum = Number.parseInt(document.getElementById("defaultScoreMin").value, 10);
+      const configuredMaximum = Number.parseInt(document.getElementById("defaultScoreMax").value, 10);
+      defaultModifierModalScore.min = Number.isFinite(configuredMinimum) ? String(configuredMinimum) : "";
+      defaultModifierModalScore.max = Number.isFinite(configuredMaximum) ? String(configuredMaximum) : "";
+      defaultModifierModalScore.value = String(entry.score);
+      defaultModifierModalValue.value = String(entry.modifier);
+      defaultModifierModalSave.disabled = false;
+      defaultModifierModal.classList.remove("hidden");
+      window.requestAnimationFrame(() => defaultModifierModalScore.focus());
+
+      defaultModifierModalCancel.onclick = () => {
+        defaultModifierModal.classList.add("hidden");
+      };
+      defaultModifierModalSave.onclick = async () => {
+        const score = Number(defaultModifierModalScore.value || 0);
+        const modifier = Number(defaultModifierModalValue.value || 0);
+        if (!Number.isFinite(score) || !Number.isFinite(modifier)) {
+          showToast(t("attrgen.modifiers.invalid", "Enter a valid modifier."));
+          return;
+        }
+        const scoreRange = readDefaultScoreRange();
+        if (!scoreRange) {
+          return;
+        }
+        const minimumScore = scoreRange.defaultAttributeMinScore;
+        const maximumScore = scoreRange.defaultAttributeMaxScore;
+        if (score < minimumScore || score > maximumScore) {
+          showToast(
+            t("attrgen.modifiers.score_range", "Starting Score must be between {min} and {max}.")
+              .replace("{min}", String(minimumScore))
+              .replace("{max}", String(maximumScore))
+          );
+          return;
+        }
+        const previousModifiers = defaultModifiers.map((item) => ({ ...item }));
+        if (isEditing) {
+          defaultModifiers[index] = { score, modifier };
+        } else {
+          defaultModifiers.push({ score, modifier });
+        }
+        defaultModifiers = normalizeModifierEntries(defaultModifiers);
+        defaultModifierModalSave.disabled = true;
+        if (await syncSelection()) {
+          renderDefaultModifiers();
+          defaultModifierModal.classList.add("hidden");
+        } else {
+          defaultModifiers = previousModifiers;
+          defaultModifierModalSave.disabled = false;
+        }
+      };
+    };
+    document.getElementById("addDefaultModifier").addEventListener("click", () => {
+      openDefaultModifierEditor();
     });
     document.getElementById("defaultModifierList").addEventListener("click", async (event) => {
-      const button = event.target.closest("button[data-remove-default-modifier]");
+      const button = event.target.closest("button[data-edit-default-modifier], button[data-remove-default-modifier]");
       if (!button) {
+        return;
+      }
+      if (button.hasAttribute("data-edit-default-modifier")) {
+        const index = Number(button.dataset.editDefaultModifier);
+        if (Number.isInteger(index) && index >= 0 && index < defaultModifiers.length) {
+          openDefaultModifierEditor(index);
+        }
         return;
       }
       const confirmed = await showConfirm(
@@ -11964,7 +12153,11 @@ async function renderAttributeGeneration() {
       renderDefaultModifiers();
       await syncSelection();
     });
-    document.getElementById("saveDefaultScoreRange").addEventListener("click", syncSelection);
+    document.getElementById("saveDefaultScoreRange").addEventListener("click", async () => {
+      if (await syncSelection()) {
+        renderDefaultModifiers();
+      }
+    });
 
     document.getElementById("backToDice").addEventListener("click", navigateBackInApp);
     document.getElementById("generationContinue").addEventListener("click", async () => {
@@ -12067,32 +12260,12 @@ async function renderStandardArray() {
           </select>
           <p class="field-hint">${escapeHtml(assignmentHelp)}</p>
         </div>
-        <h2>${t("attrgen.arrays.section", "Standard Arrays")}</h2>
-        <div class="grid two">
-          <div class="field" style="${isOpenArray ? "display:none" : ""}">
-            <label>${t("attrgen.arrays.attribute", "Attribute")}</label>
-            <select id="standardAttribute">${attributeOptions}</select>
-          </div>
-          <div class="field">
-            <label>${t("attrgen.arrays.value", "Array Value")}</label>
-            <input type="number" id="standardValue" value="0">
-          </div>
-        </div>
-        <button class="btn" id="addStandard" type="button">${t("attrgen.arrays.add", "Add Value")}</button>
+        <h2 class="collection-editor-heading">${t("attrgen.arrays.section", "Standard Arrays")}</h2>
+        <button class="btn collection-add-button" id="addStandard" type="button">${t("attrgen.arrays.add", "Add Value")}</button>
         <div class="list" id="standardList">${renderList(data.standardArray, "standard") || `<div class="list-item">${t("web.standard_array.none", "No entries yet.")}</div>`}</div>
 
-        <h2>${t("attrgen.arrays.elite.section", "Elite Arrays")}</h2>
-        <div class="grid two">
-          <div class="field" style="${isOpenArray ? "display:none" : ""}">
-            <label>${t("attrgen.arrays.attribute", "Attribute")}</label>
-            <select id="eliteAttribute">${attributeOptions}</select>
-          </div>
-          <div class="field">
-            <label>${t("attrgen.arrays.value", "Array Value")}</label>
-            <input type="number" id="eliteValue" value="0">
-          </div>
-        </div>
-        <button class="btn" id="addElite" type="button">${t("attrgen.arrays.add", "Add Value")}</button>
+        <h2 class="collection-editor-heading">${t("attrgen.arrays.elite.section", "Elite Arrays")}</h2>
+        <button class="btn collection-add-button" id="addElite" type="button">${t("attrgen.arrays.add", "Add Value")}</button>
         <div class="list" id="eliteList">${renderList(data.eliteArray, "elite") || `<div class="list-item">${t("web.standard_array.none", "No entries yet.")}</div>`}</div>
 
         <div class="field">
@@ -12114,28 +12287,57 @@ async function renderStandardArray() {
       </section>
     `;
 
-    document.getElementById("addStandard").addEventListener("click", async () => {
-      const attributeId = isOpenArray ? "" : document.getElementById("standardAttribute").value;
-      const value = Number(document.getElementById("standardValue").value);
-      try {
-        await api("POST", `/api/drafts/${state.draftId}/standard-array/standard`, { attributeId, value });
-        markSaved(t("web.toast.standard_array_updated", "Standard array updated"));
-        renderStandardArray();
-      } catch (error) {
-        showToast(error.message);
-      }
+    const openArrayValueEditor = (target) => {
+      const isElite = target === "elite";
+      const sectionTitle = isElite
+        ? t("attrgen.arrays.elite.section", "Elite Arrays")
+        : t("attrgen.arrays.section", "Standard Arrays");
+      arrayValueModalTitle.textContent = `${t("attrgen.arrays.add", "Add Value")} - ${sectionTitle}`;
+      arrayValueModalAttributeLabel.textContent = t("attrgen.arrays.attribute", "Attribute");
+      arrayValueModalValueLabel.textContent = t("attrgen.arrays.value", "Array Value");
+      arrayValueModalCancel.textContent = t("common.cancel", "Cancel");
+      arrayValueModalSave.textContent = t("attrgen.arrays.add", "Add Value");
+      arrayValueModalAttributeField.classList.toggle("hidden", isOpenArray);
+      arrayValueModalAttribute.innerHTML = attributeOptions;
+      arrayValueModalValue.value = "0";
+      arrayValueModalSave.disabled = false;
+      arrayValueModal.classList.remove("hidden");
+      window.requestAnimationFrame(() => {
+        if (isOpenArray) {
+          arrayValueModalValue.focus();
+        } else {
+          arrayValueModalAttribute.focus();
+        }
+      });
+
+      arrayValueModalCancel.onclick = () => {
+        arrayValueModal.classList.add("hidden");
+      };
+      arrayValueModalSave.onclick = async () => {
+        const attributeId = isOpenArray ? "" : arrayValueModalAttribute.value;
+        const value = Number(arrayValueModalValue.value);
+        arrayValueModalSave.disabled = true;
+        try {
+          await api("POST", `/api/drafts/${state.draftId}/standard-array/${target}`, { attributeId, value });
+          markSaved(t(
+            isElite ? "web.toast.elite_array_updated" : "web.toast.standard_array_updated",
+            isElite ? "Elite array updated" : "Standard array updated"
+          ));
+          arrayValueModal.classList.add("hidden");
+          renderStandardArray();
+        } catch (error) {
+          showToast(error.message);
+          arrayValueModalSave.disabled = false;
+        }
+      };
+    };
+
+    document.getElementById("addStandard").addEventListener("click", () => {
+      openArrayValueEditor("standard");
     });
 
-    document.getElementById("addElite").addEventListener("click", async () => {
-      const attributeId = isOpenArray ? "" : document.getElementById("eliteAttribute").value;
-      const value = Number(document.getElementById("eliteValue").value);
-      try {
-        await api("POST", `/api/drafts/${state.draftId}/standard-array/elite`, { attributeId, value });
-        markSaved(t("web.toast.elite_array_updated", "Elite array updated"));
-        renderStandardArray();
-      } catch (error) {
-        showToast(error.message);
-      }
+    document.getElementById("addElite").addEventListener("click", () => {
+      openArrayValueEditor("elite");
     });
 
     document.querySelectorAll("[data-standard]").forEach((button) => {
@@ -12308,28 +12510,8 @@ async function renderDiceRolling() {
           </div>
         </div>
 
-        <h2>${t("attrgen.dice.section", "Dice Terms")}</h2>
-        <div class="grid two">
-          <div class="field">
-            <label>${t("attrgen.dice.count", "Number of Rolls")}</label>
-            <input type="number" id="diceCount" value="3">
-          </div>
-          <div class="field">
-            <label>${t("attrgen.dice.sides", "Dice Sides")}</label>
-            <select id="diceSides">${diceSideOptions}</select>
-          </div>
-        </div>
-        <div class="grid two">
-          <div class="field">
-            <label for="diceReroll">${t("attrgen.dice.reroll", "Reroll Below")}</label>
-            <input type="number" id="diceReroll" min="0" step="1" value="0">
-          </div>
-          <div class="field">
-            <label for="diceDropLowest">${t("attrgen.dice.drop_lowest", "Drop lowest roll")}</label>
-            <input type="checkbox" id="diceDropLowest">
-          </div>
-        </div>
-        <button class="btn" id="addTerm" type="button">${t("attrgen.dice.add", "Add Dice Term")}</button>
+        <h2 class="collection-editor-heading">${t("attrgen.dice.section", "Dice Terms")}</h2>
+        <button class="btn collection-add-button" id="addTerm" type="button">${t("attrgen.dice.add", "Add Dice Term")}</button>
         <div class="list" id="termList">${terms || `<div class="list-item">${t("web.dice.terms.none", "No terms yet.")}</div>`}</div>
 
         <div class="actions-row">
@@ -12380,39 +12562,60 @@ async function renderDiceRolling() {
       }
     });
 
-    const diceSidesSelect = document.getElementById("diceSides");
-    const diceReroll = document.getElementById("diceReroll");
     const updateRerollMax = () => {
-      const sides = Number(diceSidesSelect.value || 0);
-      diceReroll.max = sides > 0 ? String(sides) : "1000";
-      if (sides > 0 && Number(diceReroll.value || 0) > sides) {
-        diceReroll.value = String(sides);
+      const sides = Number(diceTermModalSides.value || 0);
+      diceTermModalReroll.max = sides > 0 ? String(sides) : "1000";
+      if (sides > 0 && Number(diceTermModalReroll.value || 0) > sides) {
+        diceTermModalReroll.value = String(sides);
       }
     };
-    updateRerollMax();
-    diceSidesSelect.addEventListener("change", updateRerollMax);
 
-    document.getElementById("addTerm").addEventListener("click", async () => {
-      const count = Number(document.getElementById("diceCount").value);
-      const sides = Number(diceSidesSelect.value);
-      if (!sides) {
-        showToast(t("common.die.required", "Select a die size."));
-        return;
-      }
-      const rerollResult = Number(diceReroll.value);
-      const dropLowest = document.getElementById("diceDropLowest").checked;
-      try {
-        await api("POST", `/api/drafts/${state.draftId}/dice-rolling/term`, {
-          count,
-          sides,
-          rerollResult,
-          dropLowest,
-        });
-        markSaved(t("web.toast.dice_term_added", "Dice term added"));
-        renderDiceRolling();
-      } catch (error) {
-        showToast(error.message);
-      }
+    document.getElementById("addTerm").addEventListener("click", () => {
+      diceTermModalTitle.textContent = t("attrgen.dice.add", "Add Dice Term");
+      diceTermModalCountLabel.textContent = t("attrgen.dice.count", "Number of Rolls");
+      diceTermModalSidesLabel.textContent = t("attrgen.dice.sides", "Dice Sides");
+      diceTermModalRerollLabel.textContent = t("attrgen.dice.reroll", "Reroll Below");
+      diceTermModalDropLowestLabel.textContent = t("attrgen.dice.drop_lowest", "Drop lowest roll");
+      diceTermModalCancel.textContent = t("common.cancel", "Cancel");
+      diceTermModalSave.textContent = t("attrgen.dice.add", "Add Dice Term");
+      diceTermModalCount.value = "3";
+      diceTermModalSides.innerHTML = diceSideOptions;
+      diceTermModalReroll.value = "0";
+      diceTermModalDropLowest.checked = false;
+      diceTermModalSave.disabled = false;
+      diceTermModalSides.onchange = updateRerollMax;
+      updateRerollMax();
+      diceTermModal.classList.remove("hidden");
+      window.requestAnimationFrame(() => diceTermModalCount.focus());
+
+      diceTermModalCancel.onclick = () => {
+        diceTermModal.classList.add("hidden");
+      };
+      diceTermModalSave.onclick = async () => {
+        const count = Number(diceTermModalCount.value);
+        const sides = Number(diceTermModalSides.value);
+        if (!sides) {
+          showToast(t("common.die.required", "Select a die size."));
+          return;
+        }
+        const rerollResult = Number(diceTermModalReroll.value);
+        const dropLowest = diceTermModalDropLowest.checked;
+        diceTermModalSave.disabled = true;
+        try {
+          await api("POST", `/api/drafts/${state.draftId}/dice-rolling/term`, {
+            count,
+            sides,
+            rerollResult,
+            dropLowest,
+          });
+          markSaved(t("web.toast.dice_term_added", "Dice term added"));
+          diceTermModal.classList.add("hidden");
+          renderDiceRolling();
+        } catch (error) {
+          showToast(error.message);
+          diceTermModalSave.disabled = false;
+        }
+      };
     });
 
     document.querySelectorAll("#termList button").forEach((button) => {
@@ -12858,33 +13061,13 @@ async function renderCurrency() {
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
         ${renderSystemNameControls(systemName, t("currency.title", "Currency"))}
-        <div class="grid two">
-          <div class="field">
-            <label for="currencyName">${t("currency.name", "Currency Name")}</label>
-            <input type="text" id="currencyName" placeholder="${t("currency.name.placeholder", "e.g., Gold Standard")}">
-          </div>
-          <div class="field">
-            <label for="baseDenomination">${t("currency.base_denom", "Base Denomination")}</label>
-            <input type="text" id="baseDenomination" placeholder="${t("currency.base_denom.placeholder", "e.g., Copper")}" value="">
-          </div>
-        </div>
-        <button class="btn" id="addCurrency" type="button">${t("currency.add", "Add Currency")}</button>
+        <button class="btn collection-add-button" id="addCurrency" type="button">${t("currency.add", "Add Currency")}</button>
         <div class="list" id="currencyList">
           ${currencyList || `<div class="list-item">${t("currency.none", "No currencies yet.")}</div>`}
         </div>
 
-        <h2>${t("currency.denom.section", "Denominations")}</h2>
-        <div class="grid two">
-          <div class="field">
-            <label for="denomName">${t("currency.denom.name", "Denomination")}</label>
-            <input type="text" id="denomName" placeholder="${t("currency.denom.placeholder", "e.g., Silver")}">
-          </div>
-          <div class="field">
-            <label for="denomValue">${t("currency.denom.value", "Value")}</label>
-            <input type="number" id="denomValue" value="1" step="0.01" min="0.01">
-          </div>
-        </div>
-        <button class="btn" id="addDenom" type="button">${t("currency.denom.add", "Add Denomination")}</button>
+        <h2 class="collection-editor-heading">${t("currency.denom.section", "Denominations")}</h2>
+        <button class="btn collection-add-button" id="addDenom" type="button">${t("currency.denom.add", "Add Denomination")}</button>
         <div class="list" id="denomList">
           ${denomList || `<div class="list-item">${t("currency.denom.none", "No denominations yet.")}</div>`}
         </div>
@@ -12941,24 +13124,43 @@ async function renderCurrency() {
       </section>
     `;
 
-    document.getElementById("addCurrency").addEventListener("click", async () => {
-      const name = document.getElementById("currencyName").value.trim();
-      const baseDenomination = document.getElementById("baseDenomination").value.trim();
-      if (!name) {
-        showToast(t("common.name.required", "Name is required."));
-        return;
-      }
-      try {
-        const result = await api("POST", `/api/drafts/${state.draftId}/currencies`, {
-          name,
-          baseDenomination,
-        });
-        state.currencyId = result.id || "";
-        markSaved(t("web.toast.currency_added", "Currency added"));
-        renderCurrency();
-      } catch (error) {
-        showToast(error.message);
-      }
+    document.getElementById("addCurrency").addEventListener("click", () => {
+      currencyCreateModalTitle.textContent = t("currency.add", "Add Currency");
+      currencyCreateModalNameLabel.textContent = t("currency.name", "Currency Name");
+      currencyCreateModalName.placeholder = t("currency.name.placeholder", "e.g., Gold Standard");
+      currencyCreateModalName.value = "";
+      currencyCreateModalBaseLabel.textContent = t("currency.base_denom", "Base Denomination");
+      currencyCreateModalBase.placeholder = t("currency.base_denom.placeholder", "e.g., Copper");
+      currencyCreateModalBase.value = "";
+      currencyCreateModalCancel.textContent = t("common.cancel", "Cancel");
+      currencyCreateModalSave.textContent = t("currency.add", "Add Currency");
+      currencyCreateModalSave.disabled = false;
+      currencyCreateModal.classList.remove("hidden");
+      currencyCreateModalName.focus();
+
+      currencyCreateModalCancel.onclick = () => currencyCreateModal.classList.add("hidden");
+      currencyCreateModalSave.onclick = async () => {
+        const name = currencyCreateModalName.value.trim();
+        const baseDenomination = currencyCreateModalBase.value.trim();
+        if (!name) {
+          showToast(t("common.name.required", "Name is required."));
+          return;
+        }
+        currencyCreateModalSave.disabled = true;
+        try {
+          const result = await api("POST", `/api/drafts/${state.draftId}/currencies`, {
+            name,
+            baseDenomination,
+          });
+          state.currencyId = result.id || "";
+          markSaved(t("web.toast.currency_added", "Currency added"));
+          currencyCreateModal.classList.add("hidden");
+          renderCurrency();
+        } catch (error) {
+          showToast(error.message);
+          currencyCreateModalSave.disabled = false;
+        }
+      };
     });
 
     document.querySelectorAll("[data-select-currency]").forEach((button) => {
@@ -12991,32 +13193,50 @@ async function renderCurrency() {
       });
     });
 
-    document.getElementById("addDenom").addEventListener("click", async () => {
+    document.getElementById("addDenom").addEventListener("click", () => {
       if (!state.currencyId) {
         showToast(t("web.toast.currency_select_required", "Select a currency first."));
         return;
       }
-      const name = document.getElementById("denomName").value.trim();
-      const value = Number(document.getElementById("denomValue").value);
-      if (!name) {
-        showToast(t("common.name.required", "Name is required."));
-        return;
-      }
-      if (!(value > 0)) {
-        showToast(t("web.toast.denom_value_positive", "Denomination value must be positive."));
-        return;
-      }
-      try {
-        await api("POST", `/api/drafts/${state.draftId}/currencies/denominations`, {
-          currencyId: state.currencyId,
-          name,
-          value,
-        });
-        markSaved(t("web.toast.denom_added", "Denomination added"));
-        renderCurrency();
-      } catch (error) {
-        showToast(error.message);
-      }
+      denominationCreateModalTitle.textContent = t("currency.denom.add", "Add Denomination");
+      denominationCreateModalNameLabel.textContent = t("currency.denom.name", "Denomination");
+      denominationCreateModalName.placeholder = t("currency.denom.placeholder", "e.g., Silver");
+      denominationCreateModalName.value = "";
+      denominationCreateModalValueLabel.textContent = t("currency.denom.value", "Value");
+      denominationCreateModalValue.value = "1";
+      denominationCreateModalCancel.textContent = t("common.cancel", "Cancel");
+      denominationCreateModalSave.textContent = t("currency.denom.add", "Add Denomination");
+      denominationCreateModalSave.disabled = false;
+      denominationCreateModal.classList.remove("hidden");
+      denominationCreateModalName.focus();
+
+      denominationCreateModalCancel.onclick = () => denominationCreateModal.classList.add("hidden");
+      denominationCreateModalSave.onclick = async () => {
+        const name = denominationCreateModalName.value.trim();
+        const value = Number(denominationCreateModalValue.value);
+        if (!name) {
+          showToast(t("common.name.required", "Name is required."));
+          return;
+        }
+        if (!(value > 0)) {
+          showToast(t("web.toast.denom_value_positive", "Denomination value must be positive."));
+          return;
+        }
+        denominationCreateModalSave.disabled = true;
+        try {
+          await api("POST", `/api/drafts/${state.draftId}/currencies/denominations`, {
+            currencyId: state.currencyId,
+            name,
+            value,
+          });
+          markSaved(t("web.toast.denom_added", "Denomination added"));
+          denominationCreateModal.classList.add("hidden");
+          renderCurrency();
+        } catch (error) {
+          showToast(error.message);
+          denominationCreateModalSave.disabled = false;
+        }
+      };
     });
 
     document.querySelectorAll("[data-remove-denom]").forEach((button) => {

@@ -342,8 +342,33 @@ body.mode-chargen .step-indicator {
   color: var(--ink-soft);
 }
 
-.home-choice-prompt {
-  font-weight: 600;
+.home-action-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 22px;
+  align-items: start;
+}
+
+.home-action-group {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.home-action-group-heading {
+  min-height: 92px;
+}
+
+.home-action-group h2,
+.home-action-group h3 {
+  margin: 0 0 8px;
+}
+
+.home-action-group-heading p {
+  margin-bottom: 16px;
 }
 
 .home-primary-actions {
@@ -351,12 +376,31 @@ body.mode-chargen .step-indicator {
   flex-direction: column;
   align-items: stretch;
   gap: 12px;
-  width: min(320px, 100%);
+  width: 100%;
+}
+
+.home-primary-actions .btn {
+  width: 100%;
+}
+
+.home-save-capacity {
+  margin-top: 12px;
+  color: var(--ink-soft);
+  font-size: calc(13px + var(--font-size-adjust));
+  line-height: 1.4;
 }
 
 .home-character-upload-actions {
-  margin-top: 24px;
-  width: min(320px, 100%);
+  margin-top: 16px;
+  padding: 16px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(47, 111, 97, 0.08);
+}
+
+.home-character-upload-actions h3 {
+  margin: 0 0 12px;
 }
 
 .home-character-upload-actions .btn {
@@ -428,6 +472,18 @@ input[type="file"] {
 textarea {
   min-height: 100px;
   resize: vertical;
+}
+
+.game-description-input {
+  overflow-y: auto;
+}
+
+.time-units-title,
+.time-unit-add-button,
+.custom-range-add-button,
+.collection-editor-heading,
+.collection-add-button {
+  margin-bottom: 12px;
 }
 
 .nda-scroll-box {
@@ -534,6 +590,19 @@ textarea {
   opacity: 0.48;
 }
 
+.btn.is-limit-reached {
+  cursor: pointer;
+  opacity: 1;
+  background: transparent;
+  border: 1px dashed rgba(31, 27, 23, 0.35);
+  color: var(--ink-soft);
+}
+
+.btn.is-limit-reached::before {
+  content: "🔒";
+  margin-right: 7px;
+}
+
 .saved-drafts {
   margin-top: 24px;
 }
@@ -550,8 +619,14 @@ textarea {
   margin: 0;
 }
 
+.saved-characters-header {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
 .saved-drafts-list {
-  max-height: 300px;
+  max-height: none;
+  overflow: visible;
 }
 
 .saved-draft-item {
@@ -584,6 +659,17 @@ textarea {
   flex: 0 0 auto;
   flex-wrap: nowrap;
   justify-content: flex-end;
+}
+
+.home-action-group .saved-draft-top-row {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.home-action-group .saved-draft-actions {
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: flex-start;
 }
 
 .admin-summary {
@@ -631,6 +717,32 @@ textarea {
 
 .account-danger-zone h2 {
   margin: 0 0 8px;
+}
+
+.account-settings {
+  margin-top: 28px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+}
+
+.account-settings summary {
+  width: fit-content;
+  cursor: pointer;
+  font-size: calc(14px + var(--font-size-adjust));
+  font-weight: 600;
+}
+
+.account-settings-content {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid rgba(166, 92, 70, 0.25);
+  border-radius: 14px;
+  background: rgba(166, 92, 70, 0.05);
+}
+
+.account-settings-content .btn {
+  margin-top: 4px;
 }
 
 .actions-row {
@@ -781,5 +893,19 @@ textarea {
   }
   .view {
     padding: 20px;
+  }
+}
+
+@media (max-width: 760px) {
+  .home-action-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .home-action-group-heading {
+    min-height: 0;
+  }
+
+  .home-action-group {
+    padding: 18px;
   }
 }

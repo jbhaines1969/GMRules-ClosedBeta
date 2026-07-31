@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-07-29
+Updated: 2026-08-01
 
 ## Beta Launch Blockers
 
@@ -31,10 +31,10 @@ Updated: 2026-07-29
 - [x] Preserve tester context in feedback payloads: account email/id, draft id, current stage, browser user agent, timestamp, and severity.
 - [x] Decide whether sessions being invalidated on restart is acceptable for closed beta.
 - [x] Add admin-only current logged-in user/session visibility for deploy timing.
-- 
 
 ## UI Polish
 
+- [ ] Consider adding a separate short ruleset summary field to Game Setup for compact surfaces such as Open/manage saved rulesets; keep the full Game Description for detailed ruleset introductions.
 - [ ] Refactor every ruleset element Description field, including screen-level mechanic descriptions, for formatted-text entry and preserve the formatting through Java model members, `.gmrf` serialization/import, and descendant-application rendering. Keep existing plain-text files compatible and choose a safely renderable storage format before implementation.
 - [ ] Add early tutorial guidance explaining that Describe This Section contains creator-authored copy for users of descendant applications and is distinct from internal GMRules guidance.
 - [ ] Review all Rules Builder stages and identify which screens do not need a Describe This Section editor; keep it visible everywhere until that review is complete.
@@ -49,12 +49,13 @@ Updated: 2026-07-29
 - [x] Simplify Armor Class method entry to required base AC plus optional AC attribute; remove gear-based/base-plus method selections from the web screen, Swing screen, API, and core model.
 - [x] Add Damage Types before Statuses/Effects/Equipment so effects, spells, equipment, weapons, and armor can carry an optional damage type reference.
 - [x] Sort Attribute Generation default modifiers and per-Attribute modifier lists ascending by attribute score on render and refresh.
+- [x] Establish the collection-editor pattern and apply its first batch: remove persistent creation fields from Time Units, custom Dice Ranges, Attribute Generation Player Options and Default Modifiers, Standard/Elite Array values, Dice Rolling Dice Terms, and Currency Currencies/Denominations; retain page settings inline and share identical Add/Edit modals where applicable.
+- [x] Present Attribute Generation Default Modifiers as derived score ranges while retaining threshold storage; reuse the Add modal for Edit and reject starting thresholds outside the configured score limits.
 - [ ] Tighten modal layout for dense edit forms.
 - [ ] Review button hierarchy and action color usage.
 - [ ] Verify mobile behavior for the stage sidebar, lists, long labels, and form grids.
 - [ ] Review all user-facing copy for beta tone and consistency.
 - [x] Verify French strings are either complete enough for beta or intentionally hidden.
-- 
 
 ## Character Generation
 
@@ -76,7 +77,7 @@ Updated: 2026-07-29
 - [x] Show explicit empty-system messages on character Race, Class, and Spell screens when the ruleset has no entries.
 - [x] Add player-choice handling for rulesets that allow multiple attribute generation methods, such as Dice Rolling or Standard Array.
 - [x] Add Attribute Generation player-option recipes so creators can model either/or options and additive sequences like Standard Array plus Dice or Standard Array plus Point Buy; derive active methods directly from option steps instead of separate checkboxes.
-- [x] Confirm the Attribute Generation player-option recipe controls record the intended builder mechanics; UI cleanup remains deferred until after character-generation smoke testing.
+- [x] Confirm the Attribute Generation player-option recipe controls record the intended builder mechanics and complete the first modal-based collection cleanup for Player Options.
 - [ ] Consider hiding character Race, Class, and Spell screens entirely when the ruleset has no entries, instead of showing an informational screen.
 - [ ] Character file AC cleanup: ensure final character data keeps resolved AC, armor replacement AC values, and armor/shield AC modifiers distinct so games where armor changes the base AC do not collapse into modifier-only math.
 - [ ] Manually enter the Cities Without Number ruleset from the included CL-Open SRD and note builder workflow weaknesses found during entry.

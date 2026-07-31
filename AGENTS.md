@@ -8,6 +8,7 @@ Before making changes, read these root files:
 - `PROJECT_NOTES.md`
 - `TODO.md`
 - `PROJECT_STRUCTURE.md`
+- `PRODUCT_DESIGN_CONTEXT.md` for product-design, UX, workflow, information-hierarchy, or user-facing-copy work.
 - `USER.md` if it exists locally. It is ignored by Git and contains user-specific collaboration preferences.
 
 Treat `AGENT_HANDOFF.md` as the primary recovery file for any new Codex/ChatGPT agent joining mid-stream.
@@ -22,6 +23,8 @@ Treat `AGENT_HANDOFF.md` as the primary recovery file for any new Codex/ChatGPT 
 ## Operating Rules
 
 - Keep edits scoped to the user's request.
+- Do not use the in-app browser for UI verification in this repository. John performs visual acceptance through the local launcher and screenshots because usability, clarity, and human-friendliness require his review. Continue running applicable code, syntax, build, and non-visual checks before handing UI work back for that smoke.
+- Always stop verification servers and their launcher processes before completing a task. Confirm that any ports opened for verification, including local port 8080, are free before handing the task back to John.
 - When giving commands for the Digital Ocean web console, assume the user is already logged in as `root`; do not add `sudo` unless the user says they are using a non-root shell.
 - Update `PROJECT_STRUCTURE.md` whenever adding, deleting, or moving tracked files.
 - Update `AGENT_HANDOFF.md` when status, launch priorities, deployment assumptions, active blockers, or the recommended next starting point changes. At end of session, make sure it points to where the next agent should resume, not just where this session began.

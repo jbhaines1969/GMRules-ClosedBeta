@@ -1,6 +1,6 @@
 # GMRules Closed Beta Project Notes
 
-Updated: 2026-07-29
+Updated: 2026-08-01
 
 ## Current Status
 
@@ -81,10 +81,10 @@ Ruleset builder:
 - Logged-in users can start character creation directly from a saved server-side ruleset without uploading a local `.gmrf` file.
 - Builder stages for setup, measurements, dice, attribute generation, attribute types, attributes, standard arrays, dice rolling, point buy, hit points, armor class, currency, effect types, damage types, statuses, effects, equipment, weapons, skills, spells, pantheons, deities, races, and classes. Attribute Generation appears before Attribute Types/Attributes so default score limits and shared modifiers can guide attribute creation; the selected generation detail screens remain after Attributes because they can depend on the finished attribute list.
 - Attribute Generation now has player-option recipes on `Game`: each option is exclusive, and each option can contain ordered steps that set, add to, or spend from attribute scores. The standalone method checkboxes were removed; methods selected in option steps now derive the stored single/hybrid method state and control which detail screens apply. Existing legacy settings still derive default options until the option-based configuration is saved.
-- Attribute Generation places the Add Option controls above the existing option list, matching the input-then-results flow used elsewhere.
+- Attribute Generation keeps Player Options as the primary collection and opens a focused Add Option modal instead of leaving blank option fields visible. Second Step Applies is hidden while Second Step is None.
 - Attribute Generation Info now uses five paragraph-level resources to explain what attributes represent, how their values affect play, the distinction between broad attributes and specific skills, and the six-screen flow through method selection, optional categories, attributes, and the three method-specific data-entry screens.
 - Attribute Generation's second Info page explains option names, player choices, ordered steps, Standard Array, Dice Rolling, Point Buy, and the Set/Add/Spend application modes through paragraph-level resources.
-- Attribute modifier lists now render in ascending score order in both Attribute Generation default modifiers and per-Attribute modifier editing, including immediately after add/remove and after API refresh.
+- Attribute modifier lists render in ascending score order. Attribute Generation Default Modifiers retain the stored threshold model but display effective score ranges; Add and Edit share a modal whose Starting Score is constrained to the configured score limits, and saving re-sorts thresholds and recalculates every displayed range.
 - Armor Class method entry now uses a required base armor class plus optional AC attribute. The old gear-based/base-plus method selections were removed from the web screen, Swing screen, API payloads, and core model during Cities Without Number data entry.
 - Damage Types are now registry-backed ruleset elements with name and description. Effects, spells, equipment, weapons, and armor can carry an optional damage type reference, which gives later armor/resistance automation a clean data hook without adding special gear-based HP/AC paths now.
 - Stage completion is tracked in the `Game` object.
@@ -145,19 +145,25 @@ UX and copy:
 - The tutorial modal supports multiple pages with Back, Next, and Done controls while retaining single-page behavior for informational alerts. All 24 Rules Builder screens use page one for conceptual introduction and page two for paragraph-level practical guidance covering that screen's fields and actions. Hit Points page one gives a fuller explanation of what Hit Points represent, their damage/recovery role during play, and how their scale influences the game's tone.
 - Hit Point Attribute modifiers are system-agnostic. `HPMethod` stores the selected Attribute ID, the web screen offers all draft Attributes plus None, and the negative-modifier setting applies to whichever Attribute was selected. Legacy serialized rulesets that enabled the old Constitution flag automatically link an existing Attribute named Constitution during load.
 - Rules Builder smoke passed for the Hit Points Attribute selector on 2026-07-29, including legacy Constitution migration and changing the selected Attribute followed by reopening the screen. Character-generator consumption remains a separate later smoke.
-- The Home screen's four-paragraph introductory explanation lives in its tutorial modal; it now explains optional builder sections, downstream application use of the ruleset description, and the "You make the rules, we make the tools" product promise. The action-oriented choice prompt remains inline.
+- The current state through the all-screen tutorial guidance and system-agnostic Hit Points Attribute Modifier was pushed and deployed on 2026-07-29. Hosted smoke for that deployment has not yet been reported.
+- The home dashboard now presents Rulesets and Characters as responsive action groups, keeps online ruleset capacity visible, preserves interactive limit explanations at full capacity, moves deletion under collapsed Account settings, and hides the redundant Home header action while already on Home. This pass passed Maven packaging and diff checks, then John visually reviewed and accepted it on 2026-07-30.
+- The Home screen's four-paragraph introductory explanation lives in its tutorial modal; it explains optional builder sections, downstream application use of the ruleset description, and the "You make the rules, we make the tools" product promise. The redundant inline choice/marketing prompt has been removed.
 - A Rules Builder draft shows the full sidebar only after Game Setup has been saved with a nonblank game name; first-visit tutorial tracking no longer controls navigation visibility. The whole panel stays hidden on the splash and incomplete Setup screens.
-- Game Setup provides a 25-row description field for longer ruleset summaries.
+- Game Setup provides a 15-row description field with internal scrolling for longer ruleset summaries.
 - Game Setup Info begins by stating that two Game rule files are saved to an account at a time, keeping the closed-beta save limit visible at the start of the builder.
 - Weights & Measures Info now separately explains the Metric/Imperial default and how to customize the standard time-unit set, including the intended distinction between rounds and turns.
 - Existing time units can be edited in place through a compact three-field modal for unit name, amount, and base unit; users no longer need to remove and recreate them.
+- The accepted collection-editor convention is heading, modest spacing, left-aligned Add button, then the collection. Time Units, custom Dice Ranges, Attribute Generation Player Options and Default Modifiers, Standard and Elite Array values, Dice Rolling Dice Terms, and Currency Currencies and Denominations now use focused Add modals rather than persistent blank creation fields. Standard and Elite values share a parameterized modal; page-level settings remain inline. Pantheons, Deities, and Skills progression were intentionally excluded from this first batch.
 - Home now presents three vertically aligned ruleset actions: Start New Ruleset, Open/Manage saved rulesets, and Upload Rule File. The saved-ruleset list is revealed on demand; when opened through Create/Edit Character, its Open and Delete Save actions are hidden so only character-oriented choices remain.
 - At the two-ruleset account limit, Start New Ruleset and Upload Rule File remain visibly unavailable but open an explanatory limit modal when selected.
 - Home includes a Create/Edit Character action. It reveals saved rulesets, saved characters, and character-file upload controls when rulesets exist; otherwise its unavailable state opens a Ruleset Required explanation.
 - Open/Manage saved rulesets and Create/Edit Character are one-way reveal/context-switch actions, not visibility toggles; selecting the active action again leaves its content visible.
-- Saved-ruleset cards keep the game name and all actions in one fixed top row, with description and last-saved details flowing beneath.
+- Saved-ruleset cards keep the game name and all actions in one fixed top row. The full Game Description is omitted from this compact management surface; a possible separate short summary is deferred in `TODO.md`.
+- The Text size control defaults to its center option, saved-ruleset management grows to its content instead of scrolling internally, and the Saved Characters capacity message has its own line at larger text sizes.
+- Empty character management directs users to choose a saved ruleset or upload a character file; the upload callout is headed Continue from a file and uses the Upload character file action.
+- John visually accepted the complete 2026-08-01 UI cleanup session, including the first collection-editor batch and Default Modifier range/edit/validation follow-ups.
 - The visual style is serviceable for PoC, but mobile layout, modal density, button hierarchy, and closed-beta onboarding copy need polish.
-- Broader UI polish is intentionally waiting for beta feedback so effort goes to awkward spots testers actually notice.
+- Broader UI polish is driven by real rules entry and beta feedback so effort goes to awkward spots creators actually encounter; accepted batches should not be reopened without new evidence.
 - The character generator now reaches armor selection and final `.gmcf` download, but still needs hosted smoke testing with a complete real ruleset.
 
 ## Best Path Forward
