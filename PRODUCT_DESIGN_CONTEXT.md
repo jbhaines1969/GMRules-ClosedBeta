@@ -58,6 +58,7 @@ Character files use `.gmcf`. The web app currently keeps a lightweight character
 8. **Design for real rules entry.** Repeated forms, ordering, terminology, and dependency management must remain usable while entering a complete real-world system—not only in isolated demos.
 
 9. **Collections remain the primary content.** A collection editor should show its heading, modest spacing, a left-aligned Add action, and the existing items. Blank creation fields should not remain visible while the creator is only reviewing the collection. Add and existing Edit actions should share a focused modal when their fields are the same; page-level mechanic settings remain inline.
+10. **Save at the natural commitment point.** Short, single-value page settings save when changed and do not need Apply/Save buttons. Longer creator-authored mechanic descriptions save when their disclosure closes or the creator continues, avoiding per-keystroke monitoring while preserving the draft before navigation.
 
 ## Main User Journeys
 
@@ -77,7 +78,7 @@ A creator starts, opens, or imports a ruleset. **Game Setup** establishes the re
 
 The current flow covers:
 
-Game Setup; Measurements; Dice Options; Attribute Generation; Attribute Categories; Attributes; Standard Arrays; Dice Rolling; Points Buy; Hit Points; Armor Class; Currency; Effect Types; Damage Types; Statuses; Effects; Equipment; Weapons; Skills; Spells; Pantheons; Deities; Races; and Classes.
+Game Setup; Measurements; Dice Options; Attribute Categories; Attributes; Attribute Generation; Standard Arrays; Dice Rolling; Points Buy; Hit Points; Armor Class; Currency; Effect Types; Damage Types; Statuses; Effects; Equipment; Weapons; Skills; Spells; Pantheons; Deities; Races; and Classes.
 
 The order establishes reusable concepts before content that references them. Attribute-generation detail screens follow Attributes because they may depend on the completed list. Damage Types precede Effects and gear so later entries can reference them.
 

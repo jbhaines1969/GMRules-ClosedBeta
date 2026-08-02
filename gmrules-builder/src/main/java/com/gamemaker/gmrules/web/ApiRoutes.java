@@ -89,9 +89,9 @@ public final class ApiRoutes {
         "setup",
         "measurements",
         "dice",
-        "attribute-generation",
         "attribute-types",
         "attributes",
+        "attribute-generation",
         "standard-array",
         "dice-rolling",
         "points-buy",
@@ -223,11 +223,11 @@ public final class ApiRoutes {
         router.add("DELETE", "/api/drafts/{id}/standard-array/standard", ApiRoutes::removeStandardArray);
         router.add("POST", "/api/drafts/{id}/standard-array/elite", ApiRoutes::addEliteArray);
         router.add("DELETE", "/api/drafts/{id}/standard-array/elite", ApiRoutes::removeEliteArray);
+        router.add("POST", "/api/drafts/{id}/standard-array/assignment", ApiRoutes::assignStandardArrayEntry);
         router.add("POST", "/api/drafts/{id}/standard-array/default", ApiRoutes::setDefaultArrayType);
 
         router.add("GET", "/api/drafts/{id}/dice-rolling", ApiRoutes::getDiceRolling);
         router.add("POST", "/api/drafts/{id}/dice-rolling/sets", ApiRoutes::updateDiceSets);
-        router.add("POST", "/api/drafts/{id}/dice-rolling/method", ApiRoutes::updateDiceMethod);
         router.add("POST", "/api/drafts/{id}/dice-rolling/substitution", ApiRoutes::updateDiceSubstitution);
         router.add("POST", "/api/drafts/{id}/dice-rolling/term", ApiRoutes::addDiceTerm);
         router.add("DELETE", "/api/drafts/{id}/dice-rolling/term", ApiRoutes::removeDiceTerm);
@@ -2480,7 +2480,6 @@ public final class ApiRoutes {
             response.put("hybridStages", safeList(method.getArray(ARRAY_HYBRID)));
             response.put("attributeGenerationOptions", serializeAttributeGenerationOptions(game.getAttributeGenerationOptions()));
             response.put("numberOfSets", method.getNumberOfSets());
-            response.put("setSelectionMethod", Objects.toString(method.getSetSelectionMethod(), ""));
             response.put("assignInOrder", method.isAssignInOrder());
             response.put("baseAttributeValue", method.getBaseAttributeValue());
             response.put("minAttributeValue", method.getMinAttributeValue());
@@ -2683,6 +2682,73 @@ public final class ApiRoutes {
         ctx.json(200, Map.of("ok", true));
     }
 
+    private static void assignStandardArrayEntry(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensureStandardArrayEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        String target = getString(body, "target").trim().toLowerCase();
+        String entry = getString(body, "entry").trim();
+        String attributeId = getString(body, "attributeId").trim();
+        String arrayName;
+        if ("standard".equals(target)) {
+            arrayName = "standardArrays";
+        } else if ("elite".equals(target)) {
+            arrayName = "eliteArrays";
+        } else {
+            ctx.json(400, Map.of("error", "Choose a valid array type."));
+            return;
+        }
+        if (entry.isEmpty() || attributeId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Choose an Attribute for this array value."));
+            return;
+        }
+
+        boolean[] updated = {false};
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            if (isOpenStandardArray(method)) {
+                return;
+            }
+            Attribute attribute = game.getElement("attributes", attributeId);
+            if (attribute == null) {
+                return;
+            }
+            String attributeName = Objects.toString(attribute.getName(), "").trim();
+            if (attributeName.isEmpty()) {
+                return;
+            }
+            ArrayList<String> entries = method.getArray(arrayName);
+            int entryIndex = entries.indexOf(entry);
+            if (entryIndex < 0) {
+                return;
+            }
+            String rawValue = entry;
+            int separator = entry.indexOf('=');
+            if (separator >= 0 && separator < entry.length() - 1) {
+                rawValue = entry.substring(separator + 1).trim();
+            }
+            try {
+                Integer.parseInt(rawValue);
+            } catch (NumberFormatException ignored) {
+                return;
+            }
+            entries.set(entryIndex, attributeName + "=" + rawValue);
+            method.replaceArray(arrayName, entries);
+            updated[0] = true;
+        });
+        if (!updated[0]) {
+            ctx.json(400, Map.of("error", "That array value could not be assigned. Refresh and try again."));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
     private static void setDefaultArrayType(RequestContext ctx) throws IOException {
         SessionStore.Session session = requireSession(ctx);
         if (session == null) {
@@ -2725,10 +2791,11 @@ public final class ApiRoutes {
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("diceRollingEnabled", isDiceRollingEnabled(method));
             response.put("numberOfSets", method.getNumberOfSets());
-            response.put("setSelectionMethod", Objects.toString(method.getSetSelectionMethod(), ""));
             response.put("allowDiceSubstitution", method.isAllowDiceSubstitution());
             response.put("diceSubstitutionValue", method.getDiceSubstitutionValue());
             response.put("maxDiceSubstitutions", method.getMaxDiceSubstitutions());
+            response.put("defaultAttributeMinScore", game.getDefaultAttributeMinScore());
+            response.put("defaultAttributeMaxScore", game.getDefaultAttributeMaxScore());
             response.put("diceUsed", new ArrayList<>(game.getDiceUsed()));
             List<Map<String, Object>> terms = new ArrayList<>();
             for (AttributeGenerationMethod.DiceTerm term : method.getDiceTerms()) {
@@ -2756,28 +2823,10 @@ public final class ApiRoutes {
             return;
         }
         Map<String, Object> body = ctx.readJsonMap();
-        int sets = getInt(body, "numberOfSets", 0);
+        int sets = Math.max(0, getInt(body, "numberOfSets", 0));
         ctx.getDraftStore().updateDraft(draftId, game -> {
             AttributeGenerationMethod method = game.getAttributeGenerationMethod();
             method.setNumberOfSets(sets);
-        });
-        ctx.json(200, Map.of("ok", true));
-    }
-
-    private static void updateDiceMethod(RequestContext ctx) throws IOException {
-        SessionStore.Session session = requireSession(ctx);
-        if (session == null) {
-            return;
-        }
-        String draftId = ctx.pathParam("id");
-        if (!ensureDiceRollingEnabled(ctx, draftId)) {
-            return;
-        }
-        Map<String, Object> body = ctx.readJsonMap();
-        String selectionMethod = getString(body, "setSelectionMethod");
-        ctx.getDraftStore().updateDraft(draftId, game -> {
-            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
-            method.setSetSelectionMethod(selectionMethod.trim());
         });
         ctx.json(200, Map.of("ok", true));
     }
@@ -2793,8 +2842,23 @@ public final class ApiRoutes {
         }
         Map<String, Object> body = ctx.readJsonMap();
         boolean allowDiceSubstitution = getBoolean(body, "allowDiceSubstitution", false);
-        int diceSubstitutionValue = Math.max(0, getInt(body, "diceSubstitutionValue", 14));
+        int diceSubstitutionValue = getInt(body, "diceSubstitutionValue", 14);
         int maxDiceSubstitutions = Math.max(0, getInt(body, "maxDiceSubstitutions", 1));
+        int[] defaultScoreRange = ctx.getDraftStore().readDraft(
+            draftId,
+            game -> new int[] { game.getDefaultAttributeMinScore(), game.getDefaultAttributeMaxScore() }
+        );
+        int minimumScore = defaultScoreRange[0];
+        int maximumScore = defaultScoreRange[1];
+        boolean hasDefaultScoreRange = minimumScore != 0 || maximumScore != 0;
+        if (hasDefaultScoreRange
+            && (diceSubstitutionValue < minimumScore || diceSubstitutionValue > maximumScore)) {
+            ctx.json(400, Map.of(
+                "error",
+                "Substitution value must be between " + minimumScore + " and " + maximumScore
+            ));
+            return;
+        }
         ctx.getDraftStore().updateDraft(draftId, game -> {
             AttributeGenerationMethod method = game.getAttributeGenerationMethod();
             method.setAllowDiceSubstitution(allowDiceSubstitution);

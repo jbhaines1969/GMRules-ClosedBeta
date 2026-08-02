@@ -12,3 +12,6 @@ server-data/
 drafts/
 .local-dev/
 *.gmrf
+
+# Agent-created local verification tests use this suffix and are never published.
+**/src/test/**/*LocalTest.java

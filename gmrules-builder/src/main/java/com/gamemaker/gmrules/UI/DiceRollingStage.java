@@ -31,7 +31,6 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextArea;
-import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.UIManager;
@@ -51,7 +50,6 @@ public class DiceRollingStage extends JPanel implements StageView {
     private static final int DICE_COUNT_MAX = 100;
     private static final int DICE_SIDES_MAX = 1000;
     private static final int SETS_MAX = 100;
-    private static final int NAME_FIELD_COLUMNS = 24;
     private static final int REROLL_RESULT_MIN = 0;
 
     private final JLabel titleLabel = new JLabel();
@@ -59,9 +57,6 @@ public class DiceRollingStage extends JPanel implements StageView {
     private final JLabel setsLabel = new JLabel();
     private final JLabel setsCountLabel = new JLabel();
     private final JSpinner setsCountSpinner = new JSpinner(new SpinnerNumberModel(0, 0, SETS_MAX, 1));
-    private final JLabel setsMethodLabel = new JLabel();
-    private final JTextField setsMethodField = new JTextField();
-    private final JButton setsMethodApplyButton = new JButton();
 
     private final JLabel diceSectionLabel = new JLabel();
     private final JLabel substitutionSectionLabel = new JLabel();
@@ -118,8 +113,6 @@ public class DiceRollingStage extends JPanel implements StageView {
         introArea.setText(Localization.get("attrgen.dice.intro"));
         setsLabel.setText(Localization.get("attrgen.sets.section"));
         setsCountLabel.setText(Localization.get("attrgen.sets.count"));
-        setsMethodLabel.setText(Localization.get("attrgen.sets.method"));
-        setsMethodApplyButton.setText(Localization.get("attrgen.sets.apply"));
 
         diceSectionLabel.setText(Localization.get("attrgen.dice.section"));
         substitutionSectionLabel.setText(Localization.get("attrgen.dice.substitution.section"));
@@ -158,9 +151,6 @@ public class DiceRollingStage extends JPanel implements StageView {
 
         diceTermList.setVisibleRowCount(LIST_VISIBLE_ROWS);
         diceTermList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-
-        setsMethodField.setColumns(NAME_FIELD_COLUMNS);
-        EntryInputHandler.selectAllOnFocus(setsMethodField);
 
         DefaultListCellRenderer renderer = new DefaultListCellRenderer();
         diceTermList.setCellRenderer((list, value, index, isSelected, cellHasFocus) -> {
@@ -210,9 +200,6 @@ public class DiceRollingStage extends JPanel implements StageView {
         contentPanel.add(Box.createVerticalStrut(6));
         setsPanel.add(setsCountLabel);
         setsPanel.add(setsCountSpinner);
-        setsPanel.add(setsMethodLabel);
-        setsPanel.add(setsMethodField);
-        setsPanel.add(setsMethodApplyButton);
         contentPanel.add(setsPanel);
         contentPanel.add(Box.createVerticalStrut(16));
 
@@ -254,7 +241,6 @@ public class DiceRollingStage extends JPanel implements StageView {
     private void loadFromMethod() {
         loading = true;
         setsCountSpinner.setValue(method.getNumberOfSets());
-        setsMethodField.setText(method.getSetSelectionMethod());
         allowSubstitutionCheck.setSelected(method.isAllowDiceSubstitution());
         substitutionValueSpinner.setValue(method.getDiceSubstitutionValue());
         substitutionCountSpinner.setValue(method.getMaxDiceSubstitutions());
@@ -271,10 +257,6 @@ public class DiceRollingStage extends JPanel implements StageView {
             saveGame();
         });
 
-        setsMethodApplyButton.addActionListener(event -> {
-            method.setSetSelectionMethod(EntryInputHandler.resolveText(setsMethodField));
-            saveGame();
-        });
         allowSubstitutionCheck.addActionListener(event -> {
             if (loading) {
                 return;

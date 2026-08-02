@@ -37,7 +37,7 @@ Updated: 2026-08-01
 - [ ] Consider adding a separate short ruleset summary field to Game Setup for compact surfaces such as Open/manage saved rulesets; keep the full Game Description for detailed ruleset introductions.
 - [ ] Refactor every ruleset element Description field, including screen-level mechanic descriptions, for formatted-text entry and preserve the formatting through Java model members, `.gmrf` serialization/import, and descendant-application rendering. Keep existing plain-text files compatible and choose a safely renderable storage format before implementation.
 - [ ] Add early tutorial guidance explaining that Describe This Section contains creator-authored copy for users of descendant applications and is distinct from internal GMRules guidance.
-- [ ] Review all Rules Builder stages and identify which screens do not need a Describe This Section editor; keep it visible everywhere until that review is complete.
+- [ ] Review the remaining Rules Builder stages and identify which screens do not need a Describe This Section editor. Game Setup is already excluded because its inline Game Description serves the same purpose.
 - [ ] When the character generator begins presenting ruleset reference content, smoke-test that it can read collection/section descriptions from `Game.mechanicDescriptions` separately from each individual `GameElement.getDescription()` value.
 - [x] Review the closed-beta signup screen on desktop and mobile.
 - [x] Make the account/home screen clearer for new users choosing builder vs character generation, including context-specific saved-ruleset actions.

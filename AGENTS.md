@@ -34,6 +34,7 @@ Treat `AGENT_HANDOFF.md` as the primary recovery file for any new Codex/ChatGPT 
 - Preserve the repository's non-null Java convention: normalize external absent values immediately; prefer empty strings/collections over null fields.
 - Use `rg` / `rg --files` for searching.
 - Use `apply_patch` for manual file edits.
+- Keep agent-created, ad hoc verification tests local. Name them `*LocalTest.java` under a module's `src/test/` tree so the root `.gitignore` excludes them automatically; do not force-add or publish them. This does not apply to permanent test coverage explicitly requested for the repository.
 
 ## Build And Verification
 
@@ -46,7 +47,7 @@ mvn package
 
 Notes:
 
-- `mvn test` currently compiles the reactor but there are no automated test sources.
+- `mvn test` currently compiles the reactor, plus any ignored `*LocalTest.java` verification tests present in the local workspace; there are no tracked automated test sources.
 - `mvn package` creates the deployable shaded jar and copies it to `target/gmrules-app.jar`.
 - `deploy.sh` currently runs `mvn -q -DskipTests compile`; confirm/update it before depending on packaged jar deployment.
 

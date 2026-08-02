@@ -40,7 +40,6 @@ public class AttributeGenerationMethod extends GameElement {
 
     // Multiple Sets Generation
     private int numberOfSets = 0;
-    private String setSelectionMethod = "best";
 
     // Advanced Dice Features
     private Map<String,String> diceVariants = new HashMap<>();
@@ -153,6 +152,11 @@ public class AttributeGenerationMethod extends GameElement {
         return arrayHandler.removeElement(arrayName, value);
     }
 
+    public <T> void replaceArray(String arrayName, List<T> values) {
+        List<T> safeValues = Objects.requireNonNullElseGet(values, List::of);
+        arrayHandler.putArray(arrayName, new ArrayList<>(safeValues));
+    }
+
     public void clearArray(String arrayName) {
         arrayHandler.clearArray(arrayName);
     }
@@ -182,11 +186,6 @@ public class AttributeGenerationMethod extends GameElement {
     public int getNumberOfSets() { return numberOfSets; }
     public void setNumberOfSets(int numberOfSets) { this.numberOfSets = numberOfSets; }
 
-    public String getSetSelectionMethod() { return setSelectionMethod; }
-    public void setSetSelectionMethod(String setSelectionMethod) {
-        this.setSelectionMethod = Objects.toString(setSelectionMethod, "");
-    }
-
     public Map<String,String> getDiceVariants() { return new HashMap<>(diceVariants); }
     public void setDiceVariants(Map<String,String> diceVariants) {
         this.diceVariants = new HashMap<>(Objects.requireNonNullElse(diceVariants, Collections.emptyMap()));
@@ -201,7 +200,7 @@ public class AttributeGenerationMethod extends GameElement {
 
     public int getDiceSubstitutionValue() { return diceSubstitutionValue; }
     public void setDiceSubstitutionValue(int diceSubstitutionValue) {
-        this.diceSubstitutionValue = Math.max(0, diceSubstitutionValue);
+        this.diceSubstitutionValue = diceSubstitutionValue;
     }
 
     public int getMaxDiceSubstitutions() { return maxDiceSubstitutions; }
@@ -258,6 +257,9 @@ public class AttributeGenerationMethod extends GameElement {
             safeMode = "assigned";
         }
         this.standardArrayAssignmentMode = safeMode;
+        if (safeMode.equals("open")) {
+            normalizePlayerAssignedArrays();
+        }
     }
 
     // === ASSIGNMENT METHODS ===
@@ -376,8 +378,26 @@ public class AttributeGenerationMethod extends GameElement {
 
     private void readObject(java.io.ObjectInputStream stream) throws java.io.IOException, ClassNotFoundException {
         stream.defaultReadObject();
-        if (standardArrayAssignmentMode == null || standardArrayAssignmentMode.isBlank()) {
-            standardArrayAssignmentMode = "assigned";
+        if (arrayHandler == null) {
+            arrayHandler = new ArrayHandler();
+            initializeArrayRegistry();
+        }
+        setStandardArrayAssignmentMode(standardArrayAssignmentMode);
+    }
+
+    private void normalizePlayerAssignedArrays() {
+        for (String arrayName : List.of("standardArrays", "eliteArrays")) {
+            ArrayList<String> entries = Objects.requireNonNullElseGet(getArray(arrayName), ArrayList::new);
+            ArrayList<String> values = new ArrayList<>();
+            for (String entry : entries) {
+                String safeEntry = Objects.toString(entry, "").trim();
+                int separator = safeEntry.indexOf('=');
+                if (separator >= 0 && separator < safeEntry.length() - 1) {
+                    safeEntry = safeEntry.substring(separator + 1).trim();
+                }
+                values.add(safeEntry);
+            }
+            replaceArray(arrayName, values);
         }
     }
 

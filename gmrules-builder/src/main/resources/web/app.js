@@ -92,6 +92,20 @@ const steps = [
     tutorialFallback: "In RPGs, dice rolls are often used to create characters, randomize selections, or resolve outcomes. Did your attack succeed? How much damage did that spell do? What treasures are contained in the dragon's hoard, or the corporate CEO's safe? Select which dice your game system uses, and enter any custom ranges you need.",
   },
   {
+    id: "attribute-types",
+    labelKey: "attrtypes.title",
+    fallback: "Attribute Categories",
+    tutorialKey: "attrtypes.intro",
+    tutorialFallback: "Attribute categories are optional groups, not the attributes themselves. For example, Vampire: The Masquerade groups attributes into Physical, Social, and Mental, while many versions of D&D skip categories entirely.",
+  },
+  {
+    id: "attributes",
+    labelKey: "attributes.title",
+    fallback: "Attributes",
+    tutorialKey: "attributes.intro",
+    tutorialFallback: "Attributes are the core stats for characters, such as Strength or Intelligence. Add the attributes your game uses, and optionally assign them to a category.",
+  },
+  {
     id: "attribute-generation",
     labelKey: "attrgen.title",
     fallback: "Attribute Generation",
@@ -153,20 +167,6 @@ const steps = [
         ],
       },
     ],
-  },
-  {
-    id: "attribute-types",
-    labelKey: "attrtypes.title",
-    fallback: "Attribute Categories",
-    tutorialKey: "attrtypes.intro",
-    tutorialFallback: "Attribute categories are optional groups, not the attributes themselves. For example, Vampire: The Masquerade groups attributes into Physical, Social, and Mental, while many versions of D&D skip categories entirely.",
-  },
-  {
-    id: "attributes",
-    labelKey: "attributes.title",
-    fallback: "Attributes",
-    tutorialKey: "attributes.intro",
-    tutorialFallback: "Attributes are the core stats for characters, such as Strength or Intelligence. Add the attributes your game uses, and optionally assign them to a category.",
   },
   {
     id: "standard-array",
@@ -467,7 +467,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "attrgen.standard.info.specifics.assignment",
-        fallback: "Array Assignment determines how values reach Attributes. Assigned to Attributes pairs every value with a specific Attribute, producing a fixed distribution. Open Values stores only the numbers and lets each player decide which Attribute receives each value.",
+        fallback: "Array Assignment determines how values reach Attributes. Auto Assigned pairs every value with a specific Attribute, producing a fixed distribution. Player Assigned stores only the numbers and lets each player decide which Attribute receives each value.",
       },
       {
         key: "attrgen.standard.info.specifics.standard",
@@ -493,11 +493,11 @@ const tutorialSpecificPages = {
       },
       {
         key: "attrgen.dice.info.specifics.sets",
-        fallback: "Number of Sets controls how many complete groups of Attribute results are generated. Selection Method is creator-written instruction explaining how the player chooses among those groups, such as choosing any set, taking the first set, or selecting the set with the highest total.",
+        fallback: "Number of Sets controls how many complete groups of Attribute results are generated. During character creation, the player chooses which generated set to use.",
       },
       {
         key: "attrgen.dice.info.specifics.substitution",
-        fallback: "Dice Substitution optionally allows a player to replace a rolled Attribute result with a fixed value. Substitution Value is the replacement score, and Max Substitutions limits how many times the player may use it during character creation.",
+        fallback: "Dice Substitution optionally allows a player to replace a rolled Attribute result with a fixed value. Substitution Value is the replacement score and must fall within the shared Attribute Score Limits when those limits are configured. Max Substitutions limits how many times the player may use it during character creation.",
       },
       {
         key: "attrgen.dice.info.specifics.terms",
@@ -505,7 +505,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "attrgen.dice.info.specifics.manage",
-        fallback: "Apply saves the set-selection instruction, Save records substitution rules, and Add Dice Term appends a term to the procedure. Review the displayed notation after each addition and remove any term that should not participate in the final roll.",
+        fallback: "Number of Sets and Dice Substitution settings save automatically when changed. Add Dice Term opens a focused form and appends the completed term to the procedure. Review the displayed notation after each addition and remove any term that should not participate in the final roll.",
       },
     ],
   },
@@ -535,7 +535,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "attrgen.point.info.specifics.apply",
-        fallback: "Apply saves the complete Point Buy configuration. When Point Buy is a second Player Option step set to Spend from existing scores, the earlier step supplies the starting scores and this budget is used to adjust them.",
+        fallback: "Point Buy fields save automatically when changed. When Point Buy is a second Player Option step set to Spend from existing scores, the earlier step supplies the starting scores and this budget is used to adjust them.",
       },
     ],
   },
@@ -609,7 +609,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "currency.info.specifics.starting_currency",
-        fallback: "Starting Money Currency identifies which currency receives the starting amount. Save records the method, amount, and currency together. Later Class and Race editors provide their own starting-money values or modifiers when those methods are part of the game.",
+        fallback: "Starting Money Currency identifies which currency receives the starting amount. Changes to the method, amount, and currency save automatically. Later Class and Race editors provide their own starting-money values or modifiers when those methods are part of the game.",
       },
       {
         key: "currency.info.specifics.system_name",
@@ -771,7 +771,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "skills.info.specifics.progression_controls",
-        fallback: "Minimum per Level places a floor on the award. Apply Intelligence Modifier controls whether that modifier participates, and Same at all levels uses one value throughout progression. Clear Same at all levels to enter different point awards for selected levels, then Save the completed progression.",
+        fallback: "Minimum per Level places a floor on the award. Apply Intelligence Modifier controls whether that modifier participates, and Same at all levels uses one value throughout progression. Clear Same at all levels to enter different point awards for selected levels; progression changes save automatically.",
       },
       {
         key: "skills.info.specifics.entries",
@@ -1457,7 +1457,7 @@ function t(key, fallback) {
 }
 
 function isMechanicDescriptionScreen(screenKey) {
-  return steps.some((entry) => entry.id === screenKey);
+  return screenKey !== "setup" && steps.some((entry) => entry.id === screenKey);
 }
 
 async function loadMechanicDescriptions() {
@@ -1553,16 +1553,12 @@ async function ensureMechanicDescriptionSection() {
       ></textarea>
       <div class="mechanic-description-actions">
         <span class="mechanic-description-status" aria-live="polite"></span>
-        <button class="btn" type="button" data-save-mechanic-description disabled>
-          ${escapeHtml(t("web.mechanic_description.save", "Save Description"))}
-        </button>
       </div>
     </div>
   `;
   title.insertAdjacentElement("afterend", section);
 
   const input = section.querySelector(".mechanic-description-input");
-  const saveButton = section.querySelector("[data-save-mechanic-description]");
   const status = section.querySelector(".mechanic-description-status");
   try {
     const descriptions = await loadMechanicDescriptions();
@@ -1579,7 +1575,6 @@ async function ensureMechanicDescriptionSection() {
       "Enter the description players will see for this mechanic."
     );
     input.disabled = false;
-    saveButton.disabled = false;
   } catch (error) {
     if (!section.isConnected) {
       return;
@@ -1589,6 +1584,61 @@ async function ensureMechanicDescriptionSection() {
       "web.mechanic_description.load_failed",
       "Description could not be loaded."
     );
+  }
+
+  section.addEventListener("toggle", () => {
+    if (!section.open) {
+      void saveMechanicDescriptionSection(section);
+    }
+  });
+}
+
+async function saveMechanicDescriptionSection(section) {
+  const input = section ? section.querySelector(".mechanic-description-input") : null;
+  const status = section ? section.querySelector(".mechanic-description-status") : null;
+  const screenKey = section
+    ? String(section.dataset.mechanicDescriptionScreen || "").trim()
+    : "";
+  if (!input || !status || !isMechanicDescriptionScreen(screenKey)) {
+    return true;
+  }
+  if (section.mechanicDescriptionSavePromise) {
+    return section.mechanicDescriptionSavePromise;
+  }
+  const description = String(input.value || "");
+  if (description === String(state.mechanicDescriptions[screenKey] || "")) {
+    return true;
+  }
+
+  const draftId = state.draftId;
+  const savePromise = (async () => {
+    input.disabled = true;
+    status.textContent = t("web.mechanic_description.saving", "Saving...");
+    try {
+      await api("POST", `/api/drafts/${draftId}/mechanic-descriptions`, {
+        screenKey,
+        description,
+      });
+      state.mechanicDescriptions[screenKey] = description;
+      status.textContent = t("web.mechanic_description.saved", "Description saved.");
+      markSaved(t("web.mechanic_description.saved", "Description saved."));
+      return true;
+    } catch (error) {
+      status.textContent = error.message || t("common.error", "Something went wrong.");
+      return false;
+    } finally {
+      if (section.isConnected) {
+        input.disabled = false;
+      }
+    }
+  })();
+  section.mechanicDescriptionSavePromise = savePromise;
+  try {
+    return await savePromise;
+  } finally {
+    if (section.mechanicDescriptionSavePromise === savePromise) {
+      delete section.mechanicDescriptionSavePromise;
+    }
   }
 }
 
@@ -1600,41 +1650,19 @@ new MutationObserver(() => {
 });
 
 view.addEventListener("click", async (event) => {
-  const saveButton = event.target.closest("[data-save-mechanic-description]");
-  if (!saveButton) {
+  const continueButton = event.target.closest("button[id$='Continue']");
+  const section = view.querySelector(".mechanic-description-section");
+  if (!continueButton || !section || continueButton.dataset.descriptionSaveBypass === "true") {
     return;
   }
-  const section = saveButton.closest(".mechanic-description-section");
-  const input = section ? section.querySelector(".mechanic-description-input") : null;
-  const status = section ? section.querySelector(".mechanic-description-status") : null;
-  const screenKey = section
-    ? String(section.dataset.mechanicDescriptionScreen || "").trim()
-    : "";
-  if (!input || !status || !isMechanicDescriptionScreen(screenKey)) {
-    return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  if (await saveMechanicDescriptionSection(section)) {
+    continueButton.dataset.descriptionSaveBypass = "true";
+    continueButton.click();
+    delete continueButton.dataset.descriptionSaveBypass;
   }
-
-  saveButton.disabled = true;
-  input.disabled = true;
-  status.textContent = t("web.mechanic_description.saving", "Saving...");
-  try {
-    const description = String(input.value || "");
-    await api("POST", `/api/drafts/${state.draftId}/mechanic-descriptions`, {
-      screenKey,
-      description,
-    });
-    state.mechanicDescriptions[screenKey] = description;
-    status.textContent = t("web.mechanic_description.saved", "Description saved.");
-    markSaved(t("web.mechanic_description.saved", "Description saved."));
-  } catch (error) {
-    status.textContent = error.message || t("common.error", "Something went wrong.");
-  } finally {
-    if (section.isConnected) {
-      input.disabled = false;
-      saveButton.disabled = false;
-    }
-  }
-});
+}, true);
 
 function normalizeLocale(value) {
   const raw = String(value || "").toLowerCase();
@@ -2771,10 +2799,12 @@ function ensureDraft() {
   return true;
 }
 
-function showConfirm(message, okLabel) {
-  confirmTitle.textContent = t("web.confirm.title", "Confirm");
+function showConfirm(message, okLabel, cancelLabel = "", title = "", danger = true) {
+  confirmTitle.textContent = title || t("web.confirm.title", "Confirm");
   confirmMessage.textContent = message;
+  confirmCancel.textContent = cancelLabel || t("common.cancel", "Cancel");
   confirmOk.textContent = okLabel || t("common.remove", "Remove");
+  confirmOk.classList.toggle("danger", danger);
   confirmModal.classList.remove("hidden");
   return new Promise((resolve) => {
     confirmResolve = resolve;
@@ -8515,7 +8545,7 @@ async function renderCharGenAttributes() {
     });
     attributesEmpty.style.display = attributes.length ? "none" : "";
 
-    const substitutionValue = Math.max(0, Math.trunc(Number(method.diceSubstitutionValue || 0)));
+    const substitutionValue = Math.trunc(Number(method.diceSubstitutionValue || 0));
     const maxSubstitutions = Math.max(0, Math.trunc(Number(method.maxDiceSubstitutions || 0)));
     applyBtn.disabled = true;
 
@@ -9508,24 +9538,22 @@ async function renderCharGenArmor() {
 function buildCharGenRules(method) {
   const type = formatCharGenType(method.generationType);
   const sets = Number(method.numberOfSets || 0);
-  const selection = emptyFallback(method.setSelectionMethod);
   const assignInOrder = method.assignInOrder ? t("common.yes", "Yes") : t("common.no", "No");
   const terms = Array.isArray(method.diceTerms) ? method.diceTerms : [];
   const diceText = terms.length
     ? terms.map((term) => term.notation || formatCharGenDiceTerm(term)).join(", ")
     : t("common.none", "None");
   const arrayMode = isCharGenOpenStandardArray(method)
-    ? t("attrgen.arrays.mode.open", "Open Values")
-    : t("attrgen.arrays.mode.assigned", "Assigned to Attributes");
+      ? t("attrgen.arrays.mode.open", "Player Assigned")
+      : t("attrgen.arrays.mode.assigned", "Auto Assigned");
   const substitutionText = method.allowDiceSubstitution
     ? t("attrgen.dice.substitution.summary", "{value}, up to {count}")
-        .replace("{value}", String(Math.max(0, Number(method.diceSubstitutionValue || 0))))
+        .replace("{value}", String(Math.trunc(Number(method.diceSubstitutionValue || 0))))
         .replace("{count}", String(Math.max(0, Number(method.maxDiceSubstitutions || 0))))
     : t("common.no", "No");
   return [
     `${t("attrgen.type", "Generation Type")}: ${type}`,
     `${t("attrgen.sets", "Attribute Sets")}: ${sets}`,
-    `${t("attrgen.selection", "Set Selection")}: ${selection}`,
     `${t("attrgen.assign", "Assign In Order")}: ${assignInOrder}`,
     `${t("attrgen.arrays.mode", "Array Assignment")}: ${arrayMode}`,
     `${t("attrgen.dice.substitution.enable", "Allow substitution")}: ${substitutionText}`,
@@ -10881,7 +10909,7 @@ async function renderSetup() {
             <input type="text" id="gameName" value="${escapeHtml(data.name)}">
             <div class="field-hint">${t(
               "setup.game.name.hint",
-              "The game name becomes the filename (.gmrf). Files are saved in your home folder under GameMakerFiles."
+              "The game name becomes the filename when you download this ruleset as a .gmrf file."
             )}</div>
           </div>
           <div class="field">
@@ -10905,22 +10933,38 @@ async function renderSetup() {
     `;
 
     document.getElementById("backToSplash").addEventListener("click", navigateBackInApp);
-    document.getElementById("setupContinue").addEventListener("click", async () => {
+    let setupSavePromise = Promise.resolve(true);
+    const saveSetup = (showNameError = false) => {
       const name = document.getElementById("gameName").value.trim();
       if (!name) {
-        showToast(t("common.name.required", "Name is required."));
-        return;
+        if (showNameError) {
+          showToast(t("common.name.required", "Name is required."));
+        }
+        return Promise.resolve(false);
       }
       const description = document.getElementById("gameDescription").value;
       const gameType = document.getElementById("gameType").value;
-      try {
-        await api("POST", `/api/drafts/${state.draftId}/setup`, { name, description, gameType });
-        state.setupComplete = true;
-        renderSidebar();
-        markSaved(t("web.toast.setup_saved", "Setup saved"));
+      const payload = { name, description, gameType };
+      setupSavePromise = setupSavePromise.catch(() => false).then(async () => {
+        try {
+          await api("POST", `/api/drafts/${state.draftId}/setup`, payload);
+          state.setupComplete = true;
+          renderSidebar();
+          markSaved(t("web.toast.setup_saved", "Setup saved"));
+          return true;
+        } catch (error) {
+          showToast(error.message);
+          return false;
+        }
+      });
+      return setupSavePromise;
+    };
+    ["gameName", "gameDescription", "gameType"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", () => saveSetup(false));
+    });
+    document.getElementById("setupContinue").addEventListener("click", async () => {
+      if (await saveSetup(true)) {
         renderMeasurements();
-      } catch (error) {
-        showToast(error.message);
       }
     });
   } catch (error) {
@@ -11356,7 +11400,7 @@ async function renderDice() {
     });
 
     document.getElementById("backToSetup").addEventListener("click", navigateBackInApp);
-    document.getElementById("diceContinue").addEventListener("click", renderAttributeGeneration);
+    document.getElementById("diceContinue").addEventListener("click", renderAttributeTypes);
   } catch (error) {
     showToast(error.message);
   }
@@ -11397,7 +11441,7 @@ async function renderAttributeTypes(openKey = "") {
         <div class="list" id="typeList">${list || `<div class="list-item">${t("web.attrtypes.none", "No categories yet.")}</div>`}</div>
         <div class="actions-row">
           <div class="left">
-            <button class="btn ghost" id="backToGeneration" type="button">${t("setup.back", "Back")}</button>
+            <button class="btn ghost" id="backToDice" type="button">${t("setup.back", "Back")}</button>
           </div>
           <div class="right">
             <button class="btn" id="typesContinue" type="button">${t("common.continue", "Continue")}</button>
@@ -11437,7 +11481,7 @@ async function renderAttributeTypes(openKey = "") {
       });
     });
 
-    document.getElementById("backToGeneration").addEventListener("click", navigateBackInApp);
+    document.getElementById("backToDice").addEventListener("click", navigateBackInApp);
     document.getElementById("typesContinue").addEventListener("click", renderAttributes);
     wireSystemNameSave("attribute-types", () => renderAttributeTypes());
     if (openKey) {
@@ -11493,6 +11537,7 @@ async function renderAttributes(openId = "") {
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
         ${renderSystemNameControls(systemName, t("attributes.title", "Attributes"))}
+        <div class="attributes-collection-break" aria-hidden="true"></div>
         <button class="btn" id="addAttribute" type="button">${t("attributes.add", "Add Attribute")}</button>
         <div class="list" id="attributeList">${list || `<div class="list-item">${t("web.attributes.none", "No attributes yet.")}</div>`}</div>
         <div class="actions-row">
@@ -11551,14 +11596,7 @@ async function renderAttributes(openId = "") {
     });
 
     document.getElementById("backToTypes").addEventListener("click", navigateBackInApp);
-    document.getElementById("attributesContinue").addEventListener("click", async () => {
-      try {
-        await ensureAttributeGenerationType();
-        navigateToStep(getNextAttributeGenerationStep("attributes"));
-      } catch (error) {
-        showToast(error.message);
-      }
-    });
+    document.getElementById("attributesContinue").addEventListener("click", renderAttributeGeneration);
     wireSystemNameSave("attributes", () => renderAttributes());
     if (openId) {
       const target = attributeMap[openId];
@@ -11709,18 +11747,18 @@ function getNextAttributeGenerationStep(currentStep) {
 function getPreviousAttributeGenerationStep(currentStep) {
   const order = getAttributeGenerationOrder(state.attributeGenerationType, state.attributeGenerationStages);
   if (!order.length) {
-    return "attributes";
+    return "attribute-generation";
   }
   const safeStep = String(currentStep || "");
   if (safeStep === "currency") {
     return "armor-class";
   }
   if (safeStep === "hit-points") {
-    return order[order.length - 1] || "attributes";
+    return order[order.length - 1] || "attribute-generation";
   }
   const currentIndex = order.indexOf(safeStep);
   if (currentIndex <= 0) {
-    return "attributes";
+    return "attribute-generation";
   }
   return order[currentIndex - 1];
 }
@@ -11787,7 +11825,6 @@ async function renderAttributeGeneration() {
               <input type="number" id="defaultScoreMax" step="1" value="${state.defaultAttributeMaxScore}">
             </div>
           </div>
-          <button class="btn ghost" id="saveDefaultScoreRange" type="button">${t("attrgen.score_limits.save", "Save Score Limits")}</button>
         </div>
         <div class="edit-section" id="defaultModifierSection">
           <h2 class="collection-editor-heading">${t("attrgen.modifiers.title", "Default Modifiers")}</h2>
@@ -11800,7 +11837,7 @@ async function renderAttributeGeneration() {
         </div>
         <div class="actions-row">
           <div class="left">
-            <button class="btn ghost" id="backToDice" type="button">${t("setup.back", "Back")}</button>
+            <button class="btn ghost" id="backToAttributes" type="button">${t("setup.back", "Back")}</button>
           </div>
           <div class="right">
             <button class="btn" id="generationContinue" type="button">${t("common.continue", "Continue")}</button>
@@ -11813,7 +11850,6 @@ async function renderAttributeGeneration() {
       const enabled = document.getElementById("defaultScoreRange").checked;
       document.getElementById("defaultScoreMin").disabled = !enabled;
       document.getElementById("defaultScoreMax").disabled = !enabled;
-      document.getElementById("saveDefaultScoreRange").disabled = !enabled;
       document.getElementById("defaultModifierSection").classList.toggle("hidden", !enabled);
       const modifiersEnabled = enabled && document.getElementById("defaultModifiersEnabled").checked;
       document.getElementById("addDefaultModifier").disabled = !modifiersEnabled;
@@ -11909,38 +11945,44 @@ async function renderAttributeGeneration() {
         .join("");
     };
 
-    const readDefaultScoreRange = () => {
+    const validateDefaultScoreRange = () => {
       const enabled = document.getElementById("defaultScoreRange").checked;
       if (!enabled) {
         return {
-          defaultAttributeMinScore: 0,
-          defaultAttributeMaxScore: 0,
+          range: { defaultAttributeMinScore: 0, defaultAttributeMaxScore: 0 },
+          error: "",
         };
       }
       const minScore = Number.parseInt(document.getElementById("defaultScoreMin").value, 10);
       const maxScore = Number.parseInt(document.getElementById("defaultScoreMax").value, 10);
       if (!Number.isFinite(minScore) || !Number.isFinite(maxScore)) {
-        showToast(t("attrgen.score_limits.invalid", "Enter a valid score range."));
-        return null;
+        return { range: null, error: t("attrgen.score_limits.invalid", "Enter a valid score range.") };
       }
       if (minScore > maxScore) {
-        showToast(t("attrgen.score_limits.order.invalid", "Minimum score cannot exceed maximum."));
-        return null;
+        return { range: null, error: t("attrgen.score_limits.order.invalid", "Minimum score cannot exceed maximum.") };
       }
       if (minScore === 0 && maxScore === 0) {
-        showToast(t("attrgen.score_limits.zero.invalid", "Use non-zero limits or clear the checkbox."));
-        return null;
+        return { range: null, error: t("attrgen.score_limits.zero.invalid", "Use non-zero limits or clear the checkbox.") };
       }
       return {
-        defaultAttributeMinScore: minScore,
-        defaultAttributeMaxScore: maxScore,
+        range: { defaultAttributeMinScore: minScore, defaultAttributeMaxScore: maxScore },
+        error: "",
       };
     };
 
-    const syncSelection = async () => {
-      const defaultScoreRange = readDefaultScoreRange();
+    const readDefaultScoreRange = (showError = true) => {
+      const validation = validateDefaultScoreRange();
+      if (validation.error && showError) {
+        showToast(validation.error);
+      }
+      return validation.range;
+    };
+
+    let selectionSavePromise = Promise.resolve(true);
+    const syncSelection = (showValidationError = true) => {
+      const defaultScoreRange = readDefaultScoreRange(showValidationError);
       if (!defaultScoreRange) {
-        return false;
+        return Promise.resolve(false);
       }
       const hasDefaultScoreRange = defaultScoreRange.defaultAttributeMinScore !== 0
         || defaultScoreRange.defaultAttributeMaxScore !== 0;
@@ -11955,30 +11997,36 @@ async function renderAttributeGeneration() {
         generationType = "hybrid";
         hybridStages = selected;
       }
-      try {
-        const payload = {
+      const payload = {
           generationType,
           hybridStages,
           defaultAttributeMinScore: defaultScoreRange.defaultAttributeMinScore,
           defaultAttributeMaxScore: defaultScoreRange.defaultAttributeMaxScore,
           applyAttributeModifiersToAllAttributes: applyAttributeModifiers,
-          attributeModifiers: defaultModifiers,
-          attributeGenerationOptions: generationOptions,
-        };
+          attributeModifiers: defaultModifiers.map((entry) => ({ ...entry })),
+          attributeGenerationOptions: generationOptions.map((option) => ({
+            ...option,
+            steps: option.steps.map((step) => ({ ...step })),
+          })),
+      };
+      selectionSavePromise = selectionSavePromise.catch(() => false).then(async () => {
+        try {
         await api("POST", `/api/drafts/${state.draftId}/attribute-generation`, payload);
         state.attributeGenerationType = generationType;
         state.attributeGenerationStages = normalizeHybridStages(hybridStages);
-        state.attributeGenerationOptions = generationOptions.slice();
+        state.attributeGenerationOptions = payload.attributeGenerationOptions;
         state.defaultAttributeMinScore = defaultScoreRange.defaultAttributeMinScore;
         state.defaultAttributeMaxScore = defaultScoreRange.defaultAttributeMaxScore;
         state.applyAttributeModifiersToAllAttributes = applyAttributeModifiers;
-        state.attributeModifiers = normalizeModifierEntries(defaultModifiers);
+        state.attributeModifiers = normalizeModifierEntries(payload.attributeModifiers);
         markSaved(t("web.toast.generation_updated", "Generation updated"));
         return true;
-      } catch (error) {
-        showToast(error.message);
-      }
-      return false;
+        } catch (error) {
+          showToast(error.message);
+          return false;
+        }
+      });
+      return selectionSavePromise;
     };
 
     updateDefaultScoreControls();
@@ -12049,12 +12097,19 @@ async function renderAttributeGeneration() {
       renderGenerationOptions();
       await syncSelection();
     });
+    ["defaultScoreMin", "defaultScoreMax"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", async () => {
+        if (await syncSelection(false)) {
+          renderDefaultModifiers();
+        }
+      });
+    });
     document.getElementById("defaultScoreRange").addEventListener("change", async () => {
       if (!document.getElementById("defaultScoreRange").checked) {
         document.getElementById("defaultModifiersEnabled").checked = false;
       }
       updateDefaultScoreControls();
-      await syncSelection();
+      await syncSelection(false);
     });
     document.getElementById("defaultModifiersEnabled").addEventListener("change", async () => {
       updateDefaultScoreControls();
@@ -12153,17 +12208,19 @@ async function renderAttributeGeneration() {
       renderDefaultModifiers();
       await syncSelection();
     });
-    document.getElementById("saveDefaultScoreRange").addEventListener("click", async () => {
-      if (await syncSelection()) {
-        renderDefaultModifiers();
-      }
-    });
-
-    document.getElementById("backToDice").addEventListener("click", navigateBackInApp);
+    document.getElementById("backToAttributes").addEventListener("click", navigateBackInApp);
     document.getElementById("generationContinue").addEventListener("click", async () => {
+      const validation = validateDefaultScoreRange();
+      if (validation.error) {
+        openInformationPopup(
+          t("attrgen.score_limits.invalid.title", "Check Score Limits"),
+          validation.error
+        );
+        return;
+      }
       const saved = await syncSelection();
       if (saved) {
-        navigateToStep("attribute-types");
+        navigateToStep(getNextAttributeGenerationStep("attribute-generation"));
       }
     });
   } catch (error) {
@@ -12171,7 +12228,7 @@ async function renderAttributeGeneration() {
   }
 }
 
-async function renderStandardArray() {
+async function renderStandardArray(assignTarget = "", assignEntry = "") {
   if (!ensureDraft()) {
     return;
   }
@@ -12231,15 +12288,39 @@ async function renderStandardArray() {
       return text;
     };
 
+    const isAssignedArrayEntry = (entry) => {
+      const text = String(entry || "").trim();
+      const separator = text.indexOf("=");
+      return separator > 0 && separator < text.length - 1;
+    };
+    const unassignedEntries = [
+      ...(data.standardArray || [])
+        .filter((entry) => !isAssignedArrayEntry(entry))
+        .map((entry) => ({ target: "standard", entry })),
+      ...(data.eliteArray || [])
+        .filter((entry) => !isAssignedArrayEntry(entry))
+        .map((entry) => ({ target: "elite", entry })),
+    ];
+
     const renderList = (items, target) =>
       (items || [])
         .map(
-          (entry) => `
+          (entry) => {
+            const needsAssignment = !isOpenArray && !isAssignedArrayEntry(entry);
+            return `
         <div class="list-item">
-          <span>${escapeHtml(formatArrayEntry(entry))}</span>
-          <button class="btn danger small" data-${target}="${escapeHtml(entry)}">${t("common.remove", "Remove")}</button>
+          <span class="${needsAssignment ? "array-entry-warning" : ""}">${escapeHtml(
+            needsAssignment
+              ? `${t("attrgen.arrays.assignment.required", "Needs Attribute assignment")}: ${formatArrayEntry(entry)}`
+              : formatArrayEntry(entry)
+          )}</span>
+          <div class="actions">
+            ${needsAssignment ? `<button class="btn ghost small" data-assign-array-target="${target}" data-assign-array-entry="${escapeHtml(entry)}">${t("attrgen.arrays.assign", "Assign")}</button>` : ""}
+            <button class="btn danger small" data-${target}="${escapeHtml(entry)}">${t("common.remove", "Remove")}</button>
+          </div>
         </div>
-      `
+      `;
+          }
         )
         .join("");
 
@@ -12251,15 +12332,23 @@ async function renderStandardArray() {
           <select id="standardAssignmentMode">
             <option value="assigned" ${assignmentMode === "assigned" ? "selected" : ""}>${t(
               "attrgen.arrays.mode.assigned",
-              "Assigned to Attributes"
+              "Auto Assigned"
             )}</option>
             <option value="open" ${assignmentMode === "open" ? "selected" : ""}>${t(
               "attrgen.arrays.mode.open",
-              "Open Values"
+              "Player Assigned"
             )}</option>
           </select>
           <p class="field-hint">${escapeHtml(assignmentHelp)}</p>
         </div>
+        ${!isOpenArray && unassignedEntries.length ? `
+          <div class="array-assignment-notice" role="status">
+            ${escapeHtml(t(
+              "attrgen.arrays.assignment.notice",
+              "Some existing values still need Attribute assignments. You can leave them unresolved and return when you are ready."
+            ))}
+          </div>
+        ` : ""}
         <h2 class="collection-editor-heading">${t("attrgen.arrays.section", "Standard Arrays")}</h2>
         <button class="btn collection-add-button" id="addStandard" type="button">${t("attrgen.arrays.add", "Add Value")}</button>
         <div class="list" id="standardList">${renderList(data.standardArray, "standard") || `<div class="list-item">${t("web.standard_array.none", "No entries yet.")}</div>`}</div>
@@ -12300,6 +12389,7 @@ async function renderStandardArray() {
       arrayValueModalAttributeField.classList.toggle("hidden", isOpenArray);
       arrayValueModalAttribute.innerHTML = attributeOptions;
       arrayValueModalValue.value = "0";
+      arrayValueModalValue.disabled = false;
       arrayValueModalSave.disabled = false;
       arrayValueModal.classList.remove("hidden");
       window.requestAnimationFrame(() => {
@@ -12332,12 +12422,72 @@ async function renderStandardArray() {
       };
     };
 
+    const openArrayAssignmentEditor = (target, entry) => {
+      if (!attributes.length) {
+        openInformationPopup(
+          t("attrgen.arrays.assignment.attributes_required.title", "Attributes Required"),
+          t(
+            "attrgen.arrays.assignment.attributes_required",
+            "Create at least one Attribute before assigning array values."
+          )
+        );
+        return;
+      }
+      const isElite = target === "elite";
+      const sectionTitle = isElite
+        ? t("attrgen.arrays.elite.section", "Elite Arrays")
+        : t("attrgen.arrays.section", "Standard Arrays");
+      const text = String(entry || "").trim();
+      const separator = text.indexOf("=");
+      const value = separator >= 0 ? text.slice(separator + 1).trim() : text;
+      arrayValueModalTitle.textContent = `${t("attrgen.arrays.assign", "Assign")} - ${sectionTitle}`;
+      arrayValueModalAttributeLabel.textContent = t("attrgen.arrays.attribute", "Attribute");
+      arrayValueModalValueLabel.textContent = t("attrgen.arrays.value", "Array Value");
+      arrayValueModalCancel.textContent = t("common.cancel", "Cancel");
+      arrayValueModalSave.textContent = t("attrgen.arrays.assign", "Assign");
+      arrayValueModalAttributeField.classList.remove("hidden");
+      arrayValueModalAttribute.innerHTML = attributeOptions;
+      arrayValueModalValue.value = value;
+      arrayValueModalValue.disabled = true;
+      arrayValueModalSave.disabled = false;
+      arrayValueModal.classList.remove("hidden");
+      window.requestAnimationFrame(() => arrayValueModalAttribute.focus());
+
+      arrayValueModalCancel.onclick = () => {
+        arrayValueModal.classList.add("hidden");
+        arrayValueModalValue.disabled = false;
+      };
+      arrayValueModalSave.onclick = async () => {
+        arrayValueModalSave.disabled = true;
+        try {
+          await api("POST", `/api/drafts/${state.draftId}/standard-array/assignment`, {
+            target,
+            entry: text,
+            attributeId: arrayValueModalAttribute.value,
+          });
+          markSaved(t("web.toast.standard_array_updated", "Standard array updated"));
+          arrayValueModal.classList.add("hidden");
+          arrayValueModalValue.disabled = false;
+          renderStandardArray();
+        } catch (error) {
+          showToast(error.message);
+          arrayValueModalSave.disabled = false;
+        }
+      };
+    };
+
     document.getElementById("addStandard").addEventListener("click", () => {
       openArrayValueEditor("standard");
     });
 
     document.getElementById("addElite").addEventListener("click", () => {
       openArrayValueEditor("elite");
+    });
+
+    document.querySelectorAll("[data-assign-array-target]").forEach((button) => {
+      button.addEventListener("click", () => {
+        openArrayAssignmentEditor(button.dataset.assignArrayTarget, button.dataset.assignArrayEntry);
+      });
     });
 
     document.querySelectorAll("[data-standard]").forEach((button) => {
@@ -12386,7 +12536,11 @@ async function renderStandardArray() {
           standardArrayAssignmentMode: event.target.value,
         });
         markSaved(t("web.toast.standard_array_updated", "Standard array updated"));
-        renderStandardArray();
+        const firstUnassigned = event.target.value === "assigned" ? unassignedEntries[0] : null;
+        renderStandardArray(
+          firstUnassigned ? firstUnassigned.target : "",
+          firstUnassigned ? String(firstUnassigned.entry || "") : ""
+        );
       } catch (error) {
         showToast(error.message);
       }
@@ -12403,10 +12557,35 @@ async function renderStandardArray() {
       }
     });
 
-    document.getElementById("backToGeneration").addEventListener("click", navigateBackInApp);
-    document.getElementById("standardContinue").addEventListener("click", () => {
-      navigateToStep(getNextAttributeGenerationStep("standard-array"));
+    const confirmUnassignedNavigation = async (navigate) => {
+      if (!isOpenArray && unassignedEntries.length) {
+        const leavePage = await showConfirm(
+          t(
+            "attrgen.arrays.assignment.leave.message",
+            "Some Auto Assigned values still need Attribute assignments. You can leave them unresolved and return later."
+          ),
+          t("common.okay", "Okay"),
+          t("attrgen.arrays.assignment.continue_editing", "Continue Editing"),
+          t("attrgen.arrays.assignment.leave.title", "Unassigned Array Values"),
+          false
+        );
+        if (!leavePage) {
+          return;
+        }
+      }
+      navigate();
+    };
+    document.getElementById("backToGeneration").addEventListener("click", () => {
+      confirmUnassignedNavigation(navigateBackInApp);
     });
+    document.getElementById("standardContinue").addEventListener("click", () => {
+      confirmUnassignedNavigation(() => {
+        navigateToStep(getNextAttributeGenerationStep("standard-array"));
+      });
+    });
+    if (assignTarget && assignEntry) {
+      openArrayAssignmentEditor(assignTarget, assignEntry);
+    }
   } catch (error) {
     showToast(error.message);
   }
@@ -12445,6 +12624,20 @@ async function renderDiceRolling() {
       return;
     }
     const data = await api("GET", `/api/drafts/${state.draftId}/dice-rolling`);
+    const minimumAttributeScore = Math.trunc(Number(data.defaultAttributeMinScore || 0));
+    const maximumAttributeScore = Math.trunc(Number(data.defaultAttributeMaxScore || 0));
+    const hasDefaultAttributeScoreRange = minimumAttributeScore !== 0 || maximumAttributeScore !== 0;
+    const substitutionRangeMessage = hasDefaultAttributeScoreRange
+      ? t(
+          "attrgen.dice.substitution.range",
+          "Must be between {min} and {max}, matching the Attribute Score Limits."
+        )
+          .replace("{min}", String(minimumAttributeScore))
+          .replace("{max}", String(maximumAttributeScore))
+      : "";
+    const substitutionRangeAttributes = hasDefaultAttributeScoreRange
+      ? ` min="${minimumAttributeScore}" max="${maximumAttributeScore}"`
+      : "";
     const diceUsed = (data.diceUsed || [])
       .map((value) => Number(value || 0))
       .filter((value) => value > 0)
@@ -12472,17 +12665,10 @@ async function renderDiceRolling() {
     view.innerHTML = `
       <section class="panel">
         <h1>${t("attrgen.dice.title", "Dice Rolling")}</h1>
-        <div class="grid two">
-          <div class="field">
-            <label>${t("attrgen.sets.count", "Number of Sets")}</label>
-            <input type="number" id="setCount" value="${data.numberOfSets}">
-          </div>
-          <div class="field">
-            <label>${t("attrgen.sets.method", "Selection Method")}</label>
-            <input type="text" id="setMethod" value="${escapeHtml(data.setSelectionMethod)}">
-          </div>
+        <div class="field">
+          <label>${t("attrgen.sets.count", "Number of Sets")}</label>
+          <input type="number" id="setCount" min="0" step="1" value="${Math.max(0, Number(data.numberOfSets || 0))}">
         </div>
-        <button class="btn" id="applyMethod" type="button">${t("attrgen.sets.apply", "Apply")}</button>
 
         <h2>${t("attrgen.dice.substitution.section", "Dice Substitution")}</h2>
         <div class="grid two">
@@ -12492,21 +12678,16 @@ async function renderDiceRolling() {
           </div>
           <div class="field">
             <label for="diceSubstitutionValue">${t("attrgen.dice.substitution.value", "Substitution value")}</label>
-            <input type="number" id="diceSubstitutionValue" min="0" step="1" value="${escapeHtml(
-              String(Math.max(0, Number(data.diceSubstitutionValue || 14)))
+            <input type="number" id="diceSubstitutionValue"${substitutionRangeAttributes} step="1" value="${escapeHtml(
+              String(Math.trunc(Number(data.diceSubstitutionValue ?? 14)))
             )}">
+            ${hasDefaultAttributeScoreRange ? `<p class="field-hint">${escapeHtml(substitutionRangeMessage)}</p>` : ""}
           </div>
-        </div>
-        <div class="grid two">
           <div class="field">
             <label for="maxDiceSubstitutions">${t("attrgen.dice.substitution.count", "Max substitutions")}</label>
             <input type="number" id="maxDiceSubstitutions" min="0" step="1" value="${escapeHtml(
-              String(Math.max(0, Number(data.maxDiceSubstitutions || 1)))
+              String(Math.max(0, Number(data.maxDiceSubstitutions ?? 1)))
             )}">
-          </div>
-          <div class="field">
-            <label>&nbsp;</label>
-            <button class="btn ghost" id="saveDiceSubstitution" type="button">${t("common.save", "Save")}</button>
           </div>
         </div>
 
@@ -12526,7 +12707,8 @@ async function renderDiceRolling() {
     `;
 
     document.getElementById("setCount").addEventListener("change", async (event) => {
-      const numberOfSets = Number(event.target.value);
+      const numberOfSets = Math.max(0, Math.trunc(Number(event.target.value || 0)));
+      event.target.value = String(numberOfSets);
       try {
         await api("POST", `/api/drafts/${state.draftId}/dice-rolling/sets`, { numberOfSets });
         markSaved(t("web.toast.sets_updated", "Sets updated"));
@@ -12535,31 +12717,40 @@ async function renderDiceRolling() {
       }
     });
 
-    document.getElementById("applyMethod").addEventListener("click", async () => {
-      const setSelectionMethod = document.getElementById("setMethod").value;
-      try {
-        await api("POST", `/api/drafts/${state.draftId}/dice-rolling/method`, { setSelectionMethod });
-        markSaved(t("web.toast.method_updated", "Method updated"));
-      } catch (error) {
-        showToast(error.message);
-      }
-    });
-
-    document.getElementById("saveDiceSubstitution").addEventListener("click", async () => {
+    let diceSubstitutionSavePromise = Promise.resolve();
+    const queueDiceSubstitutionSave = () => {
       const allowDiceSubstitution = document.getElementById("allowDiceSubstitution").checked;
-      const diceSubstitutionValue = Number(document.getElementById("diceSubstitutionValue").value || 0);
-      const maxDiceSubstitutions = Number(document.getElementById("maxDiceSubstitutions").value || 0);
-      try {
-        await api("POST", `/api/drafts/${state.draftId}/dice-rolling/substitution`, {
-          allowDiceSubstitution,
-          diceSubstitutionValue,
-          maxDiceSubstitutions,
-        });
-        markSaved(t("web.toast.dice_substitution_updated", "Dice substitution updated"));
-        renderDiceRolling();
-      } catch (error) {
-        showToast(error.message);
+      const diceSubstitutionValueInput = document.getElementById("diceSubstitutionValue");
+      const maxDiceSubstitutionsInput = document.getElementById("maxDiceSubstitutions");
+      const diceSubstitutionValue = Math.trunc(Number(diceSubstitutionValueInput.value || 0));
+      const maxDiceSubstitutions = Math.max(0, Math.trunc(Number(maxDiceSubstitutionsInput.value || 0)));
+      diceSubstitutionValueInput.value = String(diceSubstitutionValue);
+      maxDiceSubstitutionsInput.value = String(maxDiceSubstitutions);
+      if (hasDefaultAttributeScoreRange
+          && (diceSubstitutionValue < minimumAttributeScore || diceSubstitutionValue > maximumAttributeScore)) {
+        diceSubstitutionValueInput.setCustomValidity(substitutionRangeMessage);
+        diceSubstitutionValueInput.reportValidity();
+        showToast(substitutionRangeMessage);
+        return;
       }
+      diceSubstitutionValueInput.setCustomValidity("");
+      diceSubstitutionSavePromise = diceSubstitutionSavePromise
+        .catch(() => {})
+        .then(async () => {
+          try {
+            await api("POST", `/api/drafts/${state.draftId}/dice-rolling/substitution`, {
+              allowDiceSubstitution,
+              diceSubstitutionValue,
+              maxDiceSubstitutions,
+            });
+            markSaved(t("web.toast.dice_substitution_updated", "Dice substitution updated"));
+          } catch (error) {
+            showToast(error.message);
+          }
+        });
+    };
+    ["allowDiceSubstitution", "diceSubstitutionValue", "maxDiceSubstitutions"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", queueDiceSubstitutionSave);
     });
 
     const updateRerollMax = () => {
@@ -12717,14 +12908,14 @@ async function renderPointsBuy() {
             <button class="btn ghost" id="backToDiceRolling" type="button">${t("setup.back", "Back")}</button>
           </div>
           <div class="right">
-            <button class="btn" id="applyPoints" type="button">${t("attrgen.sets.apply", "Apply")}</button>
             <button class="btn ghost" id="pointsContinue" type="button">${t("common.continue", "Continue")}</button>
           </div>
         </div>
       </section>
     `;
 
-    document.getElementById("applyPoints").addEventListener("click", async () => {
+    let pointBuySavePromise = Promise.resolve(true);
+    const savePointBuy = () => {
       const payload = {
         basePoints: Number(document.getElementById("basePoints").value),
         minValue: Number(document.getElementById("minValue").value),
@@ -12733,17 +12924,27 @@ async function renderPointsBuy() {
         minPointsToSpend: Number(document.getElementById("minPoints").value),
         allowNegative: document.getElementById("allowNegative").value === "true",
       };
-      try {
-        await api("POST", `/api/drafts/${state.draftId}/points-buy`, payload);
-        markSaved(t("web.toast.points_buy_updated", "Points buy updated"));
-      } catch (error) {
-        showToast(error.message);
-      }
+      pointBuySavePromise = pointBuySavePromise.catch(() => false).then(async () => {
+        try {
+          await api("POST", `/api/drafts/${state.draftId}/points-buy`, payload);
+          markSaved(t("web.toast.points_buy_updated", "Points buy updated"));
+          return true;
+        } catch (error) {
+          showToast(error.message);
+          return false;
+        }
+      });
+      return pointBuySavePromise;
+    };
+    ["basePoints", "minValue", "maxValue", "maxPostRacial", "minPoints", "allowNegative"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", savePointBuy);
     });
 
     document.getElementById("backToDiceRolling").addEventListener("click", navigateBackInApp);
-    document.getElementById("pointsContinue").addEventListener("click", () => {
-      navigateToStep(getNextAttributeGenerationStep("points-buy"));
+    document.getElementById("pointsContinue").addEventListener("click", async () => {
+      if (await savePointBuy()) {
+        navigateToStep(getNextAttributeGenerationStep("points-buy"));
+      }
     });
   } catch (error) {
     showToast(error.message);
@@ -13106,10 +13307,6 @@ async function renderCurrency() {
                 ${startingCurrencyOptions}
               </select>
             </div>
-            <div class="field">
-              <label>&nbsp;</label>
-              <button class="btn ghost" id="saveStartingMoney" type="button">${t("common.save", "Save")}</button>
-            </div>
           </div>
         </div>
 
@@ -13265,7 +13462,8 @@ async function renderCurrency() {
       });
     });
 
-    const saveStartingMoney = async () => {
+    let startingMoneySavePromise = Promise.resolve(true);
+    const saveStartingMoney = () => {
       const methodElement = document.getElementById("startingMoneyMethod");
       const baseAmountElement = document.getElementById("startingMoneyBaseAmount");
       const currencyElement = document.getElementById("startingMoneyCurrency");
@@ -13275,24 +13473,31 @@ async function renderCurrency() {
         currencyId: currencyElement ? String(currencyElement.value || "").trim() : "",
       };
       payload.baseAmount = Math.max(0, Math.trunc(payload.baseAmount));
-      try {
-        await api("POST", `/api/drafts/${state.draftId}/currencies/starting-money`, payload);
-        markSaved(t("web.toast.currency_saved", "Currency saved"));
-        renderCurrency();
-      } catch (error) {
-        showToast(error.message);
+      if (baseAmountElement) {
+        baseAmountElement.value = String(payload.baseAmount);
       }
+      startingMoneySavePromise = startingMoneySavePromise.catch(() => false).then(async () => {
+        try {
+          await api("POST", `/api/drafts/${state.draftId}/currencies/starting-money`, payload);
+          markSaved(t("web.toast.currency_saved", "Currency saved"));
+          return true;
+        } catch (error) {
+          showToast(error.message);
+          return false;
+        }
+      });
+      return startingMoneySavePromise;
     };
 
-    const saveStartingMoneyButton = document.getElementById("saveStartingMoney");
-    if (saveStartingMoneyButton) {
-      saveStartingMoneyButton.addEventListener("click", saveStartingMoney);
-    }
+    ["startingMoneyMethod", "startingMoneyBaseAmount", "startingMoneyCurrency"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", saveStartingMoney);
+    });
 
     document.getElementById("backToPoints").addEventListener("click", navigateBackInApp);
-    document.getElementById("currencyContinue").addEventListener("click", () => {
-      markSaved(t("web.toast.currency_saved", "Currency saved"));
-      renderEffectTypes();
+    document.getElementById("currencyContinue").addEventListener("click", async () => {
+      if (await saveStartingMoney()) {
+        renderEffectTypes();
+      }
     });
     wireSystemNameSave("currencies", () => renderCurrency());
   } catch (error) {
@@ -14149,12 +14354,6 @@ async function renderSkills(openId = "") {
           <div class="list" id="skillPointLevelList">
             ${skillPointRows || `<div class="list-item">${t("classes.skill_points.none", "No level-specific values.")}</div>`}
           </div>
-          <div class="actions-row">
-            <div class="left"></div>
-            <div class="right">
-              <button class="btn ghost" id="saveSkillProgression" type="button">${t("common.save", "Save")}</button>
-            </div>
-          </div>
         </div>
         <button class="btn" id="addSkill" type="button">${t("skills.add", "Add Skill")}</button>
         <div class="list" id="skillList">
@@ -14184,17 +14383,21 @@ async function renderSkills(openId = "") {
     const skillPointLevelSelect = document.getElementById("skillPointLevelSelect");
     const skillPointLevelValue = document.getElementById("skillPointLevelValue");
     const skillPointLevelAdd = document.getElementById("skillPointLevelAdd");
-    const saveSkillProgression = document.getElementById("saveSkillProgression");
 
-    const saveSkillProgressionData = async () => {
-      await api("POST", `/api/drafts/${state.draftId}/skills/progression`, {
+    let skillPointSavePromise = Promise.resolve();
+    const saveSkillProgressionData = () => {
+      const payload = {
         skillPointProgression: String(skillPointProgressionType.value || "byClass"),
         baseSkillPointsPerLevel: Math.max(0, Math.trunc(Number(skillPointBase.value || 0))),
         skillPointsModifiedByInt: Boolean(skillPointModInt.checked),
         minimumSkillPointsPerLevel: Math.max(0, Math.trunc(Number(skillPointMinimum.value || 0))),
         skillPointsSameAllLevels: Boolean(skillPointSameAll.checked),
         skillPointsByLevel: skillPointsByLevel.slice(),
-      });
+      };
+      skillPointSavePromise = skillPointSavePromise
+        .catch(() => undefined)
+        .then(() => api("POST", `/api/drafts/${state.draftId}/skills/progression`, payload));
+      return skillPointSavePromise;
     };
 
     const renderSkillPointLevelOptions = () => {
@@ -14291,6 +14494,16 @@ async function renderSkills(openId = "") {
         showToast(error.message);
       }
     });
+    [skillPointBase, skillPointMinimum].forEach((input) => {
+      input.addEventListener("change", async () => {
+        try {
+          await saveSkillProgressionData();
+          markSaved(t("web.toast.skills_saved", "Skills saved"));
+        } catch (error) {
+          showToast(error.message);
+        }
+      });
+    });
     skillPointSameAll.addEventListener("change", async () => {
       updateSkillPointControls();
       try {
@@ -14318,15 +14531,6 @@ async function renderSkills(openId = "") {
         .then(() => markSaved(t("web.toast.skills_saved", "Skills saved")))
         .catch((error) => showToast(error.message));
     });
-    saveSkillProgression.addEventListener("click", async () => {
-      try {
-        await saveSkillProgressionData();
-        markSaved(t("web.toast.skills_saved", "Skills saved"));
-      } catch (error) {
-        showToast(error.message);
-      }
-    });
-
     document.querySelectorAll("[data-edit-skill]").forEach((button) => {
       button.addEventListener("click", () => {
         const skillId = button.dataset.editSkill;
@@ -14356,9 +14560,14 @@ async function renderSkills(openId = "") {
     });
 
     document.getElementById("backToWeapons").addEventListener("click", navigateBackInApp);
-    document.getElementById("skillsContinue").addEventListener("click", () => {
-      markSaved(t("web.toast.skills_saved", "Skills saved"));
-      renderSpells();
+    document.getElementById("skillsContinue").addEventListener("click", async () => {
+      try {
+        await saveSkillProgressionData();
+        markSaved(t("web.toast.skills_saved", "Skills saved"));
+        renderSpells();
+      } catch (error) {
+        showToast(error.message);
+      }
     });
     wireSystemNameSave("skills", () => renderSkills());
     if (openId) {
@@ -14929,22 +15138,20 @@ function renderSystemNameControls(systemName, placeholder) {
       <div class="field">
         <label for="systemNameInput">${t("common.system_name.label", "Section Label")}</label>
         <input type="text" id="systemNameInput" value="${escapeHtml(systemName)}"
+          data-default-section-name="${escapeHtml(placeholder)}"
           placeholder="${escapeHtml(placeholder)}">
       </div>
-      <button class="btn ghost" id="saveSystemName" type="button">
-        ${t("common.system_name.save", "Save Label")}
-      </button>
     </div>
   `;
 }
 
-function wireSystemNameSave(key, onSaved) {
-  const button = document.getElementById("saveSystemName");
-  if (!button) {
+function wireSystemNameSave(key) {
+  const input = document.getElementById("systemNameInput");
+  if (!input) {
     return;
   }
-  button.addEventListener("click", async () => {
-    const name = document.getElementById("systemNameInput").value.trim();
+  input.addEventListener("change", async () => {
+    const name = input.value.trim();
     try {
       await api("POST", `/api/drafts/${state.draftId}/system-names`, { key, name });
       markSaved(t("common.system_name.saved", "Label saved."));
@@ -14957,8 +15164,9 @@ function wireSystemNameSave(key, onSaved) {
         }
       }
       renderSidebar();
-      if (typeof onSaved === "function") {
-        onSaved();
+      const heading = view.querySelector(".panel > h1");
+      if (heading) {
+        heading.textContent = name || String(input.dataset.defaultSectionName || "");
       }
     } catch (error) {
       showToast(error.message);
