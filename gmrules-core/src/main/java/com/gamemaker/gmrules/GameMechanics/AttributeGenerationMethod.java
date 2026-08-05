@@ -66,6 +66,10 @@ public class AttributeGenerationMethod extends GameElement {
     // === STANDARD ARRAYS ===
     private String defaultArrayType = "standard";
     private String standardArrayAssignmentMode = "assigned";
+    private boolean allAttributesUseSameStandardScore = false;
+    private int standardSharedScore = 0;
+    private boolean allAttributesUseSameEliteScore = false;
+    private int eliteSharedScore = 0;
 
     // === ASSIGNMENT RULES ===
     private boolean assignInOrder = false;
@@ -169,6 +173,23 @@ public class AttributeGenerationMethod extends GameElement {
 
     public Set<String> getArrayNames() {
         return new HashSet<>(arrayHandler.getArrayNames());
+    }
+
+    public List<String> getAttributeOrder() {
+        ArrayList<String> storedOrder = getArray("attributeOrder");
+        return storedOrder == null ? List.of() : storedOrder;
+    }
+
+    public void setAttributeOrder(Collection<String> attributeIds) {
+        Collection<String> safeIds = Objects.requireNonNullElseGet(attributeIds, List::of);
+        ArrayList<String> normalizedIds = new ArrayList<>();
+        for (String attributeId : safeIds) {
+            String safeId = Objects.toString(attributeId, "").trim();
+            if (!safeId.isEmpty() && !normalizedIds.contains(safeId)) {
+                normalizedIds.add(safeId);
+            }
+        }
+        replaceArray("attributeOrder", normalizedIds);
     }
 
     // === GENERATION TYPE METHODS ===
@@ -390,6 +411,30 @@ public class AttributeGenerationMethod extends GameElement {
         }
     }
 
+    public boolean isAllAttributesUseSameStandardScore() {
+        return allAttributesUseSameStandardScore;
+    }
+    public void setAllAttributesUseSameStandardScore(boolean allAttributesUseSameStandardScore) {
+        this.allAttributesUseSameStandardScore = allAttributesUseSameStandardScore;
+    }
+
+    public int getStandardSharedScore() { return standardSharedScore; }
+    public void setStandardSharedScore(int standardSharedScore) {
+        this.standardSharedScore = standardSharedScore;
+    }
+
+    public boolean isAllAttributesUseSameEliteScore() {
+        return allAttributesUseSameEliteScore;
+    }
+    public void setAllAttributesUseSameEliteScore(boolean allAttributesUseSameEliteScore) {
+        this.allAttributesUseSameEliteScore = allAttributesUseSameEliteScore;
+    }
+
+    public int getEliteSharedScore() { return eliteSharedScore; }
+    public void setEliteSharedScore(int eliteSharedScore) {
+        this.eliteSharedScore = eliteSharedScore;
+    }
+
     // === ASSIGNMENT METHODS ===
     public boolean isAssignInOrder() { return assignInOrder; }
     public void setAssignInOrder(boolean assignInOrder) { this.assignInOrder = assignInOrder; }
@@ -509,6 +554,9 @@ public class AttributeGenerationMethod extends GameElement {
         if (arrayHandler == null) {
             arrayHandler = new ArrayHandler();
             initializeArrayRegistry();
+        }
+        if (!arrayHandler.getArrayNames().contains("attributeOrder")) {
+            arrayHandler.putArray("attributeOrder", new ArrayList<String>());
         }
         setCategoryAssignmentMode(categoryAssignmentMode);
         setCategoryPointRules(categoryPointRules);

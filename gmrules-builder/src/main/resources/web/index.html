@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GMRules Web</title>
-  <link rel="stylesheet" href="/styles.css?v=20260801o">
+  <link rel="stylesheet" href="/styles.css?v=20260804s">
 </head>
 <body class="logged-out">
   <div class="backdrop"></div>
@@ -176,9 +176,9 @@
   </div>
 
   <div class="modal hidden" id="arrayValueModal" role="dialog" aria-modal="true" aria-labelledby="arrayValueModalTitle">
-    <div class="modal-card">
+    <div class="modal-card" id="arrayValueModalCard">
       <h3 id="arrayValueModalTitle">Add Value</h3>
-      <div class="grid">
+      <div class="grid" id="arrayValueModalSingleFields">
         <div class="field" id="arrayValueModalAttributeField">
           <label for="arrayValueModalAttribute" id="arrayValueModalAttributeLabel">Attribute</label>
           <select id="arrayValueModalAttribute"></select>
@@ -188,6 +188,7 @@
           <input type="number" id="arrayValueModalValue" value="0">
         </div>
       </div>
+      <div class="array-score-grid hidden" id="arrayValueModalEntries"></div>
       <div class="modal-actions">
         <button class="btn ghost" id="arrayValueModalCancel" type="button">Cancel</button>
         <button class="btn" id="arrayValueModalSave" type="button">Add Value</button>
@@ -219,6 +220,18 @@
       <div class="modal-actions">
         <button class="btn ghost" id="diceTermModalCancel" type="button">Cancel</button>
         <button class="btn" id="diceTermModalSave" type="button">Add Dice Term</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="attributeOrderModal" role="dialog" aria-modal="true" aria-labelledby="attributeOrderModalTitle">
+    <div class="modal-card">
+      <h3 id="attributeOrderModalTitle">Attribute Assignment Order</h3>
+      <p class="field-hint" id="attributeOrderModalDescription">Choose which Attribute receives each roll, from first to last.</p>
+      <div class="attribute-order-list" id="attributeOrderModalList"></div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="attributeOrderModalCancel" type="button">Cancel</button>
+        <button class="btn" id="attributeOrderModalSave" type="button">Save Order</button>
       </div>
     </div>
   </div>
@@ -808,6 +821,6 @@
     })();
   </script>
 
-  <script src="/app.js?v=20260801o"></script>
+  <script src="/app.js?v=20260804u"></script>
 </body>
 </html>

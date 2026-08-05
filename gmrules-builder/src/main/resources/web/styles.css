@@ -319,6 +319,47 @@ body.mode-chargen .step-indicator {
   margin: 0 0 12px;
 }
 
+.chargen-method-description {
+  white-space: pre-wrap;
+}
+
+.dice-assignment-controls,
+.array-assignment-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.attribute-result-choice-card {
+  cursor: pointer;
+}
+
+.attribute-result-choice-card:has(input:checked) {
+  border-color: var(--sea);
+}
+
+.dice-assignment-controls select,
+.array-assignment-controls select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dice-assignment-controls .btn,
+.array-assignment-controls .btn {
+  flex: 0 0 auto;
+}
+
+.dice-assignment-order-controls {
+  margin-top: 10px;
+}
+
+.attribute-order-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
 .mechanic-description-input {
   width: 100%;
   min-height: 180px;
@@ -507,6 +548,33 @@ textarea {
   border-radius: 12px;
   background: rgba(208, 122, 83, 0.1);
   color: var(--ink);
+}
+
+.array-normalization-controls {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+  max-width: 620px;
+}
+
+.array-normalization-controls .field {
+  max-width: 220px;
+}
+
+.array-score-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.array-score-row {
+  align-items: center;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 180px);
+}
+
+.array-score-row input {
+  width: 100%;
 }
 
 .point-buy-assignment-mode {
@@ -962,5 +1030,11 @@ textarea {
 
   .home-action-group {
     padding: 18px;
+  }
+
+  .array-score-row {
+    align-items: stretch;
+    gap: 6px;
+    grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -231,6 +231,8 @@ public final class ApiRoutes {
 
         router.add("GET", "/api/drafts/{id}/dice-rolling", ApiRoutes::getDiceRolling);
         router.add("POST", "/api/drafts/{id}/dice-rolling/sets", ApiRoutes::updateDiceSets);
+        router.add("POST", "/api/drafts/{id}/dice-rolling/assignment", ApiRoutes::updateDiceAssignment);
+        router.add("POST", "/api/drafts/{id}/dice-rolling/attribute-order", ApiRoutes::updateDiceAttributeOrder);
         router.add("POST", "/api/drafts/{id}/dice-rolling/substitution", ApiRoutes::updateDiceSubstitution);
         router.add("POST", "/api/drafts/{id}/dice-rolling/term", ApiRoutes::addDiceTerm);
         router.add("DELETE", "/api/drafts/{id}/dice-rolling/term", ApiRoutes::removeDiceTerm);
@@ -2351,6 +2353,28 @@ public final class ApiRoutes {
         return options;
     }
 
+    private static String validateAttributeGenerationOptions(List<Map<String, Object>> values) {
+        for (Map<String, Object> entry : values) {
+            List<Map<String, Object>> rawSteps = getMapList(entry, "steps");
+            for (int stepIndex = 1; stepIndex < rawSteps.size(); stepIndex++) {
+                Map<String, Object> rawStep = rawSteps.get(stepIndex);
+                String methodType = Game.AttributeGenerationStep.normalizeMethodType(
+                    getString(rawStep, "methodType")
+                );
+                if (methodType.equals(Game.AttributeGenerationStep.METHOD_STANDARD_ARRAY)) {
+                    return "Standard Array/Base Scores can only be the first step";
+                }
+                String applicationMode = getString(rawStep, "applicationMode").trim().toLowerCase();
+                if (!applicationMode.equals(Game.AttributeGenerationStep.APPLICATION_ADD)
+                    && !applicationMode.equals(Game.AttributeGenerationStep.APPLICATION_SPEND)
+                    && !applicationMode.equals(Game.AttributeGenerationStep.APPLICATION_CHOOSE)) {
+                    return "Later steps must add, spend, or let the player choose between results";
+                }
+            }
+        }
+        return "";
+    }
+
     private static void getAttributeGeneration(RequestContext ctx) throws IOException {
         SessionStore.Session session = requireSession(ctx);
         if (session == null) {
@@ -2400,8 +2424,14 @@ public final class ApiRoutes {
             && getBoolean(body, "applyAttributeModifiersToAllAttributes", false);
         List<Map<String, Object>> modifiers = getMapList(body, "attributeModifiers");
         boolean hasAttributeGenerationOptions = body.get("attributeGenerationOptions") instanceof List<?>;
+        List<Map<String, Object>> rawAttributeGenerationOptions = getMapList(body, "attributeGenerationOptions");
+        String optionValidationError = validateAttributeGenerationOptions(rawAttributeGenerationOptions);
+        if (hasAttributeGenerationOptions && !optionValidationError.isEmpty()) {
+            ctx.json(400, Map.of("error", optionValidationError));
+            return;
+        }
         List<Game.AttributeGenerationOption> attributeGenerationOptions = parseAttributeGenerationOptions(
-            getMapList(body, "attributeGenerationOptions")
+            rawAttributeGenerationOptions
         );
         if (hasAttributeGenerationOptions) {
             List<String> selectedMethods = collectAttributeGenerationMethods(attributeGenerationOptions);
@@ -2481,6 +2511,7 @@ public final class ApiRoutes {
         Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
             AttributeGenerationMethod method = game.getAttributeGenerationMethod();
             Map<String, Object> response = new LinkedHashMap<>();
+            response.put("description", Objects.toString(method.getDescription(), ""));
             response.put("generationType", Objects.toString(method.getGenerationType(), ""));
             response.put("hybridStages", safeList(method.getArray(ARRAY_HYBRID)));
             response.put("attributeGenerationOptions", serializeAttributeGenerationOptions(game.getAttributeGenerationOptions()));
@@ -2492,8 +2523,8 @@ public final class ApiRoutes {
             response.put("allowDiceSubstitution", method.isAllowDiceSubstitution());
             response.put("diceSubstitutionValue", method.getDiceSubstitutionValue());
             response.put("maxDiceSubstitutions", method.getMaxDiceSubstitutions());
-            response.put("standardArray", safeList(method.getArray("standardArrays")));
-            response.put("eliteArray", safeList(method.getArray("eliteArrays")));
+            response.put("standardArray", resolveCharacterStandardArray(game, false));
+            response.put("eliteArray", resolveCharacterStandardArray(game, true));
             response.put("defaultArrayType", Objects.toString(method.getDefaultArrayType(), ""));
             response.put(
                 "standardArrayAssignmentMode",
@@ -2587,6 +2618,16 @@ public final class ApiRoutes {
                 "standardArrayAssignmentMode",
                 Objects.toString(method.getStandardArrayAssignmentMode(), "assigned")
             );
+            response.put(
+                "allAttributesUseSameStandardScore",
+                method.isAllAttributesUseSameStandardScore()
+            );
+            response.put("standardSharedScore", method.getStandardSharedScore());
+            response.put(
+                "allAttributesUseSameEliteScore",
+                method.isAllAttributesUseSameEliteScore()
+            );
+            response.put("eliteSharedScore", method.getEliteSharedScore());
 
             List<Map<String, Object>> attributes = new ArrayList<>();
             for (Attribute attribute : getAttributes(game)) {
@@ -2612,6 +2653,10 @@ public final class ApiRoutes {
             return;
         }
         Map<String, Object> body = ctx.readJsonMap();
+        if (body.containsKey("attributeValues")) {
+            replaceAssignedStandardArray(ctx, draftId, "standardArrays", body);
+            return;
+        }
         String attributeId = getString(body, "attributeId");
         int value = getInt(body, "value", 0);
         ctx.getDraftStore().updateDraft(draftId, game -> {
@@ -2659,6 +2704,10 @@ public final class ApiRoutes {
             return;
         }
         Map<String, Object> body = ctx.readJsonMap();
+        if (body.containsKey("attributeValues")) {
+            replaceAssignedStandardArray(ctx, draftId, "eliteArrays", body);
+            return;
+        }
         String attributeId = getString(body, "attributeId");
         int value = getInt(body, "value", 0);
         ctx.getDraftStore().updateDraft(draftId, game -> {
@@ -2775,6 +2824,14 @@ public final class ApiRoutes {
         Map<String, Object> body = ctx.readJsonMap();
         String defaultType = getString(body, "defaultArrayType");
         String assignmentMode = getString(body, "standardArrayAssignmentMode");
+        boolean hasStandardSharedMode = body.containsKey("allAttributesUseSameStandardScore");
+        boolean hasStandardSharedScore = body.containsKey("standardSharedScore");
+        boolean hasEliteSharedMode = body.containsKey("allAttributesUseSameEliteScore");
+        boolean hasEliteSharedScore = body.containsKey("eliteSharedScore");
+        boolean standardSharedMode = getBoolean(body, "allAttributesUseSameStandardScore", false);
+        int standardSharedScore = getInt(body, "standardSharedScore", 0);
+        boolean eliteSharedMode = getBoolean(body, "allAttributesUseSameEliteScore", false);
+        int eliteSharedScore = getInt(body, "eliteSharedScore", 0);
         ctx.getDraftStore().updateDraft(draftId, game -> {
             AttributeGenerationMethod method = game.getAttributeGenerationMethod();
             if (!defaultType.isEmpty()) {
@@ -2783,7 +2840,79 @@ public final class ApiRoutes {
             if (!assignmentMode.isEmpty()) {
                 method.setStandardArrayAssignmentMode(assignmentMode);
             }
+            if (hasStandardSharedMode) {
+                method.setAllAttributesUseSameStandardScore(standardSharedMode);
+            }
+            if (hasStandardSharedScore) {
+                method.setStandardSharedScore(standardSharedScore);
+            }
+            if (hasEliteSharedMode) {
+                method.setAllAttributesUseSameEliteScore(eliteSharedMode);
+            }
+            if (hasEliteSharedScore) {
+                method.setEliteSharedScore(eliteSharedScore);
+            }
         });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void replaceAssignedStandardArray(
+        RequestContext ctx,
+        String draftId,
+        String arrayName,
+        Map<String, Object> body
+    ) throws IOException {
+        Object rawValues = body.get("attributeValues");
+        if (!(rawValues instanceof List<?>)) {
+            ctx.json(400, Map.of("error", "Attribute scores must be a list."));
+            return;
+        }
+        List<Map<String, Object>> requestedValues = getMapList(body, "attributeValues");
+        if (requestedValues.size() != ((List<?>) rawValues).size()) {
+            ctx.json(400, Map.of("error", "Each Attribute score must be an object."));
+            return;
+        }
+        Map<String, Integer> valuesByAttributeId = new LinkedHashMap<>();
+        for (Map<String, Object> entry : requestedValues) {
+            String attributeId = getString(entry, "attributeId").trim();
+            if (attributeId.isEmpty()
+                || !entry.containsKey("value")
+                || valuesByAttributeId.putIfAbsent(attributeId, getInt(entry, "value", 0)) != null) {
+                ctx.json(400, Map.of("error", "Each Attribute must have exactly one score."));
+                return;
+            }
+        }
+
+        boolean[] updated = {false};
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+            if (isOpenStandardArray(method)) {
+                return;
+            }
+            List<Attribute> attributes = getAttributes(game);
+            if (attributes.size() != valuesByAttributeId.size()) {
+                return;
+            }
+            ArrayList<String> replacement = new ArrayList<>();
+            for (Attribute attribute : attributes) {
+                String attributeId = Objects.toString(attribute.getId(), "").trim();
+                String attributeName = Objects.toString(attribute.getName(), "").trim();
+                Integer value = valuesByAttributeId.get(attributeId);
+                if (attributeName.isEmpty() || value == null) {
+                    return;
+                }
+                replacement.add(attributeName + "=" + value);
+            }
+            method.replaceArray(arrayName, replacement);
+            updated[0] = true;
+        });
+        if (!updated[0]) {
+            ctx.json(400, Map.of(
+                "error",
+                "Every current Attribute must have exactly one score. Refresh and try again."
+            ));
+            return;
+        }
         ctx.json(200, Map.of("ok", true));
     }
 
@@ -2805,6 +2934,17 @@ public final class ApiRoutes {
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("diceRollingEnabled", isDiceRollingEnabled(method));
             response.put("numberOfSets", method.getNumberOfSets());
+            response.put("assignInOrder", game.isAssignAttributeRollsInOrder());
+            List<Map<String, Object>> attributes = new ArrayList<>();
+            for (Attribute attribute : getAttributes(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(attribute.getId(), ""));
+                entry.put("name", Objects.toString(attribute.getName(), ""));
+                entry.put("displayName", Objects.toString(attribute.getDisplayName(), ""));
+                attributes.add(entry);
+            }
+            response.put("attributes", attributes);
+            response.put("attributeOrder", game.getAttributeAssignmentOrder());
             response.put("allowDiceSubstitution", method.isAllowDiceSubstitution());
             response.put("diceSubstitutionValue", method.getDiceSubstitutionValue());
             response.put("maxDiceSubstitutions", method.getMaxDiceSubstitutions());
@@ -2843,6 +2983,63 @@ public final class ApiRoutes {
             method.setNumberOfSets(sets);
         });
         ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateDiceAssignment(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensureDiceRollingEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        boolean assignInOrder = getBoolean(body, "assignInOrder", false);
+        ctx.getDraftStore().updateDraft(
+            draftId,
+            game -> game.setAssignAttributeRollsInOrder(assignInOrder)
+        );
+        ctx.json(200, Map.of("ok", true, "assignInOrder", assignInOrder));
+    }
+
+    private static void updateDiceAttributeOrder(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensureDiceRollingEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        if (!(body.get("attributeOrder") instanceof List<?>)) {
+            ctx.json(400, Map.of("error", "Attribute order must be a list."));
+            return;
+        }
+        List<String> attributeOrder = getStringList(body, "attributeOrder");
+        List<String> currentAttributeIds = ctx.getDraftStore().readDraft(
+            draftId,
+            Game::getAttributeAssignmentOrder
+        );
+        Set<String> expectedAttributeIds = new HashSet<>(currentAttributeIds);
+        Set<String> submittedAttributeIds = new HashSet<>(attributeOrder);
+        if (attributeOrder.size() != currentAttributeIds.size()
+            || submittedAttributeIds.size() != attributeOrder.size()
+            || !submittedAttributeIds.equals(expectedAttributeIds)) {
+            ctx.json(400, Map.of("error", "Choose every Attribute exactly once."));
+            return;
+        }
+        try {
+            ctx.getDraftStore().updateDraft(
+                draftId,
+                game -> game.setAttributeAssignmentOrder(attributeOrder)
+            );
+        } catch (IllegalArgumentException error) {
+            ctx.json(400, Map.of("error", "Choose every Attribute exactly once."));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "attributeOrder", attributeOrder));
     }
 
     private static void updateDiceSubstitution(RequestContext ctx) throws IOException {
@@ -3293,20 +3490,13 @@ public final class ApiRoutes {
 
     private static List<Map<String, Object>> getAttributesForSelect(Game game) {
         List<Map<String, Object>> attributes = new ArrayList<>();
-        for (Attribute attribute : game.getElementRegistry(ElementRegistryKey.ATTRIBUTES).getAll()) {
-            if (attribute == null) {
-                continue;
-            }
+        for (Attribute attribute : getAttributes(game)) {
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("id", Objects.toString(attribute.getId(), ""));
             entry.put("name", Objects.toString(attribute.getName(), ""));
             entry.put("displayName", Objects.toString(attribute.getDisplayName(), ""));
             attributes.add(entry);
         }
-        attributes.sort(Comparator.comparing(
-            entry -> Objects.toString(entry.get("displayName"), ""),
-            String.CASE_INSENSITIVE_ORDER
-        ));
         return attributes;
     }
 
@@ -5542,7 +5732,7 @@ public final class ApiRoutes {
         if (enabled) {
             return true;
         }
-        ctx.json(400, Map.of("error", "Standard Array is not selected in Attribute Generation."));
+            ctx.json(400, Map.of("error", "Standard Array/Base Scores is not selected in Attribute Generation."));
         return false;
     }
 
@@ -5580,6 +5770,26 @@ public final class ApiRoutes {
             () -> new AttributeGenerationMethod("")
         );
         return "open".equals(Objects.toString(safeMethod.getStandardArrayAssignmentMode(), "").trim().toLowerCase());
+    }
+
+    private static List<String> resolveCharacterStandardArray(Game game, boolean elite) {
+        AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+        boolean usesSharedScore = !isOpenStandardArray(method)
+            && (elite
+                ? method.isAllAttributesUseSameEliteScore()
+                : method.isAllAttributesUseSameStandardScore());
+        if (!usesSharedScore) {
+            return safeList(method.getArray(elite ? "eliteArrays" : "standardArrays"));
+        }
+        int sharedScore = elite ? method.getEliteSharedScore() : method.getStandardSharedScore();
+        List<String> resolved = new ArrayList<>();
+        for (Attribute attribute : getAttributes(game)) {
+            String attributeName = Objects.toString(attribute.getName(), "").trim();
+            if (!attributeName.isEmpty()) {
+                resolved.add(attributeName + "=" + sharedScore);
+            }
+        }
+        return resolved;
     }
 
     private static boolean isDiceRollingEnabled(AttributeGenerationMethod method) {
@@ -6513,8 +6723,7 @@ public final class ApiRoutes {
 
     @SuppressWarnings("unchecked")
     private static List<Attribute> getAttributes(Game game) {
-        List<Attribute> attributes = game.<Attribute>getObjectArray("attributes");
-        return attributes == null ? List.of() : attributes;
+        return game.getAttributesInAssignmentOrder();
     }
 
     @SuppressWarnings("unchecked")

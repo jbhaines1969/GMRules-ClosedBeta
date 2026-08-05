@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -1214,6 +1215,63 @@ public class Game extends GameElement {
         updateLastModified();
     }
 
+    public boolean isAssignAttributeRollsInOrder() {
+        return attributeGenerationMethod.isAssignInOrder();
+    }
+
+    public void setAssignAttributeRollsInOrder(boolean assignInOrder) {
+        attributeGenerationMethod.setAssignInOrder(assignInOrder);
+        updateLastModified();
+    }
+
+    public List<Attribute> getAttributesInAssignmentOrder() {
+        LinkedHashMap<String, Attribute> remainingAttributes = new LinkedHashMap<>();
+        for (Attribute attribute : getElementRegistry(ElementRegistryKey.ATTRIBUTES).getAll()) {
+            remainingAttributes.put(Objects.toString(attribute.getId(), ""), attribute);
+        }
+
+        ArrayList<Attribute> orderedAttributes = new ArrayList<>();
+        for (String attributeId : attributeGenerationMethod.getAttributeOrder()) {
+            Attribute attribute = remainingAttributes.remove(Objects.toString(attributeId, ""));
+            if (attribute != null) {
+                orderedAttributes.add(attribute);
+            }
+        }
+        orderedAttributes.addAll(remainingAttributes.values());
+        return orderedAttributes;
+    }
+
+    public List<String> getAttributeAssignmentOrder() {
+        ArrayList<String> attributeIds = new ArrayList<>();
+        for (Attribute attribute : getAttributesInAssignmentOrder()) {
+            attributeIds.add(Objects.toString(attribute.getId(), ""));
+        }
+        return attributeIds;
+    }
+
+    public void setAttributeAssignmentOrder(Collection<String> attributeIds) {
+        Collection<String> safeIds = Objects.requireNonNullElseGet(attributeIds, List::of);
+        LinkedHashMap<String, Attribute> currentAttributes = new LinkedHashMap<>();
+        for (Attribute attribute : getElementRegistry(ElementRegistryKey.ATTRIBUTES).getAll()) {
+            currentAttributes.put(Objects.toString(attribute.getId(), ""), attribute);
+        }
+
+        ArrayList<String> normalizedOrder = new ArrayList<>();
+        Set<String> assignedAttributeIds = new HashSet<>();
+        for (String attributeId : safeIds) {
+            String safeId = Objects.toString(attributeId, "").trim();
+            if (!currentAttributes.containsKey(safeId) || !assignedAttributeIds.add(safeId)) {
+                throw new IllegalArgumentException("Attribute order must contain every Attribute exactly once.");
+            }
+            normalizedOrder.add(safeId);
+        }
+        if (normalizedOrder.size() != currentAttributes.size()) {
+            throw new IllegalArgumentException("Attribute order must contain every Attribute exactly once.");
+        }
+        attributeGenerationMethod.setAttributeOrder(normalizedOrder);
+        updateLastModified();
+    }
+
     public List<AttributeGenerationOption> getAttributeGenerationOptions() {
         ensureAttributeGenerationOptions();
         ArrayList<AttributeGenerationOption> copy = new ArrayList<>();
@@ -1475,7 +1533,7 @@ public class Game extends GameElement {
     private String defaultAttributeGenerationOptionName(String methodType) {
         String safeType = AttributeGenerationStep.normalizeMethodType(methodType);
         if (safeType.equals(AttributeGenerationStep.METHOD_STANDARD_ARRAY)) {
-            return "Standard Array";
+            return "Standard Array/Base Scores";
         }
         if (safeType.equals(AttributeGenerationStep.METHOD_DICE)) {
             return "Dice Rolling";
@@ -1644,8 +1702,8 @@ public class Game extends GameElement {
             Collection<AttributeGenerationStep> safeSteps = Objects.requireNonNullElse(steps, List.of());
             ArrayList<AttributeGenerationStep> copy = new ArrayList<>();
             for (AttributeGenerationStep step : safeSteps) {
-                AttributeGenerationStep safeStep = new AttributeGenerationStep(step);
-                if (!safeStep.getMethodType().isEmpty()) {
+                AttributeGenerationStep safeStep = normalizeStepForPosition(step, copy.size());
+                if (safeStep != null) {
                     copy.add(safeStep);
                 }
             }
@@ -1653,10 +1711,26 @@ public class Game extends GameElement {
         }
 
         public void addStep(AttributeGenerationStep step) {
-            AttributeGenerationStep safeStep = new AttributeGenerationStep(step);
-            if (!safeStep.getMethodType().isEmpty()) {
+            AttributeGenerationStep safeStep = normalizeStepForPosition(step, steps.size());
+            if (safeStep != null) {
                 steps.add(safeStep);
             }
+        }
+
+        private AttributeGenerationStep normalizeStepForPosition(AttributeGenerationStep step, int position) {
+            AttributeGenerationStep safeStep = new AttributeGenerationStep(step);
+            if (safeStep.getMethodType().isEmpty()) {
+                return null;
+            }
+            if (position > 0 && safeStep.getMethodType().equals(AttributeGenerationStep.METHOD_STANDARD_ARRAY)) {
+                return null;
+            }
+            if (position == 0) {
+                safeStep.setApplicationMode(AttributeGenerationStep.APPLICATION_SET);
+            } else if (safeStep.getApplicationMode().equals(AttributeGenerationStep.APPLICATION_SET)) {
+                safeStep.setApplicationMode(AttributeGenerationStep.APPLICATION_CHOOSE);
+            }
+            return safeStep;
         }
 
         private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
@@ -1679,6 +1753,7 @@ public class Game extends GameElement {
         public static final String APPLICATION_SET = "set";
         public static final String APPLICATION_ADD = "add";
         public static final String APPLICATION_SPEND = "spend";
+        public static final String APPLICATION_CHOOSE = "choose";
 
         private String methodType = "";
         private String applicationMode = APPLICATION_SET;
@@ -1726,7 +1801,9 @@ public class Game extends GameElement {
 
         public static String normalizeApplicationMode(String applicationMode) {
             String safeMode = Objects.toString(applicationMode, "").trim().toLowerCase();
-            if (safeMode.equals(APPLICATION_ADD) || safeMode.equals(APPLICATION_SPEND)) {
+            if (safeMode.equals(APPLICATION_ADD)
+                || safeMode.equals(APPLICATION_SPEND)
+                || safeMode.equals(APPLICATION_CHOOSE)) {
                 return safeMode;
             }
             return APPLICATION_SET;

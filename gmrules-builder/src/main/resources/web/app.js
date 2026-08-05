@@ -18,6 +18,8 @@ const state = {
   currencyId: "",
   chargenAttributes: [],
   chargenAttributeScores: {},
+  chargenAttributeStepResults: {},
+  chargenAttributeResultChoice: "",
   chargenPointBuyBaselineScores: {},
   chargenRaceId: "",
   chargenClassId: "",
@@ -36,6 +38,10 @@ const state = {
   chargenGameName: "",
   chargenCharacterName: "",
   chargenAttributeGenerationChoice: "",
+  chargenRolledAttributeValues: [],
+  chargenDiceRollAssignments: {},
+  chargenSelectedArrayType: "",
+  chargenArrayAssignments: {},
   chargenRuleModeSelections: {},
   chargenDiceSubstitutionsUsed: 0,
   chargenDraftText: "",
@@ -142,19 +148,19 @@ const steps = [
         paragraphs: [
           {
             key: "attrgen.intro_specifics_options",
-            fallback: "On this screen, you will define the ways players can generate their characters' Attribute scores. You are choosing the options players will see during character creation; the detailed rules for Standard Array, Dice Rolling, and Point Buy are entered on their later screens.",
+            fallback: "On this screen, you will define the ways players can generate their characters' Attribute scores. You are choosing the options players will see during character creation; the detailed rules for Standard Array/Base Scores, Dice Rolling, and Point Buy are entered on their later screens.",
           },
           {
             key: "attrgen.intro_specifics_player_options",
-            fallback: "Player Options are alternative generation methods offered to the player. Give each option a clear name, such as 'Roll for Attributes,' 'Standard Array,' or 'Standard Array with Point Buy.' If you create more than one option, the player will choose between them during character creation. If there is only one, it will be used automatically.",
+            fallback: "Player Options are alternative generation methods offered to the player. Give each option a clear name, such as 'Roll for Attributes,' 'Standard Array/Base Scores,' or 'Base Scores with Point Buy.' If you create more than one option, the player will choose between them during character creation. If there is only one, it will be used automatically.",
           },
           {
             key: "attrgen.intro_specifics_first_step",
-            fallback: "The First Step establishes the character's initial Attribute scores. Standard Array gives the player a prepared group of values to assign. Dice Rolling generates values using the dice rules you define. Point Buy gives the player a budget that can be spent to build their scores.",
+            fallback: "The First Step establishes the character's initial Attribute scores. Standard Array/Base Scores gives the player prepared values to assign or a base for a hybrid method. Dice Rolling generates values using the dice rules you define. Point Buy gives the player a budget that can be spent to build their scores.",
           },
           {
             key: "attrgen.intro_specifics_second_step",
-            fallback: "The optional Second Step lets you combine two generation methods in sequence. Add to existing scores is generally used when Dice Rolling should increase the scores produced by the first step. Spend from existing scores is generally used when Point Buy should begin with the first step's scores and allow the player to improve or adjust them with a budget. Replace existing scores makes the second method supply the final scores without carrying forward the first step's results.",
+            fallback: "The optional Second Step combines another generation method with the first result. Add increases the first scores, Spend uses the first scores as a point-buy baseline, and Choose generates both results before the player selects which complete result to use. Standard Array/Base Scores is available only as the first step.",
           },
           {
             key: "attrgen.intro_specifics_score_limits",
@@ -171,7 +177,7 @@ const steps = [
   {
     id: "standard-array",
     labelKey: "attrgen.standard.title",
-    fallback: "Standard Arrays",
+    fallback: "Standard Array/Base Scores",
     tutorialKey: "attrgen.standard.intro",
     tutorialFallback: "Define fixed attribute arrays and choose which one is the default option.",
   },
@@ -459,7 +465,7 @@ const tutorialSpecificPages = {
   },
   "standard-array": {
     titleKey: "attrgen.standard.info.specifics.title",
-    titleFallback: "Using Standard Arrays",
+    titleFallback: "Using Standard Array/Base Scores",
     paragraphs: [
       {
         key: "attrgen.standard.info.specifics.enabled",
@@ -494,6 +500,10 @@ const tutorialSpecificPages = {
       {
         key: "attrgen.dice.info.specifics.sets",
         fallback: "Number of Sets controls how many complete groups of Attribute results are generated. During character creation, the player chooses which generated set to use.",
+      },
+      {
+        key: "attrgen.dice.info.specifics.assignment",
+        fallback: "Roll Assignment determines whether generated values are locked to Attributes in their rolled order or assigned by the player. When rolls are assigned in order, Set Attribute Order defines the canonical first-to-last association. Player assignment lets each rolled value be used once and returned to the available set when cleared.",
       },
       {
         key: "attrgen.dice.info.specifics.substitution",
@@ -1097,7 +1107,10 @@ const defaultModifierModalCancel = document.getElementById("defaultModifierModal
 const defaultModifierModalSave = document.getElementById("defaultModifierModalSave");
 
 const arrayValueModal = document.getElementById("arrayValueModal");
+const arrayValueModalCard = document.getElementById("arrayValueModalCard");
 const arrayValueModalTitle = document.getElementById("arrayValueModalTitle");
+const arrayValueModalSingleFields = document.getElementById("arrayValueModalSingleFields");
+const arrayValueModalEntries = document.getElementById("arrayValueModalEntries");
 const arrayValueModalAttributeField = document.getElementById("arrayValueModalAttributeField");
 const arrayValueModalAttributeLabel = document.getElementById("arrayValueModalAttributeLabel");
 const arrayValueModalAttribute = document.getElementById("arrayValueModalAttribute");
@@ -1118,6 +1131,13 @@ const diceTermModalDropLowestLabel = document.getElementById("diceTermModalDropL
 const diceTermModalDropLowest = document.getElementById("diceTermModalDropLowest");
 const diceTermModalCancel = document.getElementById("diceTermModalCancel");
 const diceTermModalSave = document.getElementById("diceTermModalSave");
+
+const attributeOrderModal = document.getElementById("attributeOrderModal");
+const attributeOrderModalTitle = document.getElementById("attributeOrderModalTitle");
+const attributeOrderModalDescription = document.getElementById("attributeOrderModalDescription");
+const attributeOrderModalList = document.getElementById("attributeOrderModalList");
+const attributeOrderModalCancel = document.getElementById("attributeOrderModalCancel");
+const attributeOrderModalSave = document.getElementById("attributeOrderModalSave");
 
 const pointCategoryBudgetModal = document.getElementById("pointCategoryBudgetModal");
 const pointCategoryBudgetModalTitle = document.getElementById("pointCategoryBudgetModalTitle");
@@ -2816,10 +2836,11 @@ function ensureDraft() {
   return true;
 }
 
-function showConfirm(message, okLabel, cancelLabel = "", title = "", danger = true) {
+function showConfirm(message, okLabel, cancelLabel = "", title = "", danger = true, showCancel = true) {
   confirmTitle.textContent = title || t("web.confirm.title", "Confirm");
   confirmMessage.textContent = message;
   confirmCancel.textContent = cancelLabel || t("common.cancel", "Cancel");
+  confirmCancel.classList.toggle("hidden", !showCancel);
   confirmOk.textContent = okLabel || t("common.remove", "Remove");
   confirmOk.classList.toggle("danger", danger);
   confirmModal.classList.remove("hidden");
@@ -7432,8 +7453,10 @@ async function openSavedCharacter(characterDraftId) {
       renderCharGenClasses();
     } else if (target === "races") {
       renderCharGenRaces();
+    } else if (target === "attribute-result-choice") {
+      renderCharGenAttributeResultChoice();
     } else if (target === "attributes") {
-      renderCharGenAttributes();
+      renderCharGenAttributeAssignment();
     } else {
       renderCharGenIntro();
     }
@@ -7469,8 +7492,10 @@ async function importServerCharacterFile(file) {
     renderCharGenClasses();
   } else if (target === "races") {
     renderCharGenRaces();
+  } else if (target === "attribute-result-choice") {
+    renderCharGenAttributeResultChoice();
   } else if (target === "attributes") {
-    renderCharGenAttributes();
+    renderCharGenAttributeAssignment();
   } else {
     renderCharGenIntro();
   }
@@ -8298,8 +8323,10 @@ function renderCharGenResume() {
         renderCharGenClasses();
       } else if (target === "races") {
         renderCharGenRaces();
+      } else if (target === "attribute-result-choice") {
+        renderCharGenAttributeResultChoice();
       } else if (target === "attributes") {
-        renderCharGenAttributes();
+        renderCharGenAttributeAssignment();
       } else {
         renderCharGenIntro();
       }
@@ -8457,52 +8484,68 @@ async function renderCharGenAttributes() {
     const data = await api("GET", `/api/drafts/${state.draftId}/chargen/attribute-generation`);
     const attributes = Array.isArray(data.attributes) ? data.attributes : [];
     const method = data || {};
-    const rulesText = buildCharGenRules(method);
     const generationChoices = getCharGenGenerationChoices(method);
-    const initialGenerationChoice = resolveCharGenGenerationChoice(method);
+    const previousChoice = normalizeCharGenGenerationChoice(state.chargenAttributeGenerationChoice);
+    if (generationChoices.length === 1) {
+      state.chargenAttributeGenerationChoice = generationChoices[0].key;
+      if (previousChoice && previousChoice !== generationChoices[0].key) {
+        state.chargenRolledAttributeValues = [];
+        state.chargenDiceRollAssignments = {};
+        state.chargenDiceSubstitutionsUsed = 0;
+        clearCharGenAttributeStepResults();
+        state.chargenSelectedArrayType = "";
+        state.chargenArrayAssignments = {};
+      }
+    }
+    let activeGenerationChoice = resolveCharGenGenerationChoice(method);
     const generationChoiceOptions = [`<option value="">${t("attrgen.choice.placeholder", "Choose a method")}</option>`]
       .concat(
         generationChoices.map((choice) => {
-          const selected = choice.key === initialGenerationChoice ? " selected" : "";
+          const selected = choice.key === activeGenerationChoice ? " selected" : "";
           return `<option value="${choice.key}"${selected}>${escapeHtml(choice.label)}</option>`;
         })
       )
       .join("");
+    const description = String(method.description || "").trim()
+      || t(
+        "attrgen.description.empty",
+        "The ruleset creator did not provide a description for Attribute Generation."
+      );
     state.chargenAttributes = attributes.slice();
-    if (generationChoices.length === 1) {
-      state.chargenAttributeGenerationChoice = generationChoices[0].key;
-    }
 
     view.innerHTML = `
       <section class="panel">
         <h1>${t("attrgen.title", "Attribute Generation")}</h1>
-        <div class="field">
-          <label for="chargenRules">${t("attrgen.rules", "Rules")}</label>
-          <textarea id="chargenRules" readonly>${escapeHtml(rulesText)}</textarea>
-        </div>
+        <details class="mechanic-description-section" id="chargenMethodDescription" open>
+          <summary>
+            <span>${t("attrgen.description.drawer", "About Attribute Generation")}</span>
+          </summary>
+          <div class="mechanic-description-content">
+            <p class="chargen-method-description">${escapeHtml(description)}</p>
+            <div class="mechanic-description-actions">
+              <button class="btn ghost" id="chargenDescriptionClose" type="button">${t("common.close", "Close")}</button>
+            </div>
+          </div>
+        </details>
         ${generationChoices.length > 1 ? `
           <div class="field">
             <label for="chargenGenerationChoice">${t("attrgen.choice", "Choose Attribute Method")}</label>
             <select id="chargenGenerationChoice">${generationChoiceOptions}</select>
           </div>
         ` : ""}
-        <div class="field" id="chargenArraySection">
-          <label>${t("attrgen.type.standard_array", "Standard Array")}</label>
-          <select id="chargenArraySelect"></select>
-          <p class="field-hint" id="chargenArrayEmpty">${t("common.none", "None")}</p>
-        </div>
-        <div class="field" id="chargenDiceSection">
+        <div class="field hidden" id="chargenDiceSection">
           <label>${t("attrgen.rolls", "Rolled Sets")}</label>
           <div class="actions-row">
             <div class="left">
-              <button class="btn" id="chargenRollBtn" type="button">${t("attrgen.roll", "Roll Dice")}</button>
+              <button class="btn" id="chargenRollBtn" type="button">${t("attrgen.roll.all", "Roll All Sets")}</button>
             </div>
             <div class="right">
-              <button class="btn ghost" id="chargenApplyBtn" type="button">${t("attrgen.apply", "Apply Set")}</button>
+              <button class="btn ghost" id="chargenChooseRollBtn" type="button">${t("attrgen.roll.choose", "Choose Set")}</button>
             </div>
           </div>
           <div class="list" id="chargenRollList"></div>
           <p id="chargenRollEmpty">${t("attrgen.rolls.empty", "No rolls yet.")}</p>
+          <p class="field-hint" id="chargenRollStatus" aria-live="polite"></p>
           <div class="grid two" id="chargenSubstitutionSection">
             <div class="field">
               <label for="chargenSubstitutionIndex">${t("attrgen.dice.substitution.replace", "Replace Roll")}</label>
@@ -8518,6 +8561,282 @@ async function renderCharGenAttributes() {
           </div>
           <p class="field-hint" id="chargenSubstitutionHint"></p>
         </div>
+        <div class="actions-row">
+          <div class="left">
+            <button class="btn ghost" id="chargenBackToIntro" type="button">${t("setup.back", "Back")}</button>
+          </div>
+          <div class="right">
+            <button class="btn" id="chargenAttrContinue" type="button">${t("common.continue", "Continue")}</button>
+          </div>
+        </div>
+      </section>
+    `;
+
+    const descriptionDrawer = document.getElementById("chargenMethodDescription");
+    const generationChoiceSelect = document.getElementById("chargenGenerationChoice");
+    const diceSection = document.getElementById("chargenDiceSection");
+    const rollList = document.getElementById("chargenRollList");
+    const rollEmpty = document.getElementById("chargenRollEmpty");
+    const rollStatus = document.getElementById("chargenRollStatus");
+    const rollBtn = document.getElementById("chargenRollBtn");
+    const chooseRollBtn = document.getElementById("chargenChooseRollBtn");
+    const substitutionSection = document.getElementById("chargenSubstitutionSection");
+    const substitutionSelect = document.getElementById("chargenSubstitutionIndex");
+    const substituteBtn = document.getElementById("chargenSubstituteBtn");
+    const substitutionHint = document.getElementById("chargenSubstitutionHint");
+    const savedRoll = normalizeCharGenAttributeValues(state.chargenRolledAttributeValues);
+    const rolls = savedRoll.length ? [savedRoll.slice()] : [];
+    let selectedIndex = savedRoll.length ? 0 : -1;
+    let chosenIndex = savedRoll.length ? 0 : -1;
+    const substitutionValue = Math.trunc(Number(method.diceSubstitutionValue || 0));
+    const maxSubstitutions = Math.max(0, Math.trunc(Number(method.maxDiceSubstitutions || 0)));
+
+    const renderRolls = () => {
+      const diceActive = isCharGenGenerationChoiceActive(method, activeGenerationChoice, "dice");
+      const substitutionEnabled = diceActive && isCharGenDiceSubstitutionEnabled(method);
+      const selectedRoll = selectedIndex >= 0 && selectedIndex < rolls.length ? rolls[selectedIndex] : [];
+      const usedSubstitutions = Math.max(0, Math.trunc(Number(state.chargenDiceSubstitutionsUsed || 0)));
+      const remainingSubstitutions = Math.max(0, maxSubstitutions - usedSubstitutions);
+      diceSection.classList.toggle("hidden", !diceActive);
+      rollList.innerHTML = rolls
+        .map((values, index) => {
+          const checked = index === selectedIndex ? "checked" : "";
+          return `
+            <div class="list-item">
+              <label>
+                <input type="radio" name="chargenRollSelect" value="${index}" ${checked}>
+                ${escapeHtml(formatRollSet(index, values))}
+              </label>
+            </div>
+          `;
+        })
+        .join("");
+      rollEmpty.style.display = rolls.length ? "none" : "";
+      rollBtn.disabled = !diceActive || !isCharGenDiceEnabled(method, attributes);
+      chooseRollBtn.disabled = !diceActive || selectedIndex < 0;
+      rollStatus.textContent = chosenIndex >= 0
+        ? t("attrgen.roll.chosen", "Set {index} chosen for assignment.").replace("{index}", String(chosenIndex + 1))
+        : "";
+      substitutionSection.style.display = substitutionEnabled ? "" : "none";
+      substitutionHint.style.display = substitutionEnabled ? "" : "none";
+      if (substitutionEnabled) {
+        substitutionSelect.innerHTML = selectedRoll
+          .map((value, index) => {
+            const label = t("attrgen.dice.substitution.option", "Roll {number}: {value}")
+              .replace("{number}", String(index + 1))
+              .replace("{value}", String(value));
+            return `<option value="${index}">${escapeHtml(label)}</option>`;
+          })
+          .join("");
+        substituteBtn.disabled = selectedIndex < 0 || !selectedRoll.length || remainingSubstitutions <= 0;
+        substitutionHint.textContent = t(
+          "attrgen.dice.substitution.remaining",
+          "Substitution value: {value}. Remaining: {remaining} of {max}."
+        )
+          .replace("{value}", String(substitutionValue))
+          .replace("{remaining}", String(remainingSubstitutions))
+          .replace("{max}", String(maxSubstitutions));
+      }
+    };
+
+    document.getElementById("chargenDescriptionClose").addEventListener("click", () => {
+      descriptionDrawer.open = false;
+    });
+    if (generationChoiceSelect) {
+      generationChoiceSelect.addEventListener("change", () => {
+        state.chargenAttributeGenerationChoice = normalizeCharGenGenerationChoice(generationChoiceSelect.value);
+        activeGenerationChoice = resolveCharGenGenerationChoice(method);
+        state.chargenRolledAttributeValues = [];
+        state.chargenDiceRollAssignments = {};
+        state.chargenAttributeScores = {};
+        state.chargenPointBuyBaselineScores = {};
+        clearCharGenAttributeStepResults();
+        state.chargenSelectedArrayType = "";
+        state.chargenArrayAssignments = {};
+        state.chargenDiceSubstitutionsUsed = 0;
+        rolls.length = 0;
+        selectedIndex = -1;
+        chosenIndex = -1;
+        renderRolls();
+        saveCharGenDraftLocal();
+      });
+    }
+    rollBtn.addEventListener("click", () => {
+      if (!isCharGenGenerationChoiceActive(method, activeGenerationChoice, "dice") || !isCharGenDiceEnabled(method, attributes)) {
+        return;
+      }
+      const setCount = Math.max(1, Math.trunc(Number(method.numberOfSets || 0)));
+      rolls.length = 0;
+      for (let index = 0; index < setCount; index += 1) {
+        rolls.push(rollCharGenSet(attributes, method));
+      }
+      selectedIndex = rolls.length === 1 ? 0 : -1;
+      chosenIndex = -1;
+      state.chargenRolledAttributeValues = [];
+      state.chargenDiceRollAssignments = {};
+      state.chargenAttributeScores = {};
+      state.chargenPointBuyBaselineScores = {};
+      clearCharGenAttributeStepResults();
+      state.chargenDiceSubstitutionsUsed = 0;
+      saveCharGenDraftLocal();
+      renderRolls();
+    });
+    rollList.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!target || target.name !== "chargenRollSelect") {
+        return;
+      }
+      selectedIndex = Number(target.value);
+      renderRolls();
+    });
+    chooseRollBtn.addEventListener("click", () => {
+      if (selectedIndex < 0 || selectedIndex >= rolls.length) {
+        return;
+      }
+      chosenIndex = selectedIndex;
+      state.chargenRolledAttributeValues = normalizeCharGenAttributeValues(rolls[selectedIndex]);
+      state.chargenDiceRollAssignments = {};
+      state.chargenAttributeScores = {};
+      state.chargenPointBuyBaselineScores = {};
+      clearCharGenAttributeStepResults();
+      saveCharGenDraftLocal();
+      renderRolls();
+    });
+    substituteBtn.addEventListener("click", () => {
+      if (selectedIndex < 0 || selectedIndex >= rolls.length) {
+        return;
+      }
+      const usedSubstitutions = Math.max(0, Math.trunc(Number(state.chargenDiceSubstitutionsUsed || 0)));
+      if (usedSubstitutions >= maxSubstitutions) {
+        showToast(t("attrgen.dice.substitution.none_remaining", "No substitutions remain."));
+        return;
+      }
+      const values = rolls[selectedIndex];
+      const replacementIndex = Number(substitutionSelect.value);
+      if (!Number.isInteger(replacementIndex) || replacementIndex < 0 || replacementIndex >= values.length) {
+        return;
+      }
+      values[replacementIndex] = substitutionValue;
+      state.chargenDiceSubstitutionsUsed = usedSubstitutions + 1;
+      state.chargenRolledAttributeValues = [];
+      state.chargenDiceRollAssignments = {};
+      chosenIndex = -1;
+      saveCharGenDraftLocal();
+      renderRolls();
+    });
+    document.getElementById("chargenBackToIntro").addEventListener("click", () => {
+      saveCharGenDraftLocal();
+      renderCharGenIntro();
+    });
+    document.getElementById("chargenAttrContinue").addEventListener("click", () => {
+      if (generationChoices.length > 1 && !resolveCharGenGenerationChoice(method)) {
+        showToast(t("attrgen.choice.required", "Choose an attribute generation method."));
+        return;
+      }
+      if (
+        isCharGenGenerationChoiceActive(method, resolveCharGenGenerationChoice(method), "dice")
+        && normalizeCharGenAttributeValues(state.chargenRolledAttributeValues).length !== attributes.length
+      ) {
+        showToast(t("attrgen.roll.required", "Roll and choose a set before continuing."));
+        return;
+      }
+      saveCharGenDraftLocal();
+      renderCharGenAttributeAssignment();
+    });
+
+    renderRolls();
+    saveCharGenDraftLocal();
+  } catch (error) {
+    renderCharGenLoadError(error, renderCharGenAttributes);
+  }
+}
+
+async function renderCharGenAttributeAssignment() {
+  if (!state.draftId) {
+    renderCharGenUpload();
+    return;
+  }
+  setMode("chargen");
+  setStep("chargen-attribute-assignment");
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const data = await api("GET", `/api/drafts/${state.draftId}/chargen/attribute-generation`);
+    const attributes = Array.isArray(data.attributes) ? data.attributes : [];
+    const method = data || {};
+    const initialGenerationChoice = resolveCharGenGenerationChoice(method);
+    const generationChoices = getCharGenGenerationChoices(method);
+    if (generationChoices.length > 1 && !initialGenerationChoice) {
+      renderCharGenAttributes();
+      return;
+    }
+    if (initialGenerationChoice) {
+      state.chargenAttributeGenerationChoice = initialGenerationChoice;
+    }
+    const description = String(method.description || "").trim()
+      || t(
+        "attrgen.description.empty",
+        "The ruleset creator did not provide a description for Attribute Generation."
+      );
+    state.chargenAttributes = attributes.slice();
+
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${t("attrgen.assignment.title", "Assign Attribute Values")}</h1>
+        <details class="mechanic-description-section" id="chargenAssignmentDescription">
+          <summary>
+            <span>${t("attrgen.description.drawer", "About Attribute Generation")}</span>
+          </summary>
+          <div class="mechanic-description-content">
+            <p class="chargen-method-description">${escapeHtml(description)}</p>
+            <div class="mechanic-description-actions">
+              <button class="btn ghost" id="chargenAssignmentDescriptionClose" type="button">${t("common.close", "Close")}</button>
+            </div>
+          </div>
+        </details>
+        <div class="field" id="chargenArraySection">
+          <label>${t("attrgen.type.standard_array", "Standard Array/Base Scores")}</label>
+          <select id="chargenArraySelect"></select>
+          <p class="field-hint" id="chargenArrayEmpty">${t("common.none", "None")}</p>
+        </div>
+        <div class="field hidden" id="chargenArrayAssignmentSection">
+          <label>${t("attrgen.array.available", "Available Array Values")}</label>
+          <p class="field-hint" id="chargenArrayAssignmentHint"></p>
+          <div class="list" id="chargenAvailableArrayValues"></div>
+        </div>
+        <div id="chargenSecondStepStage" class="hidden">
+          <div class="field hidden" id="chargenDiceAssignmentSection">
+            <label id="chargenDiceAssignmentTitle">${t("attrgen.roll.available", "Available Rolls")}</label>
+            <p class="field-hint" id="chargenDiceAssignmentHint"></p>
+            <div class="list" id="chargenAvailableRolls"></div>
+          </div>
+          <div class="field hidden" id="chargenDiceSection" aria-hidden="true">
+            <label>${t("attrgen.rolls", "Rolled Sets")}</label>
+            <div class="actions-row">
+              <div class="left">
+                <button class="btn" id="chargenRollBtn" type="button">${t("attrgen.roll", "Roll Dice")}</button>
+              </div>
+              <div class="right">
+                <button class="btn ghost" id="chargenApplyBtn" type="button">${t("attrgen.apply", "Apply Set")}</button>
+              </div>
+            </div>
+            <div class="list" id="chargenRollList"></div>
+            <p id="chargenRollEmpty">${t("attrgen.rolls.empty", "No rolls yet.")}</p>
+            <div class="grid two" id="chargenSubstitutionSection">
+              <div class="field">
+                <label for="chargenSubstitutionIndex">${t("attrgen.dice.substitution.replace", "Replace Roll")}</label>
+                <select id="chargenSubstitutionIndex"></select>
+              </div>
+              <div class="field">
+                <label>&nbsp;</label>
+                <button class="btn ghost" id="chargenSubstituteBtn" type="button">${t(
+                  "attrgen.dice.substitution.use",
+                  "Use Substitution"
+                )}</button>
+              </div>
+            </div>
+            <p class="field-hint" id="chargenSubstitutionHint"></p>
+          </div>
+        </div>
         <div class="field">
           <label>${t("attrgen.attributes", "Attributes")}</label>
           <div class="grid two" id="chargenAttributes"></div>
@@ -8525,7 +8844,7 @@ async function renderCharGenAttributes() {
         </div>
         <div class="actions-row">
           <div class="left">
-            <button class="btn ghost" id="chargenBackToIntro" type="button">${t("setup.back", "Back")}</button>
+            <button class="btn ghost" id="chargenBackToGeneration" type="button">${t("setup.back", "Back")}</button>
           </div>
           <div class="right">
             <button class="btn" id="chargenAttrContinue" type="button">${t("common.continue", "Continue")}</button>
@@ -8547,28 +8866,102 @@ async function renderCharGenAttributes() {
     const arraySection = document.getElementById("chargenArraySection");
     const arraySelect = document.getElementById("chargenArraySelect");
     const arrayEmpty = document.getElementById("chargenArrayEmpty");
+    const arrayAssignmentSection = document.getElementById("chargenArrayAssignmentSection");
+    const arrayAssignmentHint = document.getElementById("chargenArrayAssignmentHint");
+    const availableArrayValues = document.getElementById("chargenAvailableArrayValues");
+    const secondStepStage = document.getElementById("chargenSecondStepStage");
+    const diceAssignmentSection = document.getElementById("chargenDiceAssignmentSection");
+    const diceAssignmentTitle = document.getElementById("chargenDiceAssignmentTitle");
+    const diceAssignmentHint = document.getElementById("chargenDiceAssignmentHint");
+    const availableRolls = document.getElementById("chargenAvailableRolls");
     const diceSection = document.getElementById("chargenDiceSection");
     const generationChoiceSelect = document.getElementById("chargenGenerationChoice");
     const attributesGrid = document.getElementById("chargenAttributes");
     const attributesEmpty = document.getElementById("chargenAttributesEmpty");
+    const continueBtn = document.getElementById("chargenAttrContinue");
 
     const attributeInputs = buildCharGenAttributes(attributes, method, attributesGrid);
+    const hasSavedScores = Object.keys(state.chargenAttributeScores || {}).length > 0;
+    let activeGenerationChoice = initialGenerationChoice;
+    const standardActive = isCharGenGenerationChoiceActive(method, activeGenerationChoice, "standard_array");
+    const diceActive = isCharGenGenerationChoiceActive(method, activeGenerationChoice, "dice");
+    let standardComplete = !standardActive;
+    let arrayController = null;
+    let diceAssignmentController = null;
     applyCharGenSavedScores(attributeInputs);
-    wireCharGenArrayUI(method, attributes, attributeInputs, arraySection, arraySelect, arrayEmpty, () => {
-      rolls.length = 0;
-      selectedIndex = -1;
-      rollBaselineValues = captureCharGenAttributeValues(attributeInputs);
-      renderRolls();
+    attributeInputs.forEach((entry) => {
+      entry.input.readOnly = true;
     });
     attributesEmpty.style.display = attributes.length ? "none" : "";
+
+    const setDiceAssignmentControlsVisible = (visible) => {
+      document.querySelectorAll(".dice-assignment-controls").forEach((controls) => {
+        controls.classList.toggle("hidden", !visible);
+      });
+    };
+
+    const initializeDiceAssignment = () => {
+      if (!diceActive || !standardComplete || diceAssignmentController) {
+        return;
+      }
+      diceAssignmentController = wireCharGenDiceAssignmentUI({
+        method,
+        attributes,
+        inputs: attributeInputs,
+        section: diceAssignmentSection,
+        title: diceAssignmentTitle,
+        hint: diceAssignmentHint,
+        availableList: availableRolls,
+        continueButton: continueBtn,
+        hasSavedScores: standardActive ? false : hasSavedScores,
+      });
+      diceAssignmentController.render();
+    };
+
+    const updateStageVisibility = (refreshDiceBaseline = false) => {
+      const revealDice = diceActive && standardComplete;
+      secondStepStage.classList.toggle("hidden", !revealDice);
+      if (revealDice) {
+        initializeDiceAssignment();
+        if (refreshDiceBaseline && diceAssignmentController) {
+          diceAssignmentController.resetBaseline();
+          diceAssignmentController.render();
+        }
+      }
+      setDiceAssignmentControlsVisible(revealDice);
+      continueBtn.disabled = !standardComplete
+        || (diceActive && (!diceAssignmentController || !diceAssignmentController.isComplete()));
+    };
+
+    if (standardActive) {
+      arrayController = wireCharGenArrayUI({
+        method,
+        attributes,
+        inputs: attributeInputs,
+        section: arraySection,
+        select: arraySelect,
+        emptyLabel: arrayEmpty,
+        assignmentSection: arrayAssignmentSection,
+        assignmentHint: arrayAssignmentHint,
+        availableList: availableArrayValues,
+        onStatusChange: (complete, scores) => {
+          standardComplete = complete;
+          if (complete) {
+            recordCharGenStepResult(method, "standard_array", scores);
+          }
+          updateStageVisibility(complete && Boolean(diceAssignmentController));
+        },
+      });
+    } else {
+      arraySection.classList.add("hidden");
+      arrayAssignmentSection.classList.add("hidden");
+    }
 
     const substitutionValue = Math.trunc(Number(method.diceSubstitutionValue || 0));
     const maxSubstitutions = Math.max(0, Math.trunc(Number(method.maxDiceSubstitutions || 0)));
     applyBtn.disabled = true;
 
     let rollBaselineValues = captureCharGenAttributeValues(attributeInputs);
-    let activeGenerationChoice = initialGenerationChoice;
-
     attributeInputs.forEach((entry) => {
       entry.input.addEventListener("change", () => {
         if (!rolls.length) {
@@ -8623,21 +9016,19 @@ async function renderCharGenAttributes() {
 
     const updateGenerationChoiceUi = () => {
       activeGenerationChoice = resolveCharGenGenerationChoice(method);
-      const standardActive = isCharGenGenerationChoiceActive(method, activeGenerationChoice, "standard_array");
-      const diceActive = isCharGenGenerationChoiceActive(method, activeGenerationChoice, "dice");
       arraySection.classList.toggle("hidden", !standardActive);
-      diceSection.classList.toggle("hidden", !diceActive);
-      if (standardActive) {
-        maybeApplyCharGenDefaultArray(method, attributes, attributeInputs);
-        state.chargenAttributeScores = collectCharGenAttributeScores(attributeInputs);
-      }
+      diceSection.classList.add("hidden");
       renderRolls();
+      updateStageVisibility();
     };
 
     if (generationChoiceSelect) {
       generationChoiceSelect.addEventListener("change", () => {
         state.chargenAttributeGenerationChoice = normalizeCharGenGenerationChoice(generationChoiceSelect.value);
         state.chargenAttributeScores = {};
+        clearCharGenAttributeStepResults();
+        state.chargenSelectedArrayType = "";
+        state.chargenArrayAssignments = {};
         state.chargenDiceSubstitutionsUsed = 0;
         rolls.length = 0;
         selectedIndex = -1;
@@ -8686,7 +9077,7 @@ async function renderCharGenAttributes() {
     });
 
     substituteBtn.addEventListener("click", () => {
-      if (!substitutionEnabled || selectedIndex < 0 || selectedIndex >= rolls.length) {
+      if (!isCharGenDiceSubstitutionEnabled(method) || selectedIndex < 0 || selectedIndex >= rolls.length) {
         return;
       }
       const usedSubstitutions = Math.max(0, Math.trunc(Number(state.chargenDiceSubstitutionsUsed || 0)));
@@ -8707,24 +9098,44 @@ async function renderCharGenAttributes() {
       renderRolls();
     });
 
-    document.getElementById("chargenBackToIntro").addEventListener("click", () => {
-      state.chargenAttributeScores = collectCharGenAttributeScores(attributeInputs);
+    document.getElementById("chargenAssignmentDescriptionClose").addEventListener("click", () => {
+      document.getElementById("chargenAssignmentDescription").open = false;
+    });
+    document.getElementById("chargenBackToGeneration").addEventListener("click", () => {
+      const arrayValid = !arrayController || arrayController.isComplete();
+      const diceValid = !diceAssignmentController || diceAssignmentController.isComplete();
+      if (arrayValid && diceValid) {
+        state.chargenAttributeScores = collectCharGenAttributeScores(attributeInputs);
+      }
       state.chargenAttributes = attributes.slice();
       saveCharGenDraftLocal();
-      renderCharGenIntro();
+      renderCharGenAttributes();
     });
-    document.getElementById("chargenAttrContinue").addEventListener("click", () => {
-      if (generationChoices.length > 1 && !resolveCharGenGenerationChoice(method)) {
-        showToast(t("attrgen.choice.required", "Choose an attribute generation method."));
+    continueBtn.addEventListener("click", () => {
+      if (arrayController && !arrayController.isComplete()) {
+        showToast(t("attrgen.array.assignment.required", "Assign every array value before continuing."));
+        return;
+      }
+      if (diceAssignmentController && !diceAssignmentController.isComplete()) {
+        showToast(t("attrgen.roll.assignment.required", "Assign every roll before continuing."));
         return;
       }
       const scores = collectCharGenAttributeScores(attributeInputs);
+      const activeChoice = resolveCharGenGenerationChoice(method);
+      const diceActive = isCharGenGenerationChoiceActive(method, activeChoice, "dice");
+      if (diceActive) {
+        recordCharGenStepResult(method, "dice", scores);
+      }
       state.chargenAttributeScores = scores;
       state.chargenAttributes = attributes.slice();
       state.chargenPointBuyBaselineScores = { ...scores };
       saveCharGenDraftLocal();
       if (isCharGenGenerationChoiceActive(method, resolveCharGenGenerationChoice(method), "point_buy")) {
         renderCharGenPointsBuy();
+        return;
+      }
+      if (getCharGenChooseStep(method)) {
+        renderCharGenAttributeResultChoice();
         return;
       }
       renderCharGenRaces();
@@ -8734,7 +9145,7 @@ async function renderCharGenAttributes() {
     renderRolls();
     saveCharGenDraftLocal();
   } catch (error) {
-    renderCharGenLoadError(error, renderCharGenAttributes);
+    renderCharGenLoadError(error, renderCharGenAttributeAssignment);
   }
 }
 
@@ -8751,7 +9162,12 @@ async function renderCharGenPointsBuy() {
     const attributes = Array.isArray(data.attributes) ? data.attributes : [];
     const method = data || {};
 
-    const scores = state.chargenAttributeScores || {};
+    const choosingBetweenResults = Boolean(getCharGenChooseStep(method));
+    const pointStepIndex = getCharGenGenerationStepIndex(method, "point_buy");
+    const savedStepResults = normalizeCharGenAttributeStepResults(state.chargenAttributeStepResults);
+    const scores = choosingBetweenResults
+      ? savedStepResults[String(pointStepIndex)] || {}
+      : state.chargenAttributeScores || {};
     const baseline = state.chargenPointBuyBaselineScores || {};
     const additive = shouldAddCharGenPointBuyToBaseScores(method);
 
@@ -8800,6 +9216,7 @@ async function renderCharGenPointsBuy() {
     empty.style.display = attributes.length ? "none" : "";
 
     const rows = [];
+    const initialPointScores = {};
     list.innerHTML = attributes
       .map((attribute, index) => {
         const attributeId = String(attribute.id || "").trim();
@@ -8812,6 +9229,7 @@ async function renderCharGenPointsBuy() {
         const max = resolveCharGenMax(attribute, method);
         const base = resolveCharGenBase(method);
         const current = clampCharGen(Number(scores[attributeId] ?? base), min, max);
+        initialPointScores[attributeId] = current;
         const baselineValue = clampCharGen(Number(baseline[attributeId] ?? base), min, max);
         rows.push({ attributeId, inputId: id, minusId, plusId, resetId, min, max, baselineValue });
         const baselineBadge = additive ? `<span class="badge">${t("attrgen.point.baseline", "Baseline")}: ${baselineValue}</span>` : "";
@@ -8833,6 +9251,7 @@ async function renderCharGenPointsBuy() {
         `;
       })
       .join("");
+    state.chargenAttributeScores = { ...initialPointScores };
 
     const pointCostMap = buildCharGenPointCostMap(method.pointCosts);
     const budget = Math.max(0, Number(method.basePoints || 0));
@@ -8877,6 +9296,9 @@ async function renderCharGenPointsBuy() {
       }
       state.chargenAttributeScores = state.chargenAttributeScores || {};
       state.chargenAttributeScores[safeId] = Number(value || 0);
+      if (choosingBetweenResults) {
+        recordCharGenStepResult(method, "point_buy", state.chargenAttributeScores);
+      }
       saveCharGenDraftLocal();
     };
 
@@ -8913,14 +9335,128 @@ async function renderCharGenPointsBuy() {
 
     document.getElementById("chargenPointBack").addEventListener("click", () => {
       saveCharGenDraftLocal();
-      renderCharGenAttributes();
+      renderCharGenAttributeAssignment();
     });
     continueBtn.addEventListener("click", () => {
+      if (choosingBetweenResults) {
+        recordCharGenStepResult(method, "point_buy", state.chargenAttributeScores);
+      }
       saveCharGenDraftLocal();
+      if (choosingBetweenResults) {
+        renderCharGenAttributeResultChoice();
+        return;
+      }
       renderCharGenRaces();
     });
   } catch (error) {
     renderCharGenLoadError(error, renderCharGenPointsBuy);
+  }
+}
+
+async function renderCharGenAttributeResultChoice() {
+  if (!state.draftId) {
+    renderCharGenUpload();
+    return;
+  }
+  setMode("chargen");
+  setStep("chargen-attribute-result-choice");
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const method = await api("GET", `/api/drafts/${state.draftId}/chargen/attribute-generation`);
+    const attributes = Array.isArray(method.attributes) ? method.attributes : [];
+    const entry = getCharGenSelectedGenerationEntry(method);
+    const chooseStep = getCharGenChooseStep(method);
+    if (!entry || !chooseStep || entry.steps.length < 2) {
+      renderCharGenRaces();
+      return;
+    }
+    const stepResults = normalizeCharGenAttributeStepResults(state.chargenAttributeStepResults);
+    const requiredAttributeIds = attributes
+      .map((attribute) => String(attribute.id || "").trim())
+      .filter(Boolean);
+    const completedSteps = entry.steps.slice(0, 2).every((step, index) => {
+      const scores = stepResults[String(index)] || {};
+      return requiredAttributeIds.every((attributeId) => Number.isFinite(Number(scores[attributeId])));
+    });
+    if (!completedSteps) {
+      showToast(t("attrgen.result_choice.incomplete", "Complete both generation results before choosing."));
+      if (isCharGenGenerationChoiceActive(method, resolveCharGenGenerationChoice(method), "point_buy")) {
+        renderCharGenPointsBuy();
+      } else {
+        renderCharGenAttributeAssignment();
+      }
+      return;
+    }
+
+    const selectedChoice = String(state.chargenAttributeResultChoice || "");
+    const resultCards = entry.steps.slice(0, 2).map((step, stepIndex) => {
+      const scores = stepResults[String(stepIndex)] || {};
+      const checked = selectedChoice === String(stepIndex) ? " checked" : "";
+      const scoreRows = attributes.map((attribute, attributeIndex) => {
+        const attributeId = String(attribute.id || "").trim();
+        const label = attribute.displayName || attribute.name || `Attribute ${attributeIndex + 1}`;
+        return `<div class="list-item"><span>${escapeHtml(label)}</span><strong>${escapeHtml(scores[attributeId])}</strong></div>`;
+      }).join("");
+      const methodLabel = formatCharGenType(step.methodType);
+      return `
+        <label class="edit-section attribute-result-choice-card">
+          <span class="row">
+            <input type="radio" name="chargenAttributeResultChoice" value="${stepIndex}"${checked}>
+            <strong>${escapeHtml(t("attrgen.result_choice.step", "Step {number}: {method}")
+              .replace("{number}", String(stepIndex + 1))
+              .replace("{method}", methodLabel))}</strong>
+          </span>
+          <div class="list">${scoreRows}</div>
+        </label>
+      `;
+    }).join("");
+
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${t("attrgen.result_choice.title", "Choose Attribute Results")}</h1>
+        <p class="field-hint">${t(
+          "attrgen.result_choice.help",
+          "Both results are complete. Choose the set of scores this character will use."
+        )}</p>
+        <div class="grid two">${resultCards}</div>
+        <div class="actions-row">
+          <div class="left">
+            <button class="btn ghost" id="chargenResultChoiceBack" type="button">${t("setup.back", "Back")}</button>
+          </div>
+          <div class="right">
+            <button class="btn" id="chargenResultChoiceContinue" type="button">${t("common.continue", "Continue")}</button>
+          </div>
+        </div>
+      </section>
+    `;
+
+    document.querySelectorAll('input[name="chargenAttributeResultChoice"]').forEach((input) => {
+      input.addEventListener("change", () => {
+        state.chargenAttributeResultChoice = String(input.value || "");
+        saveCharGenDraftLocal();
+      });
+    });
+    document.getElementById("chargenResultChoiceBack").addEventListener("click", () => {
+      saveCharGenDraftLocal();
+      if (isCharGenGenerationChoiceActive(method, resolveCharGenGenerationChoice(method), "point_buy")) {
+        renderCharGenPointsBuy();
+      } else {
+        renderCharGenAttributeAssignment();
+      }
+    });
+    document.getElementById("chargenResultChoiceContinue").addEventListener("click", () => {
+      const choice = String(state.chargenAttributeResultChoice || "");
+      const scores = stepResults[choice];
+      if (!scores) {
+        showToast(t("attrgen.result_choice.required", "Choose one result before continuing."));
+        return;
+      }
+      state.chargenAttributeScores = { ...scores };
+      saveCharGenDraftLocal();
+      renderCharGenRaces();
+    });
+  } catch (error) {
+    renderCharGenLoadError(error, renderCharGenAttributeResultChoice);
   }
 }
 
@@ -9001,7 +9537,11 @@ async function renderCharGenRaces() {
     document.getElementById("chargenBackToAttributes").addEventListener("click", () => {
       state.chargenRaceId = String(select.value || "");
       saveCharGenDraftLocal();
-      renderCharGenAttributes();
+      if (String(state.chargenAttributeResultChoice || "")) {
+        renderCharGenAttributeResultChoice();
+        return;
+      }
+      renderCharGenAttributeAssignment();
     });
     document.getElementById("chargenRaceContinue").addEventListener("click", () => {
       const id = String(select.value || "");
@@ -9586,6 +10126,64 @@ function normalizeCharGenGenerationChoice(value) {
     .slice(0, 80);
 }
 
+function normalizeCharGenAttributeValues(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  return values
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value))
+    .map((value) => Math.trunc(value));
+}
+
+function normalizeCharGenRollAssignments(assignments) {
+  const normalized = {};
+  const safeAssignments = assignments && typeof assignments === "object" ? assignments : {};
+  Object.keys(safeAssignments).forEach((attributeId) => {
+    const safeAttributeId = String(attributeId || "").trim();
+    const rollIndex = Number(safeAssignments[attributeId]);
+    if (safeAttributeId && Number.isInteger(rollIndex) && rollIndex >= 0) {
+      normalized[safeAttributeId] = rollIndex;
+    }
+  });
+  return normalized;
+}
+
+function normalizeCharGenArrayType(value) {
+  const safeValue = String(value || "").trim().toLowerCase();
+  return ["standard", "elite"].includes(safeValue) ? safeValue : "";
+}
+
+function normalizeCharGenArrayAssignments(assignments) {
+  return normalizeCharGenRollAssignments(assignments);
+}
+
+function normalizeCharGenAttributeStepResults(results) {
+  const normalized = {};
+  const safeResults = results && typeof results === "object" ? results : {};
+  Object.keys(safeResults).forEach((stepKey) => {
+    const stepIndex = Number(stepKey);
+    if (!Number.isInteger(stepIndex) || stepIndex < 0) {
+      return;
+    }
+    const scores = safeResults[stepKey] && typeof safeResults[stepKey] === "object"
+      ? safeResults[stepKey]
+      : {};
+    const safeScores = {};
+    Object.keys(scores).forEach((attributeId) => {
+      const safeId = String(attributeId || "").trim();
+      const score = Number(scores[attributeId]);
+      if (safeId && Number.isFinite(score)) {
+        safeScores[safeId] = score;
+      }
+    });
+    if (Object.keys(safeScores).length) {
+      normalized[String(stepIndex)] = safeScores;
+    }
+  });
+  return normalized;
+}
+
 function getCharGenGenerationChoiceEntries(method) {
   const safeMethod = method || {};
   const options = normalizeAttributeGenerationOptions(safeMethod.attributeGenerationOptions || []);
@@ -9674,6 +10272,51 @@ function getCharGenSelectedGenerationStep(method, methodType) {
     return null;
   }
   return selectedEntry.steps.find((step) => normalizeAttributeGenerationMethodType(step.methodType) === target) || null;
+}
+
+function getCharGenSelectedGenerationEntry(method) {
+  const choices = getCharGenGenerationChoiceEntries(method);
+  const selected = normalizeCharGenGenerationChoice(resolveCharGenGenerationChoice(method));
+  return choices.length === 1
+    ? choices[0]
+    : choices.find((entry) => normalizeCharGenGenerationChoice(entry.key) === selected) || null;
+}
+
+function getCharGenGenerationStepIndex(method, methodType) {
+  const entry = getCharGenSelectedGenerationEntry(method);
+  const target = normalizeAttributeGenerationMethodType(methodType);
+  if (!entry || !target) {
+    return -1;
+  }
+  return entry.steps.findIndex((step) => normalizeAttributeGenerationMethodType(step.methodType) === target);
+}
+
+function getCharGenChooseStep(method) {
+  const entry = getCharGenSelectedGenerationEntry(method);
+  if (!entry || entry.steps.length < 2) {
+    return null;
+  }
+  const step = entry.steps[1];
+  return normalizeAttributeGenerationApplicationMode(step.applicationMode) === "choose" ? step : null;
+}
+
+function recordCharGenStepResult(method, methodType, scores) {
+  const stepIndex = getCharGenGenerationStepIndex(method, methodType);
+  if (stepIndex < 0) {
+    return;
+  }
+  const safeScores = normalizeCharGenAttributeStepResults({ [stepIndex]: scores });
+  if (!safeScores[String(stepIndex)]) {
+    return;
+  }
+  state.chargenAttributeStepResults = normalizeCharGenAttributeStepResults(state.chargenAttributeStepResults);
+  state.chargenAttributeStepResults[String(stepIndex)] = safeScores[String(stepIndex)];
+  state.chargenAttributeResultChoice = "";
+}
+
+function clearCharGenAttributeStepResults() {
+  state.chargenAttributeStepResults = {};
+  state.chargenAttributeResultChoice = "";
 }
 
 function buildCharGenAttributes(attributes, method, container) {
@@ -10077,6 +10720,12 @@ function buildCharGenDraft() {
     gameName: String(state.chargenGameName || ""),
     characterName: String(state.chargenCharacterName || ""),
     attributeGenerationChoice: normalizeCharGenGenerationChoice(state.chargenAttributeGenerationChoice),
+    rolledAttributeValues: normalizeCharGenAttributeValues(state.chargenRolledAttributeValues),
+    diceRollAssignments: normalizeCharGenRollAssignments(state.chargenDiceRollAssignments),
+    selectedArrayType: normalizeCharGenArrayType(state.chargenSelectedArrayType),
+    arrayAssignments: normalizeCharGenArrayAssignments(state.chargenArrayAssignments),
+    attributeStepResults: normalizeCharGenAttributeStepResults(state.chargenAttributeStepResults),
+    attributeResultChoice: String(state.chargenAttributeResultChoice || ""),
     ruleModeSelections: state.chargenRuleModeSelections || {},
     diceSubstitutionsUsed: Number(state.chargenDiceSubstitutionsUsed || 0),
     raceId: String(state.chargenRaceId || ""),
@@ -10106,6 +10755,36 @@ function serializeCharGenDraft(draft) {
   const attributeGenerationChoice = normalizeCharGenGenerationChoice(safeDraft.attributeGenerationChoice);
   if (attributeGenerationChoice) {
     lines.push(`attributeGenerationChoice=${attributeGenerationChoice}`);
+  }
+  normalizeCharGenAttributeValues(safeDraft.rolledAttributeValues).forEach((value, index) => {
+    lines.push(`attributeGenerationValue.${index}=${value}`);
+  });
+  const diceRollAssignments = normalizeCharGenRollAssignments(safeDraft.diceRollAssignments);
+  Object.keys(diceRollAssignments)
+    .sort()
+    .forEach((attributeId) => {
+      lines.push(`attributeRollAssignment.${attributeId}=${diceRollAssignments[attributeId]}`);
+    });
+  const selectedArrayType = normalizeCharGenArrayType(safeDraft.selectedArrayType);
+  if (selectedArrayType) {
+    lines.push(`attributeArrayType=${selectedArrayType}`);
+  }
+  const arrayAssignments = normalizeCharGenArrayAssignments(safeDraft.arrayAssignments);
+  Object.keys(arrayAssignments)
+    .sort()
+    .forEach((attributeId) => {
+      lines.push(`attributeArrayAssignment.${attributeId}=${arrayAssignments[attributeId]}`);
+    });
+  const stepResults = normalizeCharGenAttributeStepResults(safeDraft.attributeStepResults);
+  Object.keys(stepResults)
+    .sort((left, right) => Number(left) - Number(right))
+    .forEach((stepIndex) => {
+      Object.keys(stepResults[stepIndex]).sort().forEach((attributeId) => {
+        lines.push(`attributeStepResult.${stepIndex}.${attributeId}=${stepResults[stepIndex][attributeId]}`);
+      });
+    });
+  if (String(safeDraft.attributeResultChoice || "")) {
+    lines.push(`attributeResultChoice=${String(safeDraft.attributeResultChoice)}`);
   }
   lines.push(`diceSubstitutionsUsed=${Math.max(0, Number(safeDraft.diceSubstitutionsUsed || 0))}`);
   const ruleModes = safeDraft.ruleModeSelections || {};
@@ -10183,6 +10862,12 @@ function parseCharGenDraft(text) {
     gameName: "",
     characterName: "",
     attributeGenerationChoice: "",
+    rolledAttributeValues: [],
+    diceRollAssignments: {},
+    selectedArrayType: "",
+    arrayAssignments: {},
+    attributeStepResults: {},
+    attributeResultChoice: "",
     ruleModeSelections: {},
     diceSubstitutionsUsed: 0,
     raceId: "",
@@ -10222,6 +10907,38 @@ function parseCharGenDraft(text) {
       draft.characterName = value;
     } else if (key === "attributeGenerationChoice") {
       draft.attributeGenerationChoice = normalizeCharGenGenerationChoice(value);
+    } else if (key.startsWith("attributeGenerationValue.")) {
+      const rolledValue = Number(value);
+      if (Number.isFinite(rolledValue)) {
+        draft.rolledAttributeValues.push(Math.trunc(rolledValue));
+      }
+    } else if (key.startsWith("attributeRollAssignment.")) {
+      const attributeId = key.slice("attributeRollAssignment.".length).trim();
+      const rollIndex = Number(value);
+      if (attributeId && Number.isInteger(rollIndex) && rollIndex >= 0) {
+        draft.diceRollAssignments[attributeId] = rollIndex;
+      }
+    } else if (key === "attributeArrayType") {
+      draft.selectedArrayType = normalizeCharGenArrayType(value);
+    } else if (key.startsWith("attributeArrayAssignment.")) {
+      const attributeId = key.slice("attributeArrayAssignment.".length).trim();
+      const valueIndex = Number(value);
+      if (attributeId && Number.isInteger(valueIndex) && valueIndex >= 0) {
+        draft.arrayAssignments[attributeId] = valueIndex;
+      }
+    } else if (key.startsWith("attributeStepResult.")) {
+      const resultKey = key.slice("attributeStepResult.".length);
+      const separatorIndex = resultKey.indexOf(".");
+      const stepIndex = Number(resultKey.slice(0, separatorIndex));
+      const attributeId = resultKey.slice(separatorIndex + 1).trim();
+      const score = Number(value);
+      if (separatorIndex > 0 && Number.isInteger(stepIndex) && stepIndex >= 0 && attributeId && Number.isFinite(score)) {
+        draft.attributeStepResults[String(stepIndex)] = draft.attributeStepResults[String(stepIndex)] || {};
+        draft.attributeStepResults[String(stepIndex)][attributeId] = score;
+      }
+    } else if (key === "attributeResultChoice") {
+      const choice = Number(value);
+      draft.attributeResultChoice = Number.isInteger(choice) && choice >= 0 ? String(choice) : "";
     } else if (key === "diceSubstitutionsUsed") {
       const used = Number(value);
       draft.diceSubstitutionsUsed = Number.isFinite(used) ? Math.max(0, Math.trunc(used)) : 0;
@@ -10280,6 +10997,12 @@ function applyCharGenDraft(draft) {
   state.chargenGameName = String(safeDraft.gameName || "");
   state.chargenCharacterName = String(safeDraft.characterName || "");
   state.chargenAttributeGenerationChoice = normalizeCharGenGenerationChoice(safeDraft.attributeGenerationChoice);
+  state.chargenRolledAttributeValues = normalizeCharGenAttributeValues(safeDraft.rolledAttributeValues);
+  state.chargenDiceRollAssignments = normalizeCharGenRollAssignments(safeDraft.diceRollAssignments);
+  state.chargenSelectedArrayType = normalizeCharGenArrayType(safeDraft.selectedArrayType);
+  state.chargenArrayAssignments = normalizeCharGenArrayAssignments(safeDraft.arrayAssignments);
+  state.chargenAttributeStepResults = normalizeCharGenAttributeStepResults(safeDraft.attributeStepResults);
+  state.chargenAttributeResultChoice = String(safeDraft.attributeResultChoice || "");
   state.chargenRuleModeSelections = safeDraft.ruleModeSelections || {};
   state.chargenDiceSubstitutionsUsed = Math.max(0, Number(safeDraft.diceSubstitutionsUsed || 0));
   state.chargenRaceId = String(safeDraft.raceId || "");
@@ -10300,7 +11023,11 @@ function applyCharGenDraft(draft) {
 function resetCharGenState() {
   state.chargenAttributes = [];
   state.chargenAttributeScores = {};
+  state.chargenAttributeStepResults = {};
+  state.chargenAttributeResultChoice = "";
   state.chargenPointBuyBaselineScores = {};
+  state.chargenSelectedArrayType = "";
+  state.chargenArrayAssignments = {};
   state.chargenRaceId = "";
   state.chargenClassId = "";
   state.chargenClassSkillRanks = {};
@@ -10318,6 +11045,8 @@ function resetCharGenState() {
   state.chargenGameName = "";
   state.chargenCharacterName = "";
   state.chargenAttributeGenerationChoice = "";
+  state.chargenRolledAttributeValues = [];
+  state.chargenDiceRollAssignments = {};
   state.chargenRuleModeSelections = {};
   state.chargenDiceSubstitutionsUsed = 0;
   state.chargenDraftText = "";
@@ -10479,6 +11208,10 @@ function resolveCharGenResumeStage() {
   if (state.chargenRaceId) {
     return "races";
   }
+  const stepResults = normalizeCharGenAttributeStepResults(state.chargenAttributeStepResults);
+  if (Object.keys(stepResults).length >= 2 && !String(state.chargenAttributeResultChoice || "")) {
+    return "attribute-result-choice";
+  }
   if (Object.keys(state.chargenAttributeScores || {}).length) {
     return "attributes";
   }
@@ -10576,7 +11309,7 @@ function formatCharGenType(value) {
     return t("attrgen.type.point_buy", "Point Buy");
   }
   if (safeValue === "standard_array") {
-    return t("attrgen.type.standard_array", "Standard Array");
+    return t("attrgen.type.standard_array", "Standard Array/Base Scores");
   }
   if (safeValue === "hybrid") {
     return t("attrgen.type.hybrid", "Hybrid");
@@ -10779,10 +11512,18 @@ function applyCharGenArrayPreset(attributes, method, inputs, values) {
   });
 }
 
-function wireCharGenArrayUI(method, attributes, inputs, section, select, emptyLabel, onApplied) {
-  if (!section || !select || !emptyLabel) {
-    return;
-  }
+function wireCharGenArrayUI(config) {
+  const safeConfig = config || {};
+  const method = safeConfig.method || {};
+  const attributes = Array.isArray(safeConfig.attributes) ? safeConfig.attributes : [];
+  const inputs = Array.isArray(safeConfig.inputs) ? safeConfig.inputs : [];
+  const section = safeConfig.section;
+  const select = safeConfig.select;
+  const emptyLabel = safeConfig.emptyLabel;
+  const assignmentSection = safeConfig.assignmentSection;
+  const assignmentHint = safeConfig.assignmentHint;
+  const availableList = safeConfig.availableList;
+  const onStatusChange = safeConfig.onStatusChange;
   const openArray = isCharGenOpenStandardArray(method);
   const standardMap = buildCharGenArrayMap(method.standardArray);
   const eliteMap = buildCharGenArrayMap(method.eliteArray);
@@ -10790,68 +11531,233 @@ function wireCharGenArrayUI(method, attributes, inputs, section, select, emptyLa
   const eliteValues = buildCharGenArrayValues(method.eliteArray);
   const hasStandard = openArray ? standardValues.length > 0 : Object.keys(standardMap).length > 0;
   const hasElite = openArray ? eliteValues.length > 0 : Object.keys(eliteMap).length > 0;
-  if (!hasStandard && !hasElite) {
-    section.style.display = "none";
-    return;
+  const validAttributeIds = new Set(inputs.map((entry) => String(entry.attributeId || "").trim()).filter(Boolean));
+  const controlsByAttributeId = {};
+  let assignments = normalizeCharGenArrayAssignments(state.chargenArrayAssignments);
+
+  const selectedValues = () => select.value === "elite" ? eliteValues : standardValues;
+  const selectedMap = () => select.value === "elite" ? eliteMap : standardMap;
+  const valueLabel = (valueIndex, values) => t("attrgen.array.option", "Value {number}: {value}")
+    .replace("{number}", String(valueIndex + 1))
+    .replace("{value}", String(values[valueIndex]));
+
+  const isComplete = () => {
+    const key = normalizeCharGenArrayType(select.value);
+    if (!key || !inputs.length) {
+      return false;
+    }
+    if (!openArray) {
+      const values = selectedMap();
+      return inputs.every((entry, index) => resolveCharGenArrayValue(values, attributes[index] || {}) != null);
+    }
+    const values = selectedValues();
+    if (values.length !== inputs.length) {
+      return false;
+    }
+    const usedIndices = new Set();
+    for (const entry of inputs) {
+      const attributeId = String(entry.attributeId || "").trim();
+      const valueIndex = assignments[attributeId];
+      if (!Number.isInteger(valueIndex) || valueIndex < 0 || valueIndex >= values.length || usedIndices.has(valueIndex)) {
+        return false;
+      }
+      usedIndices.add(valueIndex);
+    }
+    return usedIndices.size === values.length;
+  };
+
+  const render = () => {
+    const key = normalizeCharGenArrayType(select.value);
+    const values = selectedValues();
+    state.chargenSelectedArrayType = key;
+    emptyLabel.textContent = key
+      ? openArray
+        ? t("attrgen.arrays.open.values", "Values: {values}").replace("{values}", values.join(", "))
+        : key === "elite"
+          ? t("attrgen.arrays.elite.section", "Elite Arrays")
+          : t("attrgen.type.standard_array", "Standard Array/Base Scores")
+      : t("common.none", "None");
+
+    inputs.forEach((entry) => {
+      entry.input.readOnly = true;
+    });
+
+    if (!key) {
+      assignments = {};
+      state.chargenArrayAssignments = {};
+      assignmentSection.classList.add("hidden");
+      availableList.innerHTML = "";
+      inputs.forEach((entry) => {
+        entry.input.value = "";
+      });
+      if (typeof onStatusChange === "function") {
+        onStatusChange(false, {});
+      }
+      return;
+    }
+
+    if (!openArray) {
+      assignmentSection.classList.add("hidden");
+      if (key) {
+        applyCharGenArrayPreset(attributes, method, inputs, selectedMap());
+      }
+    } else {
+      assignmentSection.classList.remove("hidden");
+      const sanitized = {};
+      const usedIndices = new Set();
+      Object.keys(assignments).forEach((attributeId) => {
+        const valueIndex = assignments[attributeId];
+        if (validAttributeIds.has(attributeId)
+          && Number.isInteger(valueIndex)
+          && valueIndex >= 0
+          && valueIndex < values.length
+          && !usedIndices.has(valueIndex)) {
+          sanitized[attributeId] = valueIndex;
+          usedIndices.add(valueIndex);
+        }
+      });
+      assignments = sanitized;
+      const availableIndices = values.map((value, index) => index).filter((index) => !usedIndices.has(index));
+      availableList.innerHTML = availableIndices.length
+        ? availableIndices.map((index) => `<div class="list-item">${escapeHtml(valueLabel(index, values))}</div>`).join("")
+        : `<div class="field-hint">${t("attrgen.array.assignment.all_used", "All array values are assigned.")}</div>`;
+      assignmentHint.textContent = values.length === inputs.length
+        ? t(
+          "attrgen.array.assignment.player",
+          "Choose one available array value for each Attribute. Clear an assignment to return that value to the pool."
+        )
+        : t(
+          "attrgen.array.assignment.count",
+          "This array must contain exactly one value for each Attribute before it can be assigned."
+        );
+
+      inputs.forEach((entry) => {
+        const attributeId = String(entry.attributeId || "").trim();
+        const valueIndex = assignments[attributeId];
+        const hasAssignment = Number.isInteger(valueIndex) && valueIndex >= 0 && valueIndex < values.length;
+        entry.input.value = hasAssignment ? String(clampCharGen(values[valueIndex], entry.min, entry.max)) : "";
+        const controls = controlsByAttributeId[attributeId];
+        if (!controls) {
+          return;
+        }
+        const usedByOthers = new Set(
+          Object.entries(assignments)
+            .filter(([assignedAttributeId]) => assignedAttributeId !== attributeId)
+            .map(([, assignedValueIndex]) => assignedValueIndex)
+        );
+        const options = [`<option value="">${t("attrgen.array.assignment.choose", "Choose a value")}</option>`];
+        values.forEach((value, index) => {
+          if (usedByOthers.has(index)) {
+            return;
+          }
+          const selected = index === valueIndex ? " selected" : "";
+          options.push(`<option value="${index}"${selected}>${escapeHtml(valueLabel(index, values))}</option>`);
+        });
+        controls.innerHTML = `
+          <select aria-label="${escapeHtml(t(
+            "attrgen.array.assignment.for_attribute",
+            "Array value for {attribute}"
+          ).replace("{attribute}", resolveCharGenAttributeName(attributeId)))}">${options.join("")}</select>
+          <button class="btn ghost" type="button" ${hasAssignment ? "" : "disabled"}>${t("attrgen.array.assignment.clear", "Clear")}</button>
+        `;
+        const assignmentSelect = controls.querySelector("select");
+        const clearButton = controls.querySelector("button");
+        assignmentSelect.addEventListener("change", () => {
+          const nextIndex = Number(assignmentSelect.value);
+          if (!assignmentSelect.value || !Number.isInteger(nextIndex)) {
+            delete assignments[attributeId];
+          } else {
+            Object.keys(assignments).forEach((assignedAttributeId) => {
+              if (assignedAttributeId !== attributeId && assignments[assignedAttributeId] === nextIndex) {
+                delete assignments[assignedAttributeId];
+              }
+            });
+            assignments[attributeId] = nextIndex;
+          }
+          state.chargenArrayAssignments = { ...assignments };
+          state.chargenAttributeResultChoice = "";
+          render();
+          saveCharGenDraftLocal();
+        });
+        clearButton.addEventListener("click", () => {
+          delete assignments[attributeId];
+          state.chargenArrayAssignments = { ...assignments };
+          state.chargenAttributeResultChoice = "";
+          render();
+          saveCharGenDraftLocal();
+        });
+      });
+    }
+
+    state.chargenArrayAssignments = openArray ? { ...assignments } : {};
+    const complete = isComplete();
+    const scores = complete ? collectCharGenAttributeScores(inputs) : {};
+    if (complete) {
+      state.chargenAttributeScores = { ...scores };
+    }
+    if (typeof onStatusChange === "function") {
+      onStatusChange(complete, scores);
+    }
+  };
+
+  if (!section || !select || !emptyLabel || !assignmentSection || !assignmentHint || !availableList) {
+    return { isComplete: () => false, render: () => {} };
   }
-  section.style.display = "";
+  if (!hasStandard && !hasElite) {
+    section.classList.add("hidden");
+    assignmentSection.classList.add("hidden");
+    inputs.forEach((entry) => {
+      entry.input.readOnly = true;
+    });
+    return { isComplete: () => false, render: () => {} };
+  }
+
+  section.classList.remove("hidden");
   const options = [`<option value="">${t("common.none", "None")}</option>`];
   if (hasStandard) {
-    options.push(`<option value="standard">${t("attrgen.type.standard_array", "Standard Array")}</option>`);
+    options.push(`<option value="standard">${t("attrgen.type.standard_array", "Standard Array/Base Scores")}</option>`);
   }
   if (hasElite) {
     options.push(`<option value="elite">${t("attrgen.arrays.elite.section", "Elite Arrays")}</option>`);
   }
   select.innerHTML = options.join("");
-  const preferred = String(method.defaultArrayType || "").trim().toLowerCase();
-  if (preferred === "elite" && hasElite) {
+  const savedType = normalizeCharGenArrayType(state.chargenSelectedArrayType);
+  const preferred = normalizeCharGenArrayType(method.defaultArrayType);
+  if ((savedType === "elite" && hasElite) || (savedType === "standard" && hasStandard)) {
+    select.value = savedType;
+  } else if (preferred === "elite" && hasElite) {
     select.value = "elite";
-  } else if (preferred === "standard" && hasStandard) {
-    select.value = "standard";
   } else if (hasStandard) {
     select.value = "standard";
   } else if (hasElite) {
     select.value = "elite";
-  } else {
-    select.value = "";
   }
 
-  const updateHint = () => {
-    const key = String(select.value || "");
-    const values = key === "elite" ? eliteValues : standardValues;
-    if (openArray && key) {
-      emptyLabel.textContent = t("attrgen.arrays.open.values", "Values: {values}").replace(
-        "{values}",
-        values.join(", ")
-      );
-      return;
-    }
-    if (key === "standard") {
-      emptyLabel.textContent = t("attrgen.type.standard_array", "Standard Array");
-    } else if (key === "elite") {
-      emptyLabel.textContent = t("attrgen.arrays.elite.section", "Elite Arrays");
-    } else {
-      emptyLabel.textContent = t("common.none", "None");
-    }
-  };
-  updateHint();
+  if (openArray) {
+    inputs.forEach((entry) => {
+      const attributeId = String(entry.attributeId || "").trim();
+      const field = entry.input.closest(".field");
+      if (!field || !attributeId) {
+        return;
+      }
+      const controls = document.createElement("div");
+      controls.className = "array-assignment-controls";
+      controls.dataset.attributeId = attributeId;
+      field.appendChild(controls);
+      controlsByAttributeId[attributeId] = controls;
+    });
+  }
+
   select.addEventListener("change", () => {
-    updateHint();
-    const key = String(select.value || "");
-    if (!key) {
-      return;
-    }
-    if (openArray) {
-      return;
-    }
-    const values = key === "elite" ? eliteMap : standardMap;
-    applyCharGenArrayPreset(attributes, method, inputs, values);
-    state.chargenAttributeScores = collectCharGenAttributeScores(inputs);
+    assignments = {};
+    state.chargenArrayAssignments = {};
+    state.chargenSelectedArrayType = normalizeCharGenArrayType(select.value);
+    clearCharGenAttributeStepResults();
+    render();
     saveCharGenDraftLocal();
-    if (typeof onApplied === "function") {
-      onApplied();
-    }
   });
+  render();
+  return { isComplete, render };
 }
 
 function maybeApplyCharGenDefaultArray(method, attributes, inputs) {
@@ -11655,7 +12561,7 @@ function normalizeAttributeGenerationMethodType(value) {
 
 function normalizeAttributeGenerationApplicationMode(value) {
   const safeValue = String(value || "").trim().toLowerCase();
-  if (["add", "spend"].includes(safeValue)) {
+  if (["add", "spend", "choose"].includes(safeValue)) {
     return safeValue;
   }
   return "set";
@@ -11669,7 +12575,10 @@ function formatAttributeGenerationApplicationMode(value) {
   if (safeValue === "spend") {
     return t("attrgen.options.mode.spend.short", "spend");
   }
-  return t("attrgen.options.mode.set.short", "set");
+  if (safeValue === "choose") {
+    return t("attrgen.options.mode.choose.short", "choose");
+  }
+  return t("attrgen.options.mode.set.short", "initial");
 }
 
 function normalizeAttributeGenerationOptions(options) {
@@ -11677,12 +12586,20 @@ function normalizeAttributeGenerationOptions(options) {
   const normalized = [];
   safeOptions.forEach((option, index) => {
     const steps = Array.isArray(option.steps) ? option.steps : [];
-    const normalizedSteps = steps
-      .map((step) => ({
-        methodType: normalizeAttributeGenerationMethodType(step.methodType),
-        applicationMode: normalizeAttributeGenerationApplicationMode(step.applicationMode),
-      }))
-      .filter((step) => step.methodType);
+    const normalizedSteps = [];
+    steps.forEach((step) => {
+      const methodType = normalizeAttributeGenerationMethodType(step.methodType);
+      if (!methodType || (normalizedSteps.length > 0 && methodType === "standard_array")) {
+        return;
+      }
+      let applicationMode = normalizeAttributeGenerationApplicationMode(step.applicationMode);
+      if (!normalizedSteps.length) {
+        applicationMode = "set";
+      } else if (applicationMode === "set") {
+        applicationMode = "choose";
+      }
+      normalizedSteps.push({ methodType, applicationMode });
+    });
     if (!normalizedSteps.length) {
       return;
     }
@@ -11820,7 +12737,7 @@ async function renderAttributeGeneration() {
           <h2 class="collection-editor-heading">${t("attrgen.options.title", "Player Options")}</h2>
           <p class="field-hint">${t(
             "attrgen.options.help",
-            "Each option is a player-facing choice. Steps inside one option happen in order, so later steps can add to or spend from earlier scores."
+            "Each option is a player-facing choice. Later steps can add to or spend from earlier scores, or generate a second result for the player to choose between."
           )}</p>
           <button class="btn ghost collection-add-button" id="addGenerationOption" type="button">${t("attrgen.options.add", "Add Option")}</button>
           <div class="list" id="generationOptionList"></div>
@@ -11926,11 +12843,14 @@ async function renderAttributeGeneration() {
       return selected;
     };
 
-    const buildMethodSelectOptions = (includeEmpty = false) => {
+    const buildMethodSelectOptions = (includeEmpty = false, excludeStandardArray = false) => {
       const options = includeEmpty
         ? [`<option value="">${t("common.none", "None")}</option>`]
         : [];
       ["standard_array", "dice", "point_buy"].forEach((methodType) => {
+        if (excludeStandardArray && methodType === "standard_array") {
+          return;
+        }
         options.push(`<option value="${methodType}">${escapeHtml(formatCharGenType(methodType))}</option>`);
       });
       return options.join("");
@@ -12058,11 +12978,11 @@ async function renderAttributeGeneration() {
       generationOptionModalSave.textContent = t("attrgen.options.add", "Add Option");
       generationOptionModalName.value = "";
       generationOptionModalStep1.innerHTML = buildMethodSelectOptions(false);
-      generationOptionModalStep2.innerHTML = buildMethodSelectOptions(true);
+      generationOptionModalStep2.innerHTML = buildMethodSelectOptions(true, true);
       generationOptionModalStep2Mode.innerHTML = `
         <option value="add">${t("attrgen.options.mode.add", "Add to existing scores")}</option>
         <option value="spend">${t("attrgen.options.mode.spend", "Spend from existing scores")}</option>
-        <option value="set">${t("attrgen.options.mode.set", "Replace existing scores")}</option>
+        <option value="choose">${t("attrgen.options.mode.choose", "Choose between both results")}</option>
       `;
       generationOptionModalStep2Mode.value = "add";
       const updateSecondStepModeVisibility = () => {
@@ -12084,6 +13004,13 @@ async function renderAttributeGeneration() {
         const secondMode = normalizeAttributeGenerationApplicationMode(generationOptionModalStep2Mode.value);
         if (!firstStep) {
           showToast(t("attrgen.options.step_required", "Choose at least one option step."));
+          return;
+        }
+        if (secondStep === "standard_array") {
+          showToast(t(
+            "attrgen.options.standard_first_only",
+            "Standard Array/Base Scores can only be the first step."
+          ));
           return;
         }
         const optionSteps = [{ methodType: firstStep, applicationMode: "set" }];
@@ -12244,7 +13171,7 @@ async function renderAttributeGeneration() {
   }
 }
 
-async function renderStandardArray(assignTarget = "", assignEntry = "") {
+async function renderStandardArray() {
   if (!ensureDraft()) {
     return;
   }
@@ -12255,10 +13182,10 @@ async function renderStandardArray(assignTarget = "", assignEntry = "") {
     if (!usesAttributeGenerationStage("standard_array")) {
       view.innerHTML = `
         <section class="panel">
-          <h1>${t("attrgen.standard.title", "Standard Arrays")}</h1>
+          <h1>${t("attrgen.standard.title", "Standard Array/Base Scores")}</h1>
           <p class="field-hint">${t(
             "attrgen.standard.disabled",
-            "Standard Array is not selected in Attribute Generation, so this screen is locked to prevent unused array data from being edited."
+            "Standard Array/Base Scores is not selected in Attribute Generation, so this screen is locked to prevent unused array data from being edited."
           )}</p>
           <div class="actions-row">
             <div class="left">
@@ -12282,6 +13209,10 @@ async function renderStandardArray(assignTarget = "", assignEntry = "") {
       ? "open"
       : "assigned";
     const isOpenArray = assignmentMode === "open";
+    const standardUsesSharedScore = Boolean(data.allAttributesUseSameStandardScore);
+    const standardSharedScore = Number(data.standardSharedScore || 0);
+    const eliteUsesSharedScore = Boolean(data.allAttributesUseSameEliteScore);
+    const eliteSharedScore = Number(data.eliteSharedScore || 0);
     const attributeOptions = attributes
       .map((attr) => `<option value="${attr.id}">${escapeHtml(attr.displayName)}</option>`)
       .join("");
@@ -12309,14 +13240,37 @@ async function renderStandardArray(assignTarget = "", assignEntry = "") {
       const separator = text.indexOf("=");
       return separator > 0 && separator < text.length - 1;
     };
-    const unassignedEntries = [
-      ...(data.standardArray || [])
-        .filter((entry) => !isAssignedArrayEntry(entry))
-        .map((entry) => ({ target: "standard", entry })),
-      ...(data.eliteArray || [])
-        .filter((entry) => !isAssignedArrayEntry(entry))
-        .map((entry) => ({ target: "elite", entry })),
-    ];
+
+    const buildAssignedArrayValues = (items) => {
+      const values = {};
+      (items || []).forEach((entry) => {
+        const text = String(entry || "").trim();
+        const separator = text.indexOf("=");
+        if (separator <= 0 || separator >= text.length - 1) {
+          return;
+        }
+        const name = text.slice(0, separator).trim().toLowerCase();
+        const value = Number(text.slice(separator + 1).trim());
+        if (name && Number.isFinite(value)) {
+          values[name] = Math.trunc(value);
+        }
+      });
+      return values;
+    };
+    const standardAssignedValues = buildAssignedArrayValues(data.standardArray);
+    const eliteAssignedValues = buildAssignedArrayValues(data.eliteArray);
+    const assignedArrayIsComplete = (items, values, usesSharedScore) => usesSharedScore
+      || !(items || []).length
+      || attributes.every((attribute) => Object.prototype.hasOwnProperty.call(
+        values,
+        String(attribute.name || "").trim().toLowerCase()
+      ));
+    const incompleteAssignedTargets = isOpenArray
+      ? []
+      : [
+          !assignedArrayIsComplete(data.standardArray, standardAssignedValues, standardUsesSharedScore) ? "standard" : "",
+          !assignedArrayIsComplete(data.eliteArray, eliteAssignedValues, eliteUsesSharedScore) ? "elite" : "",
+        ].filter(Boolean);
 
     const renderList = (items, target) =>
       (items || [])
@@ -12330,10 +13284,11 @@ async function renderStandardArray(assignTarget = "", assignEntry = "") {
               ? `${t("attrgen.arrays.assignment.required", "Needs Attribute assignment")}: ${formatArrayEntry(entry)}`
               : formatArrayEntry(entry)
           )}</span>
-          <div class="actions">
-            ${needsAssignment ? `<button class="btn ghost small" data-assign-array-target="${target}" data-assign-array-entry="${escapeHtml(entry)}">${t("attrgen.arrays.assign", "Assign")}</button>` : ""}
-            <button class="btn danger small" data-${target}="${escapeHtml(entry)}">${t("common.remove", "Remove")}</button>
-          </div>
+          ${isOpenArray ? `
+            <div class="actions">
+              <button class="btn danger small" data-${target}="${escapeHtml(entry)}">${t("common.remove", "Remove")}</button>
+            </div>
+          ` : ""}
         </div>
       `;
           }
@@ -12342,7 +13297,7 @@ async function renderStandardArray(assignTarget = "", assignEntry = "") {
 
     view.innerHTML = `
       <section class="panel">
-        <h1>${t("attrgen.standard.title", "Standard Arrays")}</h1>
+        <h1>${t("attrgen.standard.title", "Standard Array/Base Scores")}</h1>
         <div class="field">
           <label>${t("attrgen.arrays.mode", "Array Assignment")}</label>
           <select id="standardAssignmentMode">
@@ -12357,21 +13312,63 @@ async function renderStandardArray(assignTarget = "", assignEntry = "") {
           </select>
           <p class="field-hint">${escapeHtml(assignmentHelp)}</p>
         </div>
-        ${!isOpenArray && unassignedEntries.length ? `
+        ${!isOpenArray && incompleteAssignedTargets.length ? `
           <div class="array-assignment-notice" role="status">
             ${escapeHtml(t(
-              "attrgen.arrays.assignment.notice",
-              "Some existing values still need Attribute assignments. You can leave them unresolved and return when you are ready."
+              "attrgen.arrays.assignment.complete_notice",
+              "Each non-normalized Auto Assigned array must include one score for every Attribute. Use Set Scores to complete it."
             ))}
           </div>
         ` : ""}
-        <h2 class="collection-editor-heading">${t("attrgen.arrays.section", "Standard Arrays")}</h2>
-        <button class="btn collection-add-button" id="addStandard" type="button">${t("attrgen.arrays.add", "Add Value")}</button>
-        <div class="list" id="standardList">${renderList(data.standardArray, "standard") || `<div class="list-item">${t("web.standard_array.none", "No entries yet.")}</div>`}</div>
+        <h2 class="collection-editor-heading">${t("attrgen.arrays.section", "Standard Array/Base Scores")}</h2>
+        ${!isOpenArray ? `
+          <div class="array-normalization-controls">
+            <label class="checkbox-label" for="standardUsesSharedScore">
+              <input type="checkbox" id="standardUsesSharedScore" ${standardUsesSharedScore ? "checked" : ""}>
+              <span>${t("attrgen.arrays.standard.shared", "All Attributes use the same base score")}</span>
+            </label>
+            <div class="field ${standardUsesSharedScore ? "" : "hidden"}" id="standardSharedScoreField">
+              <label for="standardSharedScore">${t("attrgen.arrays.standard.shared_value", "Shared base score")}</label>
+              <input type="number" id="standardSharedScore" value="${standardSharedScore}">
+            </div>
+          </div>
+        ` : ""}
+        ${isOpenArray || !standardUsesSharedScore ? `
+          <button class="btn collection-add-button" id="addStandard" type="button">${isOpenArray
+            ? t("attrgen.arrays.add", "Add Value")
+            : t("attrgen.arrays.set_scores", "Set Scores")}</button>
+          <div class="list" id="standardList">${renderList(data.standardArray, "standard") || `<div class="list-item">${t("web.standard_array.none", "No entries yet.")}</div>`}</div>
+        ` : `
+          <p class="field-hint">${escapeHtml(t(
+            "attrgen.arrays.standard.shared_help",
+            "This score is assigned to every Attribute, including Attributes added later."
+          ))}</p>
+        `}
 
         <h2 class="collection-editor-heading">${t("attrgen.arrays.elite.section", "Elite Arrays")}</h2>
-        <button class="btn collection-add-button" id="addElite" type="button">${t("attrgen.arrays.add", "Add Value")}</button>
-        <div class="list" id="eliteList">${renderList(data.eliteArray, "elite") || `<div class="list-item">${t("web.standard_array.none", "No entries yet.")}</div>`}</div>
+        ${!isOpenArray ? `
+          <div class="array-normalization-controls">
+            <label class="checkbox-label" for="eliteUsesSharedScore">
+              <input type="checkbox" id="eliteUsesSharedScore" ${eliteUsesSharedScore ? "checked" : ""}>
+              <span>${t("attrgen.arrays.elite.shared", "All Attributes use the same elite score")}</span>
+            </label>
+            <div class="field ${eliteUsesSharedScore ? "" : "hidden"}" id="eliteSharedScoreField">
+              <label for="eliteSharedScore">${t("attrgen.arrays.elite.shared_value", "Shared elite score")}</label>
+              <input type="number" id="eliteSharedScore" value="${eliteSharedScore}">
+            </div>
+          </div>
+        ` : ""}
+        ${isOpenArray || !eliteUsesSharedScore ? `
+          <button class="btn collection-add-button" id="addElite" type="button">${isOpenArray
+            ? t("attrgen.arrays.add", "Add Value")
+            : t("attrgen.arrays.set_scores", "Set Scores")}</button>
+          <div class="list" id="eliteList">${renderList(data.eliteArray, "elite") || `<div class="list-item">${t("web.standard_array.none", "No entries yet.")}</div>`}</div>
+        ` : `
+          <p class="field-hint">${escapeHtml(t(
+            "attrgen.arrays.elite.shared_help",
+            "This score is assigned to every Attribute, including Attributes added later."
+          ))}</p>
+        `}
 
         <div class="field">
           <label>${t("attrgen.default_array", "Default Array Type")}</label>
@@ -12396,35 +13393,31 @@ async function renderStandardArray(assignTarget = "", assignEntry = "") {
       const isElite = target === "elite";
       const sectionTitle = isElite
         ? t("attrgen.arrays.elite.section", "Elite Arrays")
-        : t("attrgen.arrays.section", "Standard Arrays");
+        : t("attrgen.arrays.section", "Standard Array/Base Scores");
       arrayValueModalTitle.textContent = `${t("attrgen.arrays.add", "Add Value")} - ${sectionTitle}`;
       arrayValueModalAttributeLabel.textContent = t("attrgen.arrays.attribute", "Attribute");
       arrayValueModalValueLabel.textContent = t("attrgen.arrays.value", "Array Value");
       arrayValueModalCancel.textContent = t("common.cancel", "Cancel");
       arrayValueModalSave.textContent = t("attrgen.arrays.add", "Add Value");
-      arrayValueModalAttributeField.classList.toggle("hidden", isOpenArray);
+      arrayValueModalCard.classList.remove("wide");
+      arrayValueModalSingleFields.classList.remove("hidden");
+      arrayValueModalEntries.classList.add("hidden");
+      arrayValueModalAttributeField.classList.add("hidden");
       arrayValueModalAttribute.innerHTML = attributeOptions;
       arrayValueModalValue.value = "0";
       arrayValueModalValue.disabled = false;
       arrayValueModalSave.disabled = false;
       arrayValueModal.classList.remove("hidden");
-      window.requestAnimationFrame(() => {
-        if (isOpenArray) {
-          arrayValueModalValue.focus();
-        } else {
-          arrayValueModalAttribute.focus();
-        }
-      });
+      window.requestAnimationFrame(() => arrayValueModalValue.focus());
 
       arrayValueModalCancel.onclick = () => {
         arrayValueModal.classList.add("hidden");
       };
       arrayValueModalSave.onclick = async () => {
-        const attributeId = isOpenArray ? "" : arrayValueModalAttribute.value;
         const value = Number(arrayValueModalValue.value);
         arrayValueModalSave.disabled = true;
         try {
-          await api("POST", `/api/drafts/${state.draftId}/standard-array/${target}`, { attributeId, value });
+          await api("POST", `/api/drafts/${state.draftId}/standard-array/${target}`, { value });
           markSaved(t(
             isElite ? "web.toast.elite_array_updated" : "web.toast.standard_array_updated",
             isElite ? "Elite array updated" : "Standard array updated"
@@ -12438,7 +13431,7 @@ async function renderStandardArray(assignTarget = "", assignEntry = "") {
       };
     };
 
-    const openArrayAssignmentEditor = (target, entry) => {
+    const openAssignedArrayEditor = (target) => {
       if (!attributes.length) {
         openInformationPopup(
           t("attrgen.arrays.assignment.attributes_required.title", "Attributes Required"),
@@ -12452,38 +13445,62 @@ async function renderStandardArray(assignTarget = "", assignEntry = "") {
       const isElite = target === "elite";
       const sectionTitle = isElite
         ? t("attrgen.arrays.elite.section", "Elite Arrays")
-        : t("attrgen.arrays.section", "Standard Arrays");
-      const text = String(entry || "").trim();
-      const separator = text.indexOf("=");
-      const value = separator >= 0 ? text.slice(separator + 1).trim() : text;
-      arrayValueModalTitle.textContent = `${t("attrgen.arrays.assign", "Assign")} - ${sectionTitle}`;
-      arrayValueModalAttributeLabel.textContent = t("attrgen.arrays.attribute", "Attribute");
-      arrayValueModalValueLabel.textContent = t("attrgen.arrays.value", "Array Value");
+        : t("attrgen.arrays.section", "Standard Array/Base Scores");
+      const savedValues = isElite ? eliteAssignedValues : standardAssignedValues;
+      arrayValueModalTitle.textContent = `${t("attrgen.arrays.set_scores", "Set Scores")} - ${sectionTitle}`;
       arrayValueModalCancel.textContent = t("common.cancel", "Cancel");
-      arrayValueModalSave.textContent = t("attrgen.arrays.assign", "Assign");
-      arrayValueModalAttributeField.classList.remove("hidden");
-      arrayValueModalAttribute.innerHTML = attributeOptions;
-      arrayValueModalValue.value = value;
-      arrayValueModalValue.disabled = true;
+      arrayValueModalSave.textContent = t("attrgen.arrays.save_scores", "Save Scores");
+      arrayValueModalCard.classList.add("wide");
+      arrayValueModalSingleFields.classList.add("hidden");
+      arrayValueModalEntries.innerHTML = attributes.map((attribute, index) => {
+        const attributeName = String(attribute.name || "").trim().toLowerCase();
+        const savedValue = Object.prototype.hasOwnProperty.call(savedValues, attributeName)
+          ? savedValues[attributeName]
+          : 0;
+        const inputId = `arrayScore-${target}-${index}`;
+        return `
+          <div class="array-score-row">
+            <label for="${inputId}">${escapeHtml(attribute.displayName || attribute.name || "")}</label>
+            <input
+              type="number"
+              id="${inputId}"
+              data-array-score-attribute="${escapeHtml(attribute.id)}"
+              value="${savedValue}"
+            >
+          </div>
+        `;
+      }).join("");
+      arrayValueModalEntries.classList.remove("hidden");
       arrayValueModalSave.disabled = false;
       arrayValueModal.classList.remove("hidden");
-      window.requestAnimationFrame(() => arrayValueModalAttribute.focus());
+      window.requestAnimationFrame(() => {
+        const firstInput = arrayValueModalEntries.querySelector("[data-array-score-attribute]");
+        if (firstInput) {
+          firstInput.focus();
+        }
+      });
 
       arrayValueModalCancel.onclick = () => {
         arrayValueModal.classList.add("hidden");
-        arrayValueModalValue.disabled = false;
       };
       arrayValueModalSave.onclick = async () => {
+        const attributeValues = [...arrayValueModalEntries.querySelectorAll("[data-array-score-attribute]")]
+          .map((input) => ({
+            attributeId: input.dataset.arrayScoreAttribute,
+            value: String(input.value || "").trim() ? Number(input.value) : Number.NaN,
+          }));
+        if (attributeValues.some((entry) => !Number.isFinite(entry.value))) {
+          showToast(t("attrgen.arrays.score_required", "Enter a score for every Attribute."));
+          return;
+        }
         arrayValueModalSave.disabled = true;
         try {
-          await api("POST", `/api/drafts/${state.draftId}/standard-array/assignment`, {
-            target,
-            entry: text,
-            attributeId: arrayValueModalAttribute.value,
-          });
-          markSaved(t("web.toast.standard_array_updated", "Standard array updated"));
+          await api("POST", `/api/drafts/${state.draftId}/standard-array/${target}`, { attributeValues });
+          markSaved(t(
+            isElite ? "web.toast.elite_array_updated" : "web.toast.standard_array_updated",
+            isElite ? "Elite array updated" : "Standard array updated"
+          ));
           arrayValueModal.classList.add("hidden");
-          arrayValueModalValue.disabled = false;
           renderStandardArray();
         } catch (error) {
           showToast(error.message);
@@ -12492,19 +13509,27 @@ async function renderStandardArray(assignTarget = "", assignEntry = "") {
       };
     };
 
-    document.getElementById("addStandard").addEventListener("click", () => {
-      openArrayValueEditor("standard");
-    });
-
-    document.getElementById("addElite").addEventListener("click", () => {
-      openArrayValueEditor("elite");
-    });
-
-    document.querySelectorAll("[data-assign-array-target]").forEach((button) => {
-      button.addEventListener("click", () => {
-        openArrayAssignmentEditor(button.dataset.assignArrayTarget, button.dataset.assignArrayEntry);
+    const addStandard = document.getElementById("addStandard");
+    if (addStandard) {
+      addStandard.addEventListener("click", () => {
+        if (isOpenArray) {
+          openArrayValueEditor("standard");
+        } else {
+          openAssignedArrayEditor("standard");
+        }
       });
-    });
+    }
+
+    const addElite = document.getElementById("addElite");
+    if (addElite) {
+      addElite.addEventListener("click", () => {
+        if (isOpenArray) {
+          openArrayValueEditor("elite");
+        } else {
+          openAssignedArrayEditor("elite");
+        }
+      });
+    }
 
     document.querySelectorAll("[data-standard]").forEach((button) => {
       button.addEventListener("click", async () => {
@@ -12552,14 +13577,66 @@ async function renderStandardArray(assignTarget = "", assignEntry = "") {
           standardArrayAssignmentMode: event.target.value,
         });
         markSaved(t("web.toast.standard_array_updated", "Standard array updated"));
-        const firstUnassigned = event.target.value === "assigned" ? unassignedEntries[0] : null;
-        renderStandardArray(
-          firstUnassigned ? firstUnassigned.target : "",
-          firstUnassigned ? String(firstUnassigned.entry || "") : ""
-        );
+        renderStandardArray();
       } catch (error) {
         showToast(error.message);
       }
+    });
+
+    const wireSharedScoreControl = (config) => {
+      const checkbox = document.getElementById(config.checkboxId);
+      const input = document.getElementById(config.inputId);
+      if (!checkbox || !input) {
+        return;
+      }
+      checkbox.addEventListener("change", async () => {
+        checkbox.disabled = true;
+        try {
+          await api("POST", `/api/drafts/${state.draftId}/standard-array/default`, {
+            [config.modeKey]: checkbox.checked,
+          });
+          markSaved(t(config.toastKey, config.toastFallback));
+          renderStandardArray();
+        } catch (error) {
+          showToast(error.message);
+          checkbox.disabled = false;
+        }
+      });
+      input.addEventListener("change", async () => {
+        const score = String(input.value || "").trim() ? Number(input.value) : Number.NaN;
+        if (!Number.isFinite(score)) {
+          showToast(t("attrgen.arrays.score_required", "Enter a score for every Attribute."));
+          return;
+        }
+        input.disabled = true;
+        try {
+          await api("POST", `/api/drafts/${state.draftId}/standard-array/default`, {
+            [config.scoreKey]: score,
+          });
+          markSaved(t(config.toastKey, config.toastFallback));
+        } catch (error) {
+          showToast(error.message);
+        } finally {
+          input.disabled = false;
+        }
+      });
+    };
+
+    wireSharedScoreControl({
+      checkboxId: "standardUsesSharedScore",
+      inputId: "standardSharedScore",
+      modeKey: "allAttributesUseSameStandardScore",
+      scoreKey: "standardSharedScore",
+      toastKey: "web.toast.standard_array_updated",
+      toastFallback: "Standard array updated",
+    });
+    wireSharedScoreControl({
+      checkboxId: "eliteUsesSharedScore",
+      inputId: "eliteSharedScore",
+      modeKey: "allAttributesUseSameEliteScore",
+      scoreKey: "eliteSharedScore",
+      toastKey: "web.toast.elite_array_updated",
+      toastFallback: "Elite array updated",
     });
 
     document.getElementById("defaultArray").addEventListener("change", async (event) => {
@@ -12574,11 +13651,11 @@ async function renderStandardArray(assignTarget = "", assignEntry = "") {
     });
 
     const confirmUnassignedNavigation = async (navigate) => {
-      if (!isOpenArray && unassignedEntries.length) {
+      if (!isOpenArray && incompleteAssignedTargets.length) {
         const leavePage = await showConfirm(
           t(
             "attrgen.arrays.assignment.leave.message",
-            "Some Auto Assigned values still need Attribute assignments. You can leave them unresolved and return later."
+            "Some Auto Assigned arrays do not yet include a score for every Attribute. You can leave them incomplete and return later."
           ),
           t("common.okay", "Okay"),
           t("attrgen.arrays.assignment.continue_editing", "Continue Editing"),
@@ -12599,9 +13676,6 @@ async function renderStandardArray(assignTarget = "", assignEntry = "") {
         navigateToStep(getNextAttributeGenerationStep("standard-array"));
       });
     });
-    if (assignTarget && assignEntry) {
-      openArrayAssignmentEditor(assignTarget, assignEntry);
-    }
   } catch (error) {
     showToast(error.message);
   }
@@ -12681,9 +13755,41 @@ async function renderDiceRolling() {
     view.innerHTML = `
       <section class="panel">
         <h1>${t("attrgen.dice.title", "Dice Rolling")}</h1>
-        <div class="field">
-          <label>${t("attrgen.sets.count", "Number of Sets")}</label>
-          <input type="number" id="setCount" min="0" step="1" value="${Math.max(0, Number(data.numberOfSets || 0))}">
+        <div class="grid two">
+          <div class="field">
+            <label for="setCount">${t("attrgen.sets.count", "Number of Sets")}</label>
+            <input type="number" id="setCount" min="0" step="1" value="${Math.max(0, Number(data.numberOfSets || 0))}">
+          </div>
+          <div class="field">
+            <label for="diceAssignmentMethod">${t("attrgen.dice.assignment.method", "Roll Assignment")}</label>
+            <select id="diceAssignmentMethod">
+              <option value="player" ${data.assignInOrder ? "" : "selected"}>${t(
+                "attrgen.dice.assignment.player",
+                "Player assigns rolls"
+              )}</option>
+              <option value="in_order" ${data.assignInOrder ? "selected" : ""}>${t(
+                "attrgen.dice.assignment.in_order",
+                "Assign in Attribute order"
+              )}</option>
+            </select>
+            <div class="dice-assignment-order-controls ${data.assignInOrder ? "" : "hidden"}" id="diceAssignmentOrderControls">
+              <button class="btn ghost small" id="editDiceAttributeOrder" type="button" ${(data.attributes || []).length ? "" : "disabled"}>${t(
+                "attrgen.dice.assignment.order.button",
+                "Set Attribute Order"
+              )}</button>
+              ${
+                (data.attributes || []).length
+                  ? `<p class="field-hint">${t(
+                      "attrgen.dice.assignment.order.hint",
+                      "This order controls which Attribute receives each roll."
+                    )}</p>`
+                  : `<p class="field-hint">${t(
+                      "attrgen.dice.assignment.order.empty",
+                      "Add Attributes before setting their assignment order."
+                    )}</p>`
+              }
+            </div>
+          </div>
         </div>
 
         <h2>${t("attrgen.dice.substitution.section", "Dice Substitution")}</h2>
@@ -12732,6 +13838,126 @@ async function renderDiceRolling() {
         showToast(error.message);
       }
     });
+
+    document.getElementById("diceAssignmentMethod").addEventListener("change", async (event) => {
+      const assignInOrder = event.target.value === "in_order";
+      const orderControls = document.getElementById("diceAssignmentOrderControls");
+      orderControls.classList.toggle("hidden", !assignInOrder);
+      try {
+        await api("POST", `/api/drafts/${state.draftId}/dice-rolling/assignment`, { assignInOrder });
+        markSaved(t("web.toast.dice_assignment_updated", "Roll assignment updated"));
+      } catch (error) {
+        showToast(error.message);
+        event.target.value = assignInOrder ? "player" : "in_order";
+        orderControls.classList.toggle("hidden", assignInOrder);
+      }
+    });
+
+    const attributes = Array.isArray(data.attributes) ? data.attributes : [];
+    const attributeById = new Map(attributes.map((attribute) => [String(attribute.id || ""), attribute]));
+    const storedOrder = Array.isArray(data.attributeOrder) ? data.attributeOrder.map(String) : [];
+    const attributeOrder = storedOrder.filter((attributeId) => attributeById.has(attributeId));
+    attributes.forEach((attribute) => {
+      const attributeId = String(attribute.id || "");
+      if (attributeId && !attributeOrder.includes(attributeId)) {
+        attributeOrder.push(attributeId);
+      }
+    });
+    const editAttributeOrder = document.getElementById("editDiceAttributeOrder");
+    if (editAttributeOrder) {
+      editAttributeOrder.addEventListener("click", () => {
+        let workingOrder = [...attributeOrder];
+        attributeOrderModalTitle.textContent = t(
+          "attrgen.dice.assignment.order.title",
+          "Attribute Assignment Order"
+        );
+        attributeOrderModalDescription.textContent = t(
+          "attrgen.dice.assignment.order.description",
+          "Choose which Attribute receives each roll, from first to last."
+        );
+        attributeOrderModalCancel.textContent = t("common.cancel", "Cancel");
+        attributeOrderModalSave.textContent = t("attrgen.dice.assignment.order.save", "Save Order");
+
+        const renderOrderRows = () => {
+          attributeOrderModalList.innerHTML = workingOrder
+            .map((selectedId, index) => {
+              const options = [
+                `<option value="">${t(
+                  "attrgen.dice.assignment.order.choose",
+                  "Choose an Attribute"
+                )}</option>`,
+              ].concat(
+                attributes.map((attribute) => {
+                  const attributeId = String(attribute.id || "");
+                  const label = String(attribute.displayName || attribute.name || attributeId);
+                  return `<option value="${escapeHtml(attributeId)}" ${attributeId === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
+                })
+              ).join("");
+              const rowLabel = t("attrgen.dice.assignment.order.row", "Roll {position} is assigned to").replace(
+                "{position}",
+                String(index + 1)
+              );
+              return `
+                <div class="field">
+                  <label for="attributeOrderPosition${index}">${escapeHtml(rowLabel)}</label>
+                  <select id="attributeOrderPosition${index}" data-order-position="${index}">${options}</select>
+                </div>
+              `;
+            })
+            .join("");
+          attributeOrderModalList.querySelectorAll("select").forEach((select) => {
+            select.addEventListener("change", (event) => {
+              const index = Number(event.target.dataset.orderPosition);
+              workingOrder[index] = event.target.value;
+            });
+          });
+        };
+
+        renderOrderRows();
+        attributeOrderModalSave.disabled = false;
+        attributeOrderModal.classList.remove("hidden");
+        window.requestAnimationFrame(() => attributeOrderModalList.querySelector("select")?.focus());
+        attributeOrderModalCancel.onclick = () => attributeOrderModal.classList.add("hidden");
+        attributeOrderModalSave.onclick = async () => {
+          attributeOrderModalSave.disabled = true;
+          const expectedAttributeIds = attributes
+            .map((attribute) => String(attribute.id || "").trim())
+            .filter(Boolean);
+          const selectedAttributeIds = workingOrder.map((attributeId) => String(attributeId || "").trim());
+          const uniqueSelectedAttributeIds = new Set(selectedAttributeIds.filter(Boolean));
+          const orderIsComplete = selectedAttributeIds.length === expectedAttributeIds.length
+            && selectedAttributeIds.every(Boolean)
+            && uniqueSelectedAttributeIds.size === expectedAttributeIds.length
+            && expectedAttributeIds.every((attributeId) => uniqueSelectedAttributeIds.has(attributeId));
+          if (!orderIsComplete) {
+            await showConfirm(
+              t(
+                "attrgen.dice.assignment.order.incomplete.message",
+                "The order was not saved. Assign every Attribute once and only once, then try again."
+              ),
+              t("common.okay", "Okay"),
+              "",
+              t("attrgen.dice.assignment.order.incomplete.title", "Attribute Order Incomplete"),
+              false,
+              false
+            );
+            attributeOrderModalSave.disabled = false;
+            return;
+          }
+          try {
+            await api("POST", `/api/drafts/${state.draftId}/dice-rolling/attribute-order`, {
+              attributeOrder: workingOrder,
+            });
+            markSaved(t("web.toast.dice_attribute_order_updated", "Attribute order updated"));
+            attributeOrderModal.classList.add("hidden");
+            renderDiceRolling();
+          } catch (error) {
+            showToast(error.message);
+            attributeOrderModalSave.disabled = false;
+          }
+        };
+      });
+    }
 
     let diceSubstitutionSavePromise = Promise.resolve();
     const queueDiceSubstitutionSave = () => {
@@ -13862,6 +15088,7 @@ async function renderCurrency() {
         renderEffectTypes();
       }
     });
+
     wireSystemNameSave("currencies", () => renderCurrency());
   } catch (error) {
     showToast(error.message);
@@ -15553,6 +16780,239 @@ function wireSystemNameSave(key) {
     event.preventDefault();
     saveSystemName();
   });
+}
+
+function wireCharGenDiceAssignmentUI(config) {
+  const safeConfig = config || {};
+  const method = safeConfig.method || {};
+  const attributes = Array.isArray(safeConfig.attributes) ? safeConfig.attributes : [];
+  const inputs = Array.isArray(safeConfig.inputs) ? safeConfig.inputs : [];
+  const section = safeConfig.section;
+  const title = safeConfig.title;
+  const hint = safeConfig.hint;
+  const availableList = safeConfig.availableList;
+  const continueButton = safeConfig.continueButton;
+  const selectedChoice = resolveCharGenGenerationChoice(method);
+  const diceActive = isCharGenGenerationChoiceActive(method, selectedChoice, "dice");
+  const assignInOrder = Boolean(method.assignInOrder);
+  const additive = shouldAddCharGenRollToBase(method);
+  const rolledValues = normalizeCharGenAttributeValues(state.chargenRolledAttributeValues);
+  const validAttributeIds = new Set(inputs.map((entry) => String(entry.attributeId || "").trim()).filter(Boolean));
+  let assignments = normalizeCharGenRollAssignments(state.chargenDiceRollAssignments);
+  const usedRolls = new Set();
+  const sanitizedAssignments = {};
+
+  if (assignInOrder) {
+    inputs.forEach((entry, index) => {
+      const attributeId = String(entry.attributeId || "").trim();
+      if (attributeId && index < rolledValues.length) {
+        sanitizedAssignments[attributeId] = index;
+      }
+    });
+  } else {
+    Object.keys(assignments).forEach((attributeId) => {
+      const rollIndex = assignments[attributeId];
+      if (
+        validAttributeIds.has(attributeId)
+        && rollIndex >= 0
+        && rollIndex < rolledValues.length
+        && !usedRolls.has(rollIndex)
+      ) {
+        sanitizedAssignments[attributeId] = rollIndex;
+        usedRolls.add(rollIndex);
+      }
+    });
+  }
+  assignments = sanitizedAssignments;
+  state.chargenDiceRollAssignments = { ...assignments };
+
+  const baselineScores = {};
+  const controlsByAttributeId = {};
+
+  const captureBaseline = (recoverFromSavedScores) => {
+    inputs.forEach((entry) => {
+      const attributeId = String(entry.attributeId || "").trim();
+      let value = Number(entry.input.value || 0);
+      const rollIndex = assignments[attributeId];
+      if (
+        recoverFromSavedScores
+        && additive
+        && Number.isInteger(rollIndex)
+        && rollIndex >= 0
+        && rollIndex < rolledValues.length
+      ) {
+        value -= rolledValues[rollIndex];
+      }
+      baselineScores[attributeId] = clampCharGen(value, entry.min, entry.max);
+    });
+  };
+
+  captureBaseline(Boolean(safeConfig.hasSavedScores));
+
+  inputs.forEach((entry) => {
+    const attributeId = String(entry.attributeId || "").trim();
+    const field = entry.input.closest(".field");
+    if (!field) {
+      return;
+    }
+    const controls = document.createElement("div");
+    controls.className = "dice-assignment-controls";
+    controls.dataset.attributeId = attributeId;
+    field.appendChild(controls);
+    controlsByAttributeId[attributeId] = controls;
+  });
+
+  const rollLabel = (rollIndex) => t("attrgen.roll.option", "Roll {number}: {value}")
+    .replace("{number}", String(rollIndex + 1))
+    .replace("{value}", String(rolledValues[rollIndex]));
+
+  const isComplete = () => {
+    if (!diceActive) {
+      return true;
+    }
+    if (rolledValues.length !== inputs.length) {
+      return false;
+    }
+    const assignedRolls = new Set();
+    for (const entry of inputs) {
+      const attributeId = String(entry.attributeId || "").trim();
+      const rollIndex = assignments[attributeId];
+      if (
+        !Number.isInteger(rollIndex)
+        || rollIndex < 0
+        || rollIndex >= rolledValues.length
+        || assignedRolls.has(rollIndex)
+      ) {
+        return false;
+      }
+      assignedRolls.add(rollIndex);
+    }
+    return assignedRolls.size === rolledValues.length;
+  };
+
+  const render = () => {
+    if (!diceActive) {
+      section.classList.add("hidden");
+      inputs.forEach((entry) => {
+        entry.input.readOnly = true;
+      });
+      if (continueButton) {
+        continueButton.disabled = false;
+      }
+      return;
+    }
+
+    section.classList.remove("hidden");
+    const assignedRolls = new Set(Object.values(assignments));
+    if (assignInOrder) {
+      title.textContent = t("attrgen.roll.assignments", "Roll Assignments");
+      hint.textContent = t(
+        "attrgen.roll.assignment.in_order",
+        "This ruleset assigns rolls to Attributes in order. These values cannot be rearranged."
+      );
+      availableList.innerHTML = "";
+      availableList.classList.add("hidden");
+    } else {
+      title.textContent = t("attrgen.roll.available", "Available Rolls");
+      hint.textContent = t(
+        "attrgen.roll.assignment.player",
+        "Choose one available roll for each Attribute. Clear an assignment to return that roll to this set."
+      );
+      availableList.classList.remove("hidden");
+      const availableIndices = rolledValues
+        .map((value, index) => index)
+        .filter((index) => !assignedRolls.has(index));
+      availableList.innerHTML = availableIndices.length
+        ? availableIndices
+            .map((index) => `<div class="list-item">${escapeHtml(rollLabel(index))}</div>`)
+            .join("")
+        : `<div class="field-hint">${t("attrgen.roll.assignment.all_used", "All rolls are assigned.")}</div>`;
+    }
+
+    inputs.forEach((entry, attributeIndex) => {
+      const attributeId = String(entry.attributeId || "").trim();
+      const rollIndex = assignments[attributeId];
+      const hasAssignment = Number.isInteger(rollIndex) && rollIndex >= 0 && rollIndex < rolledValues.length;
+      const baseline = Number(baselineScores[attributeId] || 0);
+      const score = hasAssignment
+        ? additive ? baseline + rolledValues[rollIndex] : rolledValues[rollIndex]
+        : baseline;
+      entry.input.value = String(clampCharGen(score, entry.min, entry.max));
+      entry.input.readOnly = true;
+
+      const controls = controlsByAttributeId[attributeId];
+      if (!controls) {
+        return;
+      }
+      if (assignInOrder) {
+        controls.innerHTML = hasAssignment
+          ? `<span class="field-hint">${escapeHtml(rollLabel(rollIndex))}</span>`
+          : "";
+        return;
+      }
+
+      const usedByOthers = new Set(
+        Object.entries(assignments)
+          .filter(([assignedAttributeId]) => assignedAttributeId !== attributeId)
+          .map(([, assignedRollIndex]) => assignedRollIndex)
+      );
+      const options = [
+        `<option value="">${t("attrgen.roll.assignment.choose", "Choose a roll")}</option>`,
+      ];
+      rolledValues.forEach((value, index) => {
+        if (usedByOthers.has(index)) {
+          return;
+        }
+        const selected = index === rollIndex ? " selected" : "";
+        options.push(`<option value="${index}"${selected}>${escapeHtml(rollLabel(index))}</option>`);
+      });
+      const attribute = attributes[attributeIndex] || {};
+      const attributeName = attribute.displayName || attribute.name || `Attribute ${attributeIndex + 1}`;
+      controls.innerHTML = `
+        <select aria-label="${escapeHtml(t("attrgen.roll.assignment.for_attribute", "Roll for {attribute}").replace("{attribute}", attributeName))}">
+          ${options.join("")}
+        </select>
+        <button class="btn ghost" type="button" ${hasAssignment ? "" : "disabled"}>${t("attrgen.roll.assignment.clear", "Clear")}</button>
+      `;
+      const select = controls.querySelector("select");
+      const clearButton = controls.querySelector("button");
+      select.addEventListener("change", () => {
+        const nextRollIndex = Number(select.value);
+        if (!select.value || !Number.isInteger(nextRollIndex)) {
+          delete assignments[attributeId];
+        } else {
+          Object.keys(assignments).forEach((assignedAttributeId) => {
+            if (assignedAttributeId !== attributeId && assignments[assignedAttributeId] === nextRollIndex) {
+              delete assignments[assignedAttributeId];
+            }
+          });
+          assignments[attributeId] = nextRollIndex;
+        }
+        state.chargenDiceRollAssignments = { ...assignments };
+        render();
+        saveCharGenDraftLocal();
+      });
+      clearButton.addEventListener("click", () => {
+        delete assignments[attributeId];
+        state.chargenDiceRollAssignments = { ...assignments };
+        render();
+        saveCharGenDraftLocal();
+      });
+    });
+
+    state.chargenDiceRollAssignments = { ...assignments };
+    state.chargenAttributeScores = collectCharGenAttributeScores(inputs);
+    state.chargenAttributes = attributes.slice();
+    if (continueButton) {
+      continueButton.disabled = !isComplete();
+    }
+  };
+
+  return {
+    isComplete,
+    render,
+    resetBaseline: () => captureBaseline(false),
+  };
 }
 
 function sortByLabel(items, labelFn) {

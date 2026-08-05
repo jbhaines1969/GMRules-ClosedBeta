@@ -23,6 +23,7 @@ Treat `AGENT_HANDOFF.md` as the primary recovery file for any new Codex/ChatGPT 
 ## Operating Rules
 
 - Keep edits scoped to the user's request.
+- If the user's intent is ambiguous, stop and ask for clarification before making the affected change. Do not resolve meaningful ambiguity by assumption.
 - Do not use the in-app browser for UI verification in this repository. John performs visual acceptance through the local launcher and screenshots because usability, clarity, and human-friendliness require his review. Continue running applicable code, syntax, build, and non-visual checks before handing UI work back for that smoke.
 - Always stop verification servers and their launcher processes before completing a task. Confirm that any ports opened for verification, including local port 8080, are free before handing the task back to John.
 - When giving commands for the Digital Ocean web console, assume the user is already logged in as `root`; do not add `sudo` unless the user says they are using a non-root shell.
