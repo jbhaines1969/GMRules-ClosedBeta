@@ -522,6 +522,10 @@ const tutorialSpecificPages = {
         fallback: "Base Points is the budget available during character creation. Minimum Points to Spend can require players to commit part or all of that budget before continuing, while a value of zero allows unused points to remain.",
       },
       {
+        key: "attrgen.point.info.specifics.categories",
+        fallback: "Point Buy can use one shared Base Points pool or separate pools for each Attribute Category. Category pools can be attached by the creator, or created as named slots that players assign one-to-one during character generation.",
+      },
+      {
         key: "attrgen.point.info.specifics.bounds",
         fallback: "Minimum Value and Maximum Value define the score range available during the purchase process. These bounds keep players from lowering or raising an Attribute beyond what the Point Buy method permits.",
       },
@@ -565,7 +569,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "hp.info.specifics.static",
-        fallback: "For a game with a static health track, use Fixed with zero HP per level, a zero minimum, and no Attribute Modifier, then place the intended starting total in First Level Bonus HP. Each change on this screen saves immediately.",
+        fallback: "For a game with a static health track, select No Hit Point Gain and enter the complete starting total as Base Hit Points. GMRules stores this as the equivalent zero-gain progression so existing rulesets and descendant calculations remain compatible. Each change on this screen saves immediately.",
       },
     ],
   },
@@ -1114,6 +1118,19 @@ const diceTermModalDropLowestLabel = document.getElementById("diceTermModalDropL
 const diceTermModalDropLowest = document.getElementById("diceTermModalDropLowest");
 const diceTermModalCancel = document.getElementById("diceTermModalCancel");
 const diceTermModalSave = document.getElementById("diceTermModalSave");
+
+const pointCategoryBudgetModal = document.getElementById("pointCategoryBudgetModal");
+const pointCategoryBudgetModalTitle = document.getElementById("pointCategoryBudgetModalTitle");
+const pointCategoryBudgetCategoryField = document.getElementById("pointCategoryBudgetCategoryField");
+const pointCategoryBudgetCategoryLabel = document.getElementById("pointCategoryBudgetCategoryLabel");
+const pointCategoryBudgetCategory = document.getElementById("pointCategoryBudgetCategory");
+const pointCategoryBudgetNameField = document.getElementById("pointCategoryBudgetNameField");
+const pointCategoryBudgetNameLabel = document.getElementById("pointCategoryBudgetNameLabel");
+const pointCategoryBudgetName = document.getElementById("pointCategoryBudgetName");
+const pointCategoryBudgetPointsLabel = document.getElementById("pointCategoryBudgetPointsLabel");
+const pointCategoryBudgetPoints = document.getElementById("pointCategoryBudgetPoints");
+const pointCategoryBudgetModalCancel = document.getElementById("pointCategoryBudgetModalCancel");
+const pointCategoryBudgetModalSave = document.getElementById("pointCategoryBudgetModalSave");
 
 const currencyCreateModal = document.getElementById("currencyCreateModal");
 const currencyCreateModalTitle = document.getElementById("currencyCreateModalTitle");
@@ -11537,7 +11554,6 @@ async function renderAttributes(openId = "") {
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
         ${renderSystemNameControls(systemName, t("attributes.title", "Attributes"))}
-        <div class="attributes-collection-break" aria-hidden="true"></div>
         <button class="btn" id="addAttribute" type="button">${t("attributes.add", "Add Attribute")}</button>
         <div class="list" id="attributeList">${list || `<div class="list-item">${t("web.attributes.none", "No attributes yet.")}</div>`}</div>
         <div class="actions-row">
@@ -12871,13 +12887,71 @@ async function renderPointsBuy() {
       return;
     }
     const data = await api("GET", `/api/drafts/${state.draftId}/points-buy`);
+    const attributeCategories = Array.isArray(data.attributeCategories) ? data.attributeCategories : [];
+    let categoryPointRules = Array.isArray(data.categoryPointRules) ? data.categoryPointRules : [];
+    let categoryPointSlots = Array.isArray(data.categoryPointSlots) ? data.categoryPointSlots : [];
+    const assignByCategory = Boolean(data.assignByCategory);
+    const categoryAssignmentMode = data.categoryAssignmentMode === "player" ? "player" : "creator";
+    const categoryCount = attributeCategories.length;
+    const categoryNameByKey = new Map(
+      attributeCategories.map((category) => [
+        String(category.key || ""),
+        String(category.displayName || category.name || category.key || ""),
+      ])
+    );
+    const formatProgress = (key, fallback, count) =>
+      t(key, fallback)
+        .replace("{count}", String(count))
+        .replace("{total}", String(categoryCount));
+    const fixedRulesComplete = categoryCount > 0 && categoryPointRules.length === categoryCount;
+    const playerSlotsComplete = categoryCount > 0 && categoryPointSlots.length === categoryCount;
+    const fixedRuleList = categoryPointRules.length
+      ? categoryPointRules.map((rule, index) => `
+          <div class="list-item">
+            <span><strong>${escapeHtml(
+              rule.attributeCategoryName || categoryNameByKey.get(String(rule.attributeCategoryKey || "")) || rule.attributeCategoryKey
+            )}</strong>: ${Number(rule.availablePoints || 0)} ${t("attrgen.point.points", "points")}</span>
+            <div>
+              <button class="btn ghost small" type="button" data-edit-category-point-rule="${index}">${t("common.edit", "Edit")}</button>
+              <button class="btn danger small" type="button" data-remove-category-point-rule="${index}">${t("common.remove", "Remove")}</button>
+            </div>
+          </div>
+        `).join("")
+      : `<div class="list-item">${t("attrgen.point.fixed.none", "No category budgets yet.")}</div>`;
+    const playerSlotList = categoryPointSlots.length
+      ? categoryPointSlots.map((slot, index) => `
+          <div class="list-item">
+            <span><strong>${escapeHtml(slot.name || "")}</strong>: ${Number(slot.availablePoints || 0)} ${t("attrgen.point.points", "points")}</span>
+            <div>
+              <button class="btn ghost small" type="button" data-edit-category-point-slot="${index}">${t("common.edit", "Edit")}</button>
+              <button class="btn danger small" type="button" data-remove-category-point-slot="${index}">${t("common.remove", "Remove")}</button>
+            </div>
+          </div>
+        `).join("")
+      : `<div class="list-item">${t("attrgen.point.slot.none", "No point slots yet.")}</div>`;
     view.innerHTML = `
       <section class="panel">
         <h1>${t("attrgen.point.title", "Point Buy")}</h1>
+        <p class="field-hint">${t(
+          "attrgen.point.intro",
+          "Set the available points and bounds for point-buy attribute generation."
+        )}</p>
         <div class="grid two">
           <div class="field">
+            <label>${t("attrgen.point.assign_by_category", "Assign available points by Attribute Category")}</label>
+            <select id="assignByCategory">
+              <option value="false" ${assignByCategory ? "" : "selected"}>${t("common.no", "No")}</option>
+              <option value="true" ${assignByCategory ? "selected" : ""} ${categoryCount === 0 ? "disabled" : ""}>${t("common.yes", "Yes")}</option>
+            </select>
+            <span class="field-hint">${t(
+              "attrgen.point.assign_by_category.help",
+              "Choose No for one shared point pool, or Yes for a separate pool for each Attribute Category."
+            )}</span>
+          </div>
+          <div class="field ${assignByCategory ? "hidden" : ""}" id="globalPointBudgetField">
             <label>${t("attrgen.point.base_points", "Base Points")}</label>
             <input type="number" id="basePoints" value="${data.basePoints}">
+            <span class="field-hint">${t("attrgen.point.global_budget.help", "This shared budget applies across all Attributes.")}</span>
           </div>
           <div class="field">
             <label>${t("attrgen.point.min_value", "Minimum Value")}</label>
@@ -12903,6 +12977,60 @@ async function renderPointsBuy() {
             </select>
           </div>
         </div>
+        ${categoryCount === 0 ? `<div class="point-buy-configuration-notice">${t(
+          "attrgen.point.no_categories",
+          "Create Attribute Categories before assigning Point Buy budgets by category."
+        )}</div>` : ""}
+        <div class="edit-section point-buy-category-settings ${assignByCategory ? "" : "hidden"}" id="pointBuyCategorySettings">
+          <div class="system-name-collection-break" aria-hidden="true"></div>
+          <div class="field point-buy-assignment-mode">
+            <label>${t("attrgen.point.assignment_mode", "Who assigns categories to point pools?")}</label>
+            <select id="categoryAssignmentMode">
+              <option value="creator" ${categoryAssignmentMode === "creator" ? "selected" : ""}>${t(
+                "attrgen.point.assignment.creator",
+                "Creator assigns categories now"
+              )}</option>
+              <option value="player" ${categoryAssignmentMode === "player" ? "selected" : ""}>${t(
+                "attrgen.point.assignment.player",
+                "Player assigns categories during character generation"
+              )}</option>
+            </select>
+          </div>
+          <div id="fixedCategoryPointEditor" class="edit-section ${categoryAssignmentMode === "creator" ? "" : "hidden"}">
+            <h3 class="collection-editor-heading">${t("attrgen.point.fixed.title", "Category Budgets")}</h3>
+            <p class="field-hint">${t(
+              "attrgen.point.fixed.help",
+              "Set the available points for each Attribute Category now."
+            )}</p>
+            <div class="point-buy-configuration-notice ${fixedRulesComplete ? "complete" : ""}">${formatProgress(
+              "attrgen.point.fixed.progress",
+              "{count} of {total} Attribute Categories configured.",
+              categoryPointRules.length
+            )}</div>
+            <button class="btn secondary collection-add-button" id="addCategoryPointRule" type="button" ${categoryPointRules.length >= categoryCount ? "disabled" : ""}>${t(
+              "attrgen.point.fixed.add",
+              "Add Category Budget"
+            )}</button>
+            <div class="list" id="categoryPointRuleList">${fixedRuleList}</div>
+          </div>
+          <div id="playerCategoryPointEditor" class="edit-section ${categoryAssignmentMode === "player" ? "" : "hidden"}">
+            <h3 class="collection-editor-heading">${t("attrgen.point.slot.title", "Player-Assigned Point Slots")}</h3>
+            <p class="field-hint">${t(
+              "attrgen.point.slot.help",
+              "Create one named point slot for each Attribute Category. Players attach each slot to a different category during character generation."
+            )}</p>
+            <div class="point-buy-configuration-notice ${playerSlotsComplete ? "complete" : ""}">${formatProgress(
+              "attrgen.point.slot.progress",
+              "{count} of {total} point slots defined.",
+              categoryPointSlots.length
+            )}</div>
+            <button class="btn secondary collection-add-button" id="addCategoryPointSlot" type="button" ${categoryPointSlots.length >= categoryCount ? "disabled" : ""}>${t(
+              "attrgen.point.slot.add",
+              "Add Point Slot"
+            )}</button>
+            <div class="list" id="categoryPointSlotList">${playerSlotList}</div>
+          </div>
+        </div>
         <div class="actions-row">
           <div class="left">
             <button class="btn ghost" id="backToDiceRolling" type="button">${t("setup.back", "Back")}</button>
@@ -12915,19 +13043,14 @@ async function renderPointsBuy() {
     `;
 
     let pointBuySavePromise = Promise.resolve(true);
-    const savePointBuy = () => {
-      const payload = {
-        basePoints: Number(document.getElementById("basePoints").value),
-        minValue: Number(document.getElementById("minValue").value),
-        maxValue: Number(document.getElementById("maxValue").value),
-        maxPostRacial: Number(document.getElementById("maxPostRacial").value),
-        minPointsToSpend: Number(document.getElementById("minPoints").value),
-        allowNegative: document.getElementById("allowNegative").value === "true",
-      };
+    const queuePointBuySave = (payload, rerender = false) => {
       pointBuySavePromise = pointBuySavePromise.catch(() => false).then(async () => {
         try {
           await api("POST", `/api/drafts/${state.draftId}/points-buy`, payload);
-          markSaved(t("web.toast.points_buy_updated", "Points buy updated"));
+          markSaved(t("web.toast.points_buy_updated", "Point Buy updated"));
+          if (rerender) {
+            await renderPointsBuy();
+          }
           return true;
         } catch (error) {
           showToast(error.message);
@@ -12936,15 +13059,207 @@ async function renderPointsBuy() {
       });
       return pointBuySavePromise;
     };
+    const savePointBuyScalars = () =>
+      queuePointBuySave({
+        basePoints: Number(document.getElementById("basePoints").value),
+        minValue: Number(document.getElementById("minValue").value),
+        maxValue: Number(document.getElementById("maxValue").value),
+        maxPostRacial: Number(document.getElementById("maxPostRacial").value),
+        minPointsToSpend: Number(document.getElementById("minPoints").value),
+        allowNegative: document.getElementById("allowNegative").value === "true",
+      });
     ["basePoints", "minValue", "maxValue", "maxPostRacial", "minPoints", "allowNegative"].forEach((id) => {
-      document.getElementById(id).addEventListener("change", savePointBuy);
+      document.getElementById(id).addEventListener("change", savePointBuyScalars);
+    });
+
+    document.getElementById("assignByCategory").addEventListener("change", (event) => {
+      queuePointBuySave({ assignByCategory: event.target.value === "true" }, true);
+    });
+    const assignmentModeSelect = document.getElementById("categoryAssignmentMode");
+    if (assignmentModeSelect) {
+      assignmentModeSelect.addEventListener("change", (event) => {
+        queuePointBuySave({ categoryAssignmentMode: event.target.value }, true);
+      });
+    }
+
+    const closePointCategoryBudgetModal = () => pointCategoryBudgetModal.classList.add("hidden");
+    pointCategoryBudgetModalCancel.onclick = closePointCategoryBudgetModal;
+    const openPointCategoryBudgetModal = (kind, index = -1) => {
+      const editing = index >= 0;
+      const isPlayerSlot = kind === "player";
+      const currentEntry = editing
+        ? (isPlayerSlot ? categoryPointSlots[index] : categoryPointRules[index])
+        : null;
+      pointCategoryBudgetCategoryField.classList.toggle("hidden", isPlayerSlot);
+      pointCategoryBudgetNameField.classList.toggle("hidden", !isPlayerSlot);
+      pointCategoryBudgetCategoryLabel.textContent = t("attrgen.point.modal.category", "Attribute Category");
+      pointCategoryBudgetNameLabel.textContent = t("attrgen.point.modal.slot_name", "Slot Name");
+      pointCategoryBudgetPointsLabel.textContent = t("attrgen.point.modal.points", "Available Points");
+      pointCategoryBudgetModalCancel.textContent = t("common.cancel", "Cancel");
+      pointCategoryBudgetModalSave.textContent = editing ? t("common.save", "Save") : t("common.add", "Add");
+      pointCategoryBudgetModalTitle.textContent = isPlayerSlot
+        ? t(editing ? "attrgen.point.slot.edit" : "attrgen.point.slot.add", editing ? "Edit Point Slot" : "Add Point Slot")
+        : t(editing ? "attrgen.point.fixed.edit" : "attrgen.point.fixed.add", editing ? "Edit Category Budget" : "Add Category Budget");
+      if (isPlayerSlot) {
+        pointCategoryBudgetName.value = currentEntry ? String(currentEntry.name || "") : "";
+      } else {
+        const currentKey = currentEntry ? String(currentEntry.attributeCategoryKey || "") : "";
+        const usedKeys = new Set(categoryPointRules.map((rule, ruleIndex) =>
+          ruleIndex === index ? "" : String(rule.attributeCategoryKey || "")
+        ));
+        pointCategoryBudgetCategory.innerHTML = attributeCategories
+          .filter((category) => !usedKeys.has(String(category.key || "")))
+          .map((category) => {
+            const key = String(category.key || "");
+            const selected = key === currentKey ? " selected" : "";
+            return `<option value="${escapeHtml(key)}"${selected}>${escapeHtml(
+              category.displayName || category.name || key
+            )}</option>`;
+          })
+          .join("");
+      }
+      pointCategoryBudgetPoints.value = String(currentEntry ? Number(currentEntry.availablePoints || 0) : 0);
+      pointCategoryBudgetModalSave.disabled = false;
+      pointCategoryBudgetModal.classList.remove("hidden");
+      window.requestAnimationFrame(() => {
+        (isPlayerSlot ? pointCategoryBudgetName : pointCategoryBudgetCategory).focus();
+      });
+      pointCategoryBudgetModalSave.onclick = async () => {
+        const availablePoints = Number(pointCategoryBudgetPoints.value);
+        if (!Number.isInteger(availablePoints) || availablePoints < 0) {
+          showToast(t("attrgen.point.validation.points", "Available Points must be a whole number of zero or more."));
+          return;
+        }
+        pointCategoryBudgetModalSave.disabled = true;
+        let saved;
+        if (isPlayerSlot) {
+          const name = pointCategoryBudgetName.value.trim();
+          if (!name) {
+            showToast(t("attrgen.point.validation.slot_name", "Enter a name for this point slot."));
+            pointCategoryBudgetModalSave.disabled = false;
+            return;
+          }
+          const duplicateName = categoryPointSlots.some((slot, slotIndex) =>
+            slotIndex !== index && String(slot.name || "").trim().toLocaleLowerCase() === name.toLocaleLowerCase()
+          );
+          if (duplicateName) {
+            showToast(t("attrgen.point.validation.unique_slot_name", "Each point slot needs a unique name."));
+            pointCategoryBudgetModalSave.disabled = false;
+            return;
+          }
+          const nextSlots = categoryPointSlots.map((slot) => ({
+            id: String(slot.id || ""),
+            name: String(slot.name || ""),
+            availablePoints: Number(slot.availablePoints || 0),
+          }));
+          const nextSlot = {
+            id: currentEntry ? String(currentEntry.id || "") : "",
+            name,
+            availablePoints,
+          };
+          if (editing) {
+            nextSlots[index] = nextSlot;
+          } else {
+            nextSlots.push(nextSlot);
+          }
+          saved = await queuePointBuySave({ categoryPointSlots: nextSlots }, true);
+        } else {
+          const categoryKey = pointCategoryBudgetCategory.value;
+          if (!categoryKey) {
+            showToast(t("attrgen.point.validation.category", "Choose an Attribute Category."));
+            pointCategoryBudgetModalSave.disabled = false;
+            return;
+          }
+          const nextRules = categoryPointRules.map((rule) => ({
+            attributeCategoryKey: String(rule.attributeCategoryKey || ""),
+            availablePoints: Number(rule.availablePoints || 0),
+          }));
+          const nextRule = { attributeCategoryKey: categoryKey, availablePoints };
+          if (editing) {
+            nextRules[index] = nextRule;
+          } else {
+            nextRules.push(nextRule);
+          }
+          saved = await queuePointBuySave({ categoryPointRules: nextRules }, true);
+        }
+        if (saved) {
+          closePointCategoryBudgetModal();
+        } else {
+          pointCategoryBudgetModalSave.disabled = false;
+        }
+      };
+    };
+
+    const addCategoryPointRule = document.getElementById("addCategoryPointRule");
+    if (addCategoryPointRule) {
+      addCategoryPointRule.addEventListener("click", () => openPointCategoryBudgetModal("creator"));
+    }
+    const addCategoryPointSlot = document.getElementById("addCategoryPointSlot");
+    if (addCategoryPointSlot) {
+      addCategoryPointSlot.addEventListener("click", () => openPointCategoryBudgetModal("player"));
+    }
+    document.querySelectorAll("[data-edit-category-point-rule]").forEach((button) => {
+      button.addEventListener("click", () => openPointCategoryBudgetModal("creator", Number(button.dataset.editCategoryPointRule)));
+    });
+    document.querySelectorAll("[data-edit-category-point-slot]").forEach((button) => {
+      button.addEventListener("click", () => openPointCategoryBudgetModal("player", Number(button.dataset.editCategoryPointSlot)));
+    });
+    document.querySelectorAll("[data-remove-category-point-rule]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const index = Number(button.dataset.removeCategoryPointRule);
+        const confirmed = await showConfirm(
+          t("attrgen.point.fixed.remove_confirm", "Remove this category budget?"),
+          t("common.remove", "Remove")
+        );
+        if (!confirmed) {
+          return;
+        }
+        const nextRules = categoryPointRules
+          .filter((unused, ruleIndex) => ruleIndex !== index)
+          .map((rule) => ({
+            attributeCategoryKey: String(rule.attributeCategoryKey || ""),
+            availablePoints: Number(rule.availablePoints || 0),
+          }));
+        await queuePointBuySave({ categoryPointRules: nextRules }, true);
+      });
+    });
+    document.querySelectorAll("[data-remove-category-point-slot]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const index = Number(button.dataset.removeCategoryPointSlot);
+        const confirmed = await showConfirm(
+          t("attrgen.point.slot.remove_confirm", "Remove this point slot?"),
+          t("common.remove", "Remove")
+        );
+        if (!confirmed) {
+          return;
+        }
+        const nextSlots = categoryPointSlots
+          .filter((unused, slotIndex) => slotIndex !== index)
+          .map((slot) => ({
+            id: String(slot.id || ""),
+            name: String(slot.name || ""),
+            availablePoints: Number(slot.availablePoints || 0),
+          }));
+        await queuePointBuySave({ categoryPointSlots: nextSlots }, true);
+      });
     });
 
     document.getElementById("backToDiceRolling").addEventListener("click", navigateBackInApp);
     document.getElementById("pointsContinue").addEventListener("click", async () => {
-      if (await savePointBuy()) {
-        navigateToStep(getNextAttributeGenerationStep("points-buy"));
+      if (!(await savePointBuyScalars())) {
+        return;
       }
+      const categoryConfigurationComplete = categoryAssignmentMode === "player"
+        ? playerSlotsComplete
+        : fixedRulesComplete;
+      if (assignByCategory && !categoryConfigurationComplete) {
+        showToast(t(
+          "attrgen.point.configuration_incomplete",
+          "Complete one point budget for each Attribute Category before continuing."
+        ));
+        return;
+      }
+      navigateToStep(getNextAttributeGenerationStep("points-buy"));
     });
   } catch (error) {
     showToast(error.message);
@@ -12963,6 +13278,10 @@ async function renderHitPoints() {
     const averageRounding = String(data.averageRoundingMethod || "");
     const hpModifierAttributeId = String(data.hpModifierAttributeId || "");
     const hpAttributes = Array.isArray(data.attributes) ? data.attributes : [];
+    const noHitPointGain = hpGainMethod === "fixed"
+      && Number(data.fixedHPPerLevel || 0) === 0
+      && Number(data.minimumHPPerLevel || 0) === 0
+      && hpModifierAttributeId === "";
 
     const buildOptions = (options, selected) =>
       options
@@ -13003,48 +13322,67 @@ async function renderHitPoints() {
     view.innerHTML = `
       <section class="panel">
         <h1>${t("hp.title", "Hit Points")}</h1>
-        <div class="grid two">
+        <div class="field hp-no-gain-choice">
+          <label class="checkbox-label" for="hpNoGain">
+            <input type="checkbox" id="hpNoGain" ${noHitPointGain ? "checked" : ""}>
+            <span>${t("hp.no_gain", "No Hit Point Gain")}</span>
+          </label>
+          <span class="field-hint">${t(
+            "hp.no_gain.help",
+            "Use one starting Hit Point pool that does not increase through normal character advancement."
+          )}</span>
+        </div>
+        <div id="hpNoGainSettings" class="grid two ${noHitPointGain ? "" : "hidden"}">
           <div class="field">
-            <label>${t("hp.method.label", "HP Gain Method")}</label>
-            <select id="hpGainMethod">${methodOptions}</select>
-          </div>
-          <div class="field">
-            <label>${t("hp.fixed_per_level", "Fixed HP per Level")}</label>
-            <input type="number" id="hpFixedPerLevel" value="${Number(data.fixedHPPerLevel || 0)}">
-          </div>
-          <div class="field">
-            <label>${t("hp.average.rounding", "Average Rounding")}</label>
-            <select id="hpAverageRounding">${roundingOptions}</select>
-          </div>
-          <div class="field">
-            <label>${t("hp.minimum_per_level", "Minimum HP per Level")}</label>
-            <input type="number" id="hpMinimumPerLevel" value="${Number(data.minimumHPPerLevel || 0)}">
+            <label for="hpBaseHitPoints">${t("hp.base", "Base Hit Points")}</label>
+            <input type="number" id="hpBaseHitPoints" value="${Number(data.firstLevelBonusHP || 0)}">
+            <span class="field-hint">${t("hp.base.help", "The character's complete starting Hit Point pool.")}</span>
           </div>
         </div>
-        <div class="grid two">
-          <div class="field">
-            <label>${t("hp.modifier.attribute", "Attribute Modifier")}</label>
-            <select id="hpModifierAttribute">${hpAttributeOptions}</select>
+        <div id="hpGainSettings" class="${noHitPointGain ? "hidden" : ""}">
+          <div class="grid two">
+            <div class="field">
+              <label>${t("hp.method.label", "HP Gain Method")}</label>
+              <select id="hpGainMethod">${methodOptions}</select>
+            </div>
+            <div class="field">
+              <label>${t("hp.fixed_per_level", "Fixed HP per Level")}</label>
+              <input type="number" id="hpFixedPerLevel" value="${Number(data.fixedHPPerLevel || 0)}">
+            </div>
+            <div class="field">
+              <label>${t("hp.average.rounding", "Average Rounding")}</label>
+              <select id="hpAverageRounding">${roundingOptions}</select>
+            </div>
+            <div class="field">
+              <label>${t("hp.minimum_per_level", "Minimum HP per Level")}</label>
+              <input type="number" id="hpMinimumPerLevel" value="${Number(data.minimumHPPerLevel || 0)}">
+            </div>
           </div>
-          <div class="field">
-            <label>${t("hp.modifier.allow_negative_attribute", "Allow Negative Attribute Modifier")}</label>
-            <select id="hpAllowNegativeAttribute">
-              <option value="true" ${data.allowNegativeAttributeModifier ? "selected" : ""}>${t("common.yes", "Yes")}</option>
-              <option value="false" ${data.allowNegativeAttributeModifier ? "" : "selected"}>${t("common.no", "No")}</option>
-            </select>
+          <div class="grid two">
+            <div class="field">
+              <label>${t("hp.modifier.attribute", "Attribute Modifier")}</label>
+              <select id="hpModifierAttribute">${hpAttributeOptions}</select>
+            </div>
+            <div class="field">
+              <label>${t("hp.modifier.allow_negative_attribute", "Allow Negative Attribute Modifier")}</label>
+              <select id="hpAllowNegativeAttribute">
+                <option value="true" ${data.allowNegativeAttributeModifier ? "selected" : ""}>${t("common.yes", "Yes")}</option>
+                <option value="false" ${data.allowNegativeAttributeModifier ? "" : "selected"}>${t("common.no", "No")}</option>
+              </select>
+            </div>
           </div>
-        </div>
-        <div class="grid two">
-          <div class="field">
-            <label>${t("hp.first_level.max", "Max HP at First Level")}</label>
-            <select id="hpFirstLevelMax">
-              <option value="true" ${data.firstLevelMaxHP ? "selected" : ""}>${t("common.yes", "Yes")}</option>
-              <option value="false" ${data.firstLevelMaxHP ? "" : "selected"}>${t("common.no", "No")}</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>${t("hp.first_level.bonus", "First Level Bonus HP")}</label>
-            <input type="number" id="hpFirstLevelBonus" value="${Number(data.firstLevelBonusHP || 0)}">
+          <div class="grid two">
+            <div class="field">
+              <label>${t("hp.first_level.max", "Max HP at First Level")}</label>
+              <select id="hpFirstLevelMax">
+                <option value="true" ${data.firstLevelMaxHP ? "selected" : ""}>${t("common.yes", "Yes")}</option>
+                <option value="false" ${data.firstLevelMaxHP ? "" : "selected"}>${t("common.no", "No")}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>${t("hp.first_level.bonus", "First Level Bonus HP")}</label>
+              <input type="number" id="hpFirstLevelBonus" value="${Number(data.firstLevelBonusHP || 0)}">
+            </div>
           </div>
         </div>
         <div class="actions-row">
@@ -13077,27 +13415,52 @@ async function renderHitPoints() {
       }
     };
 
-    const saveHitPoints = async () => {
+    let hitPointSavePromise = Promise.resolve(true);
+    const saveHitPoints = () => {
+      const noGain = document.getElementById("hpNoGain").checked;
       const payload = {
-        hpGainMethod: document.getElementById("hpGainMethod").value,
-        fixedHPPerLevel: Number(document.getElementById("hpFixedPerLevel").value),
+        hpGainMethod: noGain ? "fixed" : document.getElementById("hpGainMethod").value,
+        fixedHPPerLevel: noGain ? 0 : Number(document.getElementById("hpFixedPerLevel").value),
         averageRoundingMethod: document.getElementById("hpAverageRounding").value,
-        minimumHPPerLevel: Number(document.getElementById("hpMinimumPerLevel").value),
-        hpModifierAttributeId: document.getElementById("hpModifierAttribute").value,
-        allowNegativeAttributeModifier: document.getElementById("hpAllowNegativeAttribute").value === "true",
-        firstLevelMaxHP: document.getElementById("hpFirstLevelMax").value === "true",
-        firstLevelBonusHP: Number(document.getElementById("hpFirstLevelBonus").value),
+        minimumHPPerLevel: noGain ? 0 : Number(document.getElementById("hpMinimumPerLevel").value),
+        hpModifierAttributeId: noGain ? "" : document.getElementById("hpModifierAttribute").value,
+        allowNegativeAttributeModifier: !noGain && document.getElementById("hpAllowNegativeAttribute").value === "true",
+        firstLevelMaxHP: !noGain && document.getElementById("hpFirstLevelMax").value === "true",
+        firstLevelBonusHP: Number(document.getElementById(noGain ? "hpBaseHitPoints" : "hpFirstLevelBonus").value),
       };
-      try {
-        await api("POST", `/api/drafts/${state.draftId}/hit-points`, payload);
-        markSaved(t("web.toast.hp_updated", "Hit points updated"));
-      } catch (error) {
-        showToast(error.message);
-      }
+      hitPointSavePromise = hitPointSavePromise.catch(() => false).then(async () => {
+        try {
+          await api("POST", `/api/drafts/${state.draftId}/hit-points`, payload);
+          markSaved(t("web.toast.hp_updated", "Hit points updated"));
+          return true;
+        } catch (error) {
+          showToast(error.message);
+          return false;
+        }
+      });
+      return hitPointSavePromise;
     };
 
     updateMethodControls();
     updateAttributeModifierControls();
+    document.getElementById("hpNoGain").addEventListener("change", (event) => {
+      const noGain = event.target.checked;
+      document.getElementById("hpNoGainSettings").classList.toggle("hidden", !noGain);
+      document.getElementById("hpGainSettings").classList.toggle("hidden", noGain);
+      if (noGain) {
+        document.getElementById("hpBaseHitPoints").value = document.getElementById("hpFirstLevelBonus").value;
+      } else {
+        document.getElementById("hpFirstLevelBonus").value = document.getElementById("hpBaseHitPoints").value;
+        if (document.getElementById("hpGainMethod").value === "fixed"
+            && Number(document.getElementById("hpFixedPerLevel").value) === 0) {
+          document.getElementById("hpFixedPerLevel").value = "1";
+        }
+        updateMethodControls();
+        updateAttributeModifierControls();
+      }
+      saveHitPoints();
+    });
+    document.getElementById("hpBaseHitPoints").addEventListener("change", saveHitPoints);
     document.getElementById("hpGainMethod").addEventListener("change", () => {
       updateMethodControls();
       saveHitPoints();
@@ -15134,7 +15497,7 @@ function systemNameTitle(systemName, fallback) {
 
 function renderSystemNameControls(systemName, placeholder) {
   return `
-    <div class="grid">
+    <div class="grid system-name-controls">
       <div class="field">
         <label for="systemNameInput">${t("common.system_name.label", "Section Label")}</label>
         <input type="text" id="systemNameInput" value="${escapeHtml(systemName)}"
@@ -15142,16 +15505,23 @@ function renderSystemNameControls(systemName, placeholder) {
           placeholder="${escapeHtml(placeholder)}">
       </div>
     </div>
+    <button class="btn system-name-rename-button" id="renameSystemName" type="button">${t("common.rename", "Rename")}</button>
+    <div class="system-name-collection-break" aria-hidden="true"></div>
   `;
 }
 
 function wireSystemNameSave(key) {
   const input = document.getElementById("systemNameInput");
-  if (!input) {
+  const renameButton = document.getElementById("renameSystemName");
+  if (!input || !renameButton) {
     return;
   }
-  input.addEventListener("change", async () => {
+  const saveSystemName = async () => {
+    if (renameButton.disabled) {
+      return;
+    }
     const name = input.value.trim();
+    renameButton.disabled = true;
     try {
       await api("POST", `/api/drafts/${state.draftId}/system-names`, { key, name });
       markSaved(t("common.system_name.saved", "Label saved."));
@@ -15170,7 +15540,18 @@ function wireSystemNameSave(key) {
       }
     } catch (error) {
       showToast(error.message);
+    } finally {
+      renameButton.disabled = false;
     }
+  };
+  renameButton.addEventListener("click", saveSystemName);
+  input.addEventListener("change", saveSystemName);
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+    event.preventDefault();
+    saveSystemName();
   });
 }
 

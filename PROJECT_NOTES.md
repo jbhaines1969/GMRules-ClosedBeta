@@ -21,7 +21,7 @@ The application is functional enough for proof of concept: account signup, NDA a
 - `node --check gmrules-builder/src/main/resources/web/app.js`, `mvn test`, and `git diff --check` completed successfully on 2026-07-21 after sorting attribute modifier lists and moving Damage Types before Statuses. `git diff --check` only reported line-ending normalization warnings.
 - `mvn test` completed successfully on 2026-07-28 after adding guarded local development mode. JavaScript syntax verification was unavailable in the sandbox because `node` was not on its command path.
 - `mvn test` and `mvn package` passed after adding the private local-key exchange. An HTTP smoke confirmed that `/api/session` remains unauthenticated before proof, missing/wrong keys return `401`, the correct key issues a working normal session token, and authenticated draft create/delete still works. The in-app browser was unavailable for the final address-bar fragment-removal check.
-- The current build compiles `61` core Java source files and `62` builder Java source files.
+- The current build compiles `62` core Java source files and `62` builder Java source files.
 - There are currently no automated test sources, so the successful Maven run is a compile/build verification, not behavioral coverage.
 
 ## Web Architecture

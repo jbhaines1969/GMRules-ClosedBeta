@@ -20,6 +20,7 @@ public class CleanupReport {
 
 // *** MEMBERS ***
     private int totalAttributeReferencesRemoved = 0;
+    private int totalPointBuyCategoryReferencesRemoved = 0;
     private int totalEffectReferencesRemoved = 0;
     private int totalStatusReferencesRemoved = 0;
     private int totalSkillReferencesRemoved = 0;
@@ -172,6 +173,12 @@ public class CleanupReport {
         }
     }
 
+    public void recordPointBuyCategoryCleanup(int referencesRemoved) {
+        if (referencesRemoved > 0) {
+            totalPointBuyCategoryReferencesRemoved += referencesRemoved;
+        }
+    }
+
     public void recordWeaponCleanup(String weaponName, int referencesRemoved) {
         if (referencesRemoved > 0) {
             weaponCleanupDetails.put(weaponName, referencesRemoved);
@@ -204,6 +211,7 @@ public class CleanupReport {
      */
     public boolean hasCleanup() {
         return totalAttributeReferencesRemoved > 0
+            || totalPointBuyCategoryReferencesRemoved > 0
             || totalEffectReferencesRemoved > 0
             || totalStatusReferencesRemoved > 0
             || totalSkillReferencesRemoved > 0
@@ -224,6 +232,7 @@ public class CleanupReport {
      */
     public int getTotalReferencesRemoved() {
         return totalAttributeReferencesRemoved
+            + totalPointBuyCategoryReferencesRemoved
             + totalEffectReferencesRemoved
             + totalStatusReferencesRemoved
             + totalSkillReferencesRemoved
@@ -240,6 +249,7 @@ public class CleanupReport {
 
     // Getters for totals
     public int getTotalAttributeReferencesRemoved() { return totalAttributeReferencesRemoved; }
+    public int getTotalPointBuyCategoryReferencesRemoved() { return totalPointBuyCategoryReferencesRemoved; }
     public int getTotalEffectReferencesRemoved() { return totalEffectReferencesRemoved; }
     public int getTotalStatusReferencesRemoved() { return totalStatusReferencesRemoved; }
     public int getTotalSkillReferencesRemoved() { return totalSkillReferencesRemoved; }
@@ -359,6 +369,13 @@ public class CleanupReport {
                 report.append(String.format("  - %s: %d\n", entry.getKey(), entry.getValue()));
             }
             report.append("\n");
+        }
+
+        if (totalPointBuyCategoryReferencesRemoved > 0) {
+            report.append(String.format(
+                "Point Buy category rules cleaned: %d references removed\n\n",
+                totalPointBuyCategoryReferencesRemoved
+            ));
         }
 
         if (totalWeaponReferencesRemoved > 0) {

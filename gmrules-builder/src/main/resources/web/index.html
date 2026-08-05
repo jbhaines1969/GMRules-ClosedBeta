@@ -223,6 +223,30 @@
     </div>
   </div>
 
+  <div class="modal hidden" id="pointCategoryBudgetModal" role="dialog" aria-modal="true" aria-labelledby="pointCategoryBudgetModalTitle">
+    <div class="modal-card">
+      <h3 id="pointCategoryBudgetModalTitle">Add Category Budget</h3>
+      <div class="grid">
+        <div class="field" id="pointCategoryBudgetCategoryField">
+          <label for="pointCategoryBudgetCategory" id="pointCategoryBudgetCategoryLabel">Attribute Category</label>
+          <select id="pointCategoryBudgetCategory"></select>
+        </div>
+        <div class="field hidden" id="pointCategoryBudgetNameField">
+          <label for="pointCategoryBudgetName" id="pointCategoryBudgetNameLabel">Slot Name</label>
+          <input type="text" id="pointCategoryBudgetName" maxlength="80">
+        </div>
+        <div class="field">
+          <label for="pointCategoryBudgetPoints" id="pointCategoryBudgetPointsLabel">Available Points</label>
+          <input type="number" id="pointCategoryBudgetPoints" min="0" step="1" value="0">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="pointCategoryBudgetModalCancel" type="button">Cancel</button>
+        <button class="btn" id="pointCategoryBudgetModalSave" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal hidden" id="currencyCreateModal" role="dialog" aria-modal="true" aria-labelledby="currencyCreateModalTitle">
     <div class="modal-card">
       <h3 id="currencyCreateModalTitle">Add Currency</h3>

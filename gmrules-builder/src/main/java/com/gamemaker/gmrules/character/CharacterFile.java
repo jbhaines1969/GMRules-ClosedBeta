@@ -28,6 +28,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -41,6 +42,7 @@ public class CharacterFile implements Serializable {
     private String sourceGameHash = "";
     private String sourceGameName = "";
     private Map<String, String> ruleModeSelections = new LinkedHashMap<>();
+    private Map<String, String> categoryPointSlotAssignments = new LinkedHashMap<>();
     private Race race = new Race("");
     private CharacterClass characterClass = new CharacterClass("");
     private Map<Attribute, Integer> attributeScores = new LinkedHashMap<>();
@@ -112,6 +114,23 @@ public class CharacterFile implements Serializable {
             }
         }
         this.ruleModeSelections = copy;
+    }
+
+    public Map<String, String> getCategoryPointSlotAssignments() {
+        return new LinkedHashMap<>(Objects.requireNonNullElse(categoryPointSlotAssignments, Map.of()));
+    }
+
+    public void setCategoryPointSlotAssignments(Map<String, String> categoryPointSlotAssignments) {
+        Map<String, String> safeValues = Objects.requireNonNullElse(categoryPointSlotAssignments, Map.of());
+        LinkedHashMap<String, String> copy = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : safeValues.entrySet()) {
+            String slotId = Objects.toString(entry.getKey(), "").trim();
+            String categoryKey = Objects.toString(entry.getValue(), "").trim().toLowerCase(Locale.ROOT);
+            if (!slotId.isEmpty() && !categoryKey.isEmpty() && !copy.containsValue(categoryKey)) {
+                copy.put(slotId, categoryKey);
+            }
+        }
+        this.categoryPointSlotAssignments = copy;
     }
 
     public Race getRace() {
@@ -245,6 +264,7 @@ public class CharacterFile implements Serializable {
     private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
         stream.defaultReadObject();
         ruleModeSelections = new LinkedHashMap<>(Objects.requireNonNullElse(ruleModeSelections, Map.of()));
+        setCategoryPointSlotAssignments(categoryPointSlotAssignments);
         selectedSpells = new ArrayList<>(Objects.requireNonNullElse(selectedSpells, List.of()));
     }
 

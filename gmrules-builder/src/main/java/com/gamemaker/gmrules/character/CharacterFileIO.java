@@ -34,6 +34,7 @@ public class CharacterFileIO {
     private static final String HEADER = "GMRulesCharacterFile v1";
     private static final String CHARACTER_FILE_HEADER = "GMRulesCharacterFileObject v1";
     private static final String ATTRIBUTE_PREFIX = "attr.";
+    private static final String CATEGORY_POINT_SLOT_PREFIX = "pointBuyCategorySlot.";
     private static final String RACIAL_SKILL_PREFIX = "racialSkill.";
     private static final String RACIAL_TRAIT_PREFIX = "racialTrait.";
     private static final String CLASS_SKILL_PREFIX = "classSkill.";
@@ -85,6 +86,7 @@ public class CharacterFileIO {
         List<String> selectedArmorIds = new ArrayList<>();
         List<String> selectedEquipmentIds = new ArrayList<>();
         Map<String, String> ruleModeSelections = new java.util.LinkedHashMap<>();
+        Map<String, String> categoryPointSlotAssignments = new java.util.LinkedHashMap<>();
         Map<Integer, Integer> classSkillPointsByLevel = new java.util.LinkedHashMap<>();
         Map<Integer, Integer> globalSkillPointsByLevel = new java.util.LinkedHashMap<>();
         Map<Integer, Integer> resolvedSkillPointsByLevel = new java.util.LinkedHashMap<>();
@@ -180,6 +182,11 @@ public class CharacterFileIO {
                 if (!modeKey.isEmpty()) {
                     ruleModeSelections.put(modeKey, value);
                 }
+            } else if (key.startsWith(CATEGORY_POINT_SLOT_PREFIX)) {
+                String slotId = key.substring(CATEGORY_POINT_SLOT_PREFIX.length()).trim();
+                if (!slotId.isEmpty() && !value.isEmpty()) {
+                    categoryPointSlotAssignments.put(slotId, value);
+                }
             } else if (key.startsWith(RACIAL_SKILL_PREFIX)) {
                 putSkillRank(racialSkillRanks, value);
             } else if (key.startsWith(RACIAL_TRAIT_PREFIX)) {
@@ -272,6 +279,7 @@ public class CharacterFileIO {
         draft.setSelectedArmorIds(selectedArmorIds);
         draft.setSelectedEquipmentIds(selectedEquipmentIds);
         draft.setRuleModeSelections(ruleModeSelections);
+        draft.setCategoryPointSlotAssignments(categoryPointSlotAssignments);
         draft.setClassSkillPointsByLevel(classSkillPointsByLevel);
         draft.setGlobalSkillPointsByLevel(globalSkillPointsByLevel);
         draft.setResolvedSkillPointsByLevel(resolvedSkillPointsByLevel);
@@ -290,6 +298,12 @@ public class CharacterFileIO {
         ruleModes.sort(Map.Entry.comparingByKey());
         for (Map.Entry<String, String> entry : ruleModes) {
             lines.add(RULE_MODE_PREFIX + entry.getKey() + "=" + Objects.toString(entry.getValue(), ""));
+        }
+        List<Map.Entry<String, String>> categoryAssignments =
+            new ArrayList<>(safeDraft.getCategoryPointSlotAssignments().entrySet());
+        categoryAssignments.sort(Map.Entry.comparingByKey());
+        for (Map.Entry<String, String> entry : categoryAssignments) {
+            lines.add(CATEGORY_POINT_SLOT_PREFIX + entry.getKey() + "=" + entry.getValue());
         }
         if (!safeDraft.getRaceId().isEmpty()) {
             lines.add("raceId=" + safeDraft.getRaceId());

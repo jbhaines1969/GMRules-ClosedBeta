@@ -59,12 +59,14 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -84,6 +86,7 @@ public final class ApiRoutes {
     private static final String NDA_RESOURCE = "legal/nda/nda-v1-en.txt";
     private static final String ARRAY_HYBRID = "hybridStages";
     private static final String CHARACTER_RULE_MODE_PREFIX = "ruleMode.";
+    private static final String CHARACTER_CATEGORY_POINT_SLOT_PREFIX = "pointBuyCategorySlot.";
     private static final int MECHANIC_DESCRIPTION_MAX_LENGTH = 20_000;
     private static final List<String> MECHANIC_DESCRIPTION_KEYS = List.of(
         "setup",
@@ -1854,7 +1857,9 @@ public final class ApiRoutes {
         String key = getString(body, "key");
         ctx.getDraftStore().updateDraft(draftId, game -> {
             AttributeTypes registry = game.getRegistry(RegistryKey.ATTRIBUTE_TYPES);
-            registry.remove(key);
+            if (registry.remove(key)) {
+                game.getAttributeGenerationMethod().removeCategoryPointRule(key);
+            }
         });
         ctx.json(200, Map.of("ok", true));
     }
@@ -2505,6 +2510,14 @@ public final class ApiRoutes {
             response.put("basePoints", method.getBasePoints());
             response.put("minimumPointsToSpend", method.getMinimumPointsToSpend());
             response.put("allowNegativeAttributes", method.isAllowNegativeAttributes());
+            response.put("assignByCategory", method.isAssignByCategory());
+            response.put("categoryAssignmentMode", method.getCategoryAssignmentMode());
+            response.put("categoryPointRules", serializeCategoryPointRules(game));
+            response.put("categoryPointSlots", serializeCategoryPointSlots(game));
+            response.put(
+                "categoryPointConfigurationComplete",
+                method.isCategoryPointConfigurationComplete(attributeCategoryCount(game))
+            );
             Map<Integer, Integer> pointCosts = method.getPointCosts();
             List<Map<String, Object>> costs = new ArrayList<>();
             pointCosts.entrySet().stream()
@@ -2539,6 +2552,7 @@ public final class ApiRoutes {
                 entry.put("id", Objects.toString(attribute.getId(), ""));
                 entry.put("name", Objects.toString(attribute.getName(), ""));
                 entry.put("displayName", Objects.toString(attribute.getDisplayName(), ""));
+                entry.put("attributeCategoryKey", Objects.toString(attribute.getType(), ""));
                 entry.put("minValue", attribute.getMinValue());
                 entry.put("maxValue", attribute.getMaxValue());
                 attributes.add(entry);
@@ -2947,6 +2961,15 @@ public final class ApiRoutes {
             response.put("maxPostRacial", method.getMaxAttributeValuePostRacial());
             response.put("minPointsToSpend", method.getMinimumPointsToSpend());
             response.put("allowNegative", method.isAllowNegativeAttributes());
+            response.put("assignByCategory", method.isAssignByCategory());
+            response.put("categoryAssignmentMode", method.getCategoryAssignmentMode());
+            response.put("categoryPointRules", serializeCategoryPointRules(game));
+            response.put("categoryPointSlots", serializeCategoryPointSlots(game));
+            response.put("attributeCategories", serializeAttributeCategories(game));
+            response.put(
+                "categoryPointConfigurationComplete",
+                method.isCategoryPointConfigurationComplete(attributeCategoryCount(game))
+            );
             return response;
         });
         ctx.json(200, payload);
@@ -2962,23 +2985,189 @@ public final class ApiRoutes {
             return;
         }
         Map<String, Object> body = ctx.readJsonMap();
+        boolean hasBasePoints = body.containsKey("basePoints");
+        boolean hasMinValue = body.containsKey("minValue");
+        boolean hasMaxValue = body.containsKey("maxValue");
+        boolean hasMaxPostRacial = body.containsKey("maxPostRacial");
+        boolean hasMinPointsToSpend = body.containsKey("minPointsToSpend");
+        boolean hasAllowNegative = body.containsKey("allowNegative");
+        boolean hasAssignByCategory = body.containsKey("assignByCategory");
+        boolean hasCategoryAssignmentMode = body.containsKey("categoryAssignmentMode");
+        boolean hasCategoryPointRules = body.containsKey("categoryPointRules");
+        boolean hasCategoryPointSlots = body.containsKey("categoryPointSlots");
         int basePoints = getInt(body, "basePoints", 0);
         int minValue = getInt(body, "minValue", 0);
         int maxValue = getInt(body, "maxValue", 0);
         int maxPostRacial = getInt(body, "maxPostRacial", 0);
         int minPointsToSpend = getInt(body, "minPointsToSpend", 0);
         boolean allowNegative = getBoolean(body, "allowNegative", false);
+        boolean assignByCategory = getBoolean(body, "assignByCategory", false);
+        String categoryAssignmentMode = getString(body, "categoryAssignmentMode").trim().toLowerCase(Locale.ROOT);
+        if (hasCategoryAssignmentMode
+            && !categoryAssignmentMode.equals(AttributeGenerationMethod.CATEGORY_ASSIGNMENT_CREATOR)
+            && !categoryAssignmentMode.equals(AttributeGenerationMethod.CATEGORY_ASSIGNMENT_PLAYER)) {
+            ctx.json(400, Map.of("error", "Category assignment mode must be creator or player."));
+            return;
+        }
+        List<AttributeGenerationMethod.CategoryPointRule> categoryPointRules = new ArrayList<>();
+        if (hasCategoryPointRules) {
+            Object rawRules = body.get("categoryPointRules");
+            if (!(rawRules instanceof List<?>)) {
+                ctx.json(400, Map.of("error", "Category point rules must be a list."));
+                return;
+            }
+            List<Map<String, Object>> ruleEntries = getMapList(body, "categoryPointRules");
+            if (ruleEntries.size() != ((List<?>) rawRules).size()) {
+                ctx.json(400, Map.of("error", "Each category point rule must be an object."));
+                return;
+            }
+            Set<String> validCategoryKeys = ctx.getDraftStore().readDraft(draftId, game -> {
+                Set<String> keys = new HashSet<>();
+                for (AttributeType type : game.getRegistry(RegistryKey.ATTRIBUTE_TYPES).getAll()) {
+                    keys.add(Objects.toString(type.getKey(), ""));
+                }
+                return keys;
+            });
+            Set<String> usedCategoryKeys = new HashSet<>();
+            for (Map<String, Object> entry : ruleEntries) {
+                String categoryKey = getString(entry, "attributeCategoryKey").trim().toLowerCase(Locale.ROOT);
+                int availablePoints = getInt(entry, "availablePoints", -1);
+                if (categoryKey.isEmpty() || !validCategoryKeys.contains(categoryKey)) {
+                    ctx.json(400, Map.of("error", "Each point rule must reference an existing Attribute Category."));
+                    return;
+                }
+                if (!usedCategoryKeys.add(categoryKey)) {
+                    ctx.json(400, Map.of("error", "Each Attribute Category can have only one point rule."));
+                    return;
+                }
+                if (availablePoints < 0) {
+                    ctx.json(400, Map.of("error", "Available category points cannot be negative."));
+                    return;
+                }
+                categoryPointRules.add(
+                    new AttributeGenerationMethod.CategoryPointRule(categoryKey, availablePoints)
+                );
+            }
+        }
+        List<AttributeGenerationMethod.CategoryPointSlot> categoryPointSlots = new ArrayList<>();
+        if (hasCategoryPointSlots) {
+            Object rawSlots = body.get("categoryPointSlots");
+            if (!(rawSlots instanceof List<?>)) {
+                ctx.json(400, Map.of("error", "Category point slots must be a list."));
+                return;
+            }
+            List<Map<String, Object>> slotEntries = getMapList(body, "categoryPointSlots");
+            if (slotEntries.size() != ((List<?>) rawSlots).size()) {
+                ctx.json(400, Map.of("error", "Each category point slot must be an object."));
+                return;
+            }
+            Set<String> usedSlotIds = new HashSet<>();
+            Set<String> usedSlotNames = new HashSet<>();
+            for (Map<String, Object> entry : slotEntries) {
+                String slotId = getString(entry, "id").trim();
+                String slotName = getString(entry, "name").trim();
+                int availablePoints = getInt(entry, "availablePoints", -1);
+                if (slotId.isEmpty()) {
+                    slotId = UUID.randomUUID().toString();
+                }
+                if (!usedSlotIds.add(slotId)) {
+                    ctx.json(400, Map.of("error", "Each category point slot must have a unique id."));
+                    return;
+                }
+                if (slotName.isEmpty() || !usedSlotNames.add(slotName.toLowerCase(Locale.ROOT))) {
+                    ctx.json(400, Map.of("error", "Each category point slot must have a unique name."));
+                    return;
+                }
+                if (availablePoints < 0) {
+                    ctx.json(400, Map.of("error", "Available slot points cannot be negative."));
+                    return;
+                }
+                categoryPointSlots.add(
+                    new AttributeGenerationMethod.CategoryPointSlot(slotId, slotName, availablePoints)
+                );
+            }
+        }
 
         ctx.getDraftStore().updateDraft(draftId, game -> {
             AttributeGenerationMethod method = game.getAttributeGenerationMethod();
-            method.setBasePoints(basePoints);
-            method.setMinAttributeValue(minValue);
-            method.setMaxAttributeValue(maxValue);
-            method.setMaxAttributeValuePostRacial(maxPostRacial);
-            method.setMinimumPointsToSpend(minPointsToSpend);
-            method.setAllowNegativeAttributes(allowNegative);
+            if (hasBasePoints) {
+                method.setBasePoints(basePoints);
+            }
+            if (hasMinValue) {
+                method.setMinAttributeValue(minValue);
+            }
+            if (hasMaxValue) {
+                method.setMaxAttributeValue(maxValue);
+            }
+            if (hasMaxPostRacial) {
+                method.setMaxAttributeValuePostRacial(maxPostRacial);
+            }
+            if (hasMinPointsToSpend) {
+                method.setMinimumPointsToSpend(minPointsToSpend);
+            }
+            if (hasAllowNegative) {
+                method.setAllowNegativeAttributes(allowNegative);
+            }
+            if (hasAssignByCategory) {
+                method.setAssignByCategory(assignByCategory);
+            }
+            if (hasCategoryAssignmentMode) {
+                method.setCategoryAssignmentMode(categoryAssignmentMode);
+            }
+            if (hasCategoryPointRules) {
+                method.setCategoryPointRules(categoryPointRules);
+            }
+            if (hasCategoryPointSlots) {
+                method.setCategoryPointSlots(categoryPointSlots);
+            }
         });
         ctx.json(200, Map.of("ok", true));
+    }
+
+    private static List<Map<String, Object>> serializeCategoryPointRules(Game game) {
+        AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+        AttributeTypes categories = game.getRegistry(RegistryKey.ATTRIBUTE_TYPES);
+        List<Map<String, Object>> rules = new ArrayList<>();
+        for (AttributeGenerationMethod.CategoryPointRule rule : method.getCategoryPointRules()) {
+            AttributeType category = categories.get(rule.getAttributeCategoryKey());
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("attributeCategoryKey", rule.getAttributeCategoryKey());
+            entry.put("attributeCategoryName", category == null
+                ? ""
+                : Objects.toString(category.getDisplayName(), ""));
+            entry.put("availablePoints", rule.getAvailablePoints());
+            rules.add(entry);
+        }
+        return rules;
+    }
+
+    private static List<Map<String, Object>> serializeAttributeCategories(Game game) {
+        List<Map<String, Object>> categories = new ArrayList<>();
+        for (AttributeType category : game.getRegistry(RegistryKey.ATTRIBUTE_TYPES).getAll()) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("key", Objects.toString(category.getKey(), ""));
+            entry.put("name", Objects.toString(category.getName(), ""));
+            entry.put("displayName", Objects.toString(category.getDisplayName(), ""));
+            categories.add(entry);
+        }
+        return categories;
+    }
+
+    private static List<Map<String, Object>> serializeCategoryPointSlots(Game game) {
+        List<Map<String, Object>> slots = new ArrayList<>();
+        for (AttributeGenerationMethod.CategoryPointSlot slot
+            : game.getAttributeGenerationMethod().getCategoryPointSlots()) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("id", slot.getId());
+            entry.put("name", slot.getName());
+            entry.put("availablePoints", slot.getAvailablePoints());
+            slots.add(entry);
+        }
+        return slots;
+    }
+
+    private static int attributeCategoryCount(Game game) {
+        return game.getRegistry(RegistryKey.ATTRIBUTE_TYPES).getAll().size();
     }
 
     private static void getHitPoints(RequestContext ctx) throws IOException {
@@ -5512,6 +5701,14 @@ public final class ApiRoutes {
             .sorted(Map.Entry.comparingByKey())
             .forEach(entry -> lines.add(
                 CHARACTER_RULE_MODE_PREFIX
+                    + Objects.toString(entry.getKey(), "").trim()
+                    + "="
+                    + Objects.toString(entry.getValue(), "").trim()
+            ));
+        safeCharacterFile.getCategoryPointSlotAssignments().entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(entry -> lines.add(
+                CHARACTER_CATEGORY_POINT_SLOT_PREFIX
                     + Objects.toString(entry.getKey(), "").trim()
                     + "="
                     + Objects.toString(entry.getValue(), "").trim()

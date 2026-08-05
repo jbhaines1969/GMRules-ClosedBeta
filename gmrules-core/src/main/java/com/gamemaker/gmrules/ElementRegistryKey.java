@@ -11,6 +11,7 @@ package com.gamemaker.gmrules;
 import com.gamemaker.gmrules.AtomicElements.Attribute;
 import com.gamemaker.gmrules.AtomicElements.SpellComponents;
 import com.gamemaker.gmrules.CharacterElements.Advantage;
+import com.gamemaker.gmrules.CharacterElements.Background;
 import com.gamemaker.gmrules.CharacterElements.CharacterClass;
 import com.gamemaker.gmrules.CharacterElements.Flaw;
 import com.gamemaker.gmrules.CharacterElements.Race;
@@ -57,6 +58,8 @@ public final class ElementRegistryKey<T extends GameElement> implements Serializ
         new ElementRegistryKey<>("skills", Skill.class, ElementRegistry::new);
     public static final ElementRegistryKey<CharacterClass> CHARACTER_CLASSES =
         new ElementRegistryKey<>("characterClasses", CharacterClass.class, ElementRegistry::new);
+    public static final ElementRegistryKey<Background> BACKGROUNDS =
+        new ElementRegistryKey<>("backgrounds", Background.class, ElementRegistry::new);
     public static final ElementRegistryKey<Race> RACES =
         new ElementRegistryKey<>("races", Race.class, ElementRegistry::new);
     public static final ElementRegistryKey<Advantage> ADVANTAGES =
@@ -120,6 +123,7 @@ public final class ElementRegistryKey<T extends GameElement> implements Serializ
         registerKey(keys, SPELL_COMPONENTS);
         registerKey(keys, SKILLS);
         registerKey(keys, CHARACTER_CLASSES);
+        registerKey(keys, BACKGROUNDS);
         registerKey(keys, RACES);
         registerKey(keys, ADVANTAGES);
         registerKey(keys, FLAWS);

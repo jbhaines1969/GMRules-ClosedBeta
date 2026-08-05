@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-08-01
+Updated: 2026-08-04
 
 ## Beta Launch Blockers
 
@@ -45,7 +45,13 @@ Updated: 2026-08-01
 - [x] Add sidebar Info buttons so users can open tutorial guidance for non-current Rules Builder screens without navigating away.
 - [x] Show the complete Rules Builder sidebar after Game Setup has been saved with a nonblank game name instead of revealing sections only after visits; hide the panel while Setup is incomplete.
 - [x] Add Hit Points explanation/help copy showing how to model a static health track with fixed first-level HP, zero per-level gain, zero minimum per-level gain, and no Attribute Modifier; gear-based HP can be modeled for beta as gear modifiers on top of `(0,0,0,0)` base HP.
+- [x] Make static Hit Point pools explicit in the web Rules Builder with a No Hit Point Gain checkbox and a single Base Hit Points field, while retaining the existing zero-gain storage recipe.
+- [x] Visually smoke the current Rules Builder polish batch: Alternate Name Rename controls, Point Buy category modes, and static/progressive Hit Point layouts.
 - [ ] Smoke character generation against a ruleset whose Hit Points use a non-Constitution Attribute Modifier, confirming the selected Attribute ID and negative-modifier policy reach descendant calculations.
+- [x] Add Rules Builder controls for backend-supported Point Buy category budgets: creator-fixed category rules or player-assigned named slots, with one slot per Attribute Category.
+- [ ] Add Character Generator assignment and spending behavior for Point Buy category budgets, including one-to-one assignment of player-named slots during character creation.
+- [x] Add Backgrounds as an independent core `GameElement` collection so rulesets can use Backgrounds, Classes, or both.
+- [ ] Add Backgrounds to the web Rules Builder/API and Character Generator after their creator-facing fields and player-selection behavior are settled.
 - [x] Simplify Armor Class method entry to required base AC plus optional AC attribute; remove gear-based/base-plus method selections from the web screen, Swing screen, API, and core model.
 - [x] Add Damage Types before Statuses/Effects/Equipment so effects, spells, equipment, weapons, and armor can carry an optional damage type reference.
 - [x] Sort Attribute Generation default modifiers and per-Attribute modifier lists ascending by attribute score on render and refresh.

@@ -28,6 +28,8 @@ public class AttributeGenerationMethod extends GameElement {
 
 // *** MEMBERS ***
     private static final long serialVersionUID = 7606235203030250610L;
+    public static final String CATEGORY_ASSIGNMENT_CREATOR = "creator";
+    public static final String CATEGORY_ASSIGNMENT_PLAYER = "player";
 
     // === GENERATION TYPE CONTROL ===
     private String generationType = "dice";
@@ -56,6 +58,10 @@ public class AttributeGenerationMethod extends GameElement {
     private int maxAttributeValuePostRacial = 0;
     private boolean allowNegativeAttributes = false;
     private int minimumPointsToSpend = 0;
+    private boolean assignByCategory = false;
+    private String categoryAssignmentMode = CATEGORY_ASSIGNMENT_CREATOR;
+    private ArrayList<CategoryPointRule> categoryPointRules = new ArrayList<>();
+    private ArrayList<CategoryPointSlot> categoryPointSlots = new ArrayList<>();
 
     // === STANDARD ARRAYS ===
     private String defaultArrayType = "standard";
@@ -244,6 +250,128 @@ public class AttributeGenerationMethod extends GameElement {
     public int getMinimumPointsToSpend() { return minimumPointsToSpend; }
     public void setMinimumPointsToSpend(int minimumPointsToSpend) { this.minimumPointsToSpend = minimumPointsToSpend; }
 
+    public boolean isAssignByCategory() { return assignByCategory; }
+    public void setAssignByCategory(boolean assignByCategory) { this.assignByCategory = assignByCategory; }
+
+    public String getCategoryAssignmentMode() { return categoryAssignmentMode; }
+    public void setCategoryAssignmentMode(String categoryAssignmentMode) {
+        String safeMode = Objects.toString(categoryAssignmentMode, "").trim().toLowerCase(Locale.ROOT);
+        this.categoryAssignmentMode = safeMode.equals(CATEGORY_ASSIGNMENT_PLAYER)
+            ? CATEGORY_ASSIGNMENT_PLAYER
+            : CATEGORY_ASSIGNMENT_CREATOR;
+    }
+
+    public boolean isPlayerAssignsCategories() {
+        return CATEGORY_ASSIGNMENT_PLAYER.equals(categoryAssignmentMode);
+    }
+
+    public ArrayList<CategoryPointRule> getCategoryPointRules() {
+        return copyCategoryPointRules(categoryPointRules);
+    }
+
+    public void setCategoryPointRules(Collection<CategoryPointRule> categoryPointRules) {
+        this.categoryPointRules = copyCategoryPointRules(categoryPointRules);
+    }
+
+    public void setCategoryAvailablePoints(String attributeCategoryKey, int availablePoints) {
+        String safeKey = normalizeAttributeCategoryKey(attributeCategoryKey);
+        if (safeKey.isEmpty()) {
+            return;
+        }
+        for (CategoryPointRule rule : categoryPointRules) {
+            if (rule.getAttributeCategoryKey().equals(safeKey)) {
+                rule.setAvailablePoints(availablePoints);
+                return;
+            }
+        }
+        categoryPointRules.add(new CategoryPointRule(safeKey, availablePoints));
+    }
+
+    public boolean removeCategoryPointRule(String attributeCategoryKey) {
+        String safeKey = normalizeAttributeCategoryKey(attributeCategoryKey);
+        return categoryPointRules.removeIf(rule -> rule.getAttributeCategoryKey().equals(safeKey));
+    }
+
+    public OptionalInt getCategoryAvailablePoints(String attributeCategoryKey) {
+        String safeKey = normalizeAttributeCategoryKey(attributeCategoryKey);
+        for (CategoryPointRule rule : categoryPointRules) {
+            if (rule.getAttributeCategoryKey().equals(safeKey)) {
+                return OptionalInt.of(rule.getAvailablePoints());
+            }
+        }
+        return OptionalInt.empty();
+    }
+
+    public int cleanupCategoryPointRules(Set<String> validAttributeCategoryKeys) {
+        Set<String> safeKeys = Objects.requireNonNullElse(validAttributeCategoryKeys, Collections.emptySet());
+        int originalSize = categoryPointRules.size();
+        categoryPointRules.removeIf(rule -> !safeKeys.contains(rule.getAttributeCategoryKey()));
+        return originalSize - categoryPointRules.size();
+    }
+
+    public ArrayList<CategoryPointSlot> getCategoryPointSlots() {
+        return copyCategoryPointSlots(categoryPointSlots);
+    }
+
+    public void setCategoryPointSlots(Collection<CategoryPointSlot> categoryPointSlots) {
+        this.categoryPointSlots = copyCategoryPointSlots(categoryPointSlots);
+    }
+
+    public boolean isCategoryPointConfigurationComplete(int attributeCategoryCount) {
+        if (!assignByCategory) {
+            return true;
+        }
+        int safeCategoryCount = Math.max(0, attributeCategoryCount);
+        if (isPlayerAssignsCategories()) {
+            return safeCategoryCount > 0 && categoryPointSlots.size() == safeCategoryCount;
+        }
+        return safeCategoryCount > 0 && categoryPointRules.size() == safeCategoryCount;
+    }
+
+    public boolean areCategoryPointSlotAssignmentsComplete(
+        Map<String, String> slotAssignments,
+        Set<String> validAttributeCategoryKeys
+    ) {
+        Set<String> safeCategoryKeys = new HashSet<>();
+        Set<String> sourceCategoryKeys = Objects.requireNonNullElseGet(
+            validAttributeCategoryKeys,
+            Collections::emptySet
+        );
+        for (String key : sourceCategoryKeys) {
+            String safeKey = normalizeAttributeCategoryKey(key);
+            if (!safeKey.isEmpty()) {
+                safeCategoryKeys.add(safeKey);
+            }
+        }
+        if (!assignByCategory
+            || !isPlayerAssignsCategories()
+            || !isCategoryPointConfigurationComplete(safeCategoryKeys.size())) {
+            return false;
+        }
+        Map<String, String> safeAssignments = Objects.requireNonNullElseGet(
+            slotAssignments,
+            Collections::emptyMap
+        );
+        if (safeAssignments.size() != categoryPointSlots.size()) {
+            return false;
+        }
+        Set<String> expectedSlotIds = new HashSet<>();
+        for (CategoryPointSlot slot : categoryPointSlots) {
+            expectedSlotIds.add(slot.getId());
+        }
+        Set<String> assignedCategoryKeys = new HashSet<>();
+        for (Map.Entry<String, String> entry : safeAssignments.entrySet()) {
+            String slotId = Objects.toString(entry.getKey(), "").trim();
+            String categoryKey = normalizeAttributeCategoryKey(entry.getValue());
+            if (!expectedSlotIds.contains(slotId)
+                || !safeCategoryKeys.contains(categoryKey)
+                || !assignedCategoryKeys.add(categoryKey)) {
+                return false;
+            }
+        }
+        return assignedCategoryKeys.size() == safeCategoryKeys.size();
+    }
+
     // === ARRAY METHODS ===
     public String getDefaultArrayType() { return defaultArrayType; }
     public void setDefaultArrayType(String defaultArrayType) {
@@ -382,6 +510,9 @@ public class AttributeGenerationMethod extends GameElement {
             arrayHandler = new ArrayHandler();
             initializeArrayRegistry();
         }
+        setCategoryAssignmentMode(categoryAssignmentMode);
+        setCategoryPointRules(categoryPointRules);
+        setCategoryPointSlots(categoryPointSlots);
         setStandardArrayAssignmentMode(standardArrayAssignmentMode);
     }
 
@@ -408,6 +539,34 @@ public class AttributeGenerationMethod extends GameElement {
             copy.add(new DiceTerm(Objects.requireNonNull(term, "diceTerm")));
         }
         return copy;
+    }
+
+    private ArrayList<CategoryPointRule> copyCategoryPointRules(Collection<CategoryPointRule> source) {
+        Collection<CategoryPointRule> safeSource = Objects.requireNonNullElse(source, Collections.emptyList());
+        LinkedHashMap<String, CategoryPointRule> rulesByCategory = new LinkedHashMap<>();
+        for (CategoryPointRule rule : safeSource) {
+            CategoryPointRule copy = new CategoryPointRule(Objects.requireNonNull(rule, "categoryPointRule"));
+            if (!copy.getAttributeCategoryKey().isEmpty()) {
+                rulesByCategory.put(copy.getAttributeCategoryKey(), copy);
+            }
+        }
+        return new ArrayList<>(rulesByCategory.values());
+    }
+
+    private ArrayList<CategoryPointSlot> copyCategoryPointSlots(Collection<CategoryPointSlot> source) {
+        Collection<CategoryPointSlot> safeSource = Objects.requireNonNullElse(source, Collections.emptyList());
+        LinkedHashMap<String, CategoryPointSlot> slotsById = new LinkedHashMap<>();
+        for (CategoryPointSlot slot : safeSource) {
+            CategoryPointSlot copy = new CategoryPointSlot(Objects.requireNonNull(slot, "categoryPointSlot"));
+            if (!copy.getId().isEmpty() && !copy.getName().isEmpty()) {
+                slotsById.put(copy.getId(), copy);
+            }
+        }
+        return new ArrayList<>(slotsById.values());
+    }
+
+    private static String normalizeAttributeCategoryKey(String value) {
+        return Objects.toString(value, "").trim().toLowerCase(Locale.ROOT);
     }
 
     private Map<String,Map<String,Integer>> copyClassMinimums(Map<String,Map<String,Integer>> source) {
@@ -517,6 +676,76 @@ public class AttributeGenerationMethod extends GameElement {
         }
 
         return removedCount;
+    }
+
+    // === POINT BUY CATEGORY RULE STRUCTURE ===
+    public static class CategoryPointRule implements java.io.Serializable {
+
+    // *** MEMBERS ***
+        private static final long serialVersionUID = 1L;
+        private String attributeCategoryKey = "";
+        private int availablePoints = 0;
+
+    // *** CONSTRUCTORS ***
+        public CategoryPointRule() {
+        }
+
+        public CategoryPointRule(String attributeCategoryKey, int availablePoints) {
+            this.attributeCategoryKey = normalizeAttributeCategoryKey(attributeCategoryKey);
+            this.availablePoints = availablePoints;
+        }
+
+        public CategoryPointRule(CategoryPointRule source) {
+            CategoryPointRule safeSource = Objects.requireNonNull(source, "source");
+            this.attributeCategoryKey = normalizeAttributeCategoryKey(safeSource.attributeCategoryKey);
+            this.availablePoints = safeSource.availablePoints;
+        }
+
+    // *** METHODS ***
+        public String getAttributeCategoryKey() { return attributeCategoryKey; }
+        public void setAttributeCategoryKey(String attributeCategoryKey) {
+            this.attributeCategoryKey = normalizeAttributeCategoryKey(attributeCategoryKey);
+        }
+
+        public int getAvailablePoints() { return availablePoints; }
+        public void setAvailablePoints(int availablePoints) { this.availablePoints = availablePoints; }
+    }
+
+    // === PLAYER-ASSIGNED POINT BUY CATEGORY SLOT STRUCTURE ===
+    public static class CategoryPointSlot implements java.io.Serializable {
+
+    // *** MEMBERS ***
+        private static final long serialVersionUID = 1L;
+        private String id = "";
+        private String name = "";
+        private int availablePoints = 0;
+
+    // *** CONSTRUCTORS ***
+        public CategoryPointSlot() {
+        }
+
+        public CategoryPointSlot(String id, String name, int availablePoints) {
+            setId(id);
+            setName(name);
+            setAvailablePoints(availablePoints);
+        }
+
+        public CategoryPointSlot(CategoryPointSlot source) {
+            CategoryPointSlot safeSource = Objects.requireNonNull(source, "source");
+            setId(safeSource.id);
+            setName(safeSource.name);
+            setAvailablePoints(safeSource.availablePoints);
+        }
+
+    // *** METHODS ***
+        public String getId() { return id; }
+        public void setId(String id) { this.id = Objects.toString(id, "").trim(); }
+
+        public String getName() { return name; }
+        public void setName(String name) { this.name = Objects.toString(name, "").trim(); }
+
+        public int getAvailablePoints() { return availablePoints; }
+        public void setAvailablePoints(int availablePoints) { this.availablePoints = Math.max(0, availablePoints); }
     }
 
     // === DICE TERM STRUCTURE ===

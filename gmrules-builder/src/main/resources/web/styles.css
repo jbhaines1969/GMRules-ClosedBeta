@@ -486,7 +486,15 @@ textarea {
   margin-bottom: 12px;
 }
 
-.attributes-collection-break {
+.system-name-controls {
+  margin-bottom: 12px;
+}
+
+.system-name-rename-button {
+  display: block;
+}
+
+.system-name-collection-break {
   height: 2px;
   margin: 28px 0 22px;
   background: linear-gradient(90deg, transparent, rgba(47, 111, 97, 0.7), transparent);
@@ -499,6 +507,33 @@ textarea {
   border-radius: 12px;
   background: rgba(208, 122, 83, 0.1);
   color: var(--ink);
+}
+
+.point-buy-assignment-mode {
+  max-width: 620px;
+}
+
+.point-buy-configuration-notice {
+  margin: 12px 0 16px;
+  padding: 10px 12px;
+  border: 1px solid rgba(208, 122, 83, 0.65);
+  border-radius: 12px;
+  background: rgba(208, 122, 83, 0.1);
+  color: var(--ink);
+}
+
+.point-buy-configuration-notice.complete {
+  border-color: rgba(47, 111, 97, 0.55);
+  background: rgba(47, 111, 97, 0.1);
+}
+
+.hp-no-gain-choice {
+  max-width: 700px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border: 1px solid rgba(47, 111, 97, 0.45);
+  border-radius: 12px;
+  background: rgba(47, 111, 97, 0.08);
 }
 
 .array-entry-warning {

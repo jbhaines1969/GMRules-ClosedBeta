@@ -144,6 +144,7 @@ public class Game extends GameElement {
         systemConfig.put("usesMulticlassing", true);
         systemConfig.put("usesRaces", true);
         systemConfig.put("usesClasses", true);
+        systemConfig.put("usesBackgrounds", true);
         systemConfig.put("usesResources", true);
         systemConfig.put("usesProficiencyBonus", true);
         systemConfig.put("usesArmorClass", true);
@@ -165,6 +166,7 @@ public class Game extends GameElement {
         arrayRegistry.put("spellComponents", getElementRegistry(ElementRegistryKey.SPELL_COMPONENTS).getMutableItems());
         arrayRegistry.put("skills", getElementRegistry(ElementRegistryKey.SKILLS).getMutableItems());
         arrayRegistry.put("characterClasses", getElementRegistry(ElementRegistryKey.CHARACTER_CLASSES).getMutableItems());
+        arrayRegistry.put("backgrounds", getElementRegistry(ElementRegistryKey.BACKGROUNDS).getMutableItems());
         arrayRegistry.put("races", getElementRegistry(ElementRegistryKey.RACES).getMutableItems());
         arrayRegistry.put("advantages", getElementRegistry(ElementRegistryKey.ADVANTAGES).getMutableItems());
         arrayRegistry.put("flaws", getElementRegistry(ElementRegistryKey.FLAWS).getMutableItems());
@@ -218,6 +220,7 @@ public class Game extends GameElement {
         registerElementRegistry(ElementRegistryKey.SPELL_COMPONENTS, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.SKILLS, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.CHARACTER_CLASSES, new ElementRegistry<>());
+        registerElementRegistry(ElementRegistryKey.BACKGROUNDS, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.RACES, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.ADVANTAGES, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.FLAWS, new ElementRegistry<>());
@@ -1318,6 +1321,7 @@ public class Game extends GameElement {
         ensureElementRegistry(ElementRegistryKey.SPELL_COMPONENTS);
         ensureElementRegistry(ElementRegistryKey.SKILLS);
         ensureElementRegistry(ElementRegistryKey.CHARACTER_CLASSES);
+        ensureElementRegistry(ElementRegistryKey.BACKGROUNDS);
         ensureElementRegistry(ElementRegistryKey.RACES);
         ensureElementRegistry(ElementRegistryKey.ADVANTAGES);
         ensureElementRegistry(ElementRegistryKey.FLAWS);
@@ -1507,6 +1511,7 @@ public class Game extends GameElement {
         ArrayList<?> difficultySystems = getArray("difficultySystems");
         ArrayList<?> skills = getArray("skills");
         ArrayList<?> characterClasses = getArray("characterClasses");
+        ArrayList<?> backgrounds = getArray("backgrounds");
         ArrayList<?> races = getArray("races");
         ArrayList<?> spells = getArray("spells");
         ArrayList<?> equipment = getArray("equipment");
@@ -1522,6 +1527,7 @@ public class Game extends GameElement {
         if (!difficultySystems.isEmpty()) summary.append(String.format("Difficulty Systems: %d, ", difficultySystems.size()));
         if (!skills.isEmpty()) summary.append(String.format("Skills: %d, ", skills.size()));
         if (!characterClasses.isEmpty()) summary.append(String.format("Classes: %d, ", characterClasses.size()));
+        if (!backgrounds.isEmpty()) summary.append(String.format("Backgrounds: %d, ", backgrounds.size()));
         if (!races.isEmpty()) summary.append(String.format("Races: %d, ", races.size()));
         if (!spells.isEmpty()) summary.append(String.format("Spells: %d\n", spells.size()));
 

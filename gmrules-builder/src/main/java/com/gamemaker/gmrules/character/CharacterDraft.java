@@ -10,8 +10,10 @@
 package com.gamemaker.gmrules.character;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -25,6 +27,7 @@ public class CharacterDraft {
     private String raceId = "";
     private String classId = "";
     private Map<String, Integer> attributeScores = new LinkedHashMap<>();
+    private Map<String, String> categoryPointSlotAssignments = new LinkedHashMap<>();
     private Map<String, Integer> racialSkillRanks = new LinkedHashMap<>();
     private List<String> racialTraitNames = new ArrayList<>();
     private Map<String, Integer> classSkillRanks = new LinkedHashMap<>();
@@ -134,6 +137,24 @@ public class CharacterDraft {
             }
         }
         this.attributeScores = copy;
+    }
+
+    public Map<String, String> getCategoryPointSlotAssignments() {
+        return new LinkedHashMap<>(categoryPointSlotAssignments);
+    }
+
+    public void setCategoryPointSlotAssignments(Map<String, String> categoryPointSlotAssignments) {
+        Map<String, String> safeAssignments = Objects.requireNonNullElse(categoryPointSlotAssignments, Map.of());
+        LinkedHashMap<String, String> copy = new LinkedHashMap<>();
+        HashSet<String> assignedCategoryKeys = new HashSet<>();
+        for (Map.Entry<String, String> entry : safeAssignments.entrySet()) {
+            String slotId = Objects.toString(entry.getKey(), "").trim();
+            String categoryKey = Objects.toString(entry.getValue(), "").trim().toLowerCase(Locale.ROOT);
+            if (!slotId.isEmpty() && !categoryKey.isEmpty() && assignedCategoryKeys.add(categoryKey)) {
+                copy.put(slotId, categoryKey);
+            }
+        }
+        this.categoryPointSlotAssignments = copy;
     }
 
     public List<String> getRacialSkillIds() {

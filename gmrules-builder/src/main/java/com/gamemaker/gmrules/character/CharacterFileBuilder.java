@@ -55,6 +55,7 @@ public class CharacterFileBuilder {
         character.setSourceGameName(safeGame.getName());
         Map<String, String> draftRuleModes = safeDraft.getRuleModeSelections();
         character.setRuleModeSelections(draftRuleModes.isEmpty() ? buildRuleModeSelections(safeGame) : draftRuleModes);
+        character.setCategoryPointSlotAssignments(safeDraft.getCategoryPointSlotAssignments());
         character.setRace(resolveElement(safeGame, ElementRegistryKey.RACES, safeDraft.getRaceId(), new Race("")));
         character.setCharacterClass(resolveElement(
             safeGame,
@@ -102,6 +103,10 @@ public class CharacterFileBuilder {
         putMode(modes, "attributeGeneration.diceSubstitutionValue", attributes.getDiceSubstitutionValue());
         putMode(modes, "attributeGeneration.maxDiceSubstitutions", attributes.getMaxDiceSubstitutions());
         putMode(modes, "attributeGeneration.allowNegativeAttributes", attributes.isAllowNegativeAttributes());
+        putMode(modes, "attributeGeneration.assignByCategory", attributes.isAssignByCategory());
+        putMode(modes, "attributeGeneration.categoryAssignmentMode", attributes.getCategoryAssignmentMode());
+        putMode(modes, "attributeGeneration.categoryPointRules", formatCategoryPointRules(attributes));
+        putMode(modes, "attributeGeneration.categoryPointSlots", formatCategoryPointSlots(attributes));
 
         HPMethod hp = safeGame.getHpMethod();
         putMode(modes, "hitPoints.hpGainMethod", hp.getHpGainMethod());
@@ -161,6 +166,22 @@ public class CharacterFileBuilder {
             if (!steps.isEmpty()) {
                 values.add(Objects.toString(option.getName(), "").trim() + "[" + String.join(">", steps) + "]");
             }
+        }
+        return String.join("|", values);
+    }
+
+    private static String formatCategoryPointSlots(AttributeGenerationMethod method) {
+        List<String> values = new ArrayList<>();
+        for (AttributeGenerationMethod.CategoryPointSlot slot : method.getCategoryPointSlots()) {
+            values.add(slot.getId() + ":" + slot.getName() + ":" + slot.getAvailablePoints());
+        }
+        return String.join("|", values);
+    }
+
+    private static String formatCategoryPointRules(AttributeGenerationMethod method) {
+        List<String> values = new ArrayList<>();
+        for (AttributeGenerationMethod.CategoryPointRule rule : method.getCategoryPointRules()) {
+            values.add(rule.getAttributeCategoryKey() + ":" + rule.getAvailablePoints());
         }
         return String.join("|", values);
     }
