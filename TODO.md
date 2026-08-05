@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-08-04
+Updated: 2026-08-05
 
 ## Beta Launch Blockers
 
@@ -90,12 +90,13 @@ Updated: 2026-08-04
 - [x] Rename Standard Array to Standard Array/Base Scores, keep it first-step-only, and replace the old destructive second-step Replace mode with Choose, which preserves both completed results and asks the player which score set to use.
 - [x] Gate Character Generator Standard Array assignment ahead of later recipe actions: auto-assigned arrays populate read-only fields, player-assigned arrays use each value exactly once through an available pool and per-Attribute dropdowns, and later actions remain hidden until the array is complete.
 - [x] Replace Rules Builder Auto Assigned array entry with complete-array editing: Standard and Elite each persist an independent shared-score option and value, while non-normalized Set Scores modals list every Attribute with an editable score.
-- [ ] Remove the legacy `baseAttributeValue` field and its API/Character Generator fallback entirely; hybrid recipes must obtain their baseline from the completed first generation step while older `.gmrf` files remain loadable.
-- [ ] Finalize and enforce the Point Buy/hybrid recipe contract: define the valid second-step application modes for Dice and Point Buy, remove unsupported combinations from the Builder, and ensure no second step silently replaces the first result.
-- [ ] Rename the second-step Spend application mode to a clearer player- and creator-facing term that communicates progressively priced score adjustment; settle the wording through discussion before changing code or stored values.
-- [ ] Add Rules Builder creation/editing for Point Buy score costs, and require a complete valid score-cost table when the selected hybrid application uses progressively priced score adjustment.
-- [ ] Add Character Generator assignment and spending behavior for Point Buy category budgets, including one-to-one assignment of player-named slots, category-aware spending, additive hybrid baselines, and lightweight draft persistence.
-- [ ] Complete and smoke the full Attribute Generation workflow—Builder configuration, initial generation, assignment, Point Buy, hybrid results, save/resume, and migration—before beginning the next Character Generator stages.
+- [x] Correct and launcher-smoke Character Generator hybrid Point Buy accounting so first-step Standard Array/Dice scores do not consume the Point Buy budget: Add prices only the purchased increase, Spend prices only the change from the first-step baseline, and saved first-step results restore that baseline after resume.
+- [x] Accept the current Point Buy/hybrid recipe contract for the proof of concept; it handles the practical majority of actual systems, and unsupported edge combinations are not Character Generator blockers.
+- [x] Complete and launcher-smoke the proof-of-concept Attribute Generation workflow—Builder configuration, initial generation, assignment, Point Buy, hybrid results, and save/resume—with edge-case expansion deferred beyond the PoC.
+- [ ] Post-PoC cleanup: remove the legacy `baseAttributeValue` field and its API/Character Generator fallback while keeping older `.gmrf` files loadable.
+- [ ] Post-PoC polish: rename the second-step Spend application mode to clearer player- and creator-facing wording.
+- [ ] Post-PoC expansion: add Rules Builder creation/editing for progressively priced Point Buy score-cost tables and enforce their completeness where used.
+- [ ] Post-PoC expansion: add Character Generator assignment and spending behavior for Point Buy category budgets, including persistence.
 - [ ] Consider hiding character Race, Class, and Spell screens entirely when the ruleset has no entries, instead of showing an informational screen.
 - [ ] Character file AC cleanup: ensure final character data keeps resolved AC, armor replacement AC values, and armor/shield AC modifiers distinct so games where armor changes the base AC do not collapse into modifier-only math.
 - [ ] Manually enter the Cities Without Number ruleset from the included CL-Open SRD and note builder workflow weaknesses found during entry.

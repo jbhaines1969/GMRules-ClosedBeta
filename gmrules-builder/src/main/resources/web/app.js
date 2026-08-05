@@ -9168,8 +9168,11 @@ async function renderCharGenPointsBuy() {
     const scores = choosingBetweenResults
       ? savedStepResults[String(pointStepIndex)] || {}
       : state.chargenAttributeScores || {};
-    const baseline = state.chargenPointBuyBaselineScores || {};
-    const additive = shouldAddCharGenPointBuyToBaseScores(method);
+    const savedBaseline = pointStepIndex > 0 ? savedStepResults[String(pointStepIndex - 1)] || {} : {};
+    const transientBaseline = state.chargenPointBuyBaselineScores || {};
+    const baseline = Object.keys(transientBaseline).length ? transientBaseline : savedBaseline;
+    const applicationMode = resolveCharGenPointBuyApplicationMode(method);
+    const usesBaseline = shouldAddCharGenPointBuyToBaseScores(method);
 
     view.innerHTML = `
       <section class="panel">
@@ -9232,7 +9235,7 @@ async function renderCharGenPointsBuy() {
         initialPointScores[attributeId] = current;
         const baselineValue = clampCharGen(Number(baseline[attributeId] ?? base), min, max);
         rows.push({ attributeId, inputId: id, minusId, plusId, resetId, min, max, baselineValue });
-        const baselineBadge = additive ? `<span class="badge">${t("attrgen.point.baseline", "Baseline")}: ${baselineValue}</span>` : "";
+        const baselineBadge = usesBaseline ? `<span class="badge">${t("attrgen.point.baseline", "Baseline")}: ${baselineValue}</span>` : "";
         return `
           <div class="list-item">
             <div class="row split">
@@ -9264,11 +9267,13 @@ async function renderCharGenPointsBuy() {
       rows.forEach((row) => {
         const input = document.getElementById(row.inputId);
         const value = clampCharGen(Number(input.value || 0), row.min, row.max);
-        const baselineValue = additive ? row.baselineValue : 0;
-        if (!additive) {
-          spent += resolveCost(value);
+        if (applicationMode === "add") {
+          const addedValue = value - row.baselineValue;
+          spent += resolveCost(addedValue) - resolveCost(0);
+        } else if (applicationMode === "spend") {
+          spent += resolveCost(value) - resolveCost(row.baselineValue);
         } else {
-          spent += resolveCost(value) - resolveCost(baselineValue);
+          spent += resolveCost(value);
         }
       });
       return spent;
@@ -9325,7 +9330,7 @@ async function renderCharGenPointsBuy() {
         clampInput();
       });
       reset.addEventListener("click", () => {
-        const next = additive ? row.baselineValue : resolveCharGenBase(method);
+        const next = usesBaseline ? row.baselineValue : resolveCharGenBase(method);
         input.value = String(clampCharGen(Number(next || 0), row.min, row.max));
         clampInput();
       });
@@ -11376,19 +11381,19 @@ function isCharGenPointBuySelected(method) {
   return !stages.length || stages.includes("point_buy");
 }
 
-function shouldAddCharGenPointBuyToBaseScores(method) {
+function resolveCharGenPointBuyApplicationMode(method) {
   const selectedStep = getCharGenSelectedGenerationStep(method, "point_buy");
   if (selectedStep) {
-    return normalizeAttributeGenerationApplicationMode(selectedStep.applicationMode) === "spend";
+    return normalizeAttributeGenerationApplicationMode(selectedStep.applicationMode);
   }
   const safeMethod = method || {};
   const type = String(safeMethod.generationType || "").trim().toLowerCase();
   if (type !== "hybrid") {
-    return false;
+    return "set";
   }
   const hybridStages = normalizeHybridStages(safeMethod.hybridStages);
   if (!hybridStages.length) {
-    return true;
+    return "spend";
   }
   let pointIndex = -1;
   let baselineIndex = -1;
@@ -11401,7 +11406,11 @@ function shouldAddCharGenPointBuyToBaseScores(method) {
       baselineIndex = i;
     }
   }
-  return baselineIndex >= 0 && pointIndex > baselineIndex;
+  return baselineIndex >= 0 && pointIndex > baselineIndex ? "spend" : "set";
+}
+
+function shouldAddCharGenPointBuyToBaseScores(method) {
+  return ["add", "spend"].includes(resolveCharGenPointBuyApplicationMode(method));
 }
 
 function buildCharGenPointCostMap(entries) {

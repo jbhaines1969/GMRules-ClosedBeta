@@ -1,21 +1,23 @@
 # GMRules Closed Beta Agent Handoff
 
-Updated: 2026-08-04
+Updated: 2026-08-05
 Repo root: `C:\Users\John\IdeaProjects\GMRules-ClosedBeta`
 
 This is the primary recovery document for the next session. Read `AGENTS.md`, `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `PRODUCT_DESIGN_CONTEXT.md`, and local `USER.md` before editing. Inspect `git status --short`; the current feature batch is intentionally uncommitted and must not be reverted.
 
 ## Resume Here: Finish Attribute Generation Through Point Buy and Hybrids
 
-John divided the substantial Character Generator Attribute work into workflow, UI design, and testing. The first-screen workflow and both Dice assignment layouts are implemented and visually accepted. The Rules Builder Dice Rolling screen now has the missing Roll Assignment dropdown plus its canonical Attribute-order popup; both builder controls need John’s launcher smoke before Standard Array, Point Buy, and combined-recipe design continues.
+John divided the substantial Character Generator Attribute work into workflow, UI design, and testing. The current proof-of-concept Attribute Generation flow, including Dice assignment, canonical Attribute order, Standard Array/Base Scores, Choose, and shared-budget hybrid Point Buy, is implemented and launcher-smoked.
 
-Standard Array has now been renamed Standard Array/Base Scores and restricted to the first recipe step. The old destructive second-step Replace mode is now Choose: both step results are retained and the Character Generator presents them side by side after generation so the player selects the final score set. These newest builder and Choose controls need John's launcher smoke before the remaining Standard Array, Point Buy, and combined-recipe design continues.
+Standard Array has now been renamed Standard Array/Base Scores and restricted to the first recipe step. The old destructive second-step Replace mode is now Choose: both step results are retained and the Character Generator presents them side by side after generation so the player selects the final score set. The builder and Character Generator controls are launcher-smoked and accepted for the PoC.
 
-Rules Builder Auto Assigned arrays now configure a whole array at once. Standard and Elite each persist an independent shared-score boolean and integer. When shared score is selected, the Character Generator API resolves that score across the current Attribute list, including Attributes added later; the previously stored explicit mapping remains available if normalization is turned off. When normalization is off, Set Scores opens a wide modal containing every Attribute and saves the exact complete mapping atomically. Player Assigned arrays retain the one-value collection workflow. These builder controls need John's launcher smoke.
+Rules Builder Auto Assigned arrays now configure a whole array at once. Standard and Elite each persist an independent shared-score boolean and integer. When shared score is selected, the Character Generator API resolves that score across the current Attribute list, including Attributes added later; the previously stored explicit mapping remains available if normalization is turned off. When normalization is off, Set Scores opens a wide modal containing every Attribute and saves the exact complete mapping atomically. Player Assigned arrays retain the one-value collection workflow. These builder controls are launcher-smoked and accepted for the PoC.
 
 John decided that `AttributeGenerationMethod.baseAttributeValue` is obsolete: do not add a Builder control for it. Remove the field and its API/Character Generator fallback during the next Point Buy/hybrid batch, keeping older serialized rulesets loadable. Hybrid Point Buy uses the completed first step as its baseline. After the current Dice and Standard Array smoke, the priority is to settle valid second-step method/application pairings, rename Spend, require/edit point-cost tables, and complete category-aware Character Generator assignment and spending. Do not move on to later Character Generator stages until the complete Attribute Generation workflow is verified.
 
-The assignment screen now resolves Standard Array before revealing later recipe actions. Auto Assigned arrays populate read-only Attribute fields. Player Assigned arrays use a one-to-one available pool plus per-Attribute dropdowns, with duplicate values tracked by array position; incomplete arrays cannot continue or expose Dice. Assignment-screen numeric fields are read-only, leaving direct score editing to Point Buy. Lightweight drafts persist `attributeArrayType` and `attributeArrayAssignment.<attribute-id>` entries. This new sequencing needs John's launcher smoke.
+The Character Generator shared-budget Point Buy calculation now distinguishes second-step modes correctly. Add charges only the independently purchased increase above the first-step Standard Array/Dice result; Spend charges only the point-cost difference from that result; standalone and Choose Point Buy still price a complete result. The screen recovers its baseline from persisted first-step results after resume instead of relying only on transient in-memory state. John launcher-smoked and accepted the current proof-of-concept workflow on 2026-08-05. It covers the practical majority of actual systems; edge-case recipe combinations, category budgets, progressive score-cost-table tooling, `baseAttributeValue` removal, and Spend wording are deferred beyond the PoC and no longer block later Character Generator work.
+
+The assignment screen now resolves Standard Array before revealing later recipe actions. Auto Assigned arrays populate read-only Attribute fields. Player Assigned arrays use a one-to-one available pool plus per-Attribute dropdowns, with duplicate values tracked by array position; incomplete arrays cannot continue or expose Dice. Assignment-screen numeric fields are read-only, leaving direct score editing to Point Buy. Lightweight drafts persist `attributeArrayType` and `attributeArrayAssignment.<attribute-id>` entries. This sequencing is launcher-smoked and accepted for the PoC.
 
 The Character Generator now always enters an Attribute Generation option/dice screen after the character name:
 
@@ -45,7 +47,7 @@ Browser/server lightweight character drafts persist the chosen ordered roll set 
 
 Choose recipes additionally persist both completed score maps as `attributeStepResult.<step-index>.<attribute-id>=<score>` and the player's final selection as `attributeResultChoice=<step-index>`. The comparison screen copies only the chosen map into final `attributeScores`. `Game.AttributeGenerationOption` migrates a legacy later-step `set` to `choose`, removes Standard Array from later positions during legacy normalization, and the API rejects new invalid later-step Standard Array or set requests. The ignored migration test covers both rules.
 
-The current Character Generator Point Buy screen, `renderCharGenPointsBuy()` in `gmrules-builder/src/main/resources/web/app.js`, understands only one global `basePoints` budget. It must be extended to honor the backend-supported modes described below while preserving the existing generation-option recipes, additive/spend behavior, score-cost calculation, local/server character autosave, Back behavior, and Continue into Race.
+The current Character Generator Point Buy screen, `renderCharGenPointsBuy()` in `gmrules-builder/src/main/resources/web/app.js`, understands only one global `basePoints` budget. Its shared-budget Add/Spend baseline accounting is corrected, but it must still be extended to honor the backend-supported category modes described below while preserving the existing generation-option recipes, score-cost calculation, local/server character autosave, Back behavior, and Continue into Race.
 
 Backgrounds were just added to the core as an independent collection, but they deliberately have no web API, Rules Builder screen, or Character Generator screen yet. Do not treat Backgrounds as an alias or replacement for Classes. Creator-facing Background fields and player-selection behavior should be settled before that UI/API work.
 
@@ -88,7 +90,7 @@ categoryPointSlots[]:
 
 The Rules Builder already prevents Continue when the active category configuration is incomplete. Character generation should still defend against incomplete or stale ruleset data and explain the problem rather than silently falling back to a shared pool.
 
-## Character Point Buy UI Work Still Needed
+## Character Point Buy UI Work Deferred Beyond PoC
 
 Keep the existing shared-budget screen when `assignByCategory=false`.
 
@@ -245,14 +247,10 @@ The richer external `gmrules-character` project remains reference-only unless Jo
 
 ## Current Priority Order
 
-1. Launcher-smoke the current Dice assignment/order and Standard/Elite array controls, including Character Generator assignment and a two-step Choose recipe.
-2. Remove legacy `baseAttributeValue` while preserving old `.gmrf` loading, and finalize the valid Point Buy/Dice hybrid application contract so no unsupported pairing replaces prior results.
-3. Rename Spend and add/validate the progressively priced Point Buy score-cost table in the Rules Builder.
-4. Implement category-aware Character Generator Point Buy, including player slot assignment, per-category spending, hybrid baselines, and lightweight draft persistence.
-5. Verify the full Attribute Generation workflow and migration behavior before resuming later Character Generator stages.
-6. Smoke the non-Constitution Hit Point modifier path in Character Generation.
-7. Add Backgrounds to the web API, Rules Builder, and Character Generator only after their fields/selection behavior are settled.
-8. Hosted-smoke the completed character flow and migration behavior tracked in `TODO.md`.
+1. Resume later Character Generator stages; the accepted PoC Attribute Generation workflow no longer blocks them.
+2. Smoke the non-Constitution Hit Point modifier path in Character Generation.
+3. Add Backgrounds to the web API, Rules Builder, and Character Generator only after their fields/selection behavior are settled.
+4. Hosted-smoke the completed character flow and migration behavior tracked in `TODO.md`.
 
 Build from the repo root:
 
