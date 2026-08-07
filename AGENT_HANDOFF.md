@@ -267,10 +267,13 @@ The richer external `gmrules-character` project remains reference-only unless Jo
 
 ## Current Priority Order
 
-1. Continue the nonbinding combat-resolution design discussion recorded in `OpenQuestions.md`; do not treat an unsettled option as a code decision until John explicitly moves the discussion into implementation.
-2. Resume later Character Generator stages; the accepted PoC Attribute Generation workflow no longer blocks them.
-3. Add Backgrounds to the web API, Rules Builder, and Character Generator only after their fields/selection behavior are settled.
-4. Hosted-smoke the completed character flow and broader migration behavior tracked in `TODO.md`.
+`OpenQuestions.md` remains nonbinding design input until John explicitly moves the discussion into code decisions. Once those choices are settled, the implementation order is:
+
+1. Implement the Attack/Defense and Damage mechanics, persistence, and verification in the backend.
+2. Integrate the settled backend contract into the Rules Builder UI.
+3. Resume later Character Generator stages; the accepted PoC Attribute Generation workflow no longer blocks them.
+4. Add Backgrounds to the web API, Rules Builder, and Character Generator only after their fields/selection behavior are settled.
+5. Hosted-smoke the completed character flow and broader migration behavior tracked in `TODO.md`.
 
 Build from the repo root:
 

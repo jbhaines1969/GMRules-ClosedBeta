@@ -197,6 +197,15 @@ UX and copy:
 - Broader UI polish is driven by real rules entry and beta feedback so effort goes to awkward spots creators actually encounter; accepted batches should not be reopened without new evidence.
 - The character generator now reaches armor selection and final `.gmcf` download, but still needs hosted smoke testing with a complete real ruleset.
 
+## Current Development Priority
+
+The next feature-development sequence is:
+
+1. Settle the relevant Attack/Defense and Damage options in `OpenQuestions.md`, then implement the mechanics, persistence, and verification in the backend.
+2. Integrate the settled backend contract into the Rules Builder UI.
+
+`OpenQuestions.md` remains nonbinding design input until John explicitly moves the discussion into code decisions.
+
 ## Best Path Forward
 
 The fastest beta-launch path is to keep this as a small, controlled closed beta and avoid broad product hardening until real tester feedback validates the builder workflow.

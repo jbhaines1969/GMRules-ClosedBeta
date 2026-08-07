@@ -16,6 +16,11 @@ Updated: 2026-08-07
 - [x] Smoke-test account verification, password creation, login, new draft creation, draft deletion, and `.gmrf` export/download.
 - [x] Smoke-test `.gmrf` upload/import and verify the uploaded draft opens with expected content and counts toward the account saved-draft limit.
 
+## Current Development Priority: Attack/Defense And Damage
+
+1. [ ] Settle the relevant options in `OpenQuestions.md`, then implement the Attack/Defense and Damage mechanics in the backend, including persistence and verification.
+2. [ ] Integrate the settled backend mechanics into the Rules Builder UI after the backend contract is stable.
+
 ## High Priority After First Invites
 
 - [x] Lock login after three failed password attempts and route locked-account recovery requests to blockers. Password setup mismatch attempts are intentionally not rate-limited for now.
