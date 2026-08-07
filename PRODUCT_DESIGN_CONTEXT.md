@@ -1,6 +1,6 @@
 # GMRules Product Design Context
 
-Updated: 2026-08-05
+Updated: 2026-08-07
 
 ## Purpose
 
@@ -17,6 +17,8 @@ The long-term product is an ecosystem rather than a single builder:
 - A future **Campaign Manager** can use the same definitions for characters, encounters, time, equipment, effects, and campaign records.
 - Shared structured data creates opportunities for rules automation: calculated values, eligibility checks, linked effects, damage handling, starting resources, and other system-specific behavior without hard-coding one RPG.
 - Publishing and reference output can present the creator’s descriptions and rules in readable forms while preserving the same source data used by interactive tools.
+
+The web UI is the canonical interface in this repository. The legacy Swing implementation has been removed; any future standalone application should be designed anew from the finalized web workflows and visual language.
 
 Some descendant applications are future direction, not current closed-beta functionality.
 
@@ -57,7 +59,7 @@ Character files use `.gmcf`. The web app currently keeps a lightweight character
 7. **Preserve creator ownership.** Users can download rulesets and character files. Online saves are convenience, not the only custody of their work.
 8. **Design for real rules entry.** Repeated forms, ordering, terminology, and dependency management must remain usable while entering a complete real-world system—not only in isolated demos.
 
-9. **Collections remain the primary content.** A collection editor should show its heading, modest spacing, a left-aligned Add action, and the existing items. Blank creation fields should not remain visible while the creator is only reviewing the collection. Add and existing Edit actions should share a focused modal when their fields are the same; page-level mechanic settings remain inline.
+9. **Collections remain the primary content.** A collection editor should show its heading, modest spacing, a left-aligned Add action, and the existing items. Collection rows show the element name plus concise category/type metadata where useful; long-form descriptions remain in editors or dedicated detail views because prose makes working lists impractical. Blank creation fields should not remain visible while the creator is only reviewing the collection. Add and existing Edit actions should share a focused modal when their fields are the same; page-level mechanic settings remain inline.
 10. **Save at the natural commitment point.** Short, single-value page settings save when changed and do not need Apply/Save buttons. Longer creator-authored mechanic descriptions save when their disclosure closes or the creator continues, avoiding per-keystroke monitoring while preserving the draft before navigation.
 
 ## Main User Journeys
@@ -78,9 +80,11 @@ A creator starts, opens, or imports a ruleset. **Game Setup** establishes the re
 
 The current flow covers:
 
-Game Setup; Measurements; Dice Options; Attribute Categories; Attributes; Attribute Generation; Standard Arrays; Dice Rolling; Points Buy; Hit Points; Armor Class; Currency; Effect Types; Damage Types; Statuses; Effects; Equipment; Weapons; Skills; Spells; Pantheons; Deities; Races; and Classes.
+Game Setup; Measurements; Dice Options; Attribute Categories; Attributes; Attribute Generation; Standard Arrays; Dice Rolling; Points Buy; Hit Points; Armor Class; Currency; Affected Systems; Damage Types; Statuses; Effects; Equipment; Weapons; Skills; Spells; Pantheons; Deities; Races; and Classes.
 
 The order establishes reusable concepts before content that references them. Attribute-generation detail screens follow Attributes because they may depend on the completed list. Damage Types precede Effects and gear so later entries can reference them.
+
+Affected Systems is the user-facing term for reusable labels that identify the parts of the game, or recurring rule interactions, that actions, events, Effects, and Statuses may change or invoke. Its existing defaults remain examples rather than a closed taxonomy. The implementation and saved-data contract continue to use the internal `EffectType` name.
 
 Drafts save online, can be downloaded as `.gmrf`, and can be reopened and revised.
 
@@ -111,6 +115,7 @@ The generator must reflect the creator’s actual options and terminology. Empty
 - Changing screens resets scroll to the top.
 - Primary actions use the established pill-button language; destructive actions are visually distinct and require confirmation.
 - Repeated collection rows place Edit beside Remove when editing is supported. Add/Edit modals open with only the fields needed for that item and return to the collection after saving.
+- When an editor can create a referenced item inline, its selector places New <element> above the existing choices. Saving or canceling returns to the unfinished parent editor; a separate Create button should not compete with the selector.
 - Responsive layouts must stack before controls or labels become cramped and must not introduce horizontal overflow.
 - Visual acceptance is performed by John through the local launcher and screenshots.
 
@@ -161,3 +166,7 @@ When the selected recipe begins with Standard Array/Base Scores, the assignment 
 The Rules Builder Dice Rolling screen presents the corresponding Roll Assignment choice beside Number of Sets. Creators choose Player assigns rolls or Assign in Attribute order; the setting saves immediately and drives the Character Generator behavior above. In-order mode reveals Set Attribute Order, which opens a focused dropdown popup initialized from the current Attribute order. The creator may temporarily leave positions blank or reuse an Attribute while editing, but Save refuses the edit unless every Attribute is represented exactly once and presents a simple acknowledgement warning. A valid save makes this canonical order drive the web Attributes list, Attribute association selectors, and Character Generator roll mapping while stable IDs preserve existing references. These builder controls were launcher-smoked and accepted on 2026-08-05.
 
 The current proof-of-concept Attribute Generation workflow is launcher-smoked and accepted. Its Standard Array, Dice, assignment, Choose, and shared-budget hybrid Point Buy behavior covers the practical majority of actual systems. Edge-case recipe combinations, category-budget spending, progressively priced score-cost tables, `baseAttributeValue` removal, and Spend terminology refinement are deferred beyond the PoC. Later Character Generator stages may resume. Do not reopen the accepted Home hierarchy, first collection-editor batch, or Attribute Generation workflow unless new evidence reveals a problem.
+
+The revised Hit Points screen distinguishes Independent Hit Points from Attribute Derived health. Independent mode visually separates Starting Hit Points and Hit Point Gain, offers Rolled or Fixed advancement, and retains No Hit Point Gain for a static pool. Rolled gain can use a shared `Rolls`d`Die` plus one total `Modifier` expression; variable dice remain open to future character-defining systems instead of being modeled as Class-only. Attribute Derived replaces both starting HP and advancement through mutually exclusive Direct Attribute, Single-Attribute Formula, and Multi-Attribute Formula calculations built from stable Attribute references, multipliers, a base value, an optional divisor, and rounding. Average and direct HP Attribute Modifier bonus controls are retired. John launcher-smoked and accepted this presentation and formula workflow on 2026-08-07.
+
+All implemented refactors and UI adjustments preceding the combat-system consideration track are now visually accepted. The active design discussion is the nonbinding combat-resolution, damage, mitigation, harm, reaction, and provenance framework in `OpenQuestions.md`; its unsettled options are not code decisions until John explicitly says the discussion has entered implementation.

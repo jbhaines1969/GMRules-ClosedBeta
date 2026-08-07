@@ -232,9 +232,9 @@ const steps = [
   {
     id: "effect-types",
     labelKey: "effecttypes.title",
-    fallback: "Effect Types",
+    fallback: "Affected Systems",
     tutorialKey: "effecttypes.intro",
-    tutorialFallback: "Effect types are tags that classify effects (for example: damage, condition, or movement). They help organize effects and power automation later.",
+    tutorialFallback: "Affected Systems identify parts of the game, or recurring rule interactions, that actions, events, Effects, and Statuses can change or invoke. Use short, reusable names such as Damage, Resistance, Immunity, Armor, Speed, Movement, or Apply Status.",
   },
   {
     id: "damage-types",
@@ -407,7 +407,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "dice.info.specifics.manage",
-        fallback: "Checkbox changes are saved immediately. Custom ranges remain in the list until removed. Removing an option means it should no longer be offered for future rule configuration, so review any mechanics that depended on it.",
+        fallback: "Checkbox changes are saved immediately. Use Edit to revise a custom range and Remove when it should no longer be offered for future rule configuration; review any mechanics that depended on it.",
       },
     ],
   },
@@ -455,7 +455,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "attributes.info.specifics.bonuses",
-        fallback: "Score Bonuses record additional effects that become available at specified thresholds. Use them for rules that grant a named benefit when this Attribute reaches a particular score; leave the list empty when the Attribute has no threshold-based benefits.",
+        fallback: "Score Bonuses grant reusable Effects when this Attribute reaches a specified threshold. Select an existing Effect or create one here without leaving the Attribute editor; the created Effect is also added to the main Effects collection.",
       },
       {
         key: "attributes.info.specifics.manage",
@@ -485,7 +485,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "attrgen.standard.info.specifics.default",
-        fallback: "Default Array Type identifies which completed array character generation should offer first. Choose Standard or Elite after entering the values, and remove individual entries when correcting or rebuilding a set.",
+        fallback: "Default Array Type identifies which completed array character generation should offer first. Choose Standard or Elite after entering the values, use Edit for corrections, and Remove when rebuilding a set.",
       },
     ],
   },
@@ -515,7 +515,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "attrgen.dice.info.specifics.manage",
-        fallback: "Number of Sets and Dice Substitution settings save automatically when changed. Add Dice Term opens a focused form and appends the completed term to the procedure. Review the displayed notation after each addition and remove any term that should not participate in the final roll.",
+        fallback: "Number of Sets and Dice Substitution settings save automatically when changed. Add Dice Term opens a focused form. Use Edit to revise a term and Remove when it should not participate in the final roll.",
       },
     ],
   },
@@ -559,23 +559,27 @@ const tutorialSpecificPages = {
     paragraphs: [
       {
         key: "hp.info.specifics.method",
-        fallback: "HP Gain Method controls how characters receive Hit Points as they advance. Rolled uses the applicable Hit Point die, Average uses that die's average result, and Fixed grants the exact Fixed HP per Level value.",
+        fallback: "Choose Independent Hit Points when characters have a separate starting total and may gain more through advancement. Starting Hit Points and Hit Point Gain are configured in separate sections. Gain can be Rolled, Fixed, or disabled.",
       },
       {
-        key: "hp.info.specifics.rounding",
-        fallback: "Average Rounding determines how fractional average results are converted to whole Hit Points. It applies only to the Average method. Fixed HP per Level applies only to Fixed, and the screen disables fields that do not affect the selected method.",
+        key: "hp.info.specifics.attribute_derived",
+        fallback: "Choose Attribute Derived when Maximum Hit Points are the result of character Attributes rather than a separate total. This replaces both starting Hit Points and per-level gain, and descendant applications recalculate the value whenever the referenced Attribute scores change.",
+      },
+      {
+        key: "hp.info.specifics.attribute_formula",
+        fallback: "Direct Attribute uses one complete Attribute score. Single-Attribute Formula applies a base value, multiplier, divisor, and rounding to one Attribute. Multi-Attribute Formula combines two or more unique Attribute terms through the same structured calculation.",
       },
       {
         key: "hp.info.specifics.minimum",
         fallback: "Minimum HP per Level is the floor for a level's gain after the selected method and relevant modifiers are considered. Use it to prevent poor rolls or penalties from reducing advancement below the minimum your game allows.",
       },
       {
-        key: "hp.info.specifics.attribute",
-        fallback: "Attribute Modifier selects the Attribute whose modifier is added to Hit Point gains. Choose None when Hit Points are not affected by an Attribute. Allow Negative Attribute Modifier determines whether a penalty from the selected Attribute may reduce those gains.",
+        key: "hp.info.specifics.dice",
+        fallback: "Select All characters use the same Hit Point dice when one expression applies to everyone, then choose its Die, Rolls, and single total Modifier. When it is not selected, assign the appropriate dice later in whichever character-defining sections provide them.",
       },
       {
         key: "hp.info.specifics.first_level",
-        fallback: "Max HP at First Level gives a new character the maximum result instead of rolling or averaging the first Hit Point die. First Level Bonus HP adds a separate fixed amount to the starting total.",
+        fallback: "Max HP at First Level gives a new character the maximum result instead of rolling the first Hit Point dice. First Level Bonus HP adds a separate fixed amount to the starting total.",
       },
       {
         key: "hp.info.specifics.static",
@@ -615,7 +619,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "currency.info.specifics.selection",
-        fallback: "Select a currency from the list before adding or removing its denominations. The badge shows how many denominations it contains. Removing a currency also removes the economic structure that later character and equipment rules may reference.",
+        fallback: "Select a currency from the list before adding, editing, or removing its denominations. The badge shows how many denominations it contains. Removing a currency also removes the economic structure that later character and equipment rules may reference.",
       },
       {
         key: "currency.info.specifics.starting",
@@ -633,23 +637,23 @@ const tutorialSpecificPages = {
   },
   "effect-types": {
     titleKey: "effecttypes.info.specifics.title",
-    titleFallback: "Using Effect Types",
+    titleFallback: "Using Affected Systems",
     paragraphs: [
       {
         key: "effecttypes.info.specifics.purpose",
-        fallback: "Effect Types are reusable classifications for the rules snippets and conditions in your game. Examples might include Damage, Healing, Movement, Mental, Magical, or Environmental. Create types that help players and descendant applications understand what an effect does.",
+        fallback: "Affected Systems identify the parts of your game, or recurring rule interactions, that actions, events, Effects, and Statuses can change or invoke. The built-in examples are Damage, Resistance, Immunity, Armor, Speed, Movement, and Apply Status.",
       },
       {
         key: "effecttypes.info.specifics.entries",
-        fallback: "Add Effect Type opens an editor for the type's name and description. The name becomes the selectable tag, while the description explains the shared meaning of effects placed in that category.",
+        fallback: "Add Affected System opens an editor for the system's name and description. Use a short, reusable name that identifies the rules area or response involved; use the description to explain when that label applies.",
       },
       {
         key: "effecttypes.info.specifics.multiple",
-        fallback: "An Effect or Status may use more than one Effect Type, so the categories may overlap. A burning condition could be both Damage and Environmental, for example. Use combinations when they communicate real rule relationships rather than creating a unique type for every entry.",
+        fallback: "An Effect or Status may interact with more than one Affected System, so these labels may overlap. A slowing fire effect could involve both Damage and Speed, for example. Select each system that communicates a real rule relationship.",
       },
       {
         key: "effecttypes.info.specifics.manage",
-        fallback: "Edit revises a type, Remove deletes it, and the optional system name changes what this collection is called throughout the ruleset. Create the major types before Effects and Statuses so they are available while those entries are being defined.",
+        fallback: "Edit revises a system label, Remove deletes it, and the optional system name changes what this collection is called throughout the ruleset. Define the major affected systems before Effects and Statuses so they are available while those entries are being created.",
       },
     ],
   },
@@ -685,7 +689,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "statuses.info.specifics.entries",
-        fallback: "Add Status opens an editor for its name, description, and Effect Types. The description should tell users what the condition means and how it changes play; the selected types classify the condition for organization and later automation.",
+        fallback: "Add Status opens an editor for its name, description, and Affected Systems. The description should tell users what the condition means and how it changes play; the selected systems identify the rules areas or responses involved for organization and later automation.",
       },
       {
         key: "statuses.info.specifics.relationships",
@@ -711,7 +715,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "effects.info.specifics.types",
-        fallback: "Assign one or more Effect Types to classify the behavior. Select an optional Damage Type when the Effect causes a defined kind of harm. These references let descendant applications organize effects and connect them to other rules without relying only on wording.",
+        fallback: "Assign one or more Affected Systems to identify the rules areas or responses the Effect changes or invokes. Select an optional Damage Type when the Effect causes a defined kind of harm. These references let descendant applications connect effects to other rules without relying only on wording.",
       },
       {
         key: "effects.info.specifics.references",
@@ -719,7 +723,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "effects.info.specifics.manage",
-        fallback: "Remove deletes the reusable Effect, so review elements that may depend on it first. The optional system name lets your game use a different term for this collection.",
+        fallback: "Edit revises the reusable Effect. Remove deletes it, so review elements that may depend on it first. The optional system name lets your game use a different term for this collection.",
       },
     ],
   },
@@ -853,7 +857,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "pantheons.info.specifics.manage",
-        fallback: "Cancel clears the current form without removing saved entries. Remove deletes the selected Pantheon, and the optional system name changes what this collection is called throughout the ruleset.",
+        fallback: "Cancel clears the current form without removing saved entries. Edit revises a Pantheon, Remove deletes it, and the optional system name changes what this collection is called throughout the ruleset.",
       },
     ],
   },
@@ -963,7 +967,7 @@ const TUTORIAL_CONTENT_VERSION_BY_SCREEN = {
   setup: "setup-detailed-guidance-20260728",
   measurements: "measurements-detailed-guidance-20260728",
   "attribute-generation": "attribute-generation-specific-guidance-20260728",
-  "hit-points": "hit-points-attribute-modifier-20260729",
+  "hit-points": "hit-points-attribute-derived-20260805",
 };
 
 let historyReady = false;
@@ -1259,7 +1263,6 @@ const editClassSkillsTitle = document.getElementById("editClassSkillsTitle");
 const editClassSkillSelectLabel = document.getElementById("editClassSkillSelectLabel");
 const editClassSkillSelect = document.getElementById("editClassSkillSelect");
 const editClassSkillAdd = document.getElementById("editClassSkillAdd");
-const editClassSkillCreate = document.getElementById("editClassSkillCreate");
 const editClassSkillList = document.getElementById("editClassSkillList");
 const editClassRequiredTitle = document.getElementById("editClassRequiredTitle");
 const editClassRequiredSelectLabel = document.getElementById("editClassRequiredSelectLabel");
@@ -1272,7 +1275,6 @@ const editTypeField = document.getElementById("editTypeField");
 const editTypeLabel = document.getElementById("editTypeLabel");
 const editType = document.getElementById("editType");
 const editTypeAdd = document.getElementById("editTypeAdd");
-const editTypeCreate = document.getElementById("editTypeCreate");
 const editTypeList = document.getElementById("editTypeList");
 const editRangeFields = document.getElementById("editRangeFields");
 const editMinLabel = document.getElementById("editMinLabel");
@@ -1312,12 +1314,6 @@ const editRaceAttributeMaxLabel = document.getElementById("editRaceAttributeMaxL
 const editRaceAttributeMax = document.getElementById("editRaceAttributeMax");
 const editRaceAttributeAdd = document.getElementById("editRaceAttributeAdd");
 const editRaceAttributeList = document.getElementById("editRaceAttributeList");
-const editRaceTraitCreateTitle = document.getElementById("editRaceTraitCreateTitle");
-const editRaceTraitNameLabel = document.getElementById("editRaceTraitNameLabel");
-const editRaceTraitName = document.getElementById("editRaceTraitName");
-const editRaceTraitDescriptionLabel = document.getElementById("editRaceTraitDescriptionLabel");
-const editRaceTraitDescription = document.getElementById("editRaceTraitDescription");
-const editRaceTraitCreate = document.getElementById("editRaceTraitCreate");
 const editRaceStartingMoneyModifierLabel = document.getElementById("editRaceStartingMoneyModifierLabel");
 const editRaceStartingMoneyModifier = document.getElementById("editRaceStartingMoneyModifier");
 const editWeaponEffectsSection = document.getElementById("editWeaponEffectsSection");
@@ -1325,7 +1321,6 @@ const editWeaponEffectsTitle = document.getElementById("editWeaponEffectsTitle")
 const editWeaponEffectSelectLabel = document.getElementById("editWeaponEffectSelectLabel");
 const editWeaponEffectSelect = document.getElementById("editWeaponEffectSelect");
 const editWeaponEffectAdd = document.getElementById("editWeaponEffectAdd");
-const editWeaponEffectCreate = document.getElementById("editWeaponEffectCreate");
 const editWeaponEffectList = document.getElementById("editWeaponEffectList");
 const editCancel = document.getElementById("editCancel");
 const editOk = document.getElementById("editOk");
@@ -1335,12 +1330,6 @@ const skillNameLabel = document.getElementById("skillNameLabel");
 const skillNameInput = document.getElementById("skillNameInput");
 const skillCategoryLabel = document.getElementById("skillCategoryLabel");
 const skillCategorySelect = document.getElementById("skillCategorySelect");
-const skillCategoryCreateTitle = document.getElementById("skillCategoryCreateTitle");
-const skillCategoryNameLabel = document.getElementById("skillCategoryNameLabel");
-const skillCategoryNameInput = document.getElementById("skillCategoryNameInput");
-const skillCategoryDescLabel = document.getElementById("skillCategoryDescLabel");
-const skillCategoryDescInput = document.getElementById("skillCategoryDescInput");
-const skillCategoryCreate = document.getElementById("skillCategoryCreate");
 const skillDescriptionLabel = document.getElementById("skillDescriptionLabel");
 const skillDescriptionInput = document.getElementById("skillDescriptionInput");
 const skillAbilityLabel = document.getElementById("skillAbilityLabel");
@@ -1366,12 +1355,6 @@ const skillEffectSelectLabel = document.getElementById("skillEffectSelectLabel")
 const skillEffectSelect = document.getElementById("skillEffectSelect");
 const skillEffectAdd = document.getElementById("skillEffectAdd");
 const skillEffectList = document.getElementById("skillEffectList");
-const skillEffectCreateTitle = document.getElementById("skillEffectCreateTitle");
-const skillEffectNameLabel = document.getElementById("skillEffectNameLabel");
-const skillEffectName = document.getElementById("skillEffectName");
-const skillEffectDescLabel = document.getElementById("skillEffectDescLabel");
-const skillEffectDesc = document.getElementById("skillEffectDesc");
-const skillEffectCreate = document.getElementById("skillEffectCreate");
 const skillCancel = document.getElementById("skillCancel");
 const skillSave = document.getElementById("skillSave");
 const spellModal = document.getElementById("spellModal");
@@ -1397,14 +1380,10 @@ const spellEffectSelectLabel = document.getElementById("spellEffectSelectLabel")
 const spellEffectSelect = document.getElementById("spellEffectSelect");
 const spellEffectAdd = document.getElementById("spellEffectAdd");
 const spellEffectList = document.getElementById("spellEffectList");
-const spellEffectCreateTitle = document.getElementById("spellEffectCreateTitle");
-const spellEffectNameLabel = document.getElementById("spellEffectNameLabel");
-const spellEffectName = document.getElementById("spellEffectName");
-const spellEffectDescLabel = document.getElementById("spellEffectDescLabel");
-const spellEffectDesc = document.getElementById("spellEffectDesc");
-const spellEffectCreate = document.getElementById("spellEffectCreate");
 const spellCancel = document.getElementById("spellCancel");
 const spellSave = document.getElementById("spellSave");
+
+const NEW_INLINE_OPTION = "__gmrules_new_inline__";
 
 let confirmResolve = null;
 let activeTutorialPages = [];
@@ -1416,6 +1395,8 @@ let editModifiers = [];
 let editBonuses = [];
 let editEffectTypeKeys = [];
 let editSuspend = null;
+let attributeTypeOptions = [];
+let attributeEffectOptions = [];
 let effectTypeOptions = [];
 let damageTypeOptions = [];
 let weightUnitOptions = [];
@@ -1432,6 +1413,15 @@ let editRaceSkillIds = [];
 let editRaceAttributeLimits = [];
 let editClassSkillIds = [];
 let editClassRequiredScores = [];
+let editEffectTypeIndex = -1;
+let editModifierIndex = -1;
+let editBonusIndex = -1;
+let editWeaponEffectIndex = -1;
+let editRaceTraitIndex = -1;
+let editRaceAttributeIndex = -1;
+let editClassSkillIndex = -1;
+let editClassRequiredIndex = -1;
+let editClassSkillPointsIndex = -1;
 let skillContext = null;
 let skillReturnToEdit = false;
 let skillEffects = [];
@@ -1442,9 +1432,13 @@ let skillClassOptions = [];
 let skillRaceOptions = [];
 let skillLimitedClassIds = [];
 let skillLimitedRaceIds = [];
+let skillEffectIndex = -1;
+let skillClassLimitIndex = -1;
+let skillRaceLimitIndex = -1;
 let spellContext = null;
 let spellEffects = [];
 let spellEffectOptions = [];
+let spellEffectIndex = -1;
 state.locale = "en";
 
 let transientZIndex = 1000;
@@ -1895,10 +1889,7 @@ function applyStaticLabels() {
   }
   editTypeLabel.textContent = t("attributes.edit.type", "Attribute Category");
   if (editTypeAdd) {
-    editTypeAdd.textContent = t("effects.type.add", "Add Type");
-  }
-  if (editTypeCreate) {
-    editTypeCreate.textContent = t("effecttypes.create", "Create Effect Type");
+    editTypeAdd.textContent = t("effects.type.add", "Add System");
   }
   editMinLabel.textContent = t("attributes.edit.min_value", "Minimum Value");
   editMaxLabel.textContent = t("attributes.edit.max_value", "Maximum Value");
@@ -1968,9 +1959,6 @@ function applyStaticLabels() {
   if (editClassSkillAdd) {
     editClassSkillAdd.textContent = t("classes.skills.add", "Add Skill");
   }
-  if (editClassSkillCreate) {
-    editClassSkillCreate.textContent = t("skills.create", "Create Skill");
-  }
   if (editClassRequiredTitle) {
     editClassRequiredTitle.textContent = t("classes.required_attributes", "Required Attributes");
   }
@@ -1985,9 +1973,6 @@ function applyStaticLabels() {
   }
   if (editWeaponEffectSelectLabel) {
     editWeaponEffectSelectLabel.textContent = t("skills.effects.select", "Select Effect");
-  }
-  if (editWeaponEffectCreate) {
-    editWeaponEffectCreate.textContent = t("skills.effects.create", "Create Effect");
   }
   if (editWeaponEffectAdd) {
     editWeaponEffectAdd.textContent = t("skills.effects.add", "Add Effect");
@@ -2016,18 +2001,6 @@ function applyStaticLabels() {
   if (editRaceAttributeAdd) {
     editRaceAttributeAdd.textContent = t("races.attributes.add", "Add Limit");
   }
-  if (editRaceTraitCreateTitle) {
-    editRaceTraitCreateTitle.textContent = t("skills.create", "Create Skill");
-  }
-  if (editRaceTraitNameLabel) {
-    editRaceTraitNameLabel.textContent = t("skills.name", "Skill Name");
-  }
-  if (editRaceTraitDescriptionLabel) {
-    editRaceTraitDescriptionLabel.textContent = t("common.description", "Description");
-  }
-  if (editRaceTraitCreate) {
-    editRaceTraitCreate.textContent = t("skills.create", "Create Skill");
-  }
   if (editRaceStartingMoneyModifierLabel) {
     editRaceStartingMoneyModifierLabel.textContent = t("money.race.modifier", "Race Starting Money Modifier");
   }
@@ -2041,18 +2014,6 @@ function applyStaticLabels() {
   }
   if (skillCategoryLabel) {
     skillCategoryLabel.textContent = t("skills.category", "Category");
-  }
-  if (skillCategoryCreateTitle) {
-    skillCategoryCreateTitle.textContent = t("skills.category.create", "Create Category");
-  }
-  if (skillCategoryNameLabel) {
-    skillCategoryNameLabel.textContent = t("common.name", "Name");
-  }
-  if (skillCategoryDescLabel) {
-    skillCategoryDescLabel.textContent = t("common.description", "Description");
-  }
-  if (skillCategoryCreate) {
-    skillCategoryCreate.textContent = t("skills.category.create", "Create Category");
   }
   if (skillDescriptionLabel) {
     skillDescriptionLabel.textContent = t("common.description", "Description");
@@ -2096,18 +2057,6 @@ function applyStaticLabels() {
   if (skillEffectAdd) {
     skillEffectAdd.textContent = t("skills.effects.add", "Add Effect");
   }
-  if (skillEffectCreateTitle) {
-    skillEffectCreateTitle.textContent = t("skills.effects.create", "Create Effect");
-  }
-  if (skillEffectNameLabel) {
-    skillEffectNameLabel.textContent = t("effects.name", "Effect Name");
-  }
-  if (skillEffectDescLabel) {
-    skillEffectDescLabel.textContent = t("effects.description", "Description");
-  }
-  if (skillEffectCreate) {
-    skillEffectCreate.textContent = t("skills.effects.create", "Create Effect");
-  }
   if (skillCancel) {
     skillCancel.textContent = t("common.cancel", "Cancel");
   }
@@ -2149,18 +2098,6 @@ function applyStaticLabels() {
   }
   if (spellEffectAdd) {
     spellEffectAdd.textContent = t("skills.effects.add", "Add Effect");
-  }
-  if (spellEffectCreateTitle) {
-    spellEffectCreateTitle.textContent = t("skills.effects.create", "Create Effect");
-  }
-  if (spellEffectNameLabel) {
-    spellEffectNameLabel.textContent = t("effects.name", "Effect Name");
-  }
-  if (spellEffectDescLabel) {
-    spellEffectDescLabel.textContent = t("effects.description", "Description");
-  }
-  if (spellEffectCreate) {
-    spellEffectCreate.textContent = t("skills.effects.create", "Create Effect");
   }
   if (spellCancel) {
     spellCancel.textContent = t("common.cancel", "Cancel");
@@ -3186,6 +3123,8 @@ function closeEditModal() {
   editReturnTo = "";
   editModifiers = [];
   editBonuses = [];
+  editModifierIndex = -1;
+  editBonusIndex = -1;
   resetEffectTypeSection();
   resetWeightSection();
   resetClassEditSection();
@@ -3217,6 +3156,12 @@ function resetClassEditSection() {
   editClassSkillIds = [];
   editClassRequiredScores = [];
   editClassSkillPointsByLevel = [];
+  editClassSkillIndex = -1;
+  editClassRequiredIndex = -1;
+  editClassSkillPointsIndex = -1;
+  setCollectionCommitMode(editClassSkillAdd, false);
+  setCollectionCommitMode(editClassRequiredAdd, false);
+  setCollectionCommitMode(editClassSkillPointsAdd, false);
   if (editClassSection) {
     editClassSection.classList.add("hidden");
   }
@@ -3266,6 +3211,8 @@ function resetClassEditSection() {
 
 function resetWeaponEditSection() {
   editWeaponEffectIds = [];
+  editWeaponEffectIndex = -1;
+  setCollectionCommitMode(editWeaponEffectAdd, false);
   if (editWeaponDamageField) {
     editWeaponDamageField.classList.add("hidden");
   }
@@ -3307,6 +3254,10 @@ function snapshotWeaponEdit() {
 function resetRaceEditSection() {
   editRaceSkillIds = [];
   editRaceAttributeLimits = [];
+  editRaceTraitIndex = -1;
+  editRaceAttributeIndex = -1;
+  setCollectionCommitMode(editRaceTraitAdd, false);
+  setCollectionCommitMode(editRaceAttributeAdd, false);
   if (editRaceSection) {
     editRaceSection.classList.add("hidden");
   }
@@ -3327,12 +3278,6 @@ function resetRaceEditSection() {
   }
   if (editRaceAttributeMax) {
     editRaceAttributeMax.value = "0";
-  }
-  if (editRaceTraitName) {
-    editRaceTraitName.value = "";
-  }
-  if (editRaceTraitDescription) {
-    editRaceTraitDescription.value = "";
   }
   if (editRaceStartingMoneyModifier) {
     editRaceStartingMoneyModifier.value = "0";
@@ -3402,7 +3347,7 @@ function openEffectTypeEditor(type) {
     editType.size = 1;
   }
   editContext = { kind: "effect-type", key: type.key };
-  editTitle.textContent = t("effecttypes.edit.title", "Edit Effect Type");
+  editTitle.textContent = t("effecttypes.edit.title", "Edit Affected System");
   editName.value = type.name || "";
   editDescription.value = type.description || "";
   editTypeField.classList.add("hidden");
@@ -3424,7 +3369,7 @@ async function openStatusEditor(status) {
   editTitle.textContent = t("statuses.edit.title", "Edit Status");
   editName.value = status.name || "";
   editDescription.value = status.description || "";
-  editTypeLabel.textContent = t("effects.type", "Type");
+  editTypeLabel.textContent = t("effects.type", "Affected Systems");
   editTypeField.classList.remove("hidden");
   editRangeFields.classList.add("hidden");
   editModifierSection.classList.add("hidden");
@@ -3441,16 +3386,16 @@ async function openStatusEditor(status) {
   editModal.classList.remove("hidden");
 }
 
-async function openStatusCreate() {
+async function openStatusCreate(prefill = null) {
   resetClassEditSection();
   resetWeaponEditSection();
   resetRaceEditSection();
   resetEffectTypeSection();
   editContext = { kind: "status-create" };
   editTitle.textContent = t("statuses.edit.title", "Edit Status");
-  editName.value = "";
-  editDescription.value = "";
-  editTypeLabel.textContent = t("effects.type", "Type");
+  editName.value = prefill ? String(prefill.name || "") : "";
+  editDescription.value = prefill ? String(prefill.description || "") : "";
+  editTypeLabel.textContent = t("effects.type", "Affected Systems");
   editTypeField.classList.remove("hidden");
   editRangeFields.classList.add("hidden");
   editModifierSection.classList.add("hidden");
@@ -3461,9 +3406,11 @@ async function openStatusCreate() {
     showToast(error.message);
   }
   setEditTypeListMode("add-list");
-  editEffectTypeKeys = Array.isArray(state.lastStatusEffectTypeKeys)
-    ? state.lastStatusEffectTypeKeys.slice()
-    : [];
+  editEffectTypeKeys = prefill && Array.isArray(prefill.effectTypeKeys)
+    ? prefill.effectTypeKeys.slice()
+    : Array.isArray(state.lastStatusEffectTypeKeys)
+      ? state.lastStatusEffectTypeKeys.slice()
+      : [];
   applyEffectTypeOptions(editType, "");
   renderEditEffectTypeList();
   editModal.classList.remove("hidden");
@@ -3507,10 +3454,15 @@ function openAttributeCreate(types) {
   editMaxValue.value = 0;
   editModifiers = usesDefaultAttributeModifiers() ? getStandardAttributeModifiers() : [];
   editBonuses = [];
+  editModifierIndex = -1;
+  editBonusIndex = -1;
+  setCollectionCommitMode(editModifierAdd, false);
+  setCollectionCommitMode(editBonusAdd, false);
   if (editModifierApplyAll) {
     editModifierApplyAll.checked = false;
   }
   renderEditModifiers();
+  populateAttributeBonusEffectSelect();
   renderEditBonuses();
   editModal.classList.remove("hidden");
 }
@@ -3552,11 +3504,21 @@ function openAttributeEditor(attribute, types) {
   editModifiers = usesDefaultAttributeModifiers()
     ? getStandardAttributeModifiers()
     : normalizeModifierEntries(attribute.modifiers);
-  editBonuses = Array.isArray(attribute.scoreBonuses) ? attribute.scoreBonuses.slice() : [];
+  editBonuses = Array.isArray(attribute.scoreBonuses)
+    ? attribute.scoreBonuses.map((entry) => ({
+      threshold: Number(entry.threshold || 0),
+      effectId: String(entry.effectId || entry.effect || ""),
+    })).filter((entry) => entry.effectId)
+    : [];
+  editModifierIndex = -1;
+  editBonusIndex = -1;
+  setCollectionCommitMode(editModifierAdd, false);
+  setCollectionCommitMode(editBonusAdd, false);
   if (editModifierApplyAll) {
     editModifierApplyAll.checked = false;
   }
   renderEditModifiers();
+  populateAttributeBonusEffectSelect();
   renderEditBonuses();
   editModal.classList.remove("hidden");
 }
@@ -3611,7 +3573,7 @@ async function openEffectEditor(effect) {
   editTitle.textContent = t("effects.edit.title", "Edit Effect");
   editName.value = effect.name || "";
   editDescription.value = effect.description || "";
-  editTypeLabel.textContent = t("effects.type", "Type");
+  editTypeLabel.textContent = t("effects.type", "Affected Systems");
   editTypeField.classList.remove("hidden");
   editRangeFields.classList.add("hidden");
   editModifierSection.classList.add("hidden");
@@ -3642,6 +3604,12 @@ async function openEffectCreateModal(origin, prefillName, prefillDescription, pr
       weapon: snapshotWeaponEdit(),
       parent: editSuspend,
     };
+  } else if (editContext && ["attribute", "attribute-create"].includes(editContext.kind)) {
+    editSuspend = {
+      kind: "attribute",
+      attribute: snapshotAttributeEdit(),
+      parent: editSuspend,
+    };
   }
   editReturnTo = suspendModalForEdit(safeOrigin);
   resetClassEditSection();
@@ -3653,7 +3621,7 @@ async function openEffectCreateModal(origin, prefillName, prefillDescription, pr
   editTitle.textContent = t("skills.effects.create", "Create Effect");
   editName.value = String(prefillName || "");
   editDescription.value = String(prefillDescription || "");
-  editTypeLabel.textContent = t("effects.type", "Type");
+  editTypeLabel.textContent = t("effects.type", "Affected Systems");
   editTypeField.classList.remove("hidden");
   editRangeFields.classList.add("hidden");
   editModifierSection.classList.add("hidden");
@@ -3716,7 +3684,12 @@ function applyEffectTypeOptions(select, selectedValue) {
     : [String(selectedValue || "")].filter(Boolean);
   const selectedLower = selectedValues.map((value) => value.toLowerCase());
   const includeNone = !select.multiple;
-  const options = (includeNone ? [`<option value="">${t("effects.type.none", "None")}</option>`] : [])
+  const options = (includeNone
+    ? [
+      `<option value="">${t("effects.type.none", "None")}</option>`,
+      `<option value="${NEW_INLINE_OPTION}">${t("effecttypes.new", "New Affected System")}</option>`,
+    ]
+    : [])
     .concat(
       (effectTypeOptions || []).map((type) => {
         const label = escapeHtml(type.name || type.displayName || "");
@@ -3802,9 +3775,6 @@ function setEditTypeListMode(mode) {
   if (editTypeAdd) {
     editTypeAdd.classList.toggle("hidden", !showList);
   }
-  if (editTypeCreate) {
-    editTypeCreate.classList.toggle("hidden", !showList);
-  }
   if (editTypeList) {
     editTypeList.classList.toggle("hidden", !showList);
     if (!showList) {
@@ -3821,6 +3791,8 @@ function setEditTypeListMode(mode) {
 
 function resetEffectTypeSection() {
   editEffectTypeKeys = [];
+  editEffectTypeIndex = -1;
+  setCollectionCommitMode(editTypeAdd, false);
   setEditTypeListMode("single");
 }
 
@@ -3835,11 +3807,25 @@ function restoreSuspendedEdit() {
     return true;
   }
   if (suspended.kind === "effect-create") {
+    const returnTo = editReturnTo;
     openEffectCreateModal(suspended.origin, suspended.name, suspended.description, suspended.effectTypeKeys);
+    editReturnTo = editReturnTo || returnTo;
+    return true;
+  }
+  if (suspended.kind === "status") {
+    openStatusEditor(suspended.status);
+    return true;
+  }
+  if (suspended.kind === "status-create") {
+    openStatusCreate(suspended.status);
     return true;
   }
   if (suspended.kind === "weapon") {
     openWeaponEditor(suspended.weapon);
+    return true;
+  }
+  if (suspended.kind === "attribute") {
+    restoreAttributeEdit(suspended.attribute);
     return true;
   }
   return false;
@@ -3867,9 +3853,30 @@ function openEffectTypeCreateModal(origin) {
       effectTypeKeys: editEffectTypeKeys.slice(),
       parent: editSuspend,
     };
+  } else if (editContext && editContext.kind === "status") {
+    editSuspend = {
+      kind: "status",
+      status: {
+        id: editContext.id,
+        name: String(editName.value || ""),
+        description: String(editDescription.value || ""),
+        effectTypeKeys: editEffectTypeKeys.slice(),
+      },
+      parent: editSuspend,
+    };
+  } else if (editContext && editContext.kind === "status-create") {
+    editSuspend = {
+      kind: "status-create",
+      status: {
+        name: String(editName.value || ""),
+        description: String(editDescription.value || ""),
+        effectTypeKeys: editEffectTypeKeys.slice(),
+      },
+      parent: editSuspend,
+    };
   }
   editContext = { kind: "effect-type-create", origin: safeOrigin };
-  editTitle.textContent = t("effecttypes.create.title", "Create Effect Type");
+  editTitle.textContent = t("effecttypes.create.title", "Create Affected System");
   editName.value = "";
   editDescription.value = "";
   editTypeField.classList.add("hidden");
@@ -4008,6 +4015,14 @@ function resolveEffectTypeLabel(typeKey) {
   return safeKey;
 }
 
+function renderEffectTypeBadges(typeKeys) {
+  return (Array.isArray(typeKeys) ? typeKeys : [])
+    .map((key) => resolveEffectTypeLabel(key))
+    .filter(Boolean)
+    .map((label) => ` <span class="badge">${escapeHtml(label)}</span>`)
+    .join("");
+}
+
 function renderEditEffectTypeList() {
   if (!editTypeList) {
     return;
@@ -4018,18 +4033,26 @@ function renderEditEffectTypeList() {
   }
   editTypeList.innerHTML = editEffectTypeKeys
     .map(
-      (key, index) => `
-        <div class="list-item">
-          <span>${escapeHtml(resolveEffectTypeLabel(key))}</span>
-          <button class="btn danger small" data-remove-edit-type="${index}">${t("common.remove", "Remove")}</button>
-        </div>
-      `
+      (key, index) => renderCollectionRow(
+        `<span>${escapeHtml(resolveEffectTypeLabel(key))}</span>`,
+        [
+          collectionEditAction("edit-edit-type", index),
+          collectionRemoveAction("remove-edit-type", index),
+        ]
+      )
     )
     .join("");
-  editTypeList.querySelectorAll("[data-remove-edit-type]").forEach((button) => {
+  editTypeList.querySelectorAll("[data-edit-edit-type], [data-remove-edit-type]").forEach((button) => {
     button.addEventListener("click", async () => {
-      const index = Number(button.dataset.removeEditType || -1);
+      const index = Number(button.dataset.editEditType ?? button.dataset.removeEditType ?? -1);
       if (Number.isNaN(index) || index < 0 || index >= editEffectTypeKeys.length) {
+        return;
+      }
+      if (button.hasAttribute("data-edit-edit-type")) {
+        editEffectTypeIndex = index;
+        editType.value = editEffectTypeKeys[index];
+        setCollectionCommitMode(editTypeAdd, true);
+        editType.focus();
         return;
       }
       const confirmed = await showConfirm(
@@ -4040,6 +4063,11 @@ function renderEditEffectTypeList() {
         return;
       }
       editEffectTypeKeys.splice(index, 1);
+      if (editEffectTypeIndex === index) {
+        editEffectTypeIndex = -1;
+        editType.value = "";
+        setCollectionCommitMode(editTypeAdd, false);
+      }
       renderEditEffectTypeList();
     });
   });
@@ -4051,11 +4079,14 @@ if (editTypeAdd) {
       return;
     }
     const value = String(editType.value || "").trim();
-    if (!value) {
+    if (!value || value === NEW_INLINE_OPTION) {
       return;
     }
     if (editContext && (editContext.kind === "status" || editContext.kind === "status-create")) {
-      const exists = editEffectTypeKeys.some((key) => {
+      const exists = editEffectTypeKeys.some((key, index) => {
+        if (index === editEffectTypeIndex) {
+          return false;
+        }
         return String(key || "").trim().toLowerCase() === value.toLowerCase();
       });
       if (exists) {
@@ -4063,15 +4094,25 @@ if (editTypeAdd) {
         return;
       }
     }
-    editEffectTypeKeys.push(value);
+    replaceOrAppendCollectionItem(editEffectTypeKeys, editEffectTypeIndex, value);
+    editEffectTypeIndex = -1;
     editType.value = "";
+    setCollectionCommitMode(editTypeAdd, false);
     renderEditEffectTypeList();
   });
 }
 
-if (editTypeCreate) {
-  editTypeCreate.addEventListener("click", () => {
-    const origin = editContext && editContext.kind === "effect-create" ? editContext.origin : "effects";
+if (editType) {
+  editType.addEventListener("change", () => {
+    if (editType.value !== NEW_INLINE_OPTION) {
+      return;
+    }
+    editType.value = "";
+    const origin = editContext && editContext.kind === "effect-create"
+      ? editContext.origin
+      : editContext && (editContext.kind === "status" || editContext.kind === "status-create")
+        ? "statuses"
+        : "effects";
     openEffectTypeCreateModal(origin);
   });
 }
@@ -4377,7 +4418,10 @@ function populateClassSkillSelect() {
   if (!editClassSkillSelect) {
     return;
   }
-  const options = [`<option value="">${t("classes.skills.select", "Select Skill")}</option>`]
+  const options = [
+    `<option value="">${t("classes.skills.select", "Select Skill")}</option>`,
+    `<option value="${NEW_INLINE_OPTION}">${t("skills.new", "New Skill")}</option>`,
+  ]
     .concat(
       (classSkillOptions || []).map((skill) => {
         const label = skill.displayName || skill.name || "";
@@ -4484,12 +4528,13 @@ function renderClassSkillList() {
   }
   editClassSkillList.innerHTML = editClassSkillIds
     .map(
-      (skillId, index) => `
-        <div class="list-item">
-          <span>${escapeHtml(resolveClassSkillLabel(skillId))}</span>
-          <button class="btn danger small" data-remove-class-skill="${index}">${t("common.remove", "Remove")}</button>
-        </div>
-      `
+      (skillId, index) => renderCollectionRow(
+        `<span>${escapeHtml(resolveClassSkillLabel(skillId))}</span>`,
+        [
+          collectionEditAction("edit-class-skill", index),
+          collectionRemoveAction("remove-class-skill", index),
+        ]
+      )
     )
     .join("");
 }
@@ -4507,12 +4552,13 @@ function renderClassRequiredList() {
   }
   editClassRequiredList.innerHTML = editClassRequiredScores
     .map(
-      (entry, index) => `
-        <div class="list-item">
-          <span>${escapeHtml(resolveClassAttributeLabel(entry.attributeId))} : ${escapeHtml(entry.score)}</span>
-          <button class="btn danger small" data-remove-class-req="${index}">${t("common.remove", "Remove")}</button>
-        </div>
-      `
+      (entry, index) => renderCollectionRow(
+        `<span>${escapeHtml(resolveClassAttributeLabel(entry.attributeId))} : ${escapeHtml(entry.score)}</span>`,
+        [
+          collectionEditAction("edit-class-req", index),
+          collectionRemoveAction("remove-class-req", index),
+        ]
+      )
     )
     .join("");
 }
@@ -4530,12 +4576,13 @@ function renderClassSkillPointsList() {
   }
   editClassSkillPointsList.innerHTML = editClassSkillPointsByLevel
     .map(
-      (entry, index) => `
-        <div class="list-item">
-          <span>${t("classes.skill_points.level.label", `Level ${entry.level}`).replace("{0}", String(entry.level))} : ${entry.points}</span>
-          <button class="btn danger small" data-remove-class-skill-points="${index}">${t("common.remove", "Remove")}</button>
-        </div>
-      `
+      (entry, index) => renderCollectionRow(
+        `<span>${t("classes.skill_points.level.label", `Level ${entry.level}`).replace("{0}", String(entry.level))} : ${entry.points}</span>`,
+        [
+          collectionEditAction("edit-class-skill-points", index),
+          collectionRemoveAction("remove-class-skill-points", index),
+        ]
+      )
     )
     .join("");
 }
@@ -4563,7 +4610,10 @@ function populateRaceTraitSelect() {
   if (!editRaceTraitSelect) {
     return;
   }
-  const options = [`<option value="">${t("races.traits.select", "Select Trait")}</option>`]
+  const options = [
+    `<option value="">${t("races.traits.select", "Select Trait")}</option>`,
+    `<option value="${NEW_INLINE_OPTION}">${t("skills.new", "New Skill")}</option>`,
+  ]
     .concat(
       (raceSkillOptions || []).map((skill) => {
         const label = escapeHtml(skill.displayName || skill.name || "");
@@ -4595,12 +4645,10 @@ function renderRaceTraitList() {
   editRaceTraitList.innerHTML = editRaceSkillIds
     .map((skillId, index) => {
       const label = escapeHtml(resolveRaceTraitLabel(skillId));
-      return `
-        <div class="list-item">
-          <span>${label}</span>
-          <button class="btn danger small" data-remove-race-trait="${index}">${t("common.remove", "Remove")}</button>
-        </div>
-      `;
+      return renderCollectionRow(`<span>${label}</span>`, [
+        collectionEditAction("edit-race-trait", index),
+        collectionRemoveAction("remove-race-trait", index),
+      ]);
     })
     .join("");
 }
@@ -4645,12 +4693,13 @@ function renderRaceAttributeList() {
       const label = escapeHtml(resolveRaceAttributeLabel(limit.attributeId));
       const minValue = Number(limit.min || 0);
       const maxValue = Number(limit.max || 0);
-      return `
-        <div class="list-item">
-          <span>${label} (${minLabel}: ${minValue}, ${maxLabel}: ${maxValue})</span>
-          <button class="btn danger small" data-remove-race-attribute="${index}">${t("common.remove", "Remove")}</button>
-        </div>
-      `;
+      return renderCollectionRow(
+        `<span>${label} (${minLabel}: ${minValue}, ${maxLabel}: ${maxValue})</span>`,
+        [
+          collectionEditAction("edit-race-attribute", index),
+          collectionRemoveAction("remove-race-attribute", index),
+        ]
+      );
     })
     .join("");
 }
@@ -4659,7 +4708,10 @@ function populateWeaponEffectSelect() {
   if (!editWeaponEffectSelect) {
     return;
   }
-  const options = [`<option value="">${t("skills.effects.select", "Select Effect")}</option>`]
+  const options = [
+    `<option value="">${t("skills.effects.select", "Select Effect")}</option>`,
+    `<option value="${NEW_INLINE_OPTION}">${t("skills.effects.new", "New Effect")}</option>`,
+  ]
     .concat(
       (weaponEffectOptions || []).map((effect) => {
         const label = escapeHtml(effect.name || effect.displayName || "");
@@ -4691,21 +4743,35 @@ function renderWeaponEffectList() {
   editWeaponEffectList.innerHTML = editWeaponEffectIds
     .map((effectId, index) => {
       const label = escapeHtml(resolveWeaponEffectLabel(effectId));
-      return `
-        <div class="list-item">
-          <span>${label}</span>
-          <button class="btn danger small" data-remove-weapon-effect="${index}">${t("common.remove", "Remove")}</button>
-        </div>
-      `;
+      return renderCollectionRow(`<span>${label}</span>`, [
+        collectionEditAction("edit-weapon-effect", index),
+        collectionRemoveAction("remove-weapon-effect", index),
+      ]);
     })
     .join("");
-  document.querySelectorAll("[data-remove-weapon-effect]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const index = Number(button.dataset.removeWeaponEffect || -1);
+  editWeaponEffectList.querySelectorAll("[data-edit-weapon-effect], [data-remove-weapon-effect]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const index = Number(button.dataset.editWeaponEffect ?? button.dataset.removeWeaponEffect ?? -1);
       if (index < 0) {
         return;
       }
+      if (button.hasAttribute("data-edit-weapon-effect")) {
+        editWeaponEffectIndex = index;
+        editWeaponEffectSelect.value = editWeaponEffectIds[index] || "";
+        setCollectionCommitMode(editWeaponEffectAdd, true);
+        editWeaponEffectSelect.focus();
+        return;
+      }
+      const confirmed = await showConfirm(
+        t("common.remove.confirm", "Remove selected item?"),
+        t("common.remove", "Remove")
+      );
+      if (!confirmed) {
+        return;
+      }
       editWeaponEffectIds.splice(index, 1);
+      editWeaponEffectIndex = -1;
+      setCollectionCommitMode(editWeaponEffectAdd, false);
       renderWeaponEffectList();
     });
   });
@@ -4725,7 +4791,10 @@ function renderEditModifiers() {
       (entry, index) => `
         <div class="list-item">
           <span>${entry.score} → ${entry.modifier}</span>
-          <button class="btn danger small" data-remove-modifier="${index}">${t("common.remove", "Remove")}</button>
+          <div class="actions">
+            ${collectionEditAction("edit-modifier", index)}
+            ${collectionRemoveAction("remove-modifier", index)}
+          </div>
         </div>
       `
     )
@@ -4744,12 +4813,37 @@ function renderEditBonuses() {
     .map(
       (entry, index) => `
         <div class="list-item">
-          <span>${entry.threshold} : ${escapeHtml(entry.effect)}</span>
-          <button class="btn danger small" data-remove-bonus="${index}">${t("common.remove", "Remove")}</button>
+          <span>${entry.threshold} : ${escapeHtml(resolveAttributeBonusEffectLabel(entry.effectId))}</span>
+          <div class="actions">
+            ${collectionEditAction("edit-bonus", index)}
+            ${collectionRemoveAction("remove-bonus", index)}
+          </div>
         </div>
       `
     )
     .join("");
+}
+
+function populateAttributeBonusEffectSelect(selectedValue = "") {
+  if (!editBonusEffect) {
+    return;
+  }
+  const safeSelected = String(selectedValue || "");
+  editBonusEffect.innerHTML = [
+    `<option value="">${t("attributes.edit.bonus.select", "Select Effect")}</option>`,
+    `<option value="${NEW_INLINE_OPTION}">${t("skills.effects.new", "New Effect")}</option>`,
+    ...(attributeEffectOptions || []).map((effect) => {
+      const effectId = String(effect.id || "");
+      const label = String(effect.displayName || effect.name || effectId);
+      return `<option value="${escapeHtml(effectId)}"${effectId === safeSelected ? " selected" : ""}>${escapeHtml(label)}</option>`;
+    }),
+  ].join("");
+}
+
+function resolveAttributeBonusEffectLabel(effectId) {
+  const safeId = String(effectId || "").trim();
+  const effect = (attributeEffectOptions || []).find((entry) => String(entry.id || "") === safeId);
+  return effect ? String(effect.displayName || effect.name || safeId) : safeId;
 }
 
 function closeSkillModal() {
@@ -4761,6 +4855,12 @@ function closeSkillModal() {
   skillEffects = [];
   skillLimitedClassIds = [];
   skillLimitedRaceIds = [];
+  skillEffectIndex = -1;
+  skillClassLimitIndex = -1;
+  skillRaceLimitIndex = -1;
+  setCollectionCommitMode(skillEffectAdd, false);
+  setCollectionCommitMode(skillClassLimitAdd, false);
+  setCollectionCommitMode(skillRaceLimitAdd, false);
   if (skillReturnToEdit && editModal) {
     editModal.classList.remove("hidden");
   }
@@ -4771,7 +4871,10 @@ function renderSkillEffectOptions() {
   if (!skillEffectSelect) {
     return;
   }
-  const options = [`<option value="">${t("skills.effects.select", "Select Effect")}</option>`]
+  const options = [
+    `<option value="">${t("skills.effects.select", "Select Effect")}</option>`,
+    `<option value="${NEW_INLINE_OPTION}">${t("skills.effects.new", "New Effect")}</option>`,
+  ]
     .concat(
       (skillEffectOptions || []).map(
         (effect) => `<option value="${escapeHtml(effect.name || "")}">${escapeHtml(effect.name || "")}</option>`
@@ -4786,7 +4889,10 @@ function renderSkillCategoryOptions(selectedValue) {
     return;
   }
   let safeValue = String(selectedValue || "");
-  const options = [`<option value="">${t("skills.category.none", "None")}</option>`]
+  const options = [
+    `<option value="">${t("skills.category.none", "None")}</option>`,
+    `<option value="${NEW_INLINE_OPTION}">${t("skills.category.new", "New Category")}</option>`,
+  ]
     .concat(
       (skillCategoryOptions || []).map((category) => {
         const label = category.displayName || category.name || category.key || "";
@@ -4811,6 +4917,7 @@ function renderSkillCategoryOptions(selectedValue) {
     }
   }
   skillCategorySelect.value = safeValue;
+  skillCategorySelect.dataset.previousValue = safeValue;
 }
 
 function resolveSkillCategoryLabel(categoryKey) {
@@ -4886,7 +4993,10 @@ function renderSkillEffectList() {
       (effectName, index) => `
         <div class="list-item">
           <span>${escapeHtml(effectName)}</span>
-          <button class="btn danger small" data-remove-skill-effect="${index}">${t("common.remove", "Remove")}</button>
+          <div class="actions">
+            ${collectionEditAction("edit-skill-effect", index)}
+            ${collectionRemoveAction("remove-skill-effect", index)}
+          </div>
         </div>
       `
     )
@@ -4962,7 +5072,10 @@ function renderSkillClassLimitList() {
       (classId, index) => `
         <div class="list-item">
           <span>${escapeHtml(resolveSkillClassName(classId))}</span>
-          <button class="btn danger small" data-remove-skill-class-limit="${index}">${t("common.remove", "Remove")}</button>
+          <div class="actions">
+            ${collectionEditAction("edit-skill-class-limit", index)}
+            ${collectionRemoveAction("remove-skill-class-limit", index)}
+          </div>
         </div>
       `
     )
@@ -4982,7 +5095,10 @@ function renderSkillRaceLimitList() {
       (raceId, index) => `
         <div class="list-item">
           <span>${escapeHtml(resolveSkillRaceName(raceId))}</span>
-          <button class="btn danger small" data-remove-skill-race-limit="${index}">${t("common.remove", "Remove")}</button>
+          <div class="actions">
+            ${collectionEditAction("edit-skill-race-limit", index)}
+            ${collectionRemoveAction("remove-skill-race-limit", index)}
+          </div>
         </div>
       `
     )
@@ -5024,6 +5140,12 @@ async function openSkillEditor(skill) {
     return;
   }
   skillContext = { id: skill.id, mode: "edit", origin: "skills" };
+  skillEffectIndex = -1;
+  skillClassLimitIndex = -1;
+  skillRaceLimitIndex = -1;
+  setCollectionCommitMode(skillEffectAdd, false);
+  setCollectionCommitMode(skillClassLimitAdd, false);
+  setCollectionCommitMode(skillRaceLimitAdd, false);
   skillNameInput.value = skill.name || "";
   skillDescriptionInput.value = skill.description || "";
   renderSkillCategoryOptions(skill.category || "");
@@ -5060,6 +5182,12 @@ async function openSkillCreateModal(origin, prefillName, prefillDescription) {
     return;
   }
   skillContext = { mode: "create", origin: String(origin || "") };
+  skillEffectIndex = -1;
+  skillClassLimitIndex = -1;
+  skillRaceLimitIndex = -1;
+  setCollectionCommitMode(skillEffectAdd, false);
+  setCollectionCommitMode(skillClassLimitAdd, false);
+  setCollectionCommitMode(skillRaceLimitAdd, false);
   skillNameInput.value = String(prefillName || "");
   skillDescriptionInput.value = String(prefillDescription || "");
   skillTrainedOnly.checked = false;
@@ -5092,6 +5220,8 @@ function closeSpellModal() {
   spellModal.classList.add("hidden");
   spellContext = null;
   spellEffects = [];
+  spellEffectIndex = -1;
+  setCollectionCommitMode(spellEffectAdd, false);
   if (spellDamageTypeSelect) {
     spellDamageTypeSelect.innerHTML = "";
   }
@@ -5101,7 +5231,10 @@ function renderSpellEffectOptions(selectedValue) {
   if (!spellEffectSelect) {
     return;
   }
-  const options = [`<option value="">${t("skills.effects.select", "Select Effect")}</option>`]
+  const options = [
+    `<option value="">${t("skills.effects.select", "Select Effect")}</option>`,
+    `<option value="${NEW_INLINE_OPTION}">${t("skills.effects.new", "New Effect")}</option>`,
+  ]
     .concat(
       (spellEffectOptions || []).map(
         (effect) => `<option value="${escapeHtml(effect.name || "")}">${escapeHtml(effect.name || "")}</option>`
@@ -5125,7 +5258,10 @@ function renderSpellEffectList() {
       (effectName, index) => `
         <div class="list-item">
           <span>${escapeHtml(effectName)}</span>
-          <button class="btn danger small" data-remove-spell-effect="${index}">${t("common.remove", "Remove")}</button>
+          <div class="actions">
+            ${collectionEditAction("edit-spell-effect", index)}
+            ${collectionRemoveAction("remove-spell-effect", index)}
+          </div>
         </div>
       `
     )
@@ -5137,6 +5273,8 @@ async function openSpellEditor(spell) {
     return;
   }
   spellContext = { id: spell.id, mode: "edit" };
+  spellEffectIndex = -1;
+  setCollectionCommitMode(spellEffectAdd, false);
   spellNameInput.value = spell.name || "";
   spellDescriptionInput.value = spell.description || "";
   spellSchoolInput.value = spell.school || "";
@@ -5173,6 +5311,8 @@ async function openSpellCreateModal() {
     return;
   }
   spellContext = { mode: "create" };
+  spellEffectIndex = -1;
+  setCollectionCommitMode(spellEffectAdd, false);
   spellNameInput.value = "";
   spellDescriptionInput.value = "";
   spellSchoolInput.value = "";
@@ -5279,17 +5419,13 @@ async function renderRaces(openRaceId = "") {
 
     const raceList = races
       .map(
-        (race) => `
-          <div class="list-item">
-            <div>
-              <strong>${escapeHtml(race.name || t("races.untitled", "Untitled"))}</strong>
-            </div>
-            <div>
-              <button class="btn ghost small" data-edit-race="${race.id}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" data-remove-race="${race.id}">${t("common.remove", "Remove")}</button>
-            </div>
-          </div>
-        `
+        (race) => renderCollectionRow(
+          `<div><strong>${escapeHtml(race.name || t("races.untitled", "Untitled"))}</strong></div>`,
+          [
+            collectionEditAction("edit-race", race.id),
+            collectionRemoveAction("remove-race", race.id),
+          ]
+        )
       )
       .join("");
 
@@ -5366,7 +5502,11 @@ editCancel.addEventListener("click", closeEditModal);
 editModifierAdd.addEventListener("click", () => {
   const score = Number(editModifierScore.value || 0);
   const modifier = Number(editModifierValue.value || 0);
-  editModifiers.push({ score, modifier });
+  replaceOrAppendCollectionItem(editModifiers, editModifierIndex, { score, modifier });
+  editModifierIndex = -1;
+  editModifierScore.value = "0";
+  editModifierValue.value = "0";
+  setCollectionCommitMode(editModifierAdd, false);
   renderEditModifiers();
 });
 
@@ -5382,22 +5522,52 @@ if (editModifierApplyAll) {
 
 editBonusAdd.addEventListener("click", () => {
   const threshold = Number(editBonusThreshold.value || 0);
-  const effect = String(editBonusEffect.value || "").trim();
-  if (!effect) {
-    showToast(t("common.name.required", "Name is required."));
+  const effectId = String(editBonusEffect.value || "").trim();
+  if (!effectId || effectId === NEW_INLINE_OPTION) {
+    showToast(t("attributes.edit.bonus.effect.required", "Select an Effect."));
     return;
   }
-  editBonuses.push({ threshold, effect });
+  const duplicate = editBonuses.some(
+    (entry, index) => index !== editBonusIndex
+      && Number(entry.threshold || 0) === threshold
+      && String(entry.effectId || "") === effectId
+  );
+  if (!duplicate) {
+    replaceOrAppendCollectionItem(editBonuses, editBonusIndex, { threshold, effectId });
+  }
+  editBonusIndex = -1;
   editBonusEffect.value = "";
+  setCollectionCommitMode(editBonusAdd, false);
+  populateAttributeBonusEffectSelect();
   renderEditBonuses();
 });
 
+editBonusEffect.addEventListener("change", () => {
+  if (editBonusEffect.value !== NEW_INLINE_OPTION) {
+    return;
+  }
+  editBonusEffect.value = "";
+  openEffectCreateModal("attribute");
+});
+
 editModifierList.addEventListener("click", async (event) => {
-  const button = event.target.closest("button[data-remove-modifier]");
+  const button = event.target.closest("button[data-edit-modifier], button[data-remove-modifier]");
   if (!button) {
     return;
   }
-  const index = Number(button.dataset.removeModifier);
+  const index = Number(button.dataset.editModifier ?? button.dataset.removeModifier);
+  if (button.hasAttribute("data-edit-modifier")) {
+    const entry = editModifiers[index];
+    if (!entry) {
+      return;
+    }
+    editModifierIndex = index;
+    editModifierScore.value = String(entry.score);
+    editModifierValue.value = String(entry.modifier);
+    setCollectionCommitMode(editModifierAdd, true);
+    editModifierScore.focus();
+    return;
+  }
   const confirmed = await showConfirm(
     t("common.remove.confirm", "Remove selected item?"),
     t("common.remove", "Remove")
@@ -5406,15 +5576,29 @@ editModifierList.addEventListener("click", async (event) => {
     return;
   }
   editModifiers.splice(index, 1);
+  editModifierIndex = -1;
+  setCollectionCommitMode(editModifierAdd, false);
   renderEditModifiers();
 });
 
 editBonusList.addEventListener("click", async (event) => {
-  const button = event.target.closest("button[data-remove-bonus]");
+  const button = event.target.closest("button[data-edit-bonus], button[data-remove-bonus]");
   if (!button) {
     return;
   }
-  const index = Number(button.dataset.removeBonus);
+  const index = Number(button.dataset.editBonus ?? button.dataset.removeBonus);
+  if (button.hasAttribute("data-edit-bonus")) {
+    const entry = editBonuses[index];
+    if (!entry) {
+      return;
+    }
+    editBonusIndex = index;
+    editBonusThreshold.value = String(entry.threshold);
+    populateAttributeBonusEffectSelect(entry.effectId);
+    setCollectionCommitMode(editBonusAdd, true);
+    editBonusThreshold.focus();
+    return;
+  }
   const confirmed = await showConfirm(
     t("common.remove.confirm", "Remove selected item?"),
     t("common.remove", "Remove")
@@ -5423,17 +5607,23 @@ editBonusList.addEventListener("click", async (event) => {
     return;
   }
   editBonuses.splice(index, 1);
+  editBonusIndex = -1;
+  setCollectionCommitMode(editBonusAdd, false);
   renderEditBonuses();
 });
 
 if (editRaceTraitAdd) {
   editRaceTraitAdd.addEventListener("click", () => {
     const skillId = String(editRaceTraitSelect.value || "").trim();
-    if (!skillId) {
+    if (!skillId || skillId === NEW_INLINE_OPTION) {
       return;
     }
-    if (!editRaceSkillIds.includes(skillId)) {
-      editRaceSkillIds.push(skillId);
+    const duplicate = editRaceSkillIds.some((entry, index) => entry === skillId && index !== editRaceTraitIndex);
+    if (!duplicate) {
+      replaceOrAppendCollectionItem(editRaceSkillIds, editRaceTraitIndex, skillId);
+      editRaceTraitIndex = -1;
+      editRaceTraitSelect.value = "";
+      setCollectionCommitMode(editRaceTraitAdd, false);
       renderRaceTraitList();
     }
   });
@@ -5452,14 +5642,20 @@ if (editRaceAttributeAdd) {
       return;
     }
     const existingIndex = editRaceAttributeLimits.findIndex(
-      (limit) => String(limit.attributeId || "") === attributeId
+      (limit, index) => String(limit.attributeId || "") === attributeId && index !== editRaceAttributeIndex
     );
     const entry = { attributeId, min: minValue, max: maxValue };
     if (existingIndex >= 0) {
       editRaceAttributeLimits[existingIndex] = entry;
+      if (editRaceAttributeIndex >= 0 && editRaceAttributeIndex !== existingIndex) {
+        editRaceAttributeLimits.splice(editRaceAttributeIndex, 1);
+      }
     } else {
-      editRaceAttributeLimits.push(entry);
+      replaceOrAppendCollectionItem(editRaceAttributeLimits, editRaceAttributeIndex, entry);
     }
+    editRaceAttributeIndex = -1;
+    editRaceAttributeSelect.value = "";
+    setCollectionCommitMode(editRaceAttributeAdd, false);
     renderRaceAttributeList();
   });
 }
@@ -5467,17 +5663,25 @@ if (editRaceAttributeAdd) {
 if (editWeaponEffectAdd) {
   editWeaponEffectAdd.addEventListener("click", () => {
     const effectId = String(editWeaponEffectSelect.value || "").trim();
-    if (!effectId) {
+    if (!effectId || effectId === NEW_INLINE_OPTION) {
       return;
     }
-    if (!editWeaponEffectIds.includes(effectId)) {
-      editWeaponEffectIds.push(effectId);
+    const duplicate = editWeaponEffectIds.some((entry, index) => entry === effectId && index !== editWeaponEffectIndex);
+    if (!duplicate) {
+      replaceOrAppendCollectionItem(editWeaponEffectIds, editWeaponEffectIndex, effectId);
+      editWeaponEffectIndex = -1;
+      editWeaponEffectSelect.value = "";
+      setCollectionCommitMode(editWeaponEffectAdd, false);
       renderWeaponEffectList();
     }
   });
 }
-if (editWeaponEffectCreate) {
-  editWeaponEffectCreate.addEventListener("click", async () => {
+if (editWeaponEffectSelect) {
+  editWeaponEffectSelect.addEventListener("change", async () => {
+    if (editWeaponEffectSelect.value !== NEW_INLINE_OPTION) {
+      return;
+    }
+    editWeaponEffectSelect.value = "";
     await openEffectCreateModal("weapon", "", "", state.lastEffectTypeKeys);
   });
 }
@@ -5485,11 +5689,15 @@ if (editWeaponEffectCreate) {
 if (editClassSkillAdd) {
   editClassSkillAdd.addEventListener("click", () => {
     const skillId = String(editClassSkillSelect.value || "").trim();
-    if (!skillId) {
+    if (!skillId || skillId === NEW_INLINE_OPTION) {
       return;
     }
-    if (!editClassSkillIds.includes(skillId)) {
-      editClassSkillIds.push(skillId);
+    const duplicate = editClassSkillIds.some((entry, index) => entry === skillId && index !== editClassSkillIndex);
+    if (!duplicate) {
+      replaceOrAppendCollectionItem(editClassSkillIds, editClassSkillIndex, skillId);
+      editClassSkillIndex = -1;
+      editClassSkillSelect.value = "";
+      setCollectionCommitMode(editClassSkillAdd, false);
       renderClassSkillList();
     }
   });
@@ -5497,11 +5705,18 @@ if (editClassSkillAdd) {
 
 if (editClassSkillList) {
   editClassSkillList.addEventListener("click", async (event) => {
-    const button = event.target.closest("button[data-remove-class-skill]");
+    const button = event.target.closest("button[data-edit-class-skill], button[data-remove-class-skill]");
     if (!button) {
       return;
     }
-    const index = Number(button.dataset.removeClassSkill);
+    const index = Number(button.dataset.editClassSkill ?? button.dataset.removeClassSkill);
+    if (button.hasAttribute("data-edit-class-skill")) {
+      editClassSkillIndex = index;
+      editClassSkillSelect.value = editClassSkillIds[index] || "";
+      setCollectionCommitMode(editClassSkillAdd, true);
+      editClassSkillSelect.focus();
+      return;
+    }
     const confirmed = await showConfirm(
       t("common.remove.confirm", "Remove selected item?"),
       t("common.remove", "Remove")
@@ -5510,12 +5725,18 @@ if (editClassSkillList) {
       return;
     }
     editClassSkillIds.splice(index, 1);
+    editClassSkillIndex = -1;
+    setCollectionCommitMode(editClassSkillAdd, false);
     renderClassSkillList();
   });
 }
 
-if (editClassSkillCreate) {
-  editClassSkillCreate.addEventListener("click", async () => {
+if (editClassSkillSelect) {
+  editClassSkillSelect.addEventListener("change", async () => {
+    if (editClassSkillSelect.value !== NEW_INLINE_OPTION) {
+      return;
+    }
+    editClassSkillSelect.value = "";
     await openSkillCreateModal("class", "", "");
   });
 }
@@ -5536,6 +5757,9 @@ if (editClassSkillPointsAdd) {
       return;
     }
     const points = Math.max(0, Number(editClassSkillPointsValue ? editClassSkillPointsValue.value : 0));
+    if (editClassSkillPointsIndex >= 0 && editClassSkillPointsIndex < editClassSkillPointsByLevel.length) {
+      editClassSkillPointsByLevel.splice(editClassSkillPointsIndex, 1);
+    }
     const existingIndex = editClassSkillPointsByLevel.findIndex((entry) => entry.level === level);
     const entry = { level, points };
     if (existingIndex >= 0) {
@@ -5544,20 +5768,35 @@ if (editClassSkillPointsAdd) {
       editClassSkillPointsByLevel.push(entry);
     }
     editClassSkillPointsByLevel.sort((left, right) => left.level - right.level);
+    editClassSkillPointsIndex = -1;
+    editClassSkillPointsLevel.value = "";
+    setCollectionCommitMode(editClassSkillPointsAdd, false);
     renderClassSkillPointsList();
   });
 }
 
 if (editClassSkillPointsList) {
   editClassSkillPointsList.addEventListener("click", async (event) => {
-    const button = event.target.closest("button[data-remove-class-skill-points]");
+    const button = event.target.closest("button[data-edit-class-skill-points], button[data-remove-class-skill-points]");
     if (!button) {
       return;
     }
     if (editClassSkillPointsSame && editClassSkillPointsSame.checked) {
       return;
     }
-    const index = Number(button.dataset.removeClassSkillPoints);
+    const index = Number(button.dataset.editClassSkillPoints ?? button.dataset.removeClassSkillPoints);
+    if (button.hasAttribute("data-edit-class-skill-points")) {
+      const entry = editClassSkillPointsByLevel[index];
+      if (!entry) {
+        return;
+      }
+      editClassSkillPointsIndex = index;
+      editClassSkillPointsLevel.value = String(entry.level);
+      editClassSkillPointsValue.value = String(entry.points);
+      setCollectionCommitMode(editClassSkillPointsAdd, true);
+      editClassSkillPointsLevel.focus();
+      return;
+    }
     const confirmed = await showConfirm(
       t("common.remove.confirm", "Remove selected item?"),
       t("common.remove", "Remove")
@@ -5566,6 +5805,8 @@ if (editClassSkillPointsList) {
       return;
     }
     editClassSkillPointsByLevel.splice(index, 1);
+    editClassSkillPointsIndex = -1;
+    setCollectionCommitMode(editClassSkillPointsAdd, false);
     renderClassSkillPointsList();
   });
 }
@@ -5578,25 +5819,43 @@ if (editClassRequiredAdd) {
       return;
     }
     const existingIndex = editClassRequiredScores.findIndex(
-      (entry) => String(entry.attributeId || "") === attributeId
+      (entry, index) => String(entry.attributeId || "") === attributeId && index !== editClassRequiredIndex
     );
     const entry = { attributeId, score: scoreValue };
     if (existingIndex >= 0) {
       editClassRequiredScores.splice(existingIndex, 1, entry);
+      if (editClassRequiredIndex >= 0 && editClassRequiredIndex !== existingIndex) {
+        editClassRequiredScores.splice(editClassRequiredIndex, 1);
+      }
     } else {
-      editClassRequiredScores.push(entry);
+      replaceOrAppendCollectionItem(editClassRequiredScores, editClassRequiredIndex, entry);
     }
+    editClassRequiredIndex = -1;
+    editClassRequiredSelect.value = "";
+    setCollectionCommitMode(editClassRequiredAdd, false);
     renderClassRequiredList();
   });
 }
 
 if (editClassRequiredList) {
   editClassRequiredList.addEventListener("click", async (event) => {
-    const button = event.target.closest("button[data-remove-class-req]");
+    const button = event.target.closest("button[data-edit-class-req], button[data-remove-class-req]");
     if (!button) {
       return;
     }
-    const index = Number(button.dataset.removeClassReq);
+    const index = Number(button.dataset.editClassReq ?? button.dataset.removeClassReq);
+    if (button.hasAttribute("data-edit-class-req")) {
+      const entry = editClassRequiredScores[index];
+      if (!entry) {
+        return;
+      }
+      editClassRequiredIndex = index;
+      editClassRequiredSelect.value = entry.attributeId || "";
+      editClassRequiredScore.value = String(entry.score);
+      setCollectionCommitMode(editClassRequiredAdd, true);
+      editClassRequiredSelect.focus();
+      return;
+    }
     const confirmed = await showConfirm(
       t("common.remove.confirm", "Remove selected item?"),
       t("common.remove", "Remove")
@@ -5605,17 +5864,26 @@ if (editClassRequiredList) {
       return;
     }
     editClassRequiredScores.splice(index, 1);
+    editClassRequiredIndex = -1;
+    setCollectionCommitMode(editClassRequiredAdd, false);
     renderClassRequiredList();
   });
 }
 
 if (editRaceTraitList) {
   editRaceTraitList.addEventListener("click", async (event) => {
-    const button = event.target.closest("button[data-remove-race-trait]");
+    const button = event.target.closest("button[data-edit-race-trait], button[data-remove-race-trait]");
     if (!button) {
       return;
     }
-    const index = Number(button.dataset.removeRaceTrait);
+    const index = Number(button.dataset.editRaceTrait ?? button.dataset.removeRaceTrait);
+    if (button.hasAttribute("data-edit-race-trait")) {
+      editRaceTraitIndex = index;
+      editRaceTraitSelect.value = editRaceSkillIds[index] || "";
+      setCollectionCommitMode(editRaceTraitAdd, true);
+      editRaceTraitSelect.focus();
+      return;
+    }
     const confirmed = await showConfirm(
       t("common.remove.confirm", "Remove selected item?"),
       t("common.remove", "Remove")
@@ -5624,17 +5892,32 @@ if (editRaceTraitList) {
       return;
     }
     editRaceSkillIds.splice(index, 1);
+    editRaceTraitIndex = -1;
+    setCollectionCommitMode(editRaceTraitAdd, false);
     renderRaceTraitList();
   });
 }
 
 if (editRaceAttributeList) {
   editRaceAttributeList.addEventListener("click", async (event) => {
-    const button = event.target.closest("button[data-remove-race-attribute]");
+    const button = event.target.closest("button[data-edit-race-attribute], button[data-remove-race-attribute]");
     if (!button) {
       return;
     }
-    const index = Number(button.dataset.removeRaceAttribute);
+    const index = Number(button.dataset.editRaceAttribute ?? button.dataset.removeRaceAttribute);
+    if (button.hasAttribute("data-edit-race-attribute")) {
+      const entry = editRaceAttributeLimits[index];
+      if (!entry) {
+        return;
+      }
+      editRaceAttributeIndex = index;
+      editRaceAttributeSelect.value = entry.attributeId || "";
+      editRaceAttributeMin.value = String(entry.min);
+      editRaceAttributeMax.value = String(entry.max);
+      setCollectionCommitMode(editRaceAttributeAdd, true);
+      editRaceAttributeSelect.focus();
+      return;
+    }
     const confirmed = await showConfirm(
       t("common.remove.confirm", "Remove selected item?"),
       t("common.remove", "Remove")
@@ -5643,12 +5926,18 @@ if (editRaceAttributeList) {
       return;
     }
     editRaceAttributeLimits.splice(index, 1);
+    editRaceAttributeIndex = -1;
+    setCollectionCommitMode(editRaceAttributeAdd, false);
     renderRaceAttributeList();
   });
 }
 
-if (editRaceTraitCreate) {
-  editRaceTraitCreate.addEventListener("click", async () => {
+if (editRaceTraitSelect) {
+  editRaceTraitSelect.addEventListener("change", async () => {
+    if (editRaceTraitSelect.value !== NEW_INLINE_OPTION) {
+      return;
+    }
+    editRaceTraitSelect.value = "";
     await openSkillCreateModal("race", "", "");
   });
 }
@@ -5697,7 +5986,7 @@ editOk.addEventListener("click", async () => {
         name,
         description,
       });
-      markSaved(t("web.toast.effect_type_updated", "Effect type updated"));
+      markSaved(t("web.toast.effect_type_updated", "Affected system updated"));
       closeEditModal();
       renderEffectTypes();
     } catch (error) {
@@ -5767,7 +6056,7 @@ editOk.addEventListener("click", async () => {
     const origin = String(editContext.origin || "");
     try {
       const result = await api("POST", `/api/drafts/${state.draftId}/effect-types`, { name, description });
-      markSaved(t("web.toast.effect_type_added", "Effect type added"));
+      markSaved(t("web.toast.effect_type_added", "Affected system added"));
       const createdName = String(result.name || name);
       const createdKey = String(result.key || createdName);
       const entry = {
@@ -5794,12 +6083,21 @@ editOk.addEventListener("click", async () => {
         (type) => type.displayName || type.name || type.key || ""
       );
       const hadSuspend = Boolean(editSuspend);
-      if (hadSuspend && Array.isArray(editSuspend.effectTypeKeys)) {
-        const alreadyAdded = editSuspend.effectTypeKeys.some(
+      const suspendedTypeKeys = editSuspend && editSuspend.kind === "effect"
+        ? editSuspend.effect.effectTypeKeys
+        : editSuspend && editSuspend.kind === "status"
+          ? editSuspend.status.effectTypeKeys
+          : editSuspend && editSuspend.kind === "status-create"
+            ? editSuspend.status.effectTypeKeys
+            : editSuspend
+              ? editSuspend.effectTypeKeys
+              : null;
+      if (hadSuspend && Array.isArray(suspendedTypeKeys)) {
+        const alreadyAdded = suspendedTypeKeys.some(
           (key) => String(key || "").toLowerCase() === createdName.toLowerCase()
         );
         if (!alreadyAdded) {
-          editSuspend.effectTypeKeys.push(createdName);
+          suspendedTypeKeys.push(createdName);
         }
       }
       closeEditModal();
@@ -5939,12 +6237,6 @@ editOk.addEventListener("click", async () => {
           skillEffects.push(name);
           renderSkillEffectList();
         }
-        if (skillEffectName) {
-          skillEffectName.value = "";
-        }
-        if (skillEffectDesc) {
-          skillEffectDesc.value = "";
-        }
         closeEditModal();
         return;
       }
@@ -5960,12 +6252,6 @@ editOk.addEventListener("click", async () => {
         if (!spellEffects.includes(name)) {
           spellEffects.push(name);
           renderSpellEffectList();
-        }
-        if (spellEffectName) {
-          spellEffectName.value = "";
-        }
-        if (spellEffectDesc) {
-          spellEffectDesc.value = "";
         }
         closeEditModal();
         return;
@@ -5987,6 +6273,32 @@ editOk.addEventListener("click", async () => {
           }
         } else if (!editWeaponEffectIds.includes(effectEntry.id)) {
           editWeaponEffectIds.push(effectEntry.id);
+        }
+        closeEditModal();
+        return;
+      }
+      if (editContext.origin === "attribute") {
+        if (!attributeEffectOptions.some((effect) => effect.id === effectEntry.id)) {
+          attributeEffectOptions.push(effectEntry);
+        }
+        attributeEffectOptions = sortByLabel(
+          attributeEffectOptions,
+          (effect) => effect.displayName || effect.name || ""
+        );
+        if (editSuspend && editSuspend.kind === "attribute") {
+          const threshold = Number(editSuspend.attribute.pendingThreshold || 0);
+          const bonuses = editSuspend.attribute.scoreBonuses;
+          const bonusEditIndex = Number(editSuspend.attribute.bonusEditIndex ?? -1);
+          const duplicate = bonuses.some(
+            (entry, index) => index !== bonusEditIndex
+              && Number(entry.threshold || 0) === threshold
+              && String(entry.effectId || "") === String(effectEntry.id || "")
+          );
+          if (!duplicate) {
+            replaceOrAppendCollectionItem(bonuses, bonusEditIndex, { threshold, effectId: effectEntry.id });
+          }
+          editSuspend.attribute.bonusEditIndex = -1;
+          editSuspend.attribute.selectedEffectId = "";
         }
         closeEditModal();
         return;
@@ -6224,11 +6536,15 @@ if (skillCancel) {
 if (skillEffectAdd) {
   skillEffectAdd.addEventListener("click", () => {
     const name = String(skillEffectSelect.value || "").trim();
-    if (!name) {
+    if (!name || name === NEW_INLINE_OPTION) {
       return;
     }
-    if (!skillEffects.includes(name)) {
-      skillEffects.push(name);
+    const duplicate = skillEffects.some((entry, index) => entry === name && index !== skillEffectIndex);
+    if (!duplicate) {
+      replaceOrAppendCollectionItem(skillEffects, skillEffectIndex, name);
+      skillEffectIndex = -1;
+      skillEffectSelect.value = "";
+      setCollectionCommitMode(skillEffectAdd, false);
       renderSkillEffectList();
     }
   });
@@ -6236,12 +6552,19 @@ if (skillEffectAdd) {
 
 if (skillEffectList) {
   skillEffectList.addEventListener("click", async (event) => {
-    const button = event.target.closest("button[data-remove-skill-effect]");
+    const button = event.target.closest("button[data-edit-skill-effect], button[data-remove-skill-effect]");
     if (!button) {
       return;
     }
-    const index = Number(button.dataset.removeSkillEffect);
+    const index = Number(button.dataset.editSkillEffect ?? button.dataset.removeSkillEffect);
     if (Number.isNaN(index) || index < 0) {
+      return;
+    }
+    if (button.hasAttribute("data-edit-skill-effect")) {
+      skillEffectIndex = index;
+      skillEffectSelect.value = skillEffects[index] || "";
+      setCollectionCommitMode(skillEffectAdd, true);
+      skillEffectSelect.focus();
       return;
     }
     const confirmed = await showConfirm(
@@ -6252,6 +6575,8 @@ if (skillEffectList) {
       return;
     }
     skillEffects.splice(index, 1);
+    skillEffectIndex = -1;
+    setCollectionCommitMode(skillEffectAdd, false);
     renderSkillEffectList();
   });
 }
@@ -6262,8 +6587,12 @@ if (skillClassLimitAdd) {
     if (!classId) {
       return;
     }
-    if (!skillLimitedClassIds.includes(classId)) {
-      skillLimitedClassIds.push(classId);
+    const duplicate = skillLimitedClassIds.some((entry, index) => entry === classId && index !== skillClassLimitIndex);
+    if (!duplicate) {
+      replaceOrAppendCollectionItem(skillLimitedClassIds, skillClassLimitIndex, classId);
+      skillClassLimitIndex = -1;
+      skillClassLimitSelect.value = "";
+      setCollectionCommitMode(skillClassLimitAdd, false);
       renderSkillClassLimitList();
     }
   });
@@ -6271,12 +6600,19 @@ if (skillClassLimitAdd) {
 
 if (skillClassLimitList) {
   skillClassLimitList.addEventListener("click", async (event) => {
-    const button = event.target.closest("button[data-remove-skill-class-limit]");
+    const button = event.target.closest("button[data-edit-skill-class-limit], button[data-remove-skill-class-limit]");
     if (!button) {
       return;
     }
-    const index = Number(button.dataset.removeSkillClassLimit);
+    const index = Number(button.dataset.editSkillClassLimit ?? button.dataset.removeSkillClassLimit);
     if (Number.isNaN(index) || index < 0) {
+      return;
+    }
+    if (button.hasAttribute("data-edit-skill-class-limit")) {
+      skillClassLimitIndex = index;
+      skillClassLimitSelect.value = skillLimitedClassIds[index] || "";
+      setCollectionCommitMode(skillClassLimitAdd, true);
+      skillClassLimitSelect.focus();
       return;
     }
     const confirmed = await showConfirm(
@@ -6287,6 +6623,8 @@ if (skillClassLimitList) {
       return;
     }
     skillLimitedClassIds.splice(index, 1);
+    skillClassLimitIndex = -1;
+    setCollectionCommitMode(skillClassLimitAdd, false);
     renderSkillClassLimitList();
   });
 }
@@ -6297,8 +6635,12 @@ if (skillRaceLimitAdd) {
     if (!raceId) {
       return;
     }
-    if (!skillLimitedRaceIds.includes(raceId)) {
-      skillLimitedRaceIds.push(raceId);
+    const duplicate = skillLimitedRaceIds.some((entry, index) => entry === raceId && index !== skillRaceLimitIndex);
+    if (!duplicate) {
+      replaceOrAppendCollectionItem(skillLimitedRaceIds, skillRaceLimitIndex, raceId);
+      skillRaceLimitIndex = -1;
+      skillRaceLimitSelect.value = "";
+      setCollectionCommitMode(skillRaceLimitAdd, false);
       renderSkillRaceLimitList();
     }
   });
@@ -6306,12 +6648,19 @@ if (skillRaceLimitAdd) {
 
 if (skillRaceLimitList) {
   skillRaceLimitList.addEventListener("click", async (event) => {
-    const button = event.target.closest("button[data-remove-skill-race-limit]");
+    const button = event.target.closest("button[data-edit-skill-race-limit], button[data-remove-skill-race-limit]");
     if (!button) {
       return;
     }
-    const index = Number(button.dataset.removeSkillRaceLimit);
+    const index = Number(button.dataset.editSkillRaceLimit ?? button.dataset.removeSkillRaceLimit);
     if (Number.isNaN(index) || index < 0) {
+      return;
+    }
+    if (button.hasAttribute("data-edit-skill-race-limit")) {
+      skillRaceLimitIndex = index;
+      skillRaceLimitSelect.value = skillLimitedRaceIds[index] || "";
+      setCollectionCommitMode(skillRaceLimitAdd, true);
+      skillRaceLimitSelect.focus();
       return;
     }
     const confirmed = await showConfirm(
@@ -6322,6 +6671,8 @@ if (skillRaceLimitList) {
       return;
     }
     skillLimitedRaceIds.splice(index, 1);
+    skillRaceLimitIndex = -1;
+    setCollectionCommitMode(skillRaceLimitAdd, false);
     renderSkillRaceLimitList();
   });
 }
@@ -6329,11 +6680,15 @@ if (skillRaceLimitList) {
 if (spellEffectAdd) {
   spellEffectAdd.addEventListener("click", () => {
     const name = String(spellEffectSelect ? spellEffectSelect.value : "").trim();
-    if (!name) {
+    if (!name || name === NEW_INLINE_OPTION) {
       return;
     }
-    if (!spellEffects.includes(name)) {
-      spellEffects.push(name);
+    const duplicate = spellEffects.some((entry, index) => entry === name && index !== spellEffectIndex);
+    if (!duplicate) {
+      replaceOrAppendCollectionItem(spellEffects, spellEffectIndex, name);
+      spellEffectIndex = -1;
+      spellEffectSelect.value = "";
+      setCollectionCommitMode(spellEffectAdd, false);
       renderSpellEffectList();
     }
   });
@@ -6341,12 +6696,19 @@ if (spellEffectAdd) {
 
 if (spellEffectList) {
   spellEffectList.addEventListener("click", async (event) => {
-    const button = event.target.closest("button[data-remove-spell-effect]");
+    const button = event.target.closest("button[data-edit-spell-effect], button[data-remove-spell-effect]");
     if (!button) {
       return;
     }
-    const index = Number(button.dataset.removeSpellEffect);
+    const index = Number(button.dataset.editSpellEffect ?? button.dataset.removeSpellEffect);
     if (Number.isNaN(index) || index < 0) {
+      return;
+    }
+    if (button.hasAttribute("data-edit-spell-effect")) {
+      spellEffectIndex = index;
+      spellEffectSelect.value = spellEffects[index] || "";
+      setCollectionCommitMode(spellEffectAdd, true);
+      spellEffectSelect.focus();
       return;
     }
     const confirmed = await showConfirm(
@@ -6357,18 +6719,29 @@ if (spellEffectList) {
       return;
     }
     spellEffects.splice(index, 1);
+    spellEffectIndex = -1;
+    setCollectionCommitMode(spellEffectAdd, false);
     renderSpellEffectList();
   });
 }
 
-if (skillEffectCreate) {
-  skillEffectCreate.addEventListener("click", async () => {
+if (skillEffectSelect) {
+  skillEffectSelect.addEventListener("change", async () => {
+    if (skillEffectSelect.value !== NEW_INLINE_OPTION) {
+      return;
+    }
+    skillEffectSelect.value = "";
     await openEffectCreateModal("skill", "", "", state.lastEffectTypeKeys);
   });
 }
 
-if (skillCategoryCreate) {
-  skillCategoryCreate.addEventListener("click", async () => {
+if (skillCategorySelect) {
+  skillCategorySelect.addEventListener("change", () => {
+    if (skillCategorySelect.value !== NEW_INLINE_OPTION) {
+      skillCategorySelect.dataset.previousValue = skillCategorySelect.value;
+      return;
+    }
+    skillCategorySelect.value = skillCategorySelect.dataset.previousValue || "";
     openSkillCategoryCreateModal("skill");
   });
 }
@@ -6440,12 +6813,6 @@ if (skillSave) {
             editRaceSkillIds.push(entry.id);
             renderRaceTraitList();
           }
-          if (editRaceTraitName) {
-            editRaceTraitName.value = "";
-          }
-          if (editRaceTraitDescription) {
-            editRaceTraitDescription.value = "";
-          }
         closeSkillModal();
         return;
       }
@@ -6486,8 +6853,12 @@ if (spellCancel) {
   });
 }
 
-if (spellEffectCreate) {
-  spellEffectCreate.addEventListener("click", async () => {
+if (spellEffectSelect) {
+  spellEffectSelect.addEventListener("change", async () => {
+    if (spellEffectSelect.value !== NEW_INLINE_OPTION) {
+      return;
+    }
+    spellEffectSelect.value = "";
     await openEffectCreateModal("spell", "", "", state.lastEffectTypeKeys);
   });
 }
@@ -9694,7 +10065,6 @@ async function renderCharGenSkills() {
           <div class="list-item">
             <div>
               <strong>${escapeHtml(label)}</strong>${classBadge}${category}
-              ${skill.description ? `<div>${escapeHtml(skill.description)}</div>` : ""}
             </div>
             <div class="field inline-field">
               <label for="chargenSkillRank${index}">${t("skills.rank", "Rank")}</label>
@@ -9780,7 +10150,6 @@ async function renderCharGenSpells() {
               <input type="checkbox" data-chargen-spell="${escapeHtml(id)}" ${checked}>
               <strong>${escapeHtml(spell.name || t("spells.untitled", "Untitled"))}</strong>
               <span class="badge">L${level}</span>${school}${damageType}
-              ${spell.description ? `<div>${escapeHtml(spell.description)}</div>` : ""}
             </label>
           </div>
         `;
@@ -9867,7 +10236,6 @@ async function renderCharGenEquipment() {
             <label>
               <input type="checkbox" data-chargen-equipment="${escapeHtml(id)}" ${checked}>
               <strong>${escapeHtml(item.name || t("equipment.untitled", "Untitled"))}</strong>${weight}${damageType}
-              ${item.description ? `<div>${escapeHtml(item.description)}</div>` : ""}
             </label>
           </div>
         `;
@@ -9952,7 +10320,6 @@ async function renderCharGenWeapons() {
             <label>
               <input type="checkbox" data-chargen-weapon="${escapeHtml(id)}" ${checked}>
               <strong>${escapeHtml(weapon.name || t("weapons.untitled", "Untitled"))}</strong>${damage}${damageType}
-              ${weapon.description ? `<div>${escapeHtml(weapon.description)}</div>` : ""}
             </label>
           </div>
         `;
@@ -10038,7 +10405,6 @@ async function renderCharGenArmor() {
             <label>
               <input type="checkbox" data-chargen-armor="${escapeHtml(id)}" ${checked}>
               <strong>${escapeHtml(item.name || t("armor.untitled", "Untitled"))}</strong>${detail}
-              ${item.description ? `<div>${escapeHtml(item.description)}</div>` : ""}
             </label>
           </div>
         `;
@@ -11941,15 +12307,13 @@ async function renderMeasurements() {
         const key = escapeHtml(rawName.trim().toLowerCase());
         const displayAmount = Number(unit.displayAmount || 0);
         const displayUnit = escapeHtml(pluralizeTimeUnit(String(unit.displayUnit || secondsLabel), displayAmount));
-        return `
-          <div class="list-item">
-            <div><strong>${name}</strong> ${displayAmount} ${displayUnit}</div>
-            <div>
-              <button class="btn ghost small" type="button" data-edit-time-unit="${key}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" data-remove-time-unit="${key}">${t("common.remove", "Remove")}</button>
-            </div>
-          </div>
-        `;
+        return renderCollectionRow(
+          `<div><strong>${name}</strong> ${displayAmount} ${displayUnit}</div>`,
+          [
+            collectionEditAction("edit-time-unit", key),
+            collectionRemoveAction("remove-time-unit", key),
+          ]
+        );
       })
       .join("");
 
@@ -12238,12 +12602,13 @@ async function renderDice() {
 
     const ranges = (data.customRanges || [])
       .map(
-        (range) => `
-          <div class="list-item">
-            <span>${range.min} - ${range.max}</span>
-            <button class="btn danger small" data-min="${range.min}" data-max="${range.max}">${t("common.remove", "Remove")}</button>
-          </div>
-        `
+        (range, index) => renderCollectionRow(
+          `<span>${range.min} - ${range.max}</span>`,
+          [
+            collectionEditAction("edit-range", index),
+            collectionRemoveAction("remove-range", index),
+          ]
+        )
       )
       .join("");
 
@@ -12279,14 +12644,17 @@ async function renderDice() {
       });
     });
 
-    document.getElementById("addRange").addEventListener("click", () => {
-      diceRangeTitle.textContent = t("dice.add", "Add Range");
+    const customRanges = Array.isArray(data.customRanges) ? data.customRanges : [];
+    const openDiceRangeEditor = (index = -1) => {
+      const editing = Number.isInteger(index) && index >= 0 && index < customRanges.length;
+      const range = editing ? customRanges[index] : { min: 1, max: 6 };
+      diceRangeTitle.textContent = editing ? t("dice.edit", "Edit Range") : t("dice.add", "Add Range");
       diceRangeMinLabel.textContent = t("dice.min", "Min");
       diceRangeMaxLabel.textContent = t("dice.max", "Max");
       diceRangeCancel.textContent = t("common.cancel", "Cancel");
-      diceRangeSave.textContent = t("dice.add", "Add Range");
-      diceRangeMin.value = "1";
-      diceRangeMax.value = "6";
+      diceRangeSave.textContent = editing ? t("common.save", "Save") : t("dice.add", "Add Range");
+      diceRangeMin.value = String(range.min);
+      diceRangeMax.value = String(range.max);
       diceRangeSave.disabled = false;
       diceRangeModal.classList.remove("hidden");
       window.requestAnimationFrame(() => diceRangeMin.focus());
@@ -12299,8 +12667,12 @@ async function renderDice() {
         const max = Number(diceRangeMax.value);
         diceRangeSave.disabled = true;
         try {
-          await api("POST", `/api/drafts/${state.draftId}/dice/custom`, { min, max });
-          markSaved(t("web.toast.range_added", "Range added"));
+          await api(
+            "POST",
+            `/api/drafts/${state.draftId}/dice/custom${editing ? "/update" : ""}`,
+            editing ? { originalMin: range.min, originalMax: range.max, min, max } : { min, max }
+          );
+          markSaved(t(editing ? "web.toast.range_updated" : "web.toast.range_added", editing ? "Range updated" : "Range added"));
           diceRangeModal.classList.add("hidden");
           renderDice();
         } catch (error) {
@@ -12308,12 +12680,23 @@ async function renderDice() {
           diceRangeSave.disabled = false;
         }
       };
-    });
+    };
+
+    document.getElementById("addRange").addEventListener("click", () => openDiceRangeEditor());
 
     document.querySelectorAll("#rangeList button").forEach((button) => {
       button.addEventListener("click", async () => {
-        const min = Number(button.dataset.min);
-        const max = Number(button.dataset.max);
+        const index = Number(button.dataset.editRange ?? button.dataset.removeRange);
+        const range = customRanges[index];
+        if (!range) {
+          return;
+        }
+        if (button.hasAttribute("data-edit-range")) {
+          openDiceRangeEditor(index);
+          return;
+        }
+        const min = Number(range.min);
+        const max = Number(range.max);
         const confirmed = await showConfirm(
           t("web.confirm.remove.custom_range", "Remove this custom range?"),
           t("common.remove", "Remove")
@@ -12353,15 +12736,13 @@ async function renderAttributeTypes(openKey = "") {
     const list = types
       .map((type) => {
         typeMap[type.key] = type;
-        return `
-          <div class="list-item">
-            <span>${escapeHtml(type.displayName)}</span>
-            <div class="actions">
-              <button class="btn ghost small" data-edit-type="${type.key}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" data-key="${type.key}">${t("common.remove", "Remove")}</button>
-            </div>
-          </div>
-        `;
+        return renderCollectionRow(
+          `<span>${escapeHtml(type.displayName)}</span>`,
+          [
+            collectionEditAction("edit-type", type.key),
+            collectionRemoveAction("remove-type", type.key),
+          ]
+        );
       })
       .join("");
 
@@ -12386,9 +12767,9 @@ async function renderAttributeTypes(openKey = "") {
       openAttributeTypeCreate();
     });
 
-    document.querySelectorAll("#typeList [data-key]").forEach((button) => {
+    document.querySelectorAll("#typeList [data-remove-type]").forEach((button) => {
       button.addEventListener("click", async () => {
-        const key = button.dataset.key;
+        const key = button.dataset.removeType;
         const confirmed = await showConfirm(
           t("web.confirm.remove.attribute_type", "Remove this attribute category?"),
           t("common.remove", "Remove")
@@ -12435,6 +12816,11 @@ async function renderAttributes(openId = "") {
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
     const data = await api("GET", `/api/drafts/${state.draftId}/attributes`);
+    attributeTypeOptions = Array.isArray(data.types) ? data.types.slice() : [];
+    attributeEffectOptions = sortByLabel(
+      Array.isArray(data.effects) ? data.effects : [],
+      (effect) => effect.displayName || effect.name || ""
+    );
     state.applyAttributeModifiersToAllAttributes = Boolean(data.applyAttributeModifiersToAllAttributes);
     state.attributeModifiers = normalizeModifierEntries(data.attributeModifiers || []);
     state.defaultAttributeMinScore = Number(data.defaultAttributeMinScore || 0);
@@ -12442,26 +12828,24 @@ async function renderAttributes(openId = "") {
     const systemName = String(data.systemName || "");
     const title = systemNameTitle(systemName, t("attributes.title", "Attributes"));
     const typeOptions = [`<option value="">${t("attrtypes.none", "None")}</option>`]
-      .concat((data.types || []).map((type) => `<option value="${type.key}">${escapeHtml(type.displayName)}</option>`))
+      .concat(attributeTypeOptions.map((type) => `<option value="${type.key}">${escapeHtml(type.displayName)}</option>`))
       .join("");
 
     const attributeMap = {};
     const list = (data.attributes || [])
       .map((attr) => {
         attributeMap[attr.id] = attr;
-        return `
-          <div class="list-item">
-            <div>
-              <div>${escapeHtml(attr.displayName)}</div>
-              <div class="badge">${escapeHtml(attr.typeName || t("attrtypes.none", "None"))}</div>
-            </div>
-            <div class="actions">
-              <button class="btn ghost small" data-edit-attr="${attr.id}">${t("common.edit", "Edit")}</button>
-              <button class="btn ghost small" data-edit-type="${attr.id}">${t("web.attributes.change_type", "Change Category")}</button>
-              <button class="btn danger small" data-remove="${attr.id}">${t("common.remove", "Remove")}</button>
-            </div>
-          </div>
-        `;
+        return renderCollectionRow(
+          `<div>
+            <div>${escapeHtml(attr.displayName)}</div>
+            <div class="badge">${escapeHtml(attr.typeName || t("attrtypes.none", "None"))}</div>
+          </div>`,
+          [
+            collectionEditAction("edit-attr", attr.id),
+            collectionAction("edit-type", attr.id, t("web.attributes.change_type", "Change Category")),
+            collectionRemoveAction("remove-attr", attr.id),
+          ]
+        );
       })
       .join("");
 
@@ -12483,12 +12867,12 @@ async function renderAttributes(openId = "") {
     `;
 
     document.getElementById("addAttribute").addEventListener("click", () => {
-      openAttributeCreate(data.types || []);
+      openAttributeCreate(attributeTypeOptions);
     });
 
-    document.querySelectorAll("[data-remove]").forEach((button) => {
+    document.querySelectorAll("[data-remove-attr]").forEach((button) => {
       button.addEventListener("click", async () => {
-        const id = button.dataset.remove;
+        const id = button.dataset.removeAttr;
         const confirmed = await showConfirm(
           t("web.confirm.remove.attribute", "Remove this attribute?"),
           t("common.remove", "Remove")
@@ -12522,7 +12906,7 @@ async function renderAttributes(openId = "") {
     document.querySelectorAll("[data-edit-attr]").forEach((button) => {
       button.addEventListener("click", () => {
         const id = button.dataset.editAttr;
-        openAttributeEditor(attributeMap[id], data.types || []);
+        openAttributeEditor(attributeMap[id], attributeTypeOptions);
       });
     });
 
@@ -12532,7 +12916,7 @@ async function renderAttributes(openId = "") {
     if (openId) {
       const target = attributeMap[openId];
       if (target) {
-        openAttributeEditor(target, data.types || []);
+        openAttributeEditor(target, attributeTypeOptions);
       }
     }
   } catch (error) {
@@ -12829,8 +13213,8 @@ async function renderAttributeGeneration() {
               <div class="list-item">
                 <span>${rangeLabel}: ${formatModifierValue(entry.modifier)}</span>
                 <div>
-                  <button class="btn ghost small" data-edit-default-modifier="${index}">${t("common.edit", "Edit")}</button>
-                  <button class="btn danger small" data-remove-default-modifier="${index}">${t("common.remove", "Remove")}</button>
+                  ${collectionEditAction("edit-default-modifier", index)}
+                  ${collectionRemoveAction("remove-default-modifier", index)}
                 </div>
               </div>
             `;
@@ -12877,15 +13261,16 @@ async function renderAttributeGeneration() {
           const steps = option.steps
             .map((step) => `${formatCharGenType(step.methodType)} (${formatAttributeGenerationApplicationMode(step.applicationMode)})`)
             .join(" -> ");
-          return `
-            <div class="list-item">
-              <div>
-                <div>${escapeHtml(option.name || t("attrgen.options.default_name", "Option"))}</div>
-                <div class="badge">${escapeHtml(steps)}</div>
-              </div>
-              <button class="btn danger small" data-remove-generation-option="${index}">${t("common.remove", "Remove")}</button>
-            </div>
-          `;
+          return renderCollectionRow(
+            `<div>
+              <div>${escapeHtml(option.name || t("attrgen.options.default_name", "Option"))}</div>
+              <div class="badge">${escapeHtml(steps)}</div>
+            </div>`,
+            [
+              collectionEditAction("edit-generation-option", index),
+              collectionRemoveAction("remove-generation-option", index),
+            ]
+          );
         })
         .join("");
     };
@@ -12977,23 +13362,31 @@ async function renderAttributeGeneration() {
     updateDefaultScoreControls();
     renderDefaultModifiers();
     renderGenerationOptions();
-    document.getElementById("addGenerationOption").addEventListener("click", () => {
-      generationOptionModalTitle.textContent = t("attrgen.options.add", "Add Option");
+    const openGenerationOptionEditor = (index = -1) => {
+      const editing = Number.isInteger(index) && index >= 0 && index < generationOptions.length;
+      const option = editing ? generationOptions[index] : { name: "", steps: [] };
+      const firstStep = option.steps[0] || { methodType: "standard_array", applicationMode: "set" };
+      const secondStep = option.steps[1] || { methodType: "", applicationMode: "add" };
+      generationOptionModalTitle.textContent = editing
+        ? t("attrgen.options.edit", "Edit Option")
+        : t("attrgen.options.add", "Add Option");
       generationOptionModalNameLabel.textContent = t("attrgen.options.name", "Option Name");
       generationOptionModalStep1Label.textContent = t("attrgen.options.step1", "First Step");
       generationOptionModalStep2Label.textContent = t("attrgen.options.step2", "Second Step");
       generationOptionModalStep2ModeLabel.textContent = t("attrgen.options.step2_mode", "Second Step Applies");
       generationOptionModalCancel.textContent = t("common.cancel", "Cancel");
-      generationOptionModalSave.textContent = t("attrgen.options.add", "Add Option");
-      generationOptionModalName.value = "";
+      generationOptionModalSave.textContent = editing ? t("common.save", "Save") : t("attrgen.options.add", "Add Option");
+      generationOptionModalName.value = option.name || "";
       generationOptionModalStep1.innerHTML = buildMethodSelectOptions(false);
       generationOptionModalStep2.innerHTML = buildMethodSelectOptions(true, true);
+      generationOptionModalStep1.value = firstStep.methodType || "standard_array";
+      generationOptionModalStep2.value = secondStep.methodType || "";
       generationOptionModalStep2Mode.innerHTML = `
         <option value="add">${t("attrgen.options.mode.add", "Add to existing scores")}</option>
         <option value="spend">${t("attrgen.options.mode.spend", "Spend from existing scores")}</option>
         <option value="choose">${t("attrgen.options.mode.choose", "Choose between both results")}</option>
       `;
-      generationOptionModalStep2Mode.value = "add";
+      generationOptionModalStep2Mode.value = secondStep.applicationMode || "add";
       const updateSecondStepModeVisibility = () => {
         generationOptionModalStep2ModeField.classList.toggle("hidden", !generationOptionModalStep2.value);
       };
@@ -13026,23 +13419,29 @@ async function renderAttributeGeneration() {
         if (secondStep) {
           optionSteps.push({ methodType: secondStep, applicationMode: secondMode });
         }
-        generationOptions.push({
-          id: `option-${Date.now()}`,
+        const updatedOption = {
+          id: editing ? option.id : `option-${Date.now()}`,
           name: name || t("attrgen.options.default_name", "Option"),
           steps: optionSteps,
-        });
+        };
+        replaceOrAppendCollectionItem(generationOptions, index, updatedOption);
         renderGenerationOptions();
         generationOptionModal.classList.add("hidden");
         await syncSelection();
       };
-    });
+    };
+    document.getElementById("addGenerationOption").addEventListener("click", () => openGenerationOptionEditor());
     document.getElementById("generationOptionList").addEventListener("click", async (event) => {
-      const button = event.target.closest("button[data-remove-generation-option]");
+      const button = event.target.closest("button[data-edit-generation-option], button[data-remove-generation-option]");
       if (!button) {
         return;
       }
-      const index = Number(button.dataset.removeGenerationOption);
+      const index = Number(button.dataset.editGenerationOption ?? button.dataset.removeGenerationOption);
       if (!Number.isInteger(index) || index < 0 || index >= generationOptions.length) {
+        return;
+      }
+      if (button.hasAttribute("data-edit-generation-option")) {
+        openGenerationOptionEditor(index);
         return;
       }
       generationOptions.splice(index, 1);
@@ -13286,20 +13685,20 @@ async function renderStandardArray() {
         .map(
           (entry) => {
             const needsAssignment = !isOpenArray && !isAssignedArrayEntry(entry);
-            return `
-        <div class="list-item">
-          <span class="${needsAssignment ? "array-entry-warning" : ""}">${escapeHtml(
+            const content = `<span class="${needsAssignment ? "array-entry-warning" : ""}">${escapeHtml(
             needsAssignment
               ? `${t("attrgen.arrays.assignment.required", "Needs Attribute assignment")}: ${formatArrayEntry(entry)}`
               : formatArrayEntry(entry)
-          )}</span>
-          ${isOpenArray ? `
-            <div class="actions">
-              <button class="btn danger small" data-${target}="${escapeHtml(entry)}">${t("common.remove", "Remove")}</button>
-            </div>
-          ` : ""}
-        </div>
-      `;
+          )}</span>`;
+            return renderCollectionRow(
+              content,
+              isOpenArray
+                ? [
+                    collectionEditAction(`edit-${target}`, entry),
+                    collectionRemoveAction(target, entry),
+                  ]
+                : []
+            );
           }
         )
         .join("");
@@ -13398,22 +13797,23 @@ async function renderStandardArray() {
       </section>
     `;
 
-    const openArrayValueEditor = (target) => {
+    const openArrayValueEditor = (target, originalEntry = "") => {
       const isElite = target === "elite";
+      const editing = String(originalEntry || "") !== "";
       const sectionTitle = isElite
         ? t("attrgen.arrays.elite.section", "Elite Arrays")
         : t("attrgen.arrays.section", "Standard Array/Base Scores");
-      arrayValueModalTitle.textContent = `${t("attrgen.arrays.add", "Add Value")} - ${sectionTitle}`;
+      arrayValueModalTitle.textContent = `${editing ? t("attrgen.arrays.edit", "Edit Value") : t("attrgen.arrays.add", "Add Value")} - ${sectionTitle}`;
       arrayValueModalAttributeLabel.textContent = t("attrgen.arrays.attribute", "Attribute");
       arrayValueModalValueLabel.textContent = t("attrgen.arrays.value", "Array Value");
       arrayValueModalCancel.textContent = t("common.cancel", "Cancel");
-      arrayValueModalSave.textContent = t("attrgen.arrays.add", "Add Value");
+      arrayValueModalSave.textContent = editing ? t("common.save", "Save") : t("attrgen.arrays.add", "Add Value");
       arrayValueModalCard.classList.remove("wide");
       arrayValueModalSingleFields.classList.remove("hidden");
       arrayValueModalEntries.classList.add("hidden");
       arrayValueModalAttributeField.classList.add("hidden");
       arrayValueModalAttribute.innerHTML = attributeOptions;
-      arrayValueModalValue.value = "0";
+      arrayValueModalValue.value = editing ? String(Number(originalEntry)) : "0";
       arrayValueModalValue.disabled = false;
       arrayValueModalSave.disabled = false;
       arrayValueModal.classList.remove("hidden");
@@ -13426,7 +13826,10 @@ async function renderStandardArray() {
         const value = Number(arrayValueModalValue.value);
         arrayValueModalSave.disabled = true;
         try {
-          await api("POST", `/api/drafts/${state.draftId}/standard-array/${target}`, { value });
+          await api("POST", `/api/drafts/${state.draftId}/standard-array/${target}`, {
+            value,
+            originalEntry: editing ? String(originalEntry) : "",
+          });
           markSaved(t(
             isElite ? "web.toast.elite_array_updated" : "web.toast.standard_array_updated",
             isElite ? "Elite array updated" : "Standard array updated"
@@ -13539,6 +13942,14 @@ async function renderStandardArray() {
         }
       });
     }
+
+    document.querySelectorAll("[data-edit-standard]").forEach((button) => {
+      button.addEventListener("click", () => openArrayValueEditor("standard", button.dataset.editStandard));
+    });
+
+    document.querySelectorAll("[data-edit-elite]").forEach((button) => {
+      button.addEventListener("click", () => openArrayValueEditor("elite", button.dataset.editElite));
+    });
 
     document.querySelectorAll("[data-standard]").forEach((button) => {
       button.addEventListener("click", async () => {
@@ -13750,14 +14161,16 @@ async function renderDiceRolling() {
         })
       )
       .join("");
-    const terms = (data.terms || [])
+    const diceTerms = Array.isArray(data.terms) ? data.terms : [];
+    const terms = diceTerms
       .map(
-        (term, index) => `
-          <div class="list-item">
-            <span>${escapeHtml(term.notation)}</span>
-            <button class="btn danger small" data-index="${index}">${t("common.remove", "Remove")}</button>
-          </div>
-        `
+        (term, index) => renderCollectionRow(
+          `<span>${escapeHtml(term.notation)}</span>`,
+          [
+            collectionEditAction("edit-term", index),
+            collectionRemoveAction("remove-term", index),
+          ]
+        )
       )
       .join("");
 
@@ -14012,18 +14425,23 @@ async function renderDiceRolling() {
       }
     };
 
-    document.getElementById("addTerm").addEventListener("click", () => {
-      diceTermModalTitle.textContent = t("attrgen.dice.add", "Add Dice Term");
+    const openDiceTermEditor = (index = -1) => {
+      const editing = Number.isInteger(index) && index >= 0 && index < diceTerms.length;
+      const term = editing ? diceTerms[index] : { count: 3, sides: defaultSides, ignoredFaces: [], dropLowest: 0 };
+      const ignoredFaces = Array.isArray(term.ignoredFaces) ? term.ignoredFaces.map(Number) : [];
+      const rerollResult = ignoredFaces.length ? Math.max(...ignoredFaces) + 1 : 0;
+      diceTermModalTitle.textContent = editing ? t("attrgen.dice.edit", "Edit Dice Term") : t("attrgen.dice.add", "Add Dice Term");
       diceTermModalCountLabel.textContent = t("attrgen.dice.count", "Number of Rolls");
       diceTermModalSidesLabel.textContent = t("attrgen.dice.sides", "Dice Sides");
       diceTermModalRerollLabel.textContent = t("attrgen.dice.reroll", "Reroll Below");
       diceTermModalDropLowestLabel.textContent = t("attrgen.dice.drop_lowest", "Drop lowest roll");
       diceTermModalCancel.textContent = t("common.cancel", "Cancel");
-      diceTermModalSave.textContent = t("attrgen.dice.add", "Add Dice Term");
-      diceTermModalCount.value = "3";
+      diceTermModalSave.textContent = editing ? t("common.save", "Save") : t("attrgen.dice.add", "Add Dice Term");
+      diceTermModalCount.value = String(term.count || 0);
       diceTermModalSides.innerHTML = diceSideOptions;
-      diceTermModalReroll.value = "0";
-      diceTermModalDropLowest.checked = false;
+      diceTermModalSides.value = String(term.sides || defaultSides || "");
+      diceTermModalReroll.value = String(rerollResult);
+      diceTermModalDropLowest.checked = Number(term.dropLowest || 0) > 0;
       diceTermModalSave.disabled = false;
       diceTermModalSides.onchange = updateRerollMax;
       updateRerollMax();
@@ -14044,13 +14462,14 @@ async function renderDiceRolling() {
         const dropLowest = diceTermModalDropLowest.checked;
         diceTermModalSave.disabled = true;
         try {
-          await api("POST", `/api/drafts/${state.draftId}/dice-rolling/term`, {
+          await api("POST", `/api/drafts/${state.draftId}/dice-rolling/term${editing ? "/update" : ""}`, {
+            index,
             count,
             sides,
             rerollResult,
             dropLowest,
           });
-          markSaved(t("web.toast.dice_term_added", "Dice term added"));
+          markSaved(t(editing ? "web.toast.dice_term_updated" : "web.toast.dice_term_added", editing ? "Dice term updated" : "Dice term added"));
           diceTermModal.classList.add("hidden");
           renderDiceRolling();
         } catch (error) {
@@ -14058,11 +14477,17 @@ async function renderDiceRolling() {
           diceTermModalSave.disabled = false;
         }
       };
-    });
+    };
+
+    document.getElementById("addTerm").addEventListener("click", () => openDiceTermEditor());
 
     document.querySelectorAll("#termList button").forEach((button) => {
       button.addEventListener("click", async () => {
-        const index = Number(button.dataset.index);
+        const index = Number(button.dataset.editTerm ?? button.dataset.removeTerm);
+        if (button.hasAttribute("data-edit-term")) {
+          openDiceTermEditor(index);
+          return;
+        }
         const confirmed = await showConfirm(
           t("web.confirm.remove.dice_term", "Remove this dice term?"),
           t("common.remove", "Remove")
@@ -14141,28 +14566,24 @@ async function renderPointsBuy() {
     const fixedRulesComplete = categoryCount > 0 && categoryPointRules.length === categoryCount;
     const playerSlotsComplete = categoryCount > 0 && categoryPointSlots.length === categoryCount;
     const fixedRuleList = categoryPointRules.length
-      ? categoryPointRules.map((rule, index) => `
-          <div class="list-item">
-            <span><strong>${escapeHtml(
-              rule.attributeCategoryName || categoryNameByKey.get(String(rule.attributeCategoryKey || "")) || rule.attributeCategoryKey
-            )}</strong>: ${Number(rule.availablePoints || 0)} ${t("attrgen.point.points", "points")}</span>
-            <div>
-              <button class="btn ghost small" type="button" data-edit-category-point-rule="${index}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" type="button" data-remove-category-point-rule="${index}">${t("common.remove", "Remove")}</button>
-            </div>
-          </div>
-        `).join("")
+      ? categoryPointRules.map((rule, index) => renderCollectionRow(
+          `<span><strong>${escapeHtml(
+            rule.attributeCategoryName || categoryNameByKey.get(String(rule.attributeCategoryKey || "")) || rule.attributeCategoryKey
+          )}</strong>: ${Number(rule.availablePoints || 0)} ${t("attrgen.point.points", "points")}</span>`,
+          [
+            collectionEditAction("edit-category-point-rule", index),
+            collectionRemoveAction("remove-category-point-rule", index),
+          ]
+        )).join("")
       : `<div class="list-item">${t("attrgen.point.fixed.none", "No category budgets yet.")}</div>`;
     const playerSlotList = categoryPointSlots.length
-      ? categoryPointSlots.map((slot, index) => `
-          <div class="list-item">
-            <span><strong>${escapeHtml(slot.name || "")}</strong>: ${Number(slot.availablePoints || 0)} ${t("attrgen.point.points", "points")}</span>
-            <div>
-              <button class="btn ghost small" type="button" data-edit-category-point-slot="${index}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" type="button" data-remove-category-point-slot="${index}">${t("common.remove", "Remove")}</button>
-            </div>
-          </div>
-        `).join("")
+      ? categoryPointSlots.map((slot, index) => renderCollectionRow(
+          `<span><strong>${escapeHtml(slot.name || "")}</strong>: ${Number(slot.availablePoints || 0)} ${t("attrgen.point.points", "points")}</span>`,
+          [
+            collectionEditAction("edit-category-point-slot", index),
+            collectionRemoveAction("remove-category-point-slot", index),
+          ]
+        )).join("")
       : `<div class="list-item">${t("attrgen.point.slot.none", "No point slots yet.")}</div>`;
     view.innerHTML = `
       <section class="panel">
@@ -14510,13 +14931,32 @@ async function renderHitPoints() {
   try {
     const data = await api("GET", `/api/drafts/${state.draftId}/hit-points`);
     const hpGainMethod = String(data.hpGainMethod || "");
-    const averageRounding = String(data.averageRoundingMethod || "");
-    const hpModifierAttributeId = String(data.hpModifierAttributeId || "");
-    const hpAttributes = Array.isArray(data.attributes) ? data.attributes : [];
-    const noHitPointGain = hpGainMethod === "fixed"
+    const attributeDerived = hpGainMethod === "attribute_derived";
+    const independentGainMethod = hpGainMethod === "fixed" ? "fixed" : "rolled";
+    const allCharactersUseSameFixedGain = data.allCharactersUseSameFixedGain !== false;
+    const allCharactersUseSameHitDice = data.allCharactersUseSameHitDice !== false;
+    const hitDieSides = Math.max(0, Math.trunc(Number(data.hitDieSides || 0)));
+    const hitDieCount = Math.max(1, Math.trunc(Number(data.hitDieCount || 1)));
+    const hitDieModifier = Math.trunc(Number(data.hitDieModifier || 0));
+    const noHitPointGain = !attributeDerived && hpGainMethod === "fixed"
+      && allCharactersUseSameFixedGain
       && Number(data.fixedHPPerLevel || 0) === 0
-      && Number(data.minimumHPPerLevel || 0) === 0
-      && hpModifierAttributeId === "";
+      && Number(data.minimumHPPerLevel || 0) === 0;
+    const hpAttributes = Array.isArray(data.attributes) ? data.attributes : [];
+    const attributeDerivationMode = ["direct", "single_formula", "multi_formula"].includes(data.attributeDerivationMode)
+      ? data.attributeDerivationMode
+      : "direct";
+    const attributeDerivedDirectAttributeId = String(data.attributeDerivedDirectAttributeId || "");
+    const attributeDerivedBaseValue = Number(data.attributeDerivedBaseValue || 0);
+    const attributeDerivedDivisor = Number(data.attributeDerivedDivisor || 1) || 1;
+    const attributeDerivedRoundingMethod = ["up", "down", "nearest"].includes(data.attributeDerivedRoundingMethod)
+      ? data.attributeDerivedRoundingMethod
+      : "nearest";
+    let attributeDerivedTerms = (Array.isArray(data.attributeDerivedTerms) ? data.attributeDerivedTerms : [])
+      .map((term) => ({
+        attributeId: String(term.attributeId || ""),
+        multiplier: Number.isFinite(Number(term.multiplier)) ? Number(term.multiplier) : 1,
+      }));
 
     const buildOptions = (options, selected) =>
       options
@@ -14531,95 +14971,210 @@ async function renderHitPoints() {
     const methodOptions = buildOptions(
       [
         { value: "rolled", label: t("hp.method.rolled", "Rolled") },
-        { value: "average", label: t("hp.method.average", "Average") },
         { value: "fixed", label: t("hp.method.fixed", "Fixed") },
       ],
-      hpGainMethod
+      independentGainMethod
     );
     const roundingOptions = buildOptions(
       [
-        { value: "up", label: t("hp.average.rounding.up", "Round Up") },
-        { value: "down", label: t("hp.average.rounding.down", "Round Down") },
-        { value: "nearest", label: t("hp.average.rounding.nearest", "Round to Nearest") },
+        { value: "up", label: t("hp.attribute.rounding.up", "Round Up") },
+        { value: "down", label: t("hp.attribute.rounding.down", "Round Down") },
+        { value: "nearest", label: t("hp.attribute.rounding.nearest", "Round to Nearest") },
       ],
-      averageRounding
+      attributeDerivedRoundingMethod
     );
-    const hpAttributeOptions = [
-      `<option value="">${t("hp.modifier.attribute.none", "None")}</option>`,
+    const hitDice = Array.from(new Set(
+      (Array.isArray(data.diceUsed) ? data.diceUsed : [])
+        .map((value) => Math.trunc(Number(value || 0)))
+        .filter((value) => value > 0)
+        .concat(hitDieSides > 0 ? [hitDieSides] : [])
+    )).sort((left, right) => left - right);
+    const hitDieOptions = [
+      `<option value="">${t("hp.dice.choose", "Choose a die")}</option>`,
+      ...hitDice.map((sides) => `<option value="${sides}"${sides === hitDieSides ? " selected" : ""}>d${sides}</option>`),
+    ].join("");
+    const attributeOptions = (selected = "") => [
+      `<option value="">${t("hp.attribute.choose", "Choose an Attribute")}</option>`,
       ...hpAttributes.map((attribute) => {
         const id = String(attribute.id || "");
         const label = String(attribute.displayName || attribute.name || id);
-        const selected = id === hpModifierAttributeId ? " selected" : "";
-        return `<option value="${escapeHtml(id)}"${selected}>${escapeHtml(label)}</option>`;
+        return `<option value="${escapeHtml(id)}"${id === selected ? " selected" : ""}>${escapeHtml(label)}</option>`;
       }),
     ].join("");
 
     view.innerHTML = `
       <section class="panel">
         <h1>${t("hp.title", "Hit Points")}</h1>
-        <div class="field hp-no-gain-choice">
-          <label class="checkbox-label" for="hpNoGain">
-            <input type="checkbox" id="hpNoGain" ${noHitPointGain ? "checked" : ""}>
-            <span>${t("hp.no_gain", "No Hit Point Gain")}</span>
+        <div class="hp-system-choice">
+          <h2>${t("hp.system.section", "How are Hit Points determined?")}</h2>
+          <label class="hp-radio-option" for="hpSystemIndependent">
+            <input type="radio" name="hpSystem" id="hpSystemIndependent" value="independent" ${attributeDerived ? "" : "checked"}>
+            <span>
+              <strong>${t("hp.system.independent", "Independent Hit Points")}</strong>
+              <span class="field-hint">${t("hp.system.independent.help", "Characters have starting Hit Points and may gain more through advancement.")}</span>
+            </span>
           </label>
-          <span class="field-hint">${t(
-            "hp.no_gain.help",
-            "Use one starting Hit Point pool that does not increase through normal character advancement."
-          )}</span>
+          <label class="hp-radio-option" for="hpSystemAttributeDerived">
+            <input type="radio" name="hpSystem" id="hpSystemAttributeDerived" value="attribute_derived" ${attributeDerived ? "checked" : ""}>
+            <span>
+              <strong>${t("hp.system.attribute_derived", "Attribute Derived")}</strong>
+              <span class="field-hint">${t("hp.system.attribute_derived.help", "Maximum Hit Points are recalculated from character Attributes instead of using separate starting and advancement values.")}</span>
+            </span>
+          </label>
         </div>
-        <div id="hpNoGainSettings" class="grid two ${noHitPointGain ? "" : "hidden"}">
-          <div class="field">
-            <label for="hpBaseHitPoints">${t("hp.base", "Base Hit Points")}</label>
-            <input type="number" id="hpBaseHitPoints" value="${Number(data.firstLevelBonusHP || 0)}">
-            <span class="field-hint">${t("hp.base.help", "The character's complete starting Hit Point pool.")}</span>
-          </div>
+
+        <div id="hpIndependentSettings" class="${attributeDerived ? "hidden" : ""}">
+          <section class="hp-settings-section">
+            <h2>${t("hp.starting.section", "Starting Hit Points")}</h2>
+            <div id="hpNoGainSettings" class="grid two ${noHitPointGain ? "" : "hidden"}">
+              <div class="field">
+                <label for="hpBaseHitPoints">${t("hp.base", "Base Hit Points")}</label>
+                <input type="number" id="hpBaseHitPoints" value="${Number(data.firstLevelBonusHP || 0)}">
+                <span class="field-hint">${t("hp.base.help", "The character's complete starting Hit Point pool.")}</span>
+              </div>
+            </div>
+            <div id="hpProgressiveStartingSettings" class="grid two ${noHitPointGain ? "hidden" : ""}">
+              <div class="field" id="hpFirstLevelMaxField">
+                <label>${t("hp.first_level.max", "Max HP at First Level")}</label>
+                <select id="hpFirstLevelMax">
+                  <option value="true" ${data.firstLevelMaxHP ? "selected" : ""}>${t("common.yes", "Yes")}</option>
+                  <option value="false" ${data.firstLevelMaxHP ? "" : "selected"}>${t("common.no", "No")}</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>${t("hp.first_level.bonus", "First Level Bonus HP")}</label>
+                <input type="number" id="hpFirstLevelBonus" value="${Number(data.firstLevelBonusHP || 0)}">
+                <span class="field-hint">${t("hp.first_level.bonus.help", "A one-time bonus added only when the character is created.")}</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="hp-settings-section">
+            <h2>${t("hp.gain.section", "Hit Point Gain")}</h2>
+            <div class="field hp-no-gain-choice">
+              <label class="checkbox-label" for="hpNoGain">
+                <input type="checkbox" id="hpNoGain" ${noHitPointGain ? "checked" : ""}>
+                <span>${t("hp.no_gain", "No Hit Point Gain")}</span>
+              </label>
+              <span class="field-hint">${t(
+                "hp.no_gain.help",
+                "Use one starting Hit Point pool that does not increase through normal character advancement."
+              )}</span>
+            </div>
+            <div id="hpGainSettings" class="${noHitPointGain ? "hidden" : ""}">
+              <div class="grid two">
+                <div class="field">
+                  <label>${t("hp.method.label", "HP Gain Method")}</label>
+                  <select id="hpGainMethod">${methodOptions}</select>
+                </div>
+              </div>
+              <div id="hpDiceSourceSettings">
+                <div class="field">
+                  <label class="checkbox-label" for="hpAllCharactersSameDice">
+                    <input type="checkbox" id="hpAllCharactersSameDice" ${allCharactersUseSameHitDice ? "checked" : ""}>
+                    <span>${t("hp.dice.same_for_all", "All characters use the same Hit Point dice")}</span>
+                  </label>
+                  <span class="field-hint">${t(
+                    "hp.dice.same_for_all.help",
+                    "When not selected, you will have to assign dice later, in the appropriate section."
+                  )}</span>
+                </div>
+                <div id="hpCommonDiceSettings">
+                  <div class="grid three">
+                    <div class="field">
+                      <label for="hpHitDieSides">${t("hp.dice.die", "Die")}</label>
+                      <select id="hpHitDieSides">${hitDieOptions}</select>
+                    </div>
+                    <div class="field">
+                      <label for="hpHitDieCount">${t("hp.dice.rolls", "Rolls")}</label>
+                      <input type="number" id="hpHitDieCount" min="1" step="1" value="${hitDieCount}">
+                    </div>
+                    <div class="field">
+                      <label for="hpHitDieModifier">${t("hp.dice.modifier", "Modifier")}</label>
+                      <input type="number" id="hpHitDieModifier" step="1" value="${hitDieModifier}">
+                    </div>
+                  </div>
+                  <p class="field-hint" id="hpDiceExpressionPreview"></p>
+                  <p class="field-hint">${t(
+                    "hp.dice.modifier.help",
+                    "The Modifier is added once to the complete dice total. If the same fixed amount is the entire advancement gain, use Fixed HP per Level instead."
+                  )}</p>
+                </div>
+              </div>
+              <div id="hpFixedSettings">
+                <div class="field">
+                  <label class="checkbox-label" for="hpAllCharactersSameFixedGain">
+                    <input type="checkbox" id="hpAllCharactersSameFixedGain" ${allCharactersUseSameFixedGain ? "checked" : ""}>
+                    <span>${t("hp.fixed.same_for_all", "All characters gain the same fixed Hit Points")}</span>
+                  </label>
+                  <span class="field-hint">${t(
+                    "hp.fixed.same_for_all.help",
+                    "When not selected, you will have to assign fixed gains later, in the appropriate section."
+                  )}</span>
+                </div>
+                <div id="hpCommonFixedSettings" class="grid two">
+                  <div class="field">
+                    <label>${t("hp.fixed_per_level", "Fixed HP per Level")}</label>
+                    <input type="number" id="hpFixedPerLevel" value="${Number(data.fixedHPPerLevel || 0)}">
+                  </div>
+                </div>
+              </div>
+              <div class="grid two">
+                <div class="field">
+                  <label>${t("hp.minimum_per_level", "Minimum HP per Level")}</label>
+                  <input type="number" id="hpMinimumPerLevel" value="${Number(data.minimumHPPerLevel || 0)}">
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
-        <div id="hpGainSettings" class="${noHitPointGain ? "hidden" : ""}">
-          <div class="grid two">
+
+        <section id="hpAttributeDerivedSettings" class="hp-settings-section ${attributeDerived ? "" : "hidden"}">
+          <h2>${t("hp.attribute.section", "Attribute-Derived Hit Points")}</h2>
+          <p class="field-hint">${t("hp.attribute.help", "Choose one calculation. Maximum Hit Points update whenever the referenced Attribute scores change.")}</p>
+          <div class="hp-derived-mode-list">
+            <label class="hp-radio-option">
+              <input type="radio" name="hpDerivationMode" value="direct" ${attributeDerivationMode === "direct" ? "checked" : ""}>
+              <span><strong>${t("hp.attribute.mode.direct", "Direct Attribute")}</strong><span class="field-hint">${t("hp.attribute.mode.direct.help", "Maximum Hit Points equal one Attribute's full score.")}</span></span>
+            </label>
+            <label class="hp-radio-option">
+              <input type="radio" name="hpDerivationMode" value="single_formula" ${attributeDerivationMode === "single_formula" ? "checked" : ""}>
+              <span><strong>${t("hp.attribute.mode.single", "Single-Attribute Formula")}</strong><span class="field-hint">${t("hp.attribute.mode.single.help", "Calculate Maximum Hit Points from one Attribute, a multiplier, and optional fixed values.")}</span></span>
+            </label>
+            <label class="hp-radio-option">
+              <input type="radio" name="hpDerivationMode" value="multi_formula" ${attributeDerivationMode === "multi_formula" ? "checked" : ""}>
+              <span><strong>${t("hp.attribute.mode.multi", "Multi-Attribute Formula")}</strong><span class="field-hint">${t("hp.attribute.mode.multi.help", "Combine two or more Attributes into one Maximum Hit Point value.")}</span></span>
+            </label>
+          </div>
+          <div id="hpDirectAttributeSettings" class="grid two">
             <div class="field">
-              <label>${t("hp.method.label", "HP Gain Method")}</label>
-              <select id="hpGainMethod">${methodOptions}</select>
-            </div>
-            <div class="field">
-              <label>${t("hp.fixed_per_level", "Fixed HP per Level")}</label>
-              <input type="number" id="hpFixedPerLevel" value="${Number(data.fixedHPPerLevel || 0)}">
-            </div>
-            <div class="field">
-              <label>${t("hp.average.rounding", "Average Rounding")}</label>
-              <select id="hpAverageRounding">${roundingOptions}</select>
-            </div>
-            <div class="field">
-              <label>${t("hp.minimum_per_level", "Minimum HP per Level")}</label>
-              <input type="number" id="hpMinimumPerLevel" value="${Number(data.minimumHPPerLevel || 0)}">
+              <label for="hpDirectAttribute">${t("hp.attribute.label", "HP Attribute")}</label>
+              <select id="hpDirectAttribute">${attributeOptions(attributeDerivedDirectAttributeId)}</select>
             </div>
           </div>
-          <div class="grid two">
-            <div class="field">
-              <label>${t("hp.modifier.attribute", "Attribute Modifier")}</label>
-              <select id="hpModifierAttribute">${hpAttributeOptions}</select>
+          <div id="hpAttributeFormulaSettings">
+            <div class="grid three">
+              <div class="field">
+                <label for="hpAttributeBaseValue">${t("hp.attribute.base", "Base Value")}</label>
+                <input type="number" id="hpAttributeBaseValue" step="any" value="${attributeDerivedBaseValue}">
+              </div>
+              <div class="field">
+                <label for="hpAttributeDivisor">${t("hp.attribute.divisor", "Divide Total By")}</label>
+                <input type="number" id="hpAttributeDivisor" step="any" value="${attributeDerivedDivisor}">
+              </div>
+              <div class="field">
+                <label for="hpAttributeRounding">${t("hp.attribute.rounding", "Rounding")}</label>
+                <select id="hpAttributeRounding">${roundingOptions}</select>
+              </div>
             </div>
-            <div class="field">
-              <label>${t("hp.modifier.allow_negative_attribute", "Allow Negative Attribute Modifier")}</label>
-              <select id="hpAllowNegativeAttribute">
-                <option value="true" ${data.allowNegativeAttributeModifier ? "selected" : ""}>${t("common.yes", "Yes")}</option>
-                <option value="false" ${data.allowNegativeAttributeModifier ? "" : "selected"}>${t("common.no", "No")}</option>
-              </select>
+            <div class="hp-derived-terms-heading">
+              <h3>${t("hp.attribute.terms", "Attribute Terms")}</h3>
+              <button class="btn secondary" id="hpAddAttributeTerm" type="button">${t("hp.attribute.term.add", "Add Attribute")}</button>
             </div>
+            <div id="hpAttributeTerms" class="hp-derived-terms"></div>
+            <p id="hpAttributeFormulaPreview" class="field-hint"></p>
           </div>
-          <div class="grid two">
-            <div class="field">
-              <label>${t("hp.first_level.max", "Max HP at First Level")}</label>
-              <select id="hpFirstLevelMax">
-                <option value="true" ${data.firstLevelMaxHP ? "selected" : ""}>${t("common.yes", "Yes")}</option>
-                <option value="false" ${data.firstLevelMaxHP ? "" : "selected"}>${t("common.no", "No")}</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>${t("hp.first_level.bonus", "First Level Bonus HP")}</label>
-              <input type="number" id="hpFirstLevelBonus" value="${Number(data.firstLevelBonusHP || 0)}">
-            </div>
-          </div>
-        </div>
+        </section>
         <div class="actions-row">
           <div class="left">
             <button class="btn ghost" id="backToAttributes" type="button">${t("setup.back", "Back")}</button>
@@ -14631,37 +15186,174 @@ async function renderHitPoints() {
       </section>
     `;
 
-    const updateMethodControls = () => {
-      const method = document.getElementById("hpGainMethod").value;
-      const fixedInput = document.getElementById("hpFixedPerLevel");
-      const roundingSelect = document.getElementById("hpAverageRounding");
-      const fixedEnabled = method === "fixed";
-      const averageEnabled = method === "average";
-      fixedInput.disabled = !fixedEnabled;
-      roundingSelect.disabled = !averageEnabled;
+    const updateDiceExpressionPreview = () => {
+      const sides = Math.max(0, Math.trunc(Number(document.getElementById("hpHitDieSides").value || 0)));
+      const count = Math.max(1, Math.trunc(Number(document.getElementById("hpHitDieCount").value || 1)));
+      const modifier = Math.trunc(Number(document.getElementById("hpHitDieModifier").value || 0));
+      const expression = sides > 0
+        ? `${count}d${sides}${modifier > 0 ? `+${modifier}` : modifier < 0 ? modifier : ""}`
+        : t("hp.dice.unset", "No die selected");
+      const preview = document.getElementById("hpDiceExpressionPreview");
+      preview.textContent = t("hp.dice.preview", "Expression: {expression}")
+        .replace("{expression}", expression);
     };
 
-    const updateAttributeModifierControls = () => {
-      const hasAttribute = document.getElementById("hpModifierAttribute").value !== "";
-      const negativeSelect = document.getElementById("hpAllowNegativeAttribute");
-      negativeSelect.disabled = !hasAttribute;
-      if (!hasAttribute) {
-        negativeSelect.value = "false";
+    const updateMethodControls = () => {
+      const method = document.getElementById("hpGainMethod").value;
+      const dieBased = method === "rolled";
+      const allSameDice = document.getElementById("hpAllCharactersSameDice").checked;
+      const allSameFixedGain = document.getElementById("hpAllCharactersSameFixedGain").checked;
+      document.getElementById("hpDiceSourceSettings").classList.toggle("hidden", !dieBased);
+      document.getElementById("hpCommonDiceSettings").classList.toggle("hidden", !dieBased || !allSameDice);
+      document.getElementById("hpFixedSettings").classList.toggle("hidden", method !== "fixed");
+      document.getElementById("hpCommonFixedSettings").classList.toggle("hidden", method !== "fixed" || !allSameFixedGain);
+      document.getElementById("hpFirstLevelMaxField").classList.toggle("hidden", !dieBased);
+      updateDiceExpressionPreview();
+    };
+
+    const selectedDerivationMode = () => {
+      const selected = document.querySelector('input[name="hpDerivationMode"]:checked');
+      return selected ? selected.value : "direct";
+    };
+
+    const readAttributeTermInputs = () => {
+      document.querySelectorAll("[data-hp-term-index]").forEach((select) => {
+        const index = Number(select.dataset.hpTermIndex);
+        if (attributeDerivedTerms[index]) {
+          attributeDerivedTerms[index].attributeId = select.value;
+        }
+      });
+      document.querySelectorAll("[data-hp-term-multiplier]").forEach((input) => {
+        const index = Number(input.dataset.hpTermMultiplier);
+        if (attributeDerivedTerms[index]) {
+          const multiplier = Number(input.value);
+          attributeDerivedTerms[index].multiplier = Number.isFinite(multiplier) ? multiplier : 1;
+        }
+      });
+    };
+
+    const updateAttributeFormulaPreview = () => {
+      const preview = document.getElementById("hpAttributeFormulaPreview");
+      const mode = selectedDerivationMode();
+      if (mode === "direct") {
+        preview.textContent = "";
+        return;
       }
+      readAttributeTermInputs();
+      const limit = mode === "single_formula" ? 1 : attributeDerivedTerms.length;
+      const names = new Map(hpAttributes.map((attribute) => [
+        String(attribute.id || ""),
+        String(attribute.displayName || attribute.name || t("hp.attribute.placeholder", "Attribute")),
+      ]));
+      const pieces = [];
+      const baseValue = Number(document.getElementById("hpAttributeBaseValue").value || 0);
+      if (baseValue !== 0) {
+        pieces.push(String(baseValue));
+      }
+      attributeDerivedTerms.slice(0, limit).forEach((term) => {
+        const name = names.get(term.attributeId) || t("hp.attribute.placeholder", "Attribute");
+        pieces.push(`${term.multiplier} * ${name}`);
+      });
+      if (!pieces.length) {
+        pieces.push("0");
+      }
+      const divisor = Number(document.getElementById("hpAttributeDivisor").value || 1) || 1;
+      const expression = divisor === 1 ? pieces.join(" + ") : `(${pieces.join(" + ")}) / ${divisor}`;
+      const rounding = document.getElementById("hpAttributeRounding").selectedOptions[0]?.textContent || "";
+      preview.textContent = t("hp.attribute.preview", "Formula: {expression}. Rounding: {rounding}.")
+        .replace("{expression}", expression)
+        .replace("{rounding}", rounding);
     };
 
     let hitPointSavePromise = Promise.resolve(true);
-    const saveHitPoints = () => {
+    let saveHitPoints = () => Promise.resolve(true);
+
+    const renderAttributeDerivedTerms = () => {
+      const mode = selectedDerivationMode();
+      const direct = mode === "direct";
+      const single = mode === "single_formula";
+      document.getElementById("hpDirectAttributeSettings").classList.toggle("hidden", !direct);
+      document.getElementById("hpAttributeFormulaSettings").classList.toggle("hidden", direct);
+      document.getElementById("hpAddAttributeTerm").classList.toggle("hidden", mode !== "multi_formula");
+      if (direct) {
+        updateAttributeFormulaPreview();
+        return;
+      }
+      const requiredTerms = single ? 1 : 2;
+      while (attributeDerivedTerms.length < requiredTerms) {
+        attributeDerivedTerms.push({ attributeId: "", multiplier: 1 });
+      }
+      const visibleTerms = single ? attributeDerivedTerms.slice(0, 1) : attributeDerivedTerms;
+      document.getElementById("hpAttributeTerms").innerHTML = visibleTerms.map((term, index) => `
+        <div class="hp-derived-term-row">
+          <div class="field">
+            <label for="hpAttributeTerm${index}">${t("hp.attribute.label", "HP Attribute")}</label>
+            <select id="hpAttributeTerm${index}" data-hp-term-index="${index}">${attributeOptions(term.attributeId)}</select>
+          </div>
+          <div class="field">
+            <label for="hpAttributeMultiplier${index}">${t("hp.attribute.multiplier", "Multiplier")}</label>
+            <input type="number" id="hpAttributeMultiplier${index}" step="any" value="${term.multiplier}" data-hp-term-multiplier="${index}">
+          </div>
+          ${single || visibleTerms.length <= 2 ? "" : `<button class="btn danger small hp-remove-derived-term" type="button" data-hp-remove-term="${index}">${t("common.remove", "Remove")}</button>`}
+        </div>
+      `).join("");
+      document.querySelectorAll("[data-hp-term-index], [data-hp-term-multiplier]").forEach((control) => {
+        control.addEventListener("change", () => {
+          readAttributeTermInputs();
+          updateAttributeFormulaPreview();
+          saveHitPoints();
+        });
+      });
+      document.querySelectorAll("[data-hp-remove-term]").forEach((button) => {
+        button.addEventListener("click", () => {
+          readAttributeTermInputs();
+          attributeDerivedTerms.splice(Number(button.dataset.hpRemoveTerm), 1);
+          renderAttributeDerivedTerms();
+          saveHitPoints();
+        });
+      });
+      updateAttributeFormulaPreview();
+    };
+
+    const updateHPSystemControls = () => {
+      const derived = document.getElementById("hpSystemAttributeDerived").checked;
+      document.getElementById("hpIndependentSettings").classList.toggle("hidden", derived);
+      document.getElementById("hpAttributeDerivedSettings").classList.toggle("hidden", !derived);
+      if (derived) {
+        renderAttributeDerivedTerms();
+      } else {
+        updateMethodControls();
+      }
+    };
+
+    saveHitPoints = () => {
+      readAttributeTermInputs();
+      const attributeSystem = document.getElementById("hpSystemAttributeDerived").checked;
       const noGain = document.getElementById("hpNoGain").checked;
       const payload = {
-        hpGainMethod: noGain ? "fixed" : document.getElementById("hpGainMethod").value,
+        hpGainMethod: attributeSystem
+          ? "attribute_derived"
+          : noGain ? "fixed" : document.getElementById("hpGainMethod").value,
         fixedHPPerLevel: noGain ? 0 : Number(document.getElementById("hpFixedPerLevel").value),
-        averageRoundingMethod: document.getElementById("hpAverageRounding").value,
+        allCharactersUseSameFixedGain: noGain || document.getElementById("hpAllCharactersSameFixedGain").checked,
+        allCharactersUseSameHitDice: document.getElementById("hpAllCharactersSameDice").checked,
+        hitDieSides: Number(document.getElementById("hpHitDieSides").value || 0),
+        hitDieCount: Math.max(1, Number(document.getElementById("hpHitDieCount").value || 1)),
+        hitDieModifier: Number(document.getElementById("hpHitDieModifier").value || 0),
         minimumHPPerLevel: noGain ? 0 : Number(document.getElementById("hpMinimumPerLevel").value),
-        hpModifierAttributeId: noGain ? "" : document.getElementById("hpModifierAttribute").value,
-        allowNegativeAttributeModifier: !noGain && document.getElementById("hpAllowNegativeAttribute").value === "true",
-        firstLevelMaxHP: !noGain && document.getElementById("hpFirstLevelMax").value === "true",
+        firstLevelMaxHP: !attributeSystem && !noGain
+          && document.getElementById("hpGainMethod").value === "rolled"
+          && document.getElementById("hpFirstLevelMax").value === "true",
         firstLevelBonusHP: Number(document.getElementById(noGain ? "hpBaseHitPoints" : "hpFirstLevelBonus").value),
+        attributeDerivationMode: selectedDerivationMode(),
+        attributeDerivedDirectAttributeId: document.getElementById("hpDirectAttribute").value,
+        attributeDerivedBaseValue: Number(document.getElementById("hpAttributeBaseValue").value || 0),
+        attributeDerivedDivisor: Number(document.getElementById("hpAttributeDivisor").value || 1),
+        attributeDerivedRoundingMethod: document.getElementById("hpAttributeRounding").value,
+        attributeDerivedTerms: attributeDerivedTerms.map((term) => ({
+          attributeId: term.attributeId,
+          multiplier: term.multiplier,
+        })),
       };
       hitPointSavePromise = hitPointSavePromise.catch(() => false).then(async () => {
         try {
@@ -14676,13 +15368,20 @@ async function renderHitPoints() {
       return hitPointSavePromise;
     };
 
-    updateMethodControls();
-    updateAttributeModifierControls();
+    updateHPSystemControls();
+    document.querySelectorAll('input[name="hpSystem"]').forEach((radio) => {
+      radio.addEventListener("change", () => {
+        updateHPSystemControls();
+        saveHitPoints();
+      });
+    });
     document.getElementById("hpNoGain").addEventListener("change", (event) => {
       const noGain = event.target.checked;
       document.getElementById("hpNoGainSettings").classList.toggle("hidden", !noGain);
+      document.getElementById("hpProgressiveStartingSettings").classList.toggle("hidden", noGain);
       document.getElementById("hpGainSettings").classList.toggle("hidden", noGain);
       if (noGain) {
+        document.getElementById("hpAllCharactersSameFixedGain").checked = true;
         document.getElementById("hpBaseHitPoints").value = document.getElementById("hpFirstLevelBonus").value;
       } else {
         document.getElementById("hpFirstLevelBonus").value = document.getElementById("hpBaseHitPoints").value;
@@ -14691,7 +15390,6 @@ async function renderHitPoints() {
           document.getElementById("hpFixedPerLevel").value = "1";
         }
         updateMethodControls();
-        updateAttributeModifierControls();
       }
       saveHitPoints();
     });
@@ -14701,18 +15399,71 @@ async function renderHitPoints() {
       saveHitPoints();
     });
     document.getElementById("hpFixedPerLevel").addEventListener("change", saveHitPoints);
-    document.getElementById("hpAverageRounding").addEventListener("change", saveHitPoints);
-    document.getElementById("hpMinimumPerLevel").addEventListener("change", saveHitPoints);
-    document.getElementById("hpModifierAttribute").addEventListener("change", () => {
-      updateAttributeModifierControls();
+    document.getElementById("hpAllCharactersSameFixedGain").addEventListener("change", () => {
+      updateMethodControls();
       saveHitPoints();
     });
-    document.getElementById("hpAllowNegativeAttribute").addEventListener("change", saveHitPoints);
+    document.getElementById("hpAllCharactersSameDice").addEventListener("change", () => {
+      updateMethodControls();
+      saveHitPoints();
+    });
+    document.getElementById("hpHitDieSides").addEventListener("change", () => {
+      updateDiceExpressionPreview();
+      saveHitPoints();
+    });
+    document.getElementById("hpHitDieCount").addEventListener("change", () => {
+      const input = document.getElementById("hpHitDieCount");
+      input.value = String(Math.max(1, Math.trunc(Number(input.value || 1))));
+      updateDiceExpressionPreview();
+      saveHitPoints();
+    });
+    document.getElementById("hpHitDieModifier").addEventListener("change", () => {
+      updateDiceExpressionPreview();
+      saveHitPoints();
+    });
+    document.getElementById("hpMinimumPerLevel").addEventListener("change", saveHitPoints);
     document.getElementById("hpFirstLevelMax").addEventListener("change", saveHitPoints);
     document.getElementById("hpFirstLevelBonus").addEventListener("change", saveHitPoints);
+    document.getElementById("hpDirectAttribute").addEventListener("change", saveHitPoints);
+    document.querySelectorAll('input[name="hpDerivationMode"]').forEach((radio) => {
+      radio.addEventListener("change", () => {
+        readAttributeTermInputs();
+        renderAttributeDerivedTerms();
+        saveHitPoints();
+      });
+    });
+    ["hpAttributeBaseValue", "hpAttributeDivisor", "hpAttributeRounding"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", () => {
+        updateAttributeFormulaPreview();
+        saveHitPoints();
+      });
+    });
+    document.getElementById("hpAddAttributeTerm").addEventListener("click", () => {
+      readAttributeTermInputs();
+      attributeDerivedTerms.push({ attributeId: "", multiplier: 1 });
+      renderAttributeDerivedTerms();
+    });
 
     document.getElementById("backToAttributes").addEventListener("click", navigateBackInApp);
-    document.getElementById("hpContinue").addEventListener("click", () => {
+    document.getElementById("hpContinue").addEventListener("click", async () => {
+      if (document.getElementById("hpSystemAttributeDerived").checked) {
+        readAttributeTermInputs();
+        const mode = selectedDerivationMode();
+        const selectedTerms = mode === "single_formula" ? attributeDerivedTerms.slice(0, 1) : attributeDerivedTerms;
+        const selectedIds = selectedTerms.map((term) => term.attributeId).filter(Boolean);
+        const valid = mode === "direct"
+          ? document.getElementById("hpDirectAttribute").value !== ""
+          : mode === "single_formula"
+            ? selectedIds.length === 1
+            : selectedIds.length >= 2 && new Set(selectedIds).size === selectedIds.length;
+        const invalidDivisor = mode !== "direct"
+          && Number(document.getElementById("hpAttributeDivisor").value) === 0;
+        if (!valid || invalidDivisor) {
+          showToast(t("hp.attribute.validation", "Complete the selected Attribute-derived HP formula before continuing."));
+          return;
+        }
+      }
+      await saveHitPoints();
       navigateToStep("armor-class");
     });
   } catch (error) {
@@ -14823,25 +15574,27 @@ async function renderCurrency() {
       .map((currency) => {
         const name = currency.name || t("currency.untitled", "Untitled");
         const count = (currency.denominations || []).length;
-        return `
-          <div class="list-item">
-            <button class="btn ghost small" data-select-currency="${currency.id}">${escapeHtml(name)}</button>
-            <span class="badge">${count}</span>
-            <button class="btn danger small" data-remove-currency="${currency.id}">${t("common.remove", "Remove")}</button>
-          </div>
-        `;
+        return renderCollectionRow(
+          `<button class="btn ghost small" type="button" data-select-currency="${escapeHtml(currency.id)}">${escapeHtml(name)}</button>
+           <span class="badge">${count}</span>`,
+          [
+            collectionEditAction("edit-currency", currency.id),
+            collectionRemoveAction("remove-currency", currency.id),
+          ]
+        );
       })
       .join("");
 
     const denominations = (selectedCurrency && selectedCurrency.denominations) || [];
     const denomList = denominations
       .map(
-        (denom) => `
-          <div class="list-item">
-            <span>${escapeHtml(denom.name)} <span class="badge">${denom.value}</span></span>
-            <button class="btn danger small" data-remove-denom="${escapeHtml(denom.name)}">${t("common.remove", "Remove")}</button>
-          </div>
-        `
+        (denom, index) => renderCollectionRow(
+          `<span>${escapeHtml(denom.name)} <span class="badge">${denom.value}</span></span>`,
+          [
+            collectionEditAction("edit-denom", index),
+            collectionRemoveAction("remove-denom", index),
+          ]
+        )
       )
       .join("");
 
@@ -14919,16 +15672,20 @@ async function renderCurrency() {
       </section>
     `;
 
-    document.getElementById("addCurrency").addEventListener("click", () => {
-      currencyCreateModalTitle.textContent = t("currency.add", "Add Currency");
+    const openCurrencyEditor = (currency = null) => {
+      const editing = Boolean(currency);
+      const currencyDenominations = editing && Array.isArray(currency.denominations) ? currency.denominations : [];
+      const baseEntry = currencyDenominations.find((denom) => Number(denom.value) === 1) || currencyDenominations[0];
+      const originalBaseDenomination = baseEntry ? String(baseEntry.name || "") : "";
+      currencyCreateModalTitle.textContent = editing ? t("currency.edit", "Edit Currency") : t("currency.add", "Add Currency");
       currencyCreateModalNameLabel.textContent = t("currency.name", "Currency Name");
       currencyCreateModalName.placeholder = t("currency.name.placeholder", "e.g., Gold Standard");
-      currencyCreateModalName.value = "";
+      currencyCreateModalName.value = editing ? String(currency.name || "") : "";
       currencyCreateModalBaseLabel.textContent = t("currency.base_denom", "Base Denomination");
       currencyCreateModalBase.placeholder = t("currency.base_denom.placeholder", "e.g., Copper");
-      currencyCreateModalBase.value = "";
+      currencyCreateModalBase.value = originalBaseDenomination;
       currencyCreateModalCancel.textContent = t("common.cancel", "Cancel");
-      currencyCreateModalSave.textContent = t("currency.add", "Add Currency");
+      currencyCreateModalSave.textContent = editing ? t("common.save", "Save") : t("currency.add", "Add Currency");
       currencyCreateModalSave.disabled = false;
       currencyCreateModal.classList.remove("hidden");
       currencyCreateModalName.focus();
@@ -14943,12 +15700,14 @@ async function renderCurrency() {
         }
         currencyCreateModalSave.disabled = true;
         try {
-          const result = await api("POST", `/api/drafts/${state.draftId}/currencies`, {
+          const result = await api("POST", `/api/drafts/${state.draftId}/currencies${editing ? "/update" : ""}`, {
+            id: editing ? currency.id : "",
             name,
             baseDenomination,
+            originalBaseDenomination,
           });
-          state.currencyId = result.id || "";
-          markSaved(t("web.toast.currency_added", "Currency added"));
+          state.currencyId = editing ? currency.id : result.id || "";
+          markSaved(t(editing ? "web.toast.currency_updated" : "web.toast.currency_added", editing ? "Currency updated" : "Currency added"));
           currencyCreateModal.classList.add("hidden");
           renderCurrency();
         } catch (error) {
@@ -14956,6 +15715,17 @@ async function renderCurrency() {
           currencyCreateModalSave.disabled = false;
         }
       };
+    };
+
+    document.getElementById("addCurrency").addEventListener("click", () => openCurrencyEditor());
+
+    document.querySelectorAll("[data-edit-currency]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const currency = currencies.find((entry) => entry.id === button.dataset.editCurrency);
+        if (currency) {
+          openCurrencyEditor(currency);
+        }
+      });
     });
 
     document.querySelectorAll("[data-select-currency]").forEach((button) => {
@@ -14988,19 +15758,23 @@ async function renderCurrency() {
       });
     });
 
-    document.getElementById("addDenom").addEventListener("click", () => {
+    const openDenominationEditor = (index = -1) => {
       if (!state.currencyId) {
         showToast(t("web.toast.currency_select_required", "Select a currency first."));
         return;
       }
-      denominationCreateModalTitle.textContent = t("currency.denom.add", "Add Denomination");
+      const editing = Number.isInteger(index) && index >= 0 && index < denominations.length;
+      const denomination = editing ? denominations[index] : { name: "", value: 1 };
+      denominationCreateModalTitle.textContent = editing
+        ? t("currency.denom.edit", "Edit Denomination")
+        : t("currency.denom.add", "Add Denomination");
       denominationCreateModalNameLabel.textContent = t("currency.denom.name", "Denomination");
       denominationCreateModalName.placeholder = t("currency.denom.placeholder", "e.g., Silver");
-      denominationCreateModalName.value = "";
+      denominationCreateModalName.value = denomination.name || "";
       denominationCreateModalValueLabel.textContent = t("currency.denom.value", "Value");
-      denominationCreateModalValue.value = "1";
+      denominationCreateModalValue.value = String(denomination.value || 1);
       denominationCreateModalCancel.textContent = t("common.cancel", "Cancel");
-      denominationCreateModalSave.textContent = t("currency.denom.add", "Add Denomination");
+      denominationCreateModalSave.textContent = editing ? t("common.save", "Save") : t("currency.denom.add", "Add Denomination");
       denominationCreateModalSave.disabled = false;
       denominationCreateModal.classList.remove("hidden");
       denominationCreateModalName.focus();
@@ -15019,12 +15793,13 @@ async function renderCurrency() {
         }
         denominationCreateModalSave.disabled = true;
         try {
-          await api("POST", `/api/drafts/${state.draftId}/currencies/denominations`, {
+          await api("POST", `/api/drafts/${state.draftId}/currencies/denominations${editing ? "/update" : ""}`, {
             currencyId: state.currencyId,
+            originalName: editing ? denomination.name : "",
             name,
             value,
           });
-          markSaved(t("web.toast.denom_added", "Denomination added"));
+          markSaved(t(editing ? "web.toast.denom_updated" : "web.toast.denom_added", editing ? "Denomination updated" : "Denomination added"));
           denominationCreateModal.classList.add("hidden");
           renderCurrency();
         } catch (error) {
@@ -15032,6 +15807,12 @@ async function renderCurrency() {
           denominationCreateModalSave.disabled = false;
         }
       };
+    };
+
+    document.getElementById("addDenom").addEventListener("click", () => openDenominationEditor());
+
+    document.querySelectorAll("[data-edit-denom]").forEach((button) => {
+      button.addEventListener("click", () => openDenominationEditor(Number(button.dataset.editDenom)));
     });
 
     document.querySelectorAll("[data-remove-denom]").forEach((button) => {
@@ -15039,7 +15820,11 @@ async function renderCurrency() {
         if (!state.currencyId) {
           return;
         }
-        const name = button.dataset.removeDenom;
+        const denomination = denominations[Number(button.dataset.removeDenom)];
+        const name = denomination ? denomination.name : "";
+        if (!name) {
+          return;
+        }
         const confirmed = await showConfirm(
           t("currency.denom.remove.confirm", "Remove this denomination?"),
           t("common.remove", "Remove")
@@ -15113,7 +15898,7 @@ async function renderEffectTypes(openKey = "") {
   try {
     const data = await api("GET", `/api/drafts/${state.draftId}/effect-types`);
     const systemName = String(data.systemName || "");
-    const title = systemNameTitle(systemName, t("effecttypes.title", "Effect Types"));
+    const title = systemNameTitle(systemName, t("effecttypes.title", "Affected Systems"));
     const types = sortByLabel(data.types || [], (type) => type.displayName || type.name || type.key || "");
     effectTypeOptions = types;
 
@@ -15126,11 +15911,10 @@ async function renderEffectTypes(openKey = "") {
           <div class="list-item">
             <div>
               <strong>${escapeHtml(type.name || t("effects.untitled", "Untitled"))}</strong>
-              ${type.description ? `<div>${escapeHtml(type.description)}</div>` : ""}
             </div>
             <div>
-              <button class="btn ghost small" data-edit-effect-type="${escapeHtml(key)}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" data-remove-effect-type="${escapeHtml(key)}">${t("common.remove", "Remove")}</button>
+              ${collectionEditAction("edit-effect-type", key)}
+              ${collectionRemoveAction("remove-effect-type", key)}
             </div>
           </div>
         `;
@@ -15140,10 +15924,10 @@ async function renderEffectTypes(openKey = "") {
     view.innerHTML = `
       <section class="panel">
         <h1>${escapeHtml(title)}</h1>
-        ${renderSystemNameControls(systemName, t("effecttypes.title", "Effect Types"))}
-        <button class="btn" id="addEffectType" type="button">${t("effecttypes.add", "Add Effect Type")}</button>
+        ${renderSystemNameControls(systemName, t("effecttypes.title", "Affected Systems"))}
+        <button class="btn" id="addEffectType" type="button">${t("effecttypes.add", "Add Affected System")}</button>
         <div class="list" id="effectTypeList">
-          ${list || `<div class="list-item">${t("effecttypes.none", "No effect types yet.")}</div>`}
+          ${list || `<div class="list-item">${t("effecttypes.none", "No affected systems yet.")}</div>`}
         </div>
         <div class="actions-row">
           <div class="left">
@@ -15171,7 +15955,7 @@ async function renderEffectTypes(openKey = "") {
       button.addEventListener("click", async () => {
         const key = button.dataset.removeEffectType;
         const confirmed = await showConfirm(
-          t("effecttypes.remove.confirm", "Remove this effect type?"),
+          t("effecttypes.remove.confirm", "Remove this affected system?"),
           t("common.remove", "Remove")
         );
         if (!confirmed) {
@@ -15179,7 +15963,7 @@ async function renderEffectTypes(openKey = "") {
         }
         try {
           await api("DELETE", `/api/drafts/${state.draftId}/effect-types`, { key });
-          markSaved(t("web.toast.effect_type_removed", "Effect type removed"));
+          markSaved(t("web.toast.effect_type_removed", "Affected system removed"));
           renderEffectTypes();
         } catch (error) {
           showToast(error.message);
@@ -15189,7 +15973,7 @@ async function renderEffectTypes(openKey = "") {
 
     document.getElementById("backToCurrency").addEventListener("click", navigateBackInApp);
     document.getElementById("effectTypesContinue").addEventListener("click", () => {
-      markSaved(t("web.toast.effect_types_saved", "Effect types saved"));
+      markSaved(t("web.toast.effect_types_saved", "Affected systems saved"));
       renderDamageTypes();
     });
     wireSystemNameSave("effect-types", () => renderEffectTypes());
@@ -15221,20 +16005,20 @@ async function renderStatuses(openId = "") {
     effectTypeOptions = sortByLabel(typeData.types || [], (type) => type.displayName || type.name || type.key || "");
 
     const statusList = statuses
-      .map(
-        (status) => `
+      .map((status) => {
+        const affectedSystems = renderEffectTypeBadges(status.effectTypeKeys);
+        return `
           <div class="list-item">
             <div>
-              <strong>${escapeHtml(status.name || t("statuses.untitled", "Untitled"))}</strong>
-              ${status.description ? `<div>${escapeHtml(status.description)}</div>` : ""}
+              <strong>${escapeHtml(status.name || t("statuses.untitled", "Untitled"))}</strong>${affectedSystems}
             </div>
             <div>
-              <button class="btn ghost small" data-edit-status="${status.id}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" data-remove-status="${status.id}">${t("common.remove", "Remove")}</button>
+              ${collectionEditAction("edit-status", status.id)}
+              ${collectionRemoveAction("remove-status", status.id)}
             </div>
           </div>
-        `
-      )
+        `;
+      })
       .join("");
 
     view.innerHTML = `
@@ -15321,11 +16105,10 @@ async function renderDamageTypes(openId = "") {
           <div class="list-item">
             <div>
               <strong>${escapeHtml(damageType.name || t("damagetypes.untitled", "Untitled"))}</strong>
-              ${damageType.description ? `<div>${escapeHtml(damageType.description)}</div>` : ""}
             </div>
             <div>
-              <button class="btn ghost small" data-edit-damage-type="${damageType.id}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" data-remove-damage-type="${damageType.id}">${t("common.remove", "Remove")}</button>
+              ${collectionEditAction("edit-damage-type", damageType.id)}
+              ${collectionRemoveAction("remove-damage-type", damageType.id)}
             </div>
           </div>
         `
@@ -15417,16 +16200,16 @@ async function renderEffects(openId = "") {
       .map(
         (effect) => {
           const damageTypeLabel = resolveDamageTypeLabel(effect.damageTypeId);
+          const damageType = damageTypeLabel ? ` <span class="badge">${escapeHtml(damageTypeLabel)}</span>` : "";
+          const affectedSystems = renderEffectTypeBadges(effect.effectTypeKeys);
           return `
             <div class="list-item">
               <div>
-                <strong>${escapeHtml(effect.name || t("effects.untitled", "Untitled"))}</strong>
-                ${damageTypeLabel ? `<div>${escapeHtml(t("damagetypes.field", "Damage Type"))}: ${escapeHtml(damageTypeLabel)}</div>` : ""}
-                ${effect.description ? `<div>${escapeHtml(effect.description)}</div>` : ""}
+                <strong>${escapeHtml(effect.name || t("effects.untitled", "Untitled"))}</strong>${affectedSystems}${damageType}
               </div>
               <div>
-                <button class="btn ghost small" data-edit-effect="${effect.id}">${t("common.edit", "Edit")}</button>
-                <button class="btn danger small" data-remove-effect="${effect.id}">${t("common.remove", "Remove")}</button>
+                ${collectionEditAction("edit-effect", effect.id)}
+                ${collectionRemoveAction("remove-effect", effect.id)}
               </div>
             </div>
           `;
@@ -15522,16 +16305,15 @@ async function renderEquipment(openId = "") {
       .map(
         (item) => {
           const damageTypeLabel = resolveDamageTypeLabel(item.damageTypeId);
+          const damageType = damageTypeLabel ? ` <span class="badge">${escapeHtml(damageTypeLabel)}</span>` : "";
           return `
             <div class="list-item">
               <div>
-                <strong>${escapeHtml(item.name || t("equipment.untitled", "Untitled"))}</strong>
-                ${damageTypeLabel ? `<div>${escapeHtml(t("damagetypes.field", "Damage Type"))}: ${escapeHtml(damageTypeLabel)}</div>` : ""}
-                ${item.description ? `<div>${escapeHtml(item.description)}</div>` : ""}
+                <strong>${escapeHtml(item.name || t("equipment.untitled", "Untitled"))}</strong>${damageType}
               </div>
               <div>
-                <button class="btn ghost small" data-edit-equipment="${item.id}">${t("common.edit", "Edit")}</button>
-                <button class="btn danger small" data-remove-equipment="${item.id}">${t("common.remove", "Remove")}</button>
+                ${collectionEditAction("edit-equipment", item.id)}
+                ${collectionRemoveAction("remove-equipment", item.id)}
               </div>
             </div>
           `;
@@ -15627,16 +16409,15 @@ async function renderWeapons(openId = "") {
       .map(
         (weapon) => {
           const damageTypeLabel = resolveDamageTypeLabel(weapon.damageTypeId);
+          const damageType = damageTypeLabel ? ` <span class="badge">${escapeHtml(damageTypeLabel)}</span>` : "";
           return `
           <div class="list-item">
             <div>
-              <strong>${escapeHtml(weapon.name || t("weapons.untitled", "Untitled"))}</strong>
-              ${damageTypeLabel ? `<div>${escapeHtml(t("damagetypes.field", "Damage Type"))}: ${escapeHtml(damageTypeLabel)}</div>` : ""}
-              ${weapon.description ? `<div>${escapeHtml(weapon.description)}</div>` : ""}
+              <strong>${escapeHtml(weapon.name || t("weapons.untitled", "Untitled"))}</strong>${damageType}
             </div>
             <div>
-              <button class="btn ghost small" data-edit-weapon="${weapon.id}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" data-remove-weapon="${weapon.id}">${t("common.remove", "Remove")}</button>
+              ${collectionEditAction("edit-weapon", weapon.id)}
+              ${collectionRemoveAction("remove-weapon", weapon.id)}
             </div>
           </div>
         `;
@@ -15739,11 +16520,10 @@ async function renderClasses(openId = "") {
           <div class="list-item">
             <div>
               <strong>${escapeHtml(characterClass.name || t("classes.untitled", "Untitled"))}</strong>
-              ${characterClass.description ? `<div>${escapeHtml(characterClass.description)}</div>` : ""}
             </div>
             <div>
-              <button class="btn ghost small" data-edit-class="${characterClass.id}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" data-remove-class="${characterClass.id}">${t("common.remove", "Remove")}</button>
+              ${collectionEditAction("edit-class", characterClass.id)}
+              ${collectionRemoveAction("remove-class", characterClass.id)}
             </div>
           </div>
         `
@@ -15873,8 +16653,8 @@ async function renderSkills(openId = "") {
               <strong>${escapeHtml(skill.name || t("skills.untitled", "Untitled"))}</strong>${category}
             </div>
             <div>
-              <button class="btn ghost small" data-edit-skill="${skill.id}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" data-remove-skill="${skill.id}">${t("common.remove", "Remove")}</button>
+              ${collectionEditAction("edit-skill", skill.id)}
+              ${collectionRemoveAction("remove-skill", skill.id)}
             </div>
           </div>
         `;
@@ -15884,16 +16664,13 @@ async function renderSkills(openId = "") {
     const skillPointRows = skillPointsByLevel
       .map((entry, index) => {
         const levelLabel = t("classes.skill_points.level.label", "Level {0}").replace("{0}", String(entry.level));
-        return `
-          <div class="list-item">
-            <div><strong>${escapeHtml(levelLabel)}</strong>: ${escapeHtml(String(entry.points))}</div>
-            <div>
-              <button class="btn danger small" data-remove-skill-points-level="${index}">
-                ${t("common.remove", "Remove")}
-              </button>
-            </div>
-          </div>
-        `;
+        return renderCollectionRow(
+          `<div><strong>${escapeHtml(levelLabel)}</strong>: ${escapeHtml(String(entry.points))}</div>`,
+          [
+            collectionEditAction("edit-skill-points-level", index),
+            collectionRemoveAction("remove-skill-points-level", index),
+          ]
+        );
       })
       .join("");
 
@@ -16019,24 +16796,31 @@ async function renderSkills(openId = "") {
       const rows = skillPointsByLevel
         .map((entry, index) => {
           const levelLabel = t("classes.skill_points.level.label", "Level {0}").replace("{0}", String(entry.level));
-          return `
-            <div class="list-item">
-              <div><strong>${escapeHtml(levelLabel)}</strong>: ${escapeHtml(String(entry.points))}</div>
-              <div>
-                <button class="btn danger small" data-remove-skill-points-level="${index}">
-                  ${t("common.remove", "Remove")}
-                </button>
-              </div>
-            </div>
-          `;
+          return renderCollectionRow(
+            `<div><strong>${escapeHtml(levelLabel)}</strong>: ${escapeHtml(String(entry.points))}</div>`,
+            [
+              collectionEditAction("edit-skill-points-level", index),
+              collectionRemoveAction("remove-skill-points-level", index),
+            ]
+          );
         })
         .join("");
       const list = document.getElementById("skillPointLevelList");
       list.innerHTML = rows || `<div class="list-item">${t("classes.skill_points.none", "No level-specific values.")}</div>`;
-      list.querySelectorAll("[data-remove-skill-points-level]").forEach((button) => {
+      list.querySelectorAll("[data-edit-skill-points-level], [data-remove-skill-points-level]").forEach((button) => {
         button.addEventListener("click", async () => {
-          const index = Number(button.dataset.removeSkillPointsLevel);
+          const index = Number(button.dataset.editSkillPointsLevel ?? button.dataset.removeSkillPointsLevel);
           if (Number.isNaN(index) || index < 0) {
+            return;
+          }
+          if (button.hasAttribute("data-edit-skill-points-level")) {
+            const entry = skillPointsByLevel[index];
+            if (!entry) {
+              return;
+            }
+            skillPointLevelSelect.value = String(entry.level);
+            skillPointLevelValue.value = String(entry.points);
+            skillPointLevelSelect.focus();
             return;
           }
           const confirmed = await showConfirm(
@@ -16209,8 +16993,8 @@ async function renderSpells(openId = "") {
               <span class="badge">L${level}</span>${school}${damageType}
             </div>
             <div>
-              <button class="btn ghost small" data-edit-spell="${spell.id}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" data-remove-spell="${spell.id}">${t("common.remove", "Remove")}</button>
+              ${collectionEditAction("edit-spell", spell.id)}
+              ${collectionRemoveAction("remove-spell", spell.id)}
             </div>
           </div>
         `;
@@ -16317,8 +17101,8 @@ async function renderPantheons(openId = "") {
               <div class="badge">${escapeHtml(deityNames || t("common.none", "None"))}</div>
             </div>
             <div class="actions">
-              <button class="btn ghost small" data-edit-pantheon="${escapeHtml(pantheon.id)}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" data-remove-pantheon="${escapeHtml(pantheon.id)}">${t("common.remove", "Remove")}</button>
+              ${collectionEditAction("edit-pantheon", pantheon.id)}
+              ${collectionRemoveAction("remove-pantheon", pantheon.id)}
             </div>
           </div>
         `;
@@ -16480,8 +17264,8 @@ async function renderDeities(openId = "") {
               <div class="badge">${escapeHtml(pantheonNames || t("common.none", "None"))}</div>
             </div>
             <div class="actions">
-              <button class="btn ghost small" data-edit-deity="${escapeHtml(deity.id)}">${t("common.edit", "Edit")}</button>
-              <button class="btn danger small" data-remove-deity="${escapeHtml(deity.id)}">${t("common.remove", "Remove")}</button>
+              ${collectionEditAction("edit-deity", deity.id)}
+              ${collectionRemoveAction("remove-deity", deity.id)}
             </div>
           </div>
         `;
@@ -17024,6 +17808,64 @@ function wireCharGenDiceAssignmentUI(config) {
   };
 }
 
+function snapshotAttributeEdit() {
+  return {
+    kind: editContext && editContext.kind === "attribute" ? "attribute" : "attribute-create",
+    id: editContext ? String(editContext.id || "") : "",
+    name: String(editName.value || ""),
+    description: String(editDescription.value || ""),
+    typeKey: editType ? String(editType.value || "") : "",
+    minValue: Number(editMinValue.value || 0),
+    maxValue: Number(editMaxValue.value || 0),
+    modifiers: normalizeModifierEntries(editModifiers).map((entry) => ({ ...entry })),
+    scoreBonuses: editBonuses.map((entry) => ({
+      threshold: Number(entry.threshold || 0),
+      effectId: String(entry.effectId || entry.effect || ""),
+    })),
+    pendingThreshold: Number(editBonusThreshold.value || 0),
+    selectedEffectId: editBonusEffect ? String(editBonusEffect.value || "") : "",
+    bonusEditIndex: editBonusIndex,
+  };
+}
+
+function restoreAttributeEdit(snapshot) {
+  const safeSnapshot = snapshot || {};
+  const attribute = {
+    id: String(safeSnapshot.id || ""),
+    name: String(safeSnapshot.name || ""),
+    description: String(safeSnapshot.description || ""),
+    typeKey: String(safeSnapshot.typeKey || ""),
+    minValue: Number(safeSnapshot.minValue || 0),
+    maxValue: Number(safeSnapshot.maxValue || 0),
+    modifiers: normalizeModifierEntries(safeSnapshot.modifiers || []),
+    scoreBonuses: Array.isArray(safeSnapshot.scoreBonuses)
+      ? safeSnapshot.scoreBonuses.map((entry) => ({ ...entry }))
+      : [],
+  };
+  if (safeSnapshot.kind === "attribute" && attribute.id) {
+    openAttributeEditor(attribute, attributeTypeOptions);
+  } else {
+    openAttributeCreate(attributeTypeOptions);
+    editName.value = attribute.name;
+    editDescription.value = attribute.description;
+    if (editType && Array.from(editType.options || []).some((option) => option.value === attribute.typeKey)) {
+      editType.value = attribute.typeKey;
+    }
+    editMinValue.value = String(attribute.minValue);
+    editMaxValue.value = String(attribute.maxValue);
+    editModifiers = attribute.modifiers.map((entry) => ({ ...entry }));
+    editBonuses = attribute.scoreBonuses.map((entry) => ({ ...entry }));
+    renderEditModifiers();
+    renderEditBonuses();
+  }
+  editBonusThreshold.value = String(Number(safeSnapshot.pendingThreshold || 0));
+  populateAttributeBonusEffectSelect(String(safeSnapshot.selectedEffectId || ""));
+  editBonusIndex = Number.isInteger(Number(safeSnapshot.bonusEditIndex))
+    ? Number(safeSnapshot.bonusEditIndex)
+    : -1;
+  setCollectionCommitMode(editBonusAdd, editBonusIndex >= 0);
+}
+
 function sortByLabel(items, labelFn) {
   const list = Array.isArray(items) ? items.slice() : [];
   if (typeof labelFn !== "function") {
@@ -17044,6 +17886,51 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function collectionAction(attribute, value, label, tone = "edit") {
+  const safeAttribute = String(attribute || "").trim().toLowerCase();
+  if (!/^[a-z][a-z0-9-]*$/.test(safeAttribute)) {
+    return "";
+  }
+  const className = tone === "remove" ? "btn danger small" : "btn ghost small";
+  return `<button class="${className}" type="button" data-${safeAttribute}="${escapeHtml(value)}">${escapeHtml(label)}</button>`;
+}
+
+function collectionEditAction(attribute, value, label = "") {
+  return collectionAction(attribute, value, label || t("common.edit", "Edit"), "edit");
+}
+
+function collectionRemoveAction(attribute, value, label = "") {
+  return collectionAction(attribute, value, label || t("common.remove", "Remove"), "remove");
+}
+
+function renderCollectionRow(contentHtml, actions = []) {
+  const actionHtml = (Array.isArray(actions) ? actions : []).filter(Boolean).join("");
+  return `
+    <div class="list-item collection-row">
+      <div class="collection-row-content">${contentHtml}</div>
+      ${actionHtml ? `<div class="actions collection-row-actions">${actionHtml}</div>` : ""}
+    </div>
+  `;
+}
+
+function setCollectionCommitMode(button, editing) {
+  if (!button) {
+    return;
+  }
+  if (!button.dataset.addLabel) {
+    button.dataset.addLabel = String(button.textContent || "").trim();
+  }
+  button.textContent = editing ? t("common.save", "Save") : button.dataset.addLabel;
+}
+
+function replaceOrAppendCollectionItem(items, index, value) {
+  if (Number.isInteger(index) && index >= 0 && index < items.length) {
+    items.splice(index, 1, value);
+  } else {
+    items.push(value);
+  }
 }
 
 function setupSelectAllOnFocus() {

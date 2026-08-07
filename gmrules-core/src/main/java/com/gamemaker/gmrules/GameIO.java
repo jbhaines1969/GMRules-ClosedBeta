@@ -295,6 +295,7 @@ public class GameIO {
         int removedPointBuyCategoryRules = game.getAttributeGenerationMethod()
             .cleanupCategoryPointRules(validAttributeTypeKeys);
         report.recordPointBuyCategoryCleanup(removedPointBuyCategoryRules);
+        game.getHpMethod().cleanupAttributeDerivedReferences(validAttributeIds);
 
         // Clean up all skills
         java.util.ArrayList<Skill> skills = game.getObjectArray("skills");

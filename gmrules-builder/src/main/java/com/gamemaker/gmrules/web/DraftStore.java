@@ -12,8 +12,10 @@ package com.gamemaker.gmrules.web;
 import com.gamemaker.gmrules.Game;
 import com.gamemaker.gmrules.GameIO;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -96,7 +98,12 @@ public final class DraftStore {
 
     public byte[] exportDraft(String draftId) throws IOException {
         Draft draft = getDraft(draftId);
-        return draft.withLock(() -> serializeGame(draft.getGame()));
+        return draft.withLock(() -> {
+            Game exportGame = deserializeGame(serializeGame(draft.getGame()));
+            exportGame.getHpMethod().setHpModifierAttributeId("");
+            exportGame.getHpMethod().setAllowNegativeAttributeModifier(false);
+            return serializeGame(exportGame);
+        });
     }
 
     public void deleteDraft(String draftId) throws IOException {
@@ -161,6 +168,18 @@ public final class DraftStore {
             outputStream.writeObject(game);
         }
         return buffer.toByteArray();
+    }
+
+    private Game deserializeGame(byte[] data) throws IOException {
+        try (ObjectInputStream inputStream = new ObjectInputStream(new ByteArrayInputStream(data))) {
+            Object value = inputStream.readObject();
+            if (value instanceof Game game) {
+                return game;
+            }
+            throw new IOException("Invalid draft data.");
+        } catch (ClassNotFoundException e) {
+            throw new IOException("Invalid draft data.", e);
+        }
     }
 
     private void ensureDraftDirectory() {

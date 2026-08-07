@@ -1,6 +1,6 @@
 # GMRules Closed Beta Deploy Structure
 
-Updated: 2026-07-30
+Updated: 2026-08-07
 
 This file is the deploy-release filesystem map for `GMRules-ClosedBeta`.
 Update it whenever tracked files or deploy-relevant directories are added, removed, or moved. Its purpose is to let agents find known paths from this document before falling back to repository searches.
@@ -25,6 +25,7 @@ GMRules-ClosedBeta/
 |-- .gitignore
 |-- AGENTS.md
 |-- AGENT_HANDOFF.md
+|-- OpenQuestions.md
 |-- PROJECT_NOTES.md
 |-- PRODUCT_DESIGN_CONTEXT.md
 |-- PROJECT_STRUCTURE.md
@@ -64,6 +65,7 @@ PRODUCT_DESIGN_CONTEXT.md # Concise product vision, journeys, terminology, UX in
 TODO.md             # Launch-ordered beta checklist.
 AGENTS.md           # Operating instructions for future agents.
 AGENT_HANDOFF.md    # Current handoff snapshot for recovery/continuation.
+OpenQuestions.md    # Nonbinding design questions and unsettled options under active consideration.
 PROJECT_STRUCTURE.md
 docs/                  # Operational runbooks for deploy and server-side configuration.
 ```
@@ -206,14 +208,11 @@ gmrules-builder/
         `-- resources/
 ```
 
-### Builder Java Entry Points
+### Builder Java Packages
 
 ```text
 src/main/java/com/gamemaker/gmrules/
-|-- App.java
-|-- Main.java
 |-- character/
-|-- UI/
 `-- web/
 ```
 
@@ -225,53 +224,6 @@ character/
 |-- CharacterFile.java
 |-- CharacterFileBuilder.java
 `-- CharacterFileIO.java
-```
-
-### Swing UI Package
-
-The Swing UI remains present and shares the core model, but closed-beta product work is web-first.
-
-```text
-UI/
-|-- AppWindow.java
-|-- ArmorClassStage.java
-|-- AttributeEditPanel.java
-|-- AttributeGenerationStage.java
-|-- AttributeTypesStage.java
-|-- AttributesStage.java
-|-- ClassEditPanel.java
-|-- ClassesStage.java
-|-- ConfirmPopup.java
-|-- CurrencyStage.java
-|-- DiceChooserStage.java
-|-- DiceRollingStage.java
-|-- DisplayStage.java
-|-- EffectTypesStage.java
-|-- EffectsStage.java
-|-- ElementEditPopup.java
-|-- EntryInputHandler.java
-|-- EquipmentStage.java
-|-- GameSetupStage.java
-|-- HitPointsStage.java
-|-- Localization.java
-|-- MainStage.java
-|-- MeasurementsStage.java
-|-- PlaceholderTextField.java
-|-- PointsBuyStage.java
-|-- PopupAlert.java
-|-- RaceEditPanel.java
-|-- RacesStage.java
-|-- SkillEditPanel.java
-|-- SkillsStage.java
-|-- SpellEditPanel.java
-|-- SpellsStage.java
-|-- StageId.java
-|-- StageSidebar.java
-|-- StageView.java
-|-- StandardArrayStage.java
-|-- StatusesStage.java
-|-- WeaponEditPanel.java
-`-- WeaponsStage.java
 ```
 
 ### Web Backend Package

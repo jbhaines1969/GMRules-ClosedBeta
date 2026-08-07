@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -32,7 +33,7 @@ public class Attribute extends GameElement {
     private int maxValue = 0;
     private String type = "";
     private Map<Float, Float> modifierMap = new LinkedHashMap<>();
-    // Maps score threshold to list of Effect names to activate
+    // Maps score threshold to stable Effect ids to activate
     private Map<Integer, ArrayList<String>> scoreBonuses = new LinkedHashMap<>();
 
 // *** CONSTRUCTORS ***
@@ -96,25 +97,26 @@ public class Attribute extends GameElement {
     /**
      * Adds a score bonus effect to the attribute at a specific threshold.
      * @param threshold The attribute score threshold required to activate the effect
-     * @param effectName The Effect name to activate
+     * @param effectId The stable Effect id to activate
      */
-    public void addScoreBonus(int threshold, String effectName) {
-        if (effectName.trim().isEmpty()) {
+    public void addScoreBonus(int threshold, String effectId) {
+        String safeEffectId = Objects.toString(effectId, "").trim();
+        if (safeEffectId.isEmpty()) {
             return;
         }
-        scoreBonuses.computeIfAbsent(threshold, k -> new ArrayList<>()).add(effectName);
+        scoreBonuses.computeIfAbsent(threshold, k -> new ArrayList<>()).add(safeEffectId);
     }
 
     /**
      * Removes a score bonus effect from the attribute at a specific threshold.
      * @param threshold The attribute score threshold
-     * @param effectName The Effect name to remove
+     * @param effectId The stable Effect id to remove
      * @return true if the effect was removed, false otherwise
      */
-    public boolean removeScoreBonus(int threshold, String effectName) {
+    public boolean removeScoreBonus(int threshold, String effectId) {
         ArrayList<String> effects = scoreBonuses.get(threshold);
         if (effects != null) {
-            boolean removed = effects.remove(effectName);
+            boolean removed = effects.remove(Objects.toString(effectId, "").trim());
             // Clean up empty threshold entries
             if (effects.isEmpty()) {
                 scoreBonuses.remove(threshold);
@@ -125,9 +127,9 @@ public class Attribute extends GameElement {
     }
 
     /**
-     * Gets all effect type names for a specific score threshold.
+     * Gets all Effect ids for a specific score threshold.
      * @param threshold The attribute score threshold
-     * @return ArrayList of Effect names, or empty list if none exist
+     * @return ArrayList of stable Effect ids, or empty list if none exist
      */
     public ArrayList<String> getScoreBonuses(int threshold) {
         return scoreBonuses.get(threshold);

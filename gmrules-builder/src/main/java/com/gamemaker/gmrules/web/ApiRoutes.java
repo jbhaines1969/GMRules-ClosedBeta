@@ -60,7 +60,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -198,6 +200,7 @@ public final class ApiRoutes {
         router.add("GET", "/api/drafts/{id}/dice", ApiRoutes::getDice);
         router.add("POST", "/api/drafts/{id}/dice/standard", ApiRoutes::updateStandardDice);
         router.add("POST", "/api/drafts/{id}/dice/custom", ApiRoutes::addCustomDiceRange);
+        router.add("POST", "/api/drafts/{id}/dice/custom/update", ApiRoutes::updateCustomDiceRange);
         router.add("DELETE", "/api/drafts/{id}/dice/custom", ApiRoutes::removeCustomDiceRange);
 
         router.add("GET", "/api/drafts/{id}/attribute-types", ApiRoutes::getAttributeTypes);
@@ -235,6 +238,7 @@ public final class ApiRoutes {
         router.add("POST", "/api/drafts/{id}/dice-rolling/attribute-order", ApiRoutes::updateDiceAttributeOrder);
         router.add("POST", "/api/drafts/{id}/dice-rolling/substitution", ApiRoutes::updateDiceSubstitution);
         router.add("POST", "/api/drafts/{id}/dice-rolling/term", ApiRoutes::addDiceTerm);
+        router.add("POST", "/api/drafts/{id}/dice-rolling/term/update", ApiRoutes::updateDiceTerm);
         router.add("DELETE", "/api/drafts/{id}/dice-rolling/term", ApiRoutes::removeDiceTerm);
 
         router.add("GET", "/api/drafts/{id}/points-buy", ApiRoutes::getPointsBuy);
@@ -247,8 +251,10 @@ public final class ApiRoutes {
 
         router.add("GET", "/api/drafts/{id}/currencies", ApiRoutes::getCurrencies);
         router.add("POST", "/api/drafts/{id}/currencies", ApiRoutes::addCurrency);
+        router.add("POST", "/api/drafts/{id}/currencies/update", ApiRoutes::updateCurrency);
         router.add("DELETE", "/api/drafts/{id}/currencies", ApiRoutes::removeCurrency);
         router.add("POST", "/api/drafts/{id}/currencies/denominations", ApiRoutes::addCurrencyDenomination);
+        router.add("POST", "/api/drafts/{id}/currencies/denominations/update", ApiRoutes::updateCurrencyDenomination);
         router.add("DELETE", "/api/drafts/{id}/currencies/denominations", ApiRoutes::removeCurrencyDenomination);
         router.add("POST", "/api/drafts/{id}/currencies/starting-money", ApiRoutes::updateStartingMoney);
 
@@ -1775,6 +1781,24 @@ public final class ApiRoutes {
         ctx.json(200, Map.of("ok", true));
     }
 
+    private static void updateCustomDiceRange(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        int originalMin = getInt(body, "originalMin", 0);
+        int originalMax = getInt(body, "originalMax", 0);
+        int min = getInt(body, "min", 0);
+        int max = getInt(body, "max", 0);
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            game.removeCustomDiceRange(originalMin, originalMax);
+            game.addCustomDiceRange(min, max);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
     private static void removeCustomDiceRange(RequestContext ctx) throws IOException {
         SessionStore.Session session = requireSession(ctx);
         if (session == null) {
@@ -1947,7 +1971,7 @@ public final class ApiRoutes {
             added[0] = true;
         });
         if (!added[0]) {
-            ctx.json(400, Map.of("error", "Effect type already exists"));
+            ctx.json(400, Map.of("error", "Affected system already exists"));
             return;
         }
         ctx.json(200, Map.of(
@@ -2020,11 +2044,11 @@ public final class ApiRoutes {
             updated[0] = true;
         });
         if (duplicate[0]) {
-            ctx.json(400, Map.of("error", "Effect type already exists"));
+            ctx.json(400, Map.of("error", "Affected system already exists"));
             return;
         }
         if (!updated[0]) {
-            ctx.json(404, Map.of("error", "Effect type not found"));
+            ctx.json(404, Map.of("error", "Affected system not found"));
             return;
         }
         ctx.json(200, Map.of("ok", true));
@@ -2042,6 +2066,7 @@ public final class ApiRoutes {
             response.put("systemName", game.getSystemName("attributes"));
             List<Map<String, Object>> attributes = new ArrayList<>();
             AttributeTypes registry = game.getRegistry(RegistryKey.ATTRIBUTE_TYPES);
+            ElementRegistry<Effect> effectRegistry = game.getElementRegistry(ElementRegistryKey.EFFECTS);
             for (Attribute attribute : getAttributes(game)) {
                 Map<String, Object> entry = new LinkedHashMap<>();
                 entry.put("id", Objects.toString(attribute.getId(), ""));
@@ -2068,10 +2093,18 @@ public final class ApiRoutes {
                 List<Map<String, Object>> bonuses = new ArrayList<>();
                 for (Map.Entry<Integer, ArrayList<String>> bonusEntry : attribute.getAllScoreBonuses().entrySet()) {
                     int threshold = bonusEntry.getKey();
-                    for (String effect : bonusEntry.getValue()) {
+                    for (String effectReference : bonusEntry.getValue()) {
+                        Effect effect = effectRegistry.getById(effectReference);
+                        if (effect == null) {
+                            effect = effectRegistry.getByName(effectReference);
+                        }
+                        if (effect == null) {
+                            continue;
+                        }
                         Map<String, Object> bonus = new LinkedHashMap<>();
                         bonus.put("threshold", threshold);
-                        bonus.put("effect", Objects.toString(effect, ""));
+                        bonus.put("effectId", Objects.toString(effect.getId(), ""));
+                        bonus.put("effectName", Objects.toString(effect.getDisplayName(), ""));
                         bonuses.add(bonus);
                     }
                 }
@@ -2095,6 +2128,15 @@ public final class ApiRoutes {
                 types.add(entry);
             }
             response.put("types", types);
+            List<Map<String, Object>> effects = new ArrayList<>();
+            for (Effect effect : effectRegistry.getAll()) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(effect.getId(), ""));
+                entry.put("name", Objects.toString(effect.getName(), ""));
+                entry.put("displayName", Objects.toString(effect.getDisplayName(), ""));
+                effects.add(entry);
+            }
+            response.put("effects", effects);
             return response;
         });
         ctx.json(200, payload);
@@ -2277,14 +2319,27 @@ public final class ApiRoutes {
             }
             attribute.setModifierMap(modifierMap);
 
+            ElementRegistry<Effect> effectRegistry = game.getElementRegistry(ElementRegistryKey.EFFECTS);
             Map<Integer, ArrayList<String>> bonusMap = new LinkedHashMap<>();
+            Set<String> usedBonuses = new LinkedHashSet<>();
             for (Map<String, Object> entry : bonuses) {
                 int threshold = getInt(entry, "threshold", 0);
-                String effect = getString(entry, "effect").trim();
-                if (effect.isEmpty()) {
+                String effectReference = getString(entry, "effectId").trim();
+                if (effectReference.isEmpty()) {
+                    effectReference = getString(entry, "effect").trim();
+                }
+                Effect effect = effectRegistry.getById(effectReference);
+                if (effect == null) {
+                    effect = effectRegistry.getByName(effectReference);
+                }
+                if (effect == null) {
                     continue;
                 }
-                bonusMap.computeIfAbsent(threshold, key -> new ArrayList<>()).add(effect);
+                String effectId = Objects.toString(effect.getId(), "");
+                if (!usedBonuses.add(threshold + "\u0000" + effectId)) {
+                    continue;
+                }
+                bonusMap.computeIfAbsent(threshold, key -> new ArrayList<>()).add(effectId);
             }
             attribute.setScoreBonuses(bonusMap);
             game.updateLastModified();
@@ -2658,10 +2713,14 @@ public final class ApiRoutes {
             return;
         }
         String attributeId = getString(body, "attributeId");
+        String originalEntry = getString(body, "originalEntry");
         int value = getInt(body, "value", 0);
         ctx.getDraftStore().updateDraft(draftId, game -> {
             AttributeGenerationMethod method = game.getAttributeGenerationMethod();
             if (isOpenStandardArray(method)) {
+                if (!originalEntry.isEmpty()) {
+                    method.removeFromArray("standardArrays", originalEntry);
+                }
                 method.addToArray("standardArrays", Integer.toString(value));
                 return;
             }
@@ -2709,10 +2768,14 @@ public final class ApiRoutes {
             return;
         }
         String attributeId = getString(body, "attributeId");
+        String originalEntry = getString(body, "originalEntry");
         int value = getInt(body, "value", 0);
         ctx.getDraftStore().updateDraft(draftId, game -> {
             AttributeGenerationMethod method = game.getAttributeGenerationMethod();
             if (isOpenStandardArray(method)) {
+                if (!originalEntry.isEmpty()) {
+                    method.removeFromArray("eliteArrays", originalEntry);
+                }
                 method.addToArray("eliteArrays", Integer.toString(value));
                 return;
             }
@@ -3093,23 +3156,58 @@ public final class ApiRoutes {
         int sides = getInt(body, "sides", 0);
         int rerollResult = getInt(body, "rerollResult", 0);
         boolean dropLowest = getBoolean(body, "dropLowest", false);
+        ctx.getDraftStore().updateDraft(draftId, game ->
+            game.getAttributeGenerationMethod().addDiceTerm(buildDiceTerm(count, sides, rerollResult, dropLowest))
+        );
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateDiceTerm(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensureDiceRollingEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        int index = getInt(body, "index", -1);
+        int count = getInt(body, "count", 0);
+        int sides = getInt(body, "sides", 0);
+        int rerollResult = getInt(body, "rerollResult", 0);
+        boolean dropLowest = getBoolean(body, "dropLowest", false);
         ctx.getDraftStore().updateDraft(draftId, game -> {
             AttributeGenerationMethod method = game.getAttributeGenerationMethod();
-            AttributeGenerationMethod.DiceTerm term = new AttributeGenerationMethod.DiceTerm(count, sides);
-            if (dropLowest) {
-                term.setDropLowest(1);
+            List<AttributeGenerationMethod.DiceTerm> terms = method.getDiceTerms();
+            if (index < 0 || index >= terms.size()) {
+                return;
             }
-            int maxFace = Math.min(rerollResult - 1, sides);
-            if (maxFace > 0) {
-                ArrayList<Integer> ignoredFaces = new ArrayList<>();
-                for (int face = 1; face <= maxFace; face++) {
-                    ignoredFaces.add(face);
-                }
-                term.setIgnoredFaces(ignoredFaces);
-            }
-            method.addDiceTerm(term);
+            terms.set(index, buildDiceTerm(count, sides, rerollResult, dropLowest));
+            method.setDiceTerms(terms);
         });
         ctx.json(200, Map.of("ok", true));
+    }
+
+    private static AttributeGenerationMethod.DiceTerm buildDiceTerm(
+            int count,
+            int sides,
+            int rerollResult,
+            boolean dropLowest
+    ) {
+        AttributeGenerationMethod.DiceTerm term = new AttributeGenerationMethod.DiceTerm(count, sides);
+        if (dropLowest) {
+            term.setDropLowest(1);
+        }
+        int maxFace = Math.min(rerollResult - 1, sides);
+        if (maxFace > 0) {
+            ArrayList<Integer> ignoredFaces = new ArrayList<>();
+            for (int face = 1; face <= maxFace; face++) {
+                ignoredFaces.add(face);
+            }
+            term.setIgnoredFaces(ignoredFaces);
+        }
+        return term;
     }
 
     private static void removeDiceTerm(RequestContext ctx) throws IOException {
@@ -3379,13 +3477,29 @@ public final class ApiRoutes {
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("hpGainMethod", Objects.toString(method.getHpGainMethod(), ""));
             response.put("fixedHPPerLevel", method.getFixedHPPerLevel());
-            response.put("averageRoundingMethod", Objects.toString(method.getAverageRoundingMethod(), ""));
-            response.put("hpModifierAttributeId", method.getHpModifierAttributeId());
-            response.put("allowNegativeAttributeModifier", method.isAllowNegativeAttributeModifier());
-            response.put("attributes", getAttributesForSelect(game));
+            response.put("allCharactersUseSameFixedGain", !method.isAllowMultipleFixedGains());
+            response.put("allCharactersUseSameHitDice", !method.isAllowMultipleDiceTypes());
+            response.put("hitDieSides", method.getHitDieSides());
+            response.put("hitDieCount", Math.max(1, method.getHitDieCount()));
+            response.put("hitDieModifier", method.getHitDieModifier());
+            response.put("diceUsed", new ArrayList<>(game.getDiceUsed()));
             response.put("minimumHPPerLevel", method.getMinimumHPPerLevel());
             response.put("firstLevelMaxHP", method.isFirstLevelMaxHP());
             response.put("firstLevelBonusHP", method.getFirstLevelBonusHP());
+            response.put("attributeDerivationMode", method.getAttributeDerivationMode());
+            response.put("attributeDerivedDirectAttributeId", method.getAttributeDerivedDirectAttributeId());
+            response.put("attributeDerivedBaseValue", method.getAttributeDerivedBaseValue());
+            response.put("attributeDerivedDivisor", method.getAttributeDerivedDivisor());
+            response.put("attributeDerivedRoundingMethod", method.getAttributeDerivedRoundingMethod());
+            List<Map<String, Object>> attributeDerivedTerms = new ArrayList<>();
+            for (HPMethod.AttributeHPTerm term : method.getAttributeDerivedTerms()) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("attributeId", term.getAttributeId());
+                entry.put("multiplier", term.getMultiplier());
+                attributeDerivedTerms.add(entry);
+            }
+            response.put("attributeDerivedTerms", attributeDerivedTerms);
+            response.put("attributes", getAttributesForSelect(game));
             return response;
         });
         ctx.json(200, payload);
@@ -3400,27 +3514,59 @@ public final class ApiRoutes {
         Map<String, Object> body = ctx.readJsonMap();
         String hpGainMethod = getString(body, "hpGainMethod");
         int fixedHPPerLevel = getInt(body, "fixedHPPerLevel", 0);
-        String averageRoundingMethod = getString(body, "averageRoundingMethod");
-        String hpModifierAttributeId = getString(body, "hpModifierAttributeId").trim();
-        boolean allowNegativeAttributeModifier = body.containsKey("allowNegativeAttributeModifier")
-            ? getBoolean(body, "allowNegativeAttributeModifier", false)
-            : getBoolean(body, "allowNegativeConModifier", false);
+        boolean allCharactersUseSameFixedGain = getBoolean(body, "allCharactersUseSameFixedGain", true);
+        boolean allCharactersUseSameHitDice = getBoolean(body, "allCharactersUseSameHitDice", true);
+        int hitDieSides = Math.max(0, getInt(body, "hitDieSides", 0));
+        int hitDieCount = Math.max(1, getInt(body, "hitDieCount", 1));
+        int hitDieModifier = getInt(body, "hitDieModifier", 0);
         int minimumHPPerLevel = getInt(body, "minimumHPPerLevel", 0);
         boolean firstLevelMaxHP = getBoolean(body, "firstLevelMaxHP", false);
         int firstLevelBonusHP = getInt(body, "firstLevelBonusHP", 0);
+        String attributeDerivationMode = getString(body, "attributeDerivationMode");
+        String attributeDerivedDirectAttributeId = getString(body, "attributeDerivedDirectAttributeId").trim();
+        double attributeDerivedBaseValue = getDouble(body, "attributeDerivedBaseValue", 0.0);
+        double attributeDerivedDivisor = getDouble(body, "attributeDerivedDivisor", 1.0);
+        String attributeDerivedRoundingMethod = getString(body, "attributeDerivedRoundingMethod");
+        List<Map<String, Object>> rawAttributeDerivedTerms = getMapList(body, "attributeDerivedTerms");
 
         ctx.getDraftStore().updateDraft(draftId, game -> {
             HPMethod method = game.getHpMethod();
             method.setHpGainMethod(hpGainMethod);
             method.setFixedHPPerLevel(fixedHPPerLevel);
-            method.setAverageRoundingMethod(averageRoundingMethod);
-            method.setHpModifierAttributeId(hpModifierAttributeId);
-            method.setAllowNegativeAttributeModifier(
-                !hpModifierAttributeId.isEmpty() && allowNegativeAttributeModifier
-            );
+            method.setAllowMultipleFixedGains(!allCharactersUseSameFixedGain);
+            method.setAllowMultipleDiceTypes(!allCharactersUseSameHitDice);
+            method.setHitDieSides(hitDieSides);
+            method.setHitDieCount(hitDieCount);
+            method.setHitDieModifier(hitDieModifier);
             method.setMinimumHPPerLevel(minimumHPPerLevel);
             method.setFirstLevelMaxHP(firstLevelMaxHP);
             method.setFirstLevelBonusHP(firstLevelBonusHP);
+            Set<String> validAttributeIds = new LinkedHashSet<>();
+            for (Attribute attribute : getAttributes(game)) {
+                validAttributeIds.add(Objects.toString(attribute.getId(), ""));
+            }
+            method.setAttributeDerivationMode(attributeDerivationMode);
+            method.setAttributeDerivedDirectAttributeId(
+                validAttributeIds.contains(attributeDerivedDirectAttributeId)
+                    ? attributeDerivedDirectAttributeId
+                    : ""
+            );
+            method.setAttributeDerivedBaseValue(attributeDerivedBaseValue);
+            method.setAttributeDerivedDivisor(attributeDerivedDivisor);
+            method.setAttributeDerivedRoundingMethod(attributeDerivedRoundingMethod);
+            List<HPMethod.AttributeHPTerm> attributeDerivedTerms = new ArrayList<>();
+            Set<String> usedAttributeIds = new LinkedHashSet<>();
+            for (Map<String, Object> entry : rawAttributeDerivedTerms) {
+                String attributeId = getString(entry, "attributeId").trim();
+                if (!validAttributeIds.contains(attributeId) || !usedAttributeIds.add(attributeId)) {
+                    continue;
+                }
+                attributeDerivedTerms.add(new HPMethod.AttributeHPTerm(
+                    attributeId,
+                    getDouble(entry, "multiplier", 1.0)
+                ));
+            }
+            method.setAttributeDerivedTerms(attributeDerivedTerms);
         });
         ctx.json(200, Map.of("ok", true));
     }
@@ -3557,6 +3703,32 @@ public final class ApiRoutes {
         ctx.json(200, Map.of("ok", true, "id", Objects.toString(currency.getId(), "")));
     }
 
+    private static void updateCurrency(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String currencyId = getString(body, "id");
+        String name = getString(body, "name").trim();
+        String originalBaseDenomination = getString(body, "originalBaseDenomination").trim();
+        String baseDenomination = getString(body, "baseDenomination").trim();
+        if (currencyId.isEmpty() || name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Currency and name are required"));
+            return;
+        }
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            Currency currency = game.getElement("currencies", currencyId);
+            if (currency == null) {
+                return;
+            }
+            currency.setName(name);
+            renameCurrencyDenomination(currency, originalBaseDenomination, baseDenomination, 1.0f);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
     private static void removeCurrency(RequestContext ctx) throws IOException {
         SessionStore.Session session = requireSession(ctx);
         if (session == null) {
@@ -3639,6 +3811,61 @@ public final class ApiRoutes {
             }
         });
         ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateCurrencyDenomination(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String currencyId = getString(body, "currencyId");
+        String originalName = getString(body, "originalName").trim();
+        String name = getString(body, "name").trim();
+        double value = getDouble(body, "value", 0.0);
+        if (currencyId.isEmpty() || originalName.isEmpty() || name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Currency and denomination names are required"));
+            return;
+        }
+        if (value <= 0.0) {
+            ctx.json(400, Map.of("error", "Value must be positive"));
+            return;
+        }
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            Currency currency = game.getElement("currencies", currencyId);
+            if (currency != null) {
+                renameCurrencyDenomination(currency, originalName, name, (float) value);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void renameCurrencyDenomination(
+            Currency currency,
+            String originalName,
+            String name,
+            float value
+    ) {
+        String safeOriginalName = Objects.toString(originalName, "").trim();
+        String safeName = Objects.toString(name, "").trim();
+        if (safeName.isEmpty()) {
+            return;
+        }
+        LinkedHashMap<String, Float> updated = new LinkedHashMap<>();
+        boolean replaced = false;
+        for (Map.Entry<String, Float> entry : currency.getDenominations().entrySet()) {
+            if (!replaced && entry.getKey().equals(safeOriginalName)) {
+                updated.put(safeName, value);
+                replaced = true;
+            } else if (!entry.getKey().equals(safeName)) {
+                updated.put(entry.getKey(), entry.getValue());
+            }
+        }
+        if (!replaced) {
+            updated.put(safeName, value);
+        }
+        currency.setDenominations(updated);
     }
 
     private static void getDamageTypes(RequestContext ctx) throws IOException {
@@ -3842,6 +4069,7 @@ public final class ApiRoutes {
             if (effect == null) {
                 return;
             }
+            clearAttributeScoreBonusReferences(game, effect.getId(), effect.getName());
             registry.remove(effect);
             updateEffectReferences(game, effect.getName(), "");
         });
@@ -3882,6 +4110,7 @@ public final class ApiRoutes {
                 return;
             }
             if (!previousName.equalsIgnoreCase(name)) {
+                replaceLegacyAttributeScoreBonusReferences(game, previousName, effect.getId());
                 registry.remove(effect);
                 effect.setName(name);
                 registry.add(effect);
@@ -5627,6 +5856,47 @@ public final class ApiRoutes {
                     } else {
                         typeKeys.set(index, safeNewName);
                     }
+                }
+            }
+        }
+    }
+
+    private static void replaceLegacyAttributeScoreBonusReferences(
+        Game game,
+        String legacyEffectName,
+        String effectId
+    ) {
+        String safeLegacyName = Objects.toString(legacyEffectName, "").trim();
+        String safeEffectId = Objects.toString(effectId, "").trim();
+        if (safeLegacyName.isEmpty() || safeEffectId.isEmpty()) {
+            return;
+        }
+        for (Attribute attribute : getAttributes(game)) {
+            for (ArrayList<String> references : attribute.getAllScoreBonuses().values()) {
+                for (int index = 0; index < references.size(); index++) {
+                    if (safeLegacyName.equalsIgnoreCase(Objects.toString(references.get(index), ""))) {
+                        references.set(index, safeEffectId);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void clearAttributeScoreBonusReferences(Game game, String effectId, String effectName) {
+        String safeEffectId = Objects.toString(effectId, "").trim();
+        String safeEffectName = Objects.toString(effectName, "").trim();
+        for (Attribute attribute : getAttributes(game)) {
+            Iterator<Map.Entry<Integer, ArrayList<String>>> iterator =
+                attribute.getAllScoreBonuses().entrySet().iterator();
+            while (iterator.hasNext()) {
+                ArrayList<String> references = iterator.next().getValue();
+                references.removeIf(reference -> {
+                    String safeReference = Objects.toString(reference, "").trim();
+                    return safeReference.equals(safeEffectId)
+                        || (!safeEffectName.isEmpty() && safeReference.equalsIgnoreCase(safeEffectName));
+                });
+                if (references.isEmpty()) {
+                    iterator.remove();
                 }
             }
         }

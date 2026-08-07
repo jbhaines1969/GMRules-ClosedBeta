@@ -1,9 +1,13 @@
 # GMRules Closed Beta Agent Handoff
 
-Updated: 2026-08-05
+Updated: 2026-08-07
 Repo root: `C:\Users\John\IdeaProjects\GMRules-ClosedBeta`
 
 This is the primary recovery document for the next session. Read `AGENTS.md`, `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `PRODUCT_DESIGN_CONTEXT.md`, and local `USER.md` before editing. Inspect `git status --short`; the current feature batch is intentionally uncommitted and must not be reverted.
+
+The repository is now web-only at the UI layer. John explicitly removed the legacy Swing `UI` package and its `App.java`/`Main.java` launchers on 2026-08-05. Do not restore or maintain those components. If a standalone application is requested later, build it from scratch using the finalized web UI as the product template.
+
+The Rules Builder now presents the internal `EffectType` registry as **Affected Systems**. The revised guidance defines entries as rules areas or recurring interactions that actions, events, Effects, and Statuses can change or invoke. Navigation, collection and inline editors, Effect/Status fields, confirmations, toasts, and visible API errors use the new term. Java names, API routes, serialized keys, and the existing defaults remain unchanged. John launcher-smoked and accepted this terminology pass on 2026-08-07.
 
 ## Resume Here: Finish Attribute Generation Through Point Buy and Hybrids
 
@@ -175,21 +179,32 @@ No Background-specific fields were invented. The pending web/API/Character Gener
 
 ## Accepted Work in the Current Uncommitted Batch
 
+- Rules Builder collection rows now use shared content/action helpers and consistent Edit-then-Remove controls. All audited editable collections, including nested editor collections, expose both actions. Custom Dice Ranges, Player Options, Player Assigned Standard/Elite values, Dice Terms, Currencies, and Denominations reuse their Add modals for Edit and persist through focused update routes. John launcher-smoked and accepted this pass on 2026-08-07.
 - Urban Fantasy / Fantastique urbain was added to the English and French game-type resources.
 - All 14 Rules Builder screens with Alternate Name fields now retain change autosave and also show a functional Rename button plus a separator before collection/settings controls.
 - Point Buy backend supports shared, creator-fixed category, and player-assigned category-slot budgets.
 - Rules Builder Point Buy uses hide/show for those modes, provides Add/Edit/Remove collection modals, progress feedback, and incomplete-configuration blocking.
-- Hit Points now exposes a No Hit Point Gain checkbox. Static mode shows only Base Hit Points while storing the legacy-compatible fixed/zero-gain recipe.
+- Attribute Score Bonuses now select stable Effect IDs rather than accepting free text. The Attribute editor can create an Effect inline using the existing shared Effect editor; it snapshots and restores the unfinished Attribute, automatically adds the saved Effect at the pending threshold, and leaves the Effect in the main collection even if the Attribute is later canceled. Existing name-based bonus values are accepted and normalized when encountered, while Effect deletion clears matching Attribute Bonus references.
+- Inline creation in nested selectors now uses a New <element> option above existing entries instead of separate Create buttons. This covers Effects from Attributes, Weapons, Skills, and Spells; Skills from Classes and Races; Categories from Skills; and Affected Systems from Effects and Statuses. The existing return-and-auto-attach behavior is preserved, including nested Effect-to-Affected-System creation. John launcher-smoked and accepted the dropdown behavior on 2026-08-06: the new Effect entered the correct collection and was available in subsequent lists and editors.
+- Full element descriptions have been removed from Rules Builder management lists and Character Generator multi-choice lists. Rows retain names plus concise metadata where available: Affected Systems, Skill Categories, Spell level/school, Damage Types, damage rolls, weights, and armor values. Descriptions remain stored and editable. John launcher-smoked and accepted this compact-list pass on 2026-08-07.
+- Hit Points now begins with an Independent Hit Points or Attribute Derived choice. Independent mode visually separates Starting Hit Points from Hit Point Gain, retains No Hit Point Gain, and offers only Rolled or Fixed advancement. Fixed gain can use one shared value or defer different values to the appropriate character-option sections, matching the shared-versus-variable Rolled dice flow. Average is retired as an active gain method; older serialized Average selections migrate to the equivalent fixed value from the stored shared dice expression and rounding rule.
+- Attribute Derived replaces both starting HP and per-level gain. Its mutually exclusive Direct Attribute, Single-Attribute Formula, and Multi-Attribute Formula modes use stable Attribute IDs. Structured formulas persist a base value, one or more Attribute/multiplier terms, an optional divisor, and rounding; `HPMethod.calculateAttributeDerivedHP(...)` provides the descendant calculation contract. Direct Attribute returns one complete Attribute score. The direct Attribute Modifier bonus controls remain retired. Legacy HP Attribute Modifier values remain in editable drafts but are cleared only from a deep-copied downloaded `.gmrf`, leaving the server draft unchanged.
+- Rolled gain retains the All characters use the same Hit Point dice choice and shared Die, Rolls, and one flat Modifier expression such as `3d4+3`. Variable dice remain open to future Background, Race, Class, or other character-option assignment rather than assuming Classes. John launcher-smoked and accepted the complete revised HP layout on 2026-08-07.
 - Backgrounds were added to the core as described above.
 
-John visually accepted all current Rules Builder UI items through the local launcher on 2026-08-04, including Rename controls, Point Buy modes, and static/progressive Hit Points. Do not reopen those accepted layouts without new evidence.
+John has visually accepted all implemented refactors and UI adjustments preceding the combat-system consideration track, including Rename controls, Point Buy modes, Attribute Score Bonuses, Affected Systems, compact and standardized collection rows, complete-array editing, and the separated Independent/Attribute Derived Hit Points layouts. The final launcher smoke passed on 2026-08-07; do not reopen these accepted layouts without new evidence.
 
 ## Verification State
 
-Latest verification on 2026-08-04:
+Latest verification on 2026-08-07:
 
-- `mvn test`: passed 15 tests, including independent Standard/Elite shared-score serialization, legacy second-step `set` to `choose` migration, and first-step-only Standard Array enforcement.
-- `mvn package`: passed and produced `target/gmrules-app.jar`.
+- Collection-action `mvn test` and `mvn package`: passed 20 local tests across the reactor while recompiling all 21 builder Java sources and the new focused update routes; the shaded `target/gmrules-app.jar` was rebuilt.
+- Manual launcher acceptance on 2026-08-07 covered all implemented pre-combat-design refactors and UI adjustments. An older ruleset file also opened and migrated successfully; this is positive compatibility evidence, not completion of the broader ruleset/character migration matrix.
+- Static collection assertions found matched shared Edit/Remove action usage, no remaining one-off `data-remove-*` markup, all four focused update routes, matching action names, and no duplicate localization keys.
+
+- Post-Swing-removal `mvn test`: passed 20 local tests across the reactor while compiling the web-only builder's 21 Java sources, including stable Attribute Bonus Effect references, shared-versus-variable Fixed gain persistence, Attribute-derived HP calculation/serialization, legacy Average migration, independent Standard/Elite shared-score serialization, Attribute Generation migration, Point Buy category rules, and HP dice/export compatibility.
+- Post-Swing-removal `mvn package`: passed after the compact collection-list pass and produced `target/gmrules-app.jar`.
+- Static assertions confirmed that all eight separate nested Create controls are absent, all four New-option labels are wired, `index.html` has no duplicate IDs, and no collection row conditionally renders an element description.
 - `git diff --check`: passed; only Windows line-ending warnings were reported.
 - Port 8080 was free after verification.
 - Node is unavailable on the sandbox command path, so the recent JavaScript changes did not receive a direct `node --check` run.
@@ -200,6 +215,9 @@ Ignored local verification tests currently compiled by Maven:
 - `PointBuyCategoryRulesLocalTest`
 - `CharacterCategoryPointAssignmentsLocalTest`
 - `BackgroundRegistryLocalTest`
+- `HitPointDiceExportLocalTest`
+- `HitPointAttributeDerivedLocalTest`
+- `AttributeEffectBonusLocalTest`
 
 ## Working Tree and Safety
 
@@ -209,6 +227,8 @@ The current worktree contains the entire accepted-but-uncommitted feature batch.
 - character draft/file Point Buy assignment persistence
 - Point Buy and Hit Point web API/frontend/resources
 - shared Rename-button frontend styling/wiring
+- deletion of the complete legacy Swing `UI` package plus `App.java` and `Main.java`
+- `gmrules-builder` metadata and repository guidance updated for a web-only UI
 - root handoff/notes/structure/TODO documents
 - new `CharacterElements/Background.java`
 
@@ -247,10 +267,10 @@ The richer external `gmrules-character` project remains reference-only unless Jo
 
 ## Current Priority Order
 
-1. Resume later Character Generator stages; the accepted PoC Attribute Generation workflow no longer blocks them.
-2. Smoke the non-Constitution Hit Point modifier path in Character Generation.
+1. Continue the nonbinding combat-resolution design discussion recorded in `OpenQuestions.md`; do not treat an unsettled option as a code decision until John explicitly moves the discussion into implementation.
+2. Resume later Character Generator stages; the accepted PoC Attribute Generation workflow no longer blocks them.
 3. Add Backgrounds to the web API, Rules Builder, and Character Generator only after their fields/selection behavior are settled.
-4. Hosted-smoke the completed character flow and migration behavior tracked in `TODO.md`.
+4. Hosted-smoke the completed character flow and broader migration behavior tracked in `TODO.md`.
 
 Build from the repo root:
 

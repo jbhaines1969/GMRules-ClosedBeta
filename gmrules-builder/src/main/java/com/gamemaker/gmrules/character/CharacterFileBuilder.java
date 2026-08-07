@@ -110,12 +110,23 @@ public class CharacterFileBuilder {
 
         HPMethod hp = safeGame.getHpMethod();
         putMode(modes, "hitPoints.hpGainMethod", hp.getHpGainMethod());
-        putMode(modes, "hitPoints.averageRoundingMethod", hp.getAverageRoundingMethod());
+        putMode(modes, "hitPoints.allCharactersUseSameFixedGain", !hp.isAllowMultipleFixedGains());
+        putMode(modes, "hitPoints.fixedHPPerLevel", hp.getFixedHPPerLevel());
+        putMode(modes, "hitPoints.allCharactersUseSameHitDice", !hp.isAllowMultipleDiceTypes());
+        putMode(modes, "hitPoints.hitDieCount", hp.getHitDieCount());
+        putMode(modes, "hitPoints.hitDieSides", hp.getHitDieSides());
+        putMode(modes, "hitPoints.hitDieModifier", hp.getHitDieModifier());
         putMode(modes, "hitPoints.firstLevelMethod", hp.getFirstLevelMethod());
         putMode(modes, "hitPoints.firstLevelMaxHP", hp.isFirstLevelMaxHP());
         putMode(modes, "hitPoints.hpModifierAttributeId", hp.getHpModifierAttributeId());
         putMode(modes, "hitPoints.allowNegativeAttributeModifier", hp.isAllowNegativeAttributeModifier());
         putMode(modes, "hitPoints.multiclassHPMethod", hp.getMulticlassHPMethod());
+        putMode(modes, "hitPoints.attributeDerivationMode", hp.getAttributeDerivationMode());
+        putMode(modes, "hitPoints.attributeDerivedDirectAttributeId", hp.getAttributeDerivedDirectAttributeId());
+        putMode(modes, "hitPoints.attributeDerivedBaseValue", hp.getAttributeDerivedBaseValue());
+        putMode(modes, "hitPoints.attributeDerivedDivisor", hp.getAttributeDerivedDivisor());
+        putMode(modes, "hitPoints.attributeDerivedRoundingMethod", hp.getAttributeDerivedRoundingMethod());
+        putMode(modes, "hitPoints.attributeDerivedTerms", formatAttributeDerivedTerms(hp));
 
         ArmorClassMethod armorClass = safeGame.getArmorClassMethod();
         putMode(modes, "armorClass.baseArmorClass", armorClass.getBaseArmorClass());
@@ -182,6 +193,14 @@ public class CharacterFileBuilder {
         List<String> values = new ArrayList<>();
         for (AttributeGenerationMethod.CategoryPointRule rule : method.getCategoryPointRules()) {
             values.add(rule.getAttributeCategoryKey() + ":" + rule.getAvailablePoints());
+        }
+        return String.join("|", values);
+    }
+
+    private static String formatAttributeDerivedTerms(HPMethod method) {
+        List<String> values = new ArrayList<>();
+        for (HPMethod.AttributeHPTerm term : method.getAttributeDerivedTerms()) {
+            values.add(term.getAttributeId() + ":" + term.getMultiplier());
         }
         return String.join("|", values);
     }

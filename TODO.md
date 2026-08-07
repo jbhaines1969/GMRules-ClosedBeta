@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-08-05
+Updated: 2026-08-07
 
 ## Beta Launch Blockers
 
@@ -47,14 +47,26 @@ Updated: 2026-08-05
 - [x] Add Hit Points explanation/help copy showing how to model a static health track with fixed first-level HP, zero per-level gain, zero minimum per-level gain, and no Attribute Modifier; gear-based HP can be modeled for beta as gear modifiers on top of `(0,0,0,0)` base HP.
 - [x] Make static Hit Point pools explicit in the web Rules Builder with a No Hit Point Gain checkbox and a single Base Hit Points field, while retaining the existing zero-gain storage recipe.
 - [x] Visually smoke the current Rules Builder polish batch: Alternate Name Rename controls, Point Buy category modes, and static/progressive Hit Point layouts.
-- [ ] Smoke character generation against a ruleset whose Hit Points use a non-Constitution Attribute Modifier, confirming the selected Attribute ID and negative-modifier policy reach descendant calculations.
+- [x] Replace the direct Hit Points Attribute Modifier controls with method-specific progressive disclosure and shared Hit Point dice configuration for Rolled gains: same-dice choice, Die, Rolls, and one total Modifier.
+- [x] Let Fixed Hit Point gain follow the Rolled source pattern: one shared fixed gain or deferred character-option-specific fixed gains.
+- [x] Preserve legacy Hit Point Attribute Modifier data in editable drafts while removing it from downloaded `.gmrf` copies without mutating the draft.
+- [x] Launcher-smoke the revised Hit Points layouts for Independent No Gain/Rolled/Fixed and Attribute Derived Direct/Single-Formula/Multi-Formula, including shared-versus-variable Fixed gain, `3d4+3` dice persistence, and structured formula persistence/rounding.
 - [x] Add Rules Builder controls for backend-supported Point Buy category budgets: creator-fixed category rules or player-assigned named slots, with one slot per Attribute Category.
 - [x] Add Backgrounds as an independent core `GameElement` collection so rulesets can use Backgrounds, Classes, or both.
 - [ ] Add Backgrounds to the web Rules Builder/API and Character Generator after their creator-facing fields and player-selection behavior are settled.
-- [x] Simplify Armor Class method entry to required base AC plus optional AC attribute; remove gear-based/base-plus method selections from the web screen, Swing screen, API, and core model.
+- [x] Simplify Armor Class method entry to required base AC plus optional AC attribute; remove gear-based/base-plus method selections from the web screen, API, and core model.
 - [x] Add Damage Types before Statuses/Effects/Equipment so effects, spells, equipment, weapons, and armor can carry an optional damage type reference.
 - [x] Sort Attribute Generation default modifiers and per-Attribute modifier lists ascending by attribute score on render and refresh.
+- [x] Replace free-text Attribute Score Bonuses with stable Effect selection and inline Effect creation that returns to the unfinished Attribute and adds the Effect to the main collection.
+- [x] Consolidate nested inline creation into the related selectors: show New Effect, New Skill, New Category, or New Affected System above existing entries instead of separate Create buttons.
+- [x] Launcher-smoke Attribute Score Bonuses for existing Effect selection, inline Effect creation/return, Attribute cancel after Effect creation, and Effect deletion cleanup.
+- [x] Launcher-smoke dropdown-based inline creation: the dropdown entry works, a new Effect is added to the correct collection, and it is available in subsequent lists and editors.
+- [x] Remove long-form element descriptions from collection lists; retain the element name and compact category/type metadata where useful.
+- [x] Launcher-smoke compact collection rows across the Rules Builder and Character Generator, including Affected System, Skill Category, Spell School/Level, and Damage Type badges.
+- [x] Relabel the creator-facing Effect Types concept as Affected Systems while retaining the internal model, persistence contract, and existing default list.
+- [x] Launcher-smoke Affected Systems in the sidebar, collection editor, Effect editor, and Status editor, including the unchanged default entries and revised guidance.
 - [x] Establish the collection-editor pattern and apply its first batch: remove persistent creation fields from Time Units, custom Dice Ranges, Attribute Generation Player Options and Default Modifiers, Standard/Elite Array values, Dice Rolling Dice Terms, and Currency Currencies/Denominations; retain page settings inline and share identical Add/Edit modals where applicable.
+- [x] Standardize collection rows around shared row/action helpers and provide Edit beside Remove for every editable Rules Builder collection, including nested lists inside element editors; launcher-smoked and accepted on 2026-08-07.
 - [x] Present Attribute Generation Default Modifiers as derived score ranges while retaining threshold storage; reuse the Add modal for Edit and reject starting thresholds outside the configured score limits.
 - [ ] Tighten modal layout for dense edit forms.
 - [ ] Review button hierarchy and action color usage.
@@ -101,12 +113,14 @@ Updated: 2026-08-05
 - [ ] Character file AC cleanup: ensure final character data keeps resolved AC, armor replacement AC values, and armor/shield AC modifiers distinct so games where armor changes the base AC do not collapse into modifier-only math.
 - [ ] Manually enter the Cities Without Number ruleset from the included CL-Open SRD and note builder workflow weaknesses found during entry.
 - [ ] Hosted-smoke the completed character flow from class selection through skills, spells, equipment, weapons, armor, and final `.gmcf` export.
+- [x] Confirm the current pre-combat-design refactor batch can open and migrate an older ruleset file; launcher smoke passed on 2026-08-07.
 - [ ] Smoke-test ruleset and character migration behavior: edit a saved server game, upload/download it, and load older saved character drafts plus object-backed `.gmcf` files against the edited ruleset.
 - [ ] Add compatibility tests for `.gmrf`, account-backed lightweight character drafts, and object-backed `.gmcf` resume/export behavior.
 
 ## Core And Builder Quality
 
 - [x] Add a guarded one-command local web mode using the production frontend/backend, isolated ignored test data, and a private 256-bit local key exchanged for a normal session.
+- [x] Remove the legacy Swing UI package and launchers; treat the finalized web UI as the template for any future standalone application built from scratch.
 - [ ] Add focused unit tests around `GameIO`, `DraftStore`, `AccountStore`, `NdaAuditStore`, and `ApiRoutes`.
 - [ ] Add a small end-to-end/manual smoke checklist for hosted beta deploys.
 - [ ] Review remaining in-code TODOs in `CharacterClass`, `Race`, `Skill`, and `GameIO`.

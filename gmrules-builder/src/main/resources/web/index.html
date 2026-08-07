@@ -401,14 +401,13 @@
           <input type="text" id="editName">
         </div>
         <div class="field" id="editTypeField">
-          <label for="editType" id="editTypeLabel">Type</label>
+          <label for="editType" id="editTypeLabel">Affected Systems</label>
           <div class="grid two">
             <div>
               <select id="editType"></select>
             </div>
             <div>
-              <button class="btn" id="editTypeAdd" type="button">Add Type</button>
-              <button class="btn ghost" id="editTypeCreate" type="button">Create Type</button>
+              <button class="btn" id="editTypeAdd" type="button">Add System</button>
             </div>
           </div>
           <div class="list" id="editTypeList"></div>
@@ -501,7 +500,6 @@
             <div class="field">
               <label>&nbsp;</label>
               <button class="btn" id="editClassSkillAdd" type="button">Add Skill</button>
-              <button class="btn ghost" id="editClassSkillCreate" type="button">Create Skill</button>
             </div>
           </div>
           <div class="list" id="editClassSkillList"></div>
@@ -557,10 +555,6 @@
           </div>
           <div class="list" id="editRaceAttributeList"></div>
         </div>
-        <div class="edit-section">
-          <h4 id="editRaceTraitCreateTitle">Create Skill</h4>
-          <button class="btn" id="editRaceTraitCreate" type="button">Create Skill</button>
-        </div>
         <div class="field">
           <label for="editRaceStartingMoneyModifier" id="editRaceStartingMoneyModifierLabel">Race Starting Money Modifier</label>
           <input type="number" id="editRaceStartingMoneyModifier" step="1" value="0">
@@ -604,7 +598,7 @@
           </div>
           <div class="field">
             <label for="editBonusEffect" id="editBonusEffectLabel">Effect</label>
-            <input type="text" id="editBonusEffect">
+            <select id="editBonusEffect"></select>
           </div>
         </div>
         <button class="btn" id="editBonusAdd" type="button">Add Bonus</button>
@@ -620,7 +614,6 @@
           <div class="field">
             <label>&nbsp;</label>
             <button class="btn" id="editWeaponEffectAdd" type="button">Add Effect</button>
-            <button class="btn ghost" id="editWeaponEffectCreate" type="button">Create Effect</button>
           </div>
         </div>
         <div class="list" id="editWeaponEffectList"></div>
@@ -648,10 +641,6 @@
       <div class="field">
         <label for="skillDescriptionInput" id="skillDescriptionLabel">Description</label>
         <textarea id="skillDescriptionInput"></textarea>
-      </div>
-      <div class="edit-section">
-        <h4 id="skillCategoryCreateTitle">Create Category</h4>
-        <button class="btn" id="skillCategoryCreate" type="button">Create Category</button>
       </div>
       <div class="grid two">
         <div class="field">
@@ -713,10 +702,6 @@
         </div>
         <div class="list" id="skillEffectList"></div>
       </div>
-      <div class="edit-section">
-        <h4 id="skillEffectCreateTitle">Create Effect</h4>
-        <button class="btn" id="skillEffectCreate" type="button">Create Effect</button>
-      </div>
       <div class="modal-actions">
         <button class="btn ghost" id="skillCancel" type="button">Cancel</button>
         <button class="btn" id="skillSave" type="button">Save</button>
@@ -774,10 +759,6 @@
           </div>
         </div>
         <div class="list" id="spellEffectList"></div>
-      </div>
-      <div class="edit-section">
-        <h4 id="spellEffectCreateTitle">Create Effect</h4>
-        <button class="btn" id="spellEffectCreate" type="button">Create Effect</button>
       </div>
       <div class="modal-actions">
         <button class="btn ghost" id="spellCancel" type="button">Cancel</button>

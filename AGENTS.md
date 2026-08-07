@@ -16,7 +16,7 @@ Treat `AGENT_HANDOFF.md` as the primary recovery file for any new Codex/ChatGPT 
 ## Current Product Focus
 
 - This repo is the closed-beta deploy release for the web-delivered GMRules proof of concept.
-- Work web-first unless the user explicitly asks for Swing or core-only changes.
+- The web application is the only UI implementation in this repository. Legacy Swing sources and launchers were removed; do not recreate a standalone UI unless the user explicitly requests a new implementation based on the finalized web UI.
 - The hosted product runs from `gmrules-builder` through `com.gamemaker.gmrules.web.WebMain`.
 - The richer `gmrules-character` project is currently outside this repo and should be treated as a reference unless the user asks to integrate it.
 

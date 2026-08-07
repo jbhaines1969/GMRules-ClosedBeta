@@ -32,6 +32,7 @@ public class HPMethod extends GameElement {
     private String hitDieType = "d8";
     private int hitDieSides = 8;
     private int hitDieCount = 1;
+    private int hitDieModifier = 0;
     private String hitDieProgression = "perLevel";
     private Map<Integer,String> customHitDiceByLevel = new HashMap<>();
     private Map<String,String> classToDieType = new HashMap<>();
@@ -63,6 +64,15 @@ public class HPMethod extends GameElement {
     private boolean allowPlayerChoice = false;
     private boolean alwaysMaxAtFirstLevel = true;
     private int fixedHPPerLevel = 5;
+    private boolean allowMultipleFixedGains = false;
+
+    // Attribute-derived HP replaces both starting HP and level-based gain.
+    private String attributeDerivationMode = "direct";
+    private String attributeDerivedDirectAttributeId = "";
+    private List<AttributeHPTerm> attributeDerivedTerms = new ArrayList<>();
+    private double attributeDerivedBaseValue = 0.0;
+    private double attributeDerivedDivisor = 1.0;
+    private String attributeDerivedRoundingMethod = "nearest";
 
     // Rolling mechanics
     private boolean allowRerollOnes = false;
@@ -266,6 +276,37 @@ public class HPMethod extends GameElement {
     // === ARRAY REGISTRY ===
     private ArrayHandler arrayHandler = new ArrayHandler();
 
+    public static final class AttributeHPTerm implements java.io.Serializable {
+        private static final long serialVersionUID = 1L;
+
+        private String attributeId = "";
+        private double multiplier = 1.0;
+
+        public AttributeHPTerm() {
+        }
+
+        public AttributeHPTerm(String attributeId, double multiplier) {
+            setAttributeId(attributeId);
+            setMultiplier(multiplier);
+        }
+
+        public String getAttributeId() {
+            return attributeId;
+        }
+
+        public void setAttributeId(String attributeId) {
+            this.attributeId = Objects.toString(attributeId, "").trim();
+        }
+
+        public double getMultiplier() {
+            return multiplier;
+        }
+
+        public void setMultiplier(double multiplier) {
+            this.multiplier = Double.isFinite(multiplier) ? multiplier : 1.0;
+        }
+    }
+
 // *** CONSTRUCTORS ***
     public HPMethod(String name) {
         super(name);
@@ -433,7 +474,10 @@ public class HPMethod extends GameElement {
     }
 
     public int getHitDieCount() { return hitDieCount; }
-    public void setHitDieCount(int hitDieCount) { this.hitDieCount = hitDieCount; }
+    public void setHitDieCount(int hitDieCount) { this.hitDieCount = Math.max(1, hitDieCount); }
+
+    public int getHitDieModifier() { return hitDieModifier; }
+    public void setHitDieModifier(int hitDieModifier) { this.hitDieModifier = hitDieModifier; }
 
     public String getHitDieProgression() { return hitDieProgression; }
     public void setHitDieProgression(String hitDieProgression) { this.hitDieProgression = hitDieProgression; }
@@ -532,8 +576,102 @@ public class HPMethod extends GameElement {
     }
 
     // === LEVEL ADVANCEMENT METHODS ===
-    public String getHpGainMethod() { return hpGainMethod; }
-    public void setHpGainMethod(String hpGainMethod) { this.hpGainMethod = hpGainMethod; }
+    public String getHpGainMethod() { return normalizeHpGainMethod(hpGainMethod); }
+    public void setHpGainMethod(String hpGainMethod) {
+        String safe = Objects.toString(hpGainMethod, "").trim().toLowerCase();
+        if ("average".equals(safe)) {
+            fixedHPPerLevel = calculateLegacyAverageGain();
+        }
+        this.hpGainMethod = normalizeHpGainMethod(safe);
+    }
+
+    public boolean isAttributeDerived() {
+        return "attribute_derived".equals(getHpGainMethod());
+    }
+
+    public String getAttributeDerivationMode() {
+        return normalizeAttributeDerivationMode(attributeDerivationMode);
+    }
+
+    public void setAttributeDerivationMode(String attributeDerivationMode) {
+        this.attributeDerivationMode = normalizeAttributeDerivationMode(attributeDerivationMode);
+    }
+
+    public String getAttributeDerivedDirectAttributeId() {
+        return Objects.toString(attributeDerivedDirectAttributeId, "").trim();
+    }
+
+    public void setAttributeDerivedDirectAttributeId(String attributeDerivedDirectAttributeId) {
+        this.attributeDerivedDirectAttributeId = Objects.toString(attributeDerivedDirectAttributeId, "").trim();
+    }
+
+    public List<AttributeHPTerm> getAttributeDerivedTerms() {
+        return Collections.unmodifiableList(attributeDerivedTerms);
+    }
+
+    public void setAttributeDerivedTerms(List<AttributeHPTerm> terms) {
+        ArrayList<AttributeHPTerm> normalized = new ArrayList<>();
+        if (terms != null) {
+            for (AttributeHPTerm term : terms) {
+                if (term == null) {
+                    continue;
+                }
+                String attributeId = Objects.toString(term.getAttributeId(), "").trim();
+                if (!attributeId.isEmpty()) {
+                    normalized.add(new AttributeHPTerm(attributeId, term.getMultiplier()));
+                }
+            }
+        }
+        attributeDerivedTerms = normalized;
+    }
+
+    public double getAttributeDerivedBaseValue() {
+        return attributeDerivedBaseValue;
+    }
+
+    public void setAttributeDerivedBaseValue(double attributeDerivedBaseValue) {
+        this.attributeDerivedBaseValue = Double.isFinite(attributeDerivedBaseValue)
+            ? attributeDerivedBaseValue
+            : 0.0;
+    }
+
+    public double getAttributeDerivedDivisor() {
+        return attributeDerivedDivisor;
+    }
+
+    public void setAttributeDerivedDivisor(double attributeDerivedDivisor) {
+        this.attributeDerivedDivisor = Double.isFinite(attributeDerivedDivisor)
+            && attributeDerivedDivisor != 0.0
+            ? attributeDerivedDivisor
+            : 1.0;
+    }
+
+    public String getAttributeDerivedRoundingMethod() {
+        return normalizeRoundingMethod(attributeDerivedRoundingMethod);
+    }
+
+    public void setAttributeDerivedRoundingMethod(String attributeDerivedRoundingMethod) {
+        this.attributeDerivedRoundingMethod = normalizeRoundingMethod(attributeDerivedRoundingMethod);
+    }
+
+    public int calculateAttributeDerivedHP(Map<String, ? extends Number> attributeScores) {
+        Map<String, ? extends Number> safeScores = attributeScores == null ? Map.of() : attributeScores;
+        if ("direct".equals(getAttributeDerivationMode())) {
+            Number score = safeScores.get(getAttributeDerivedDirectAttributeId());
+            return score == null ? 0 : roundAttributeDerivedValue(score.doubleValue());
+        }
+
+        double total = attributeDerivedBaseValue;
+        int termLimit = "single_formula".equals(getAttributeDerivationMode()) ? 1 : attributeDerivedTerms.size();
+        for (int index = 0; index < termLimit && index < attributeDerivedTerms.size(); index++) {
+            AttributeHPTerm term = attributeDerivedTerms.get(index);
+            Number score = safeScores.get(term.getAttributeId());
+            if (score != null) {
+                total += score.doubleValue() * term.getMultiplier();
+            }
+        }
+        return roundAttributeDerivedValue(total / getAttributeDerivedDivisor());
+    }
 
     public boolean isAllowPlayerChoice() { return allowPlayerChoice; }
     public void setAllowPlayerChoice(boolean allowPlayerChoice) { this.allowPlayerChoice = allowPlayerChoice; }
@@ -545,6 +683,11 @@ public class HPMethod extends GameElement {
 
     public int getFixedHPPerLevel() { return fixedHPPerLevel; }
     public void setFixedHPPerLevel(int fixedHPPerLevel) { this.fixedHPPerLevel = fixedHPPerLevel; }
+
+    public boolean isAllowMultipleFixedGains() { return allowMultipleFixedGains; }
+    public void setAllowMultipleFixedGains(boolean allowMultipleFixedGains) {
+        this.allowMultipleFixedGains = allowMultipleFixedGains;
+    }
 
     public boolean isAllowRerollOnes() { return allowRerollOnes; }
     public void setAllowRerollOnes(boolean allowRerollOnes) { this.allowRerollOnes = allowRerollOnes; }
@@ -1037,12 +1180,15 @@ public class HPMethod extends GameElement {
             case "rolled":
                 desc.append(" (rolled)");
                 break;
-            case "average":
-                desc.append(" (average)");
-                break;
             case "fixed":
-                desc.append(" (").append(fixedHPPerLevel).append("/level)");
+                if (allowMultipleFixedGains) {
+                    desc.append(" (fixed gain varies by character)");
+                } else {
+                    desc.append(" (").append(fixedHPPerLevel).append("/level)");
+                }
                 break;
+            case "attribute_derived":
+                return "HP derived from attributes (" + getAttributeDerivationMode() + ")";
             case "choice":
                 desc.append(" (player choice)");
                 break;
@@ -1166,6 +1312,24 @@ public class HPMethod extends GameElement {
         return removedCount;
     }
 
+    public int cleanupAttributeDerivedReferences(Set<String> validAttributeIds) {
+        Set<String> safeIds = validAttributeIds == null ? Set.of() : validAttributeIds;
+        int removedCount = 0;
+        if (!getAttributeDerivedDirectAttributeId().isEmpty()
+            && !safeIds.contains(getAttributeDerivedDirectAttributeId())) {
+            attributeDerivedDirectAttributeId = "";
+            removedCount++;
+        }
+        Iterator<AttributeHPTerm> iterator = attributeDerivedTerms.iterator();
+        while (iterator.hasNext()) {
+            if (!safeIds.contains(iterator.next().getAttributeId())) {
+                iterator.remove();
+                removedCount++;
+            }
+        }
+        return removedCount;
+    }
+
     private int parseDieSides(String hitDieType) {
         String safe = Objects.toString(hitDieType, "").trim().toLowerCase();
         if (safe.startsWith("d")) {
@@ -1182,8 +1346,73 @@ public class HPMethod extends GameElement {
         }
     }
 
+    private String normalizeHpGainMethod(String value) {
+        String safe = Objects.toString(value, "").trim().toLowerCase();
+        if ("fixed".equals(safe) || "attribute_derived".equals(safe)) {
+            return safe;
+        }
+        if ("average".equals(safe)) {
+            return "fixed";
+        }
+        return "rolled";
+    }
+
+    private String normalizeAttributeDerivationMode(String value) {
+        String safe = Objects.toString(value, "").trim().toLowerCase();
+        if ("single_formula".equals(safe) || "multi_formula".equals(safe)) {
+            return safe;
+        }
+        return "direct";
+    }
+
+    private String normalizeRoundingMethod(String value) {
+        String safe = Objects.toString(value, "").trim().toLowerCase();
+        if ("up".equals(safe) || "down".equals(safe)) {
+            return safe;
+        }
+        return "nearest";
+    }
+
+    private int roundAttributeDerivedValue(double value) {
+        switch (getAttributeDerivedRoundingMethod()) {
+            case "up":
+                return (int) Math.ceil(value);
+            case "down":
+                return (int) Math.floor(value);
+            default:
+                return (int) Math.round(value);
+        }
+    }
+
+    private int calculateLegacyAverageGain() {
+        int sides = getHitDieSides();
+        double average = sides > 0
+            ? getHitDieCount() * ((sides + 1) / 2.0) + getHitDieModifier()
+            : fixedHPPerLevel;
+        switch (normalizeRoundingMethod(averageRoundingMethod)) {
+            case "up":
+                return (int) Math.ceil(average);
+            case "down":
+                return (int) Math.floor(average);
+            default:
+                return (int) Math.round(average);
+        }
+    }
+
     private void readObject(java.io.ObjectInputStream stream) throws java.io.IOException, ClassNotFoundException {
         stream.defaultReadObject();
+        hitDieCount = Math.max(1, hitDieCount);
+        hitDieSides = Math.max(0, hitDieSides);
+        if ("average".equals(Objects.toString(hpGainMethod, "").trim().toLowerCase())) {
+            fixedHPPerLevel = calculateLegacyAverageGain();
+        }
+        hpGainMethod = normalizeHpGainMethod(hpGainMethod);
+        attributeDerivationMode = normalizeAttributeDerivationMode(attributeDerivationMode);
+        attributeDerivedDirectAttributeId = Objects.toString(attributeDerivedDirectAttributeId, "").trim();
+        setAttributeDerivedTerms(attributeDerivedTerms);
+        setAttributeDerivedBaseValue(attributeDerivedBaseValue);
+        setAttributeDerivedDivisor(attributeDerivedDivisor);
+        attributeDerivedRoundingMethod = normalizeRoundingMethod(attributeDerivedRoundingMethod);
         hpModifierAttributeId = Objects.toString(hpModifierAttributeId, "").trim();
         if (!hpModifierAttributeId.isEmpty()) {
             appliesConstitutionModifier = true;

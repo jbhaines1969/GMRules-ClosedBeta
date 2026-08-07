@@ -13,7 +13,7 @@
 
   <artifactId>gmrules-builder</artifactId>
   <name>GMRules Builder</name>
-  <description>Ruleset builder UI (Swing + Web) for GMRules.</description>
+  <description>Web-delivered ruleset builder and character generator for GMRules.</description>
 
   <dependencies>
     <dependency>
