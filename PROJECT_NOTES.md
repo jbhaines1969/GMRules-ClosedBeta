@@ -1,6 +1,6 @@
 # GMRules Closed Beta Project Notes
 
-Updated: 2026-08-07
+Updated: 2026-08-09
 
 ## Current Status
 
@@ -17,6 +17,9 @@ The application is functional enough for proof of concept: account signup, NDA a
 
 ## Verified Locally
 
+- `mvn test` completed successfully on 2026-08-09 after wiring `AttackMethod` into `Game`; all 22 local tests passed, including new-game initialization, null setter normalization, and complete `Game` serialization.
+- `AttackMethod` is now a non-null member of `Game`; new games initialize it eagerly, null setter input is normalized, and deserialization repairs older games without the field.
+- `mvn test` completed successfully on 2026-08-09 after adding the initial standalone `AttackMethod` rolled-attack data holder; all 20 local tests passed and the core compiled 63 Java source files.
 - `mvn test` and `mvn package` completed successfully on 2026-08-07 after standardizing collection actions and adding the missing update endpoints; 20 local tests passed across the reactor and `target/gmrules-app.jar` was rebuilt.
 - John launcher-smoked and accepted all implemented refactors and UI adjustments preceding the combat-system consideration track on 2026-08-07. The same smoke successfully opened and migrated an older ruleset file; broader ruleset/character migration coverage remains open.
 - `mvn test` completed successfully on 2026-07-02.
@@ -29,7 +32,7 @@ The application is functional enough for proof of concept: account signup, NDA a
 - `mvn test`, `mvn package`, focused static assertions, and `git diff --check` completed successfully on 2026-08-06 after moving eight nested inline-creation actions into their selectors as New <element> options. Static checks confirmed removal of the old controls, localization-key wiring, and unique HTML IDs; direct `node --check` remains unavailable.
 - `mvn test`, `mvn package`, focused static assertions, and `git diff --check` completed successfully on 2026-08-06 after removing full descriptions from collection rows. Static checks confirmed that no element-description conditional remains in a list row and that compact category/type metadata is still wired; direct `node --check` remains unavailable.
 - `mvn test` and `mvn package` passed after adding the private local-key exchange. An HTTP smoke confirmed that `/api/session` remains unauthenticated before proof, missing/wrong keys return `401`, the correct key issues a working normal session token, and authenticated draft create/delete still works. The in-app browser was unavailable for the final address-bar fragment-removal check.
-- Post-Swing-removal `mvn test` and `mvn package` completed successfully on 2026-08-05. The current build compiles `62` core Java source files and `21` web-only builder Java source files and produces `target/gmrules-app.jar`.
+- Post-Swing-removal `mvn test` and `mvn package` completed successfully on 2026-08-05. The current build compiles `63` core Java source files and `21` web-only builder Java source files and produces `target/gmrules-app.jar`.
 - There are no tracked automated test sources. Ignored `*LocalTest.java` verification tests are present in this workspace and run with Maven without becoming release files.
 
 ## Web Architecture
@@ -199,12 +202,15 @@ UX and copy:
 
 ## Current Development Priority
 
+The current combat design separates generation from resolution. `AttackMethod` or another attack source produces a complete attack result, `DefenseMethod` produces the defense-side input or condition, and `AttackResolver` determines the outcome. Card, Attribute, Skill, gear, and other source-driven attacks can use the same result contract without passing through dice generation. Hybrid systems still require explicit routing guidance so descendant applications know which configured source applies rather than inferring only from empty collections or absent values; whether that guidance belongs in `AttackMethod` or the resolution contract remains unsettled.
+
 The next feature-development sequence is:
 
-1. Settle the relevant Attack/Defense and Damage options in `OpenQuestions.md`, then implement the mechanics, persistence, and verification in the backend.
-2. Integrate the settled backend contract into the Rules Builder UI.
+1. Decide where hybrid attack-source routing guidance belongs and define its contract for descendant applications.
+2. Settle the remaining relevant Attack/Defense and Damage options in `OpenQuestions.md`, then implement the mechanics, persistence, and verification in the backend.
+3. Integrate the settled backend contract into the Rules Builder UI.
 
-`OpenQuestions.md` remains nonbinding design input until John explicitly moves the discussion into code decisions.
+The remaining unsettled options in `OpenQuestions.md` stay nonbinding; the generation/resolution separation and hybrid-routing requirement recorded above are the current implementation direction.
 
 ## Best Path Forward
 

@@ -79,6 +79,7 @@ public class Game extends GameElement {
     private SaveMethod saveMethod = new SaveMethod("Saves");
     private HPMethod hpMethod = new HPMethod("Hit Points");
     private ArmorClassMethod armorClassMethod = new ArmorClassMethod("Armor Class");
+    private AttackMethod attackMethod = new AttackMethod("Attack Method");
     private CombatMethod combatMethod = new CombatMethod("Combat");
     private LevelingMethod levelingMethod = new LevelingMethod("Leveling");
     private Map<RegistryKey<?>, AtomicRegistry> registries = new HashMap<>();
@@ -1331,6 +1332,15 @@ public class Game extends GameElement {
         updateLastModified();
     }
 
+    public AttackMethod getAttackMethod() { return attackMethod; }
+    public void setAttackMethod(AttackMethod attackMethod) {
+        this.attackMethod = Objects.requireNonNullElseGet(
+            attackMethod,
+            () -> new AttackMethod("Attack Method")
+        );
+        updateLastModified();
+    }
+
     public CombatMethod getCombatMethod() { return combatMethod; }
     public void setCombatMethod(CombatMethod combatMethod) {
         this.combatMethod = Objects.requireNonNullElseGet(combatMethod, () -> new CombatMethod("Combat"));
@@ -1440,6 +1450,7 @@ public class Game extends GameElement {
             }
         }
         armorClassMethod = Objects.requireNonNullElseGet(armorClassMethod, () -> new ArmorClassMethod("Armor Class"));
+        attackMethod = Objects.requireNonNullElseGet(attackMethod, () -> new AttackMethod("Attack Method"));
         combatMethod = Objects.requireNonNullElseGet(combatMethod, () -> new CombatMethod("Combat"));
         levelingMethod = Objects.requireNonNullElseGet(levelingMethod, () -> new LevelingMethod("Leveling"));
     }

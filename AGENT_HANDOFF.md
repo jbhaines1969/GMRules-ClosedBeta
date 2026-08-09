@@ -1,6 +1,6 @@
 # GMRules Closed Beta Agent Handoff
 
-Updated: 2026-08-07
+Updated: 2026-08-09
 Repo root: `C:\Users\John\IdeaProjects\GMRules-ClosedBeta`
 
 This is the primary recovery document for the next session. Read `AGENTS.md`, `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `PRODUCT_DESIGN_CONTEXT.md`, and local `USER.md` before editing. Inspect `git status --short`; the current feature batch is intentionally uncommitted and must not be reverted.
@@ -9,7 +9,23 @@ The repository is now web-only at the UI layer. John explicitly removed the lega
 
 The Rules Builder now presents the internal `EffectType` registry as **Affected Systems**. The revised guidance defines entries as rules areas or recurring interactions that actions, events, Effects, and Statuses can change or invoke. Navigation, collection and inline editors, Effect/Status fields, confirmations, toasts, and visible API errors use the new term. Java names, API routes, serialized keys, and the existing defaults remain unchanged. John launcher-smoked and accepted this terminology pass on 2026-08-07.
 
-## Resume Here: Finish Attribute Generation Through Point Buy and Hybrids
+## Resume Here: Define Hybrid Attack-Source Routing
+
+Attack/Defense backend work has begun with `GameMechanics.AttackMethod`, a `GameElement` carrying five initialized primitive fields: `diceRolled`, `standardNumberOfDice`, `numberOfRolls`, `dieSides`, and `numberOfDiceRolled`. Negative numeric setter input normalizes to zero. `Game.attackMethod` is eagerly initialized as `new AttackMethod("Attack Method")`; its setter normalizes null to a fresh default, and `Game.readObject(...)` repairs the absent member when older `.gmrf` files are loaded. It is not exposed through the web API/UI.
+
+The agreed architecture separates generation from resolution:
+
+- `AttackMethod` configures the common dice-based attack generator. A standard count is final; a nonstandard count is the base pool that Attributes, Skills, Effects, gear, or other systems may adjust.
+- Card-based and other source-driven systems may generate attack values directly without passing through the dice-based `AttackMethod`.
+- A future complete attack result should retain all generated output needed downstream, including individual dice or rolls and computed values.
+- A future `DefenseMethod` should generate the defense-side number, result, or condition.
+- A future `AttackResolver` should compare the attack and defense results and determine the resolution outcome. It should not care whether the attack input came from dice, cards, Attributes, Skills, gear, or another source.
+
+`AttackResult`, `DefenseMethod`, defense-result types, and `AttackResolver` do not exist yet. The immediate unresolved decision is whether to store explicit hybrid-system routing guidance on `AttackMethod` or in the resolution contract, so descendant applications know which configured attack source applies instead of inferring solely from empty collections or absent values. Settle that contract before implementing the remaining classes.
+
+Focused local verification `AttackMethodGameLocalTest` covers eager initialization, null setter normalization, and a complete `Game` serialization round trip of all five fields. The 2026-08-09 `mvn test` run passed all 22 local tests; port 8080 was free afterward.
+
+## Accepted Attribute Generation Context
 
 John divided the substantial Character Generator Attribute work into workflow, UI design, and testing. The current proof-of-concept Attribute Generation flow, including Dice assignment, canonical Attribute order, Standard Array/Base Scores, Choose, and shared-budget hybrid Point Buy, is implemented and launcher-smoked.
 
@@ -17,7 +33,7 @@ Standard Array has now been renamed Standard Array/Base Scores and restricted to
 
 Rules Builder Auto Assigned arrays now configure a whole array at once. Standard and Elite each persist an independent shared-score boolean and integer. When shared score is selected, the Character Generator API resolves that score across the current Attribute list, including Attributes added later; the previously stored explicit mapping remains available if normalization is turned off. When normalization is off, Set Scores opens a wide modal containing every Attribute and saves the exact complete mapping atomically. Player Assigned arrays retain the one-value collection workflow. These builder controls are launcher-smoked and accepted for the PoC.
 
-John decided that `AttributeGenerationMethod.baseAttributeValue` is obsolete: do not add a Builder control for it. Remove the field and its API/Character Generator fallback during the next Point Buy/hybrid batch, keeping older serialized rulesets loadable. Hybrid Point Buy uses the completed first step as its baseline. After the current Dice and Standard Array smoke, the priority is to settle valid second-step method/application pairings, rename Spend, require/edit point-cost tables, and complete category-aware Character Generator assignment and spending. Do not move on to later Character Generator stages until the complete Attribute Generation workflow is verified.
+John decided that `AttributeGenerationMethod.baseAttributeValue` is obsolete: do not add a Builder control for it. Its removal, valid edge-case method/application pairings, Spend renaming, point-cost-table tooling, and category-aware spending are deferred post-PoC items. Keep older serialized rulesets loadable when that work resumes. Hybrid Point Buy uses the completed first step as its baseline.
 
 The Character Generator shared-budget Point Buy calculation now distinguishes second-step modes correctly. Add charges only the independently purchased increase above the first-step Standard Array/Dice result; Spend charges only the point-cost difference from that result; standalone and Choose Point Buy still price a complete result. The screen recovers its baseline from persisted first-step results after resume instead of relying only on transient in-memory state. John launcher-smoked and accepted the current proof-of-concept workflow on 2026-08-05. It covers the practical majority of actual systems; edge-case recipe combinations, category budgets, progressive score-cost-table tooling, `baseAttributeValue` removal, and Spend wording are deferred beyond the PoC and no longer block later Character Generator work.
 
@@ -196,8 +212,9 @@ John has visually accepted all implemented refactors and UI adjustments precedin
 
 ## Verification State
 
-Latest verification on 2026-08-07:
+Latest verification on 2026-08-09:
 
+- AttackMethod `mvn test` on 2026-08-09: passed all 22 local tests across the reactor while recompiling 63 core Java sources and all 21 builder Java sources. The focused test covers eager `Game` initialization, null setter normalization, and complete `Game` serialization of all five AttackMethod values.
 - Collection-action `mvn test` and `mvn package`: passed 20 local tests across the reactor while recompiling all 21 builder Java sources and the new focused update routes; the shaded `target/gmrules-app.jar` was rebuilt.
 - Manual launcher acceptance on 2026-08-07 covered all implemented pre-combat-design refactors and UI adjustments. An older ruleset file also opened and migrated successfully; this is positive compatibility evidence, not completion of the broader ruleset/character migration matrix.
 - Static collection assertions found matched shared Edit/Remove action usage, no remaining one-off `data-remove-*` markup, all four focused update routes, matching action names, and no duplicate localization keys.
@@ -211,6 +228,7 @@ Latest verification on 2026-08-07:
 
 Ignored local verification tests currently compiled by Maven:
 
+- `AttackMethodGameLocalTest`
 - `AttributeGenerationMethodMigrationLocalTest`
 - `PointBuyCategoryRulesLocalTest`
 - `CharacterCategoryPointAssignmentsLocalTest`
@@ -231,6 +249,7 @@ The current worktree contains the entire accepted-but-uncommitted feature batch.
 - `gmrules-builder` metadata and repository guidance updated for a web-only UI
 - root handoff/notes/structure/TODO documents
 - new `CharacterElements/Background.java`
+- new `GameMechanics/AttackMethod.java` plus its non-null member, accessors, and deserialization recovery in `Game.java`
 
 Do not commit, push, reset, revert, or discard changes unless John explicitly asks. Preserve unrelated user/runtime data in `server-data/`, `drafts/`, `.env`, and `.gmrf` files.
 
@@ -244,6 +263,7 @@ Core ruleset and persistence:
 - `gmrules-core/src/main/java/com/gamemaker/gmrules/GameIO.java`
 - `gmrules-core/src/main/java/com/gamemaker/gmrules/ElementRegistryKey.java`
 - `gmrules-core/src/main/java/com/gamemaker/gmrules/GameMechanics/AttributeGenerationMethod.java`
+- `gmrules-core/src/main/java/com/gamemaker/gmrules/GameMechanics/AttackMethod.java`
 
 Character persistence:
 
@@ -267,13 +287,14 @@ The richer external `gmrules-character` project remains reference-only unless Jo
 
 ## Current Priority Order
 
-`OpenQuestions.md` remains nonbinding design input until John explicitly moves the discussion into code decisions. Once those choices are settled, the implementation order is:
+The remaining unsettled options in `OpenQuestions.md` stay nonbinding. The generation/resolution separation and hybrid-routing requirement under **Resume Here** are the current implementation direction. Continue in this order:
 
-1. Implement the Attack/Defense and Damage mechanics, persistence, and verification in the backend.
-2. Integrate the settled backend contract into the Rules Builder UI.
-3. Resume later Character Generator stages; the accepted PoC Attribute Generation workflow no longer blocks them.
-4. Add Backgrounds to the web API, Rules Builder, and Character Generator only after their fields/selection behavior are settled.
-5. Hosted-smoke the completed character flow and broader migration behavior tracked in `TODO.md`.
+1. Decide whether explicit hybrid attack-source routing belongs in `AttackMethod` or the resolution contract, and define how descendant applications select the applicable source.
+2. Define and implement the remaining `AttackResult`, `DefenseMethod`, defense-result, and `AttackResolver` contracts, followed by Damage mechanics, persistence, and verification.
+3. Integrate the settled backend contract into the Rules Builder UI.
+4. Resume later Character Generator stages; the accepted PoC Attribute Generation workflow no longer blocks them.
+5. Add Backgrounds to the web API, Rules Builder, and Character Generator only after their fields/selection behavior are settled.
+6. Hosted-smoke the completed character flow and broader migration behavior tracked in `TODO.md`.
 
 Build from the repo root:
 

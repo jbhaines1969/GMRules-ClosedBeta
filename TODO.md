@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-08-07
+Updated: 2026-08-09
 
 ## Beta Launch Blockers
 
@@ -18,8 +18,10 @@ Updated: 2026-08-07
 
 ## Current Development Priority: Attack/Defense And Damage
 
-1. [ ] Settle the relevant options in `OpenQuestions.md`, then implement the Attack/Defense and Damage mechanics in the backend, including persistence and verification.
-2. [ ] Integrate the settled backend mechanics into the Rules Builder UI after the backend contract is stable.
+1. [x] Add the initial `AttackMethod` core element with the shared dice-roll configuration fields and a non-null `Game.attackMethod` member.
+2. [ ] Define explicit attack-source guidance for hybrid systems so descendant applications know whether to obtain attack inputs from `AttackMethod`, Cards, Attributes, Skills, gear, or another configured source instead of inferring solely from empty collections or absent values. Decide whether this routing belongs in `AttackMethod` or the resolution contract.
+3. [ ] Settle the relevant options in `OpenQuestions.md`, then implement the Attack/Defense and Damage mechanics in the backend, including persistence and verification.
+4. [ ] Integrate the settled backend mechanics into the Rules Builder UI after the backend contract is stable.
 
 ## High Priority After First Invites
 

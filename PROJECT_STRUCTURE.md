@@ -1,6 +1,6 @@
 # GMRules Closed Beta Deploy Structure
 
-Updated: 2026-08-07
+Updated: 2026-08-09
 
 This file is the deploy-release filesystem map for `GMRules-ClosedBeta`.
 Update it whenever tracked files or deploy-relevant directories are added, removed, or moved. Its purpose is to let agents find known paths from this document before falling back to repository searches.
@@ -178,6 +178,7 @@ GameElements/
 
 ```text
 GameMechanics/
+|-- AttackMethod.java
 |-- ArmorClassMethod.java
 |-- AttributeGenerationMethod.java
 |-- CombatMethod.java
