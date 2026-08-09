@@ -32,6 +32,7 @@ GMRules-ClosedBeta/
 |-- TODO.md
 |-- deploy.sh
 |-- docs/
+|-- spreadsheet-schema/
 |-- makebackup.sh
 |-- pom.xml
 |-- restore.sh
@@ -68,7 +69,53 @@ AGENT_HANDOFF.md    # Current handoff snapshot for recovery/continuation.
 OpenQuestions.md    # Nonbinding design questions and unsettled options under active consideration.
 PROJECT_STRUCTURE.md
 docs/                  # Operational runbooks for deploy and server-side configuration.
+spreadsheet-schema/    # One header-only CSV per spreadsheet-relevant GameElement object for automation sheet scaffolding.
 ```
+
+## Spreadsheet Schema
+
+```text
+spreadsheet-schema/
+|-- Ability.csv
+|-- Advantage.csv
+|-- AdvantageType.csv
+|-- Armor.csv
+|-- Attribute.csv
+|-- AttributeType.csv
+|-- Background.csv
+|-- CharacterClass.csv
+|-- Creature.csv
+|-- Currency.csv
+|-- DamageType.csv
+|-- Deity.csv
+|-- Effect.csv
+|-- EffectType.csv
+|-- Equipment.csv
+|-- EquipmentType.csv
+|-- Flaw.csv
+|-- FlawType.csv
+|-- Game.csv
+|-- Material.csv
+|-- MovementType.csv
+|-- NaturalWeapon.csv
+|-- Pantheon.csv
+|-- Race.csv
+|-- SkillCategory.csv
+|-- Skill.csv
+|-- SoftwareType.csv
+|-- Software.csv
+|-- Spell.csv
+|-- SpellComponents.csv
+|-- SpellSchool.csv
+|-- Status.csv
+`-- Weapon.csv
+```
+
+The completed package contains 33 CSVs. Each CSV is self-contained and uses canonical model field names as its single header row. Collection-valued model fields remain columns in the owning object CSV; separate relationship CSVs are not used. All stored fields on included objects remain represented, including data consumed by mechanics and persisted state-like fields. Abstract bases, internal registries/helpers, external builder workflow bookkeeping, and resolution-mechanic objects are excluded.
+
+`Game.csv` also names logical stored collections exposed through the root object's array handler, such as `diceUsed` and the weight-unit lists; it does not expose the internal registry/handler fields that implement those collections.
+
+Final static review verified all 33 filenames, unique single-row headers, 994 represented columns, model-field coverage for the 32 non-Game objects, and the documented selected-field coverage for `Game.csv`.
 
 ## Docs
 

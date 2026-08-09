@@ -15,6 +15,10 @@ The web product is no longer just a local prototype. It has a hosted path on a D
 
 The application is functional enough for proof of concept: account signup, NDA acceptance, email verification, login, server-saved ruleset drafts, `.gmrf` import/export, feedback intake, and the main builder flow are present.
 
+Spreadsheet automation schema scaffolding is in progress under `spreadsheet-schema/`. The package will contain one header-only CSV per concrete spreadsheet-relevant `GameElement`. Headers use canonical model field names; inherited fields are repeated so each CSV is self-contained; list/map relationships remain collection-valued columns in the owning CSV; and all stored fields on included objects stay represented even when mechanics consume them or they resemble instance state. Abstract bases, resolution-mechanic objects, external builder workflow bookkeeping, and internal registry/helper fields are excluded. `Attribute.csv` includes `modifierMap` and `scoreBonuses`; corrected `Game.csv` includes stored Attribute-modifier/default-bound data, custom dice ranges, Attribute Generation configuration/options, and logical dice/weight-unit collections.
+
+CSV progress: complete. All 33 planned object CSVs are present through `Status.csv`. Final static review verified the complete inventory, one unique nonblank header row per file, 994 represented columns, model-field coverage for all 32 non-Game objects, and the documented selected-field coverage for `Game.csv`. No build or application tests were run because this package contains schema headers only.
+
 ## Verified Locally
 
 - `mvn test` completed successfully on 2026-08-09 after wiring `AttackMethod` into `Game`; all 22 local tests passed, including new-game initialization, null setter normalization, and complete `Game` serialization.
