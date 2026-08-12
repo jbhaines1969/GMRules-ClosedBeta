@@ -25,11 +25,13 @@ public class CharacterDraft {
     private String characterName = "";
     private Map<String, String> ruleModeSelections = new LinkedHashMap<>();
     private String raceId = "";
+    private String backgroundId = "";
     private String classId = "";
     private Map<String, Integer> attributeScores = new LinkedHashMap<>();
     private Map<String, String> categoryPointSlotAssignments = new LinkedHashMap<>();
     private Map<String, Integer> racialSkillRanks = new LinkedHashMap<>();
     private List<String> racialTraitNames = new ArrayList<>();
+    private Map<String, Integer> backgroundSkillRanks = new LinkedHashMap<>();
     private Map<String, Integer> classSkillRanks = new LinkedHashMap<>();
     private Map<String, Integer> selectedSkillRanks = new LinkedHashMap<>();
     private int classSkillPointsPerLevel = 0;
@@ -119,6 +121,14 @@ public class CharacterDraft {
         return classId;
     }
 
+    public String getBackgroundId() {
+        return backgroundId;
+    }
+
+    public void setBackgroundId(String backgroundId) {
+        this.backgroundId = Objects.toString(backgroundId, "");
+    }
+
     public void setClassId(String classId) {
         this.classId = Objects.toString(classId, "");
     }
@@ -187,6 +197,22 @@ public class CharacterDraft {
             }
         }
         this.racialTraitNames = copy;
+    }
+
+    public List<String> getBackgroundSkillIds() {
+        return new ArrayList<>(backgroundSkillRanks.keySet());
+    }
+
+    public void setBackgroundSkillIds(List<String> backgroundSkillIds) {
+        this.backgroundSkillRanks = normalizeSkillRanks(backgroundSkillIds);
+    }
+
+    public Map<String, Integer> getBackgroundSkillRanks() {
+        return new LinkedHashMap<>(backgroundSkillRanks);
+    }
+
+    public void setBackgroundSkillRanks(Map<String, Integer> backgroundSkillRanks) {
+        this.backgroundSkillRanks = normalizeSkillRanks(backgroundSkillRanks);
     }
 
     public List<String> getClassSkillIds() {

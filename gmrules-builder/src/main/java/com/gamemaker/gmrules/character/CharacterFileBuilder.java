@@ -10,6 +10,7 @@
 package com.gamemaker.gmrules.character;
 
 import com.gamemaker.gmrules.AtomicElements.Attribute;
+import com.gamemaker.gmrules.CharacterElements.Background;
 import com.gamemaker.gmrules.CharacterElements.CharacterClass;
 import com.gamemaker.gmrules.CharacterElements.Race;
 import com.gamemaker.gmrules.CharacterElements.Skill;
@@ -57,6 +58,12 @@ public class CharacterFileBuilder {
         character.setRuleModeSelections(draftRuleModes.isEmpty() ? buildRuleModeSelections(safeGame) : draftRuleModes);
         character.setCategoryPointSlotAssignments(safeDraft.getCategoryPointSlotAssignments());
         character.setRace(resolveElement(safeGame, ElementRegistryKey.RACES, safeDraft.getRaceId(), new Race("")));
+        character.setBackground(resolveElement(
+            safeGame,
+            ElementRegistryKey.BACKGROUNDS,
+            safeDraft.getBackgroundId(),
+            new Background("")
+        ));
         character.setCharacterClass(resolveElement(
             safeGame,
             ElementRegistryKey.CHARACTER_CLASSES,
@@ -66,6 +73,7 @@ public class CharacterFileBuilder {
         character.setAttributeScores(resolveAttributeScores(safeGame, safeDraft));
         character.setRacialSkills(resolveSkillRanks(safeGame, safeDraft.getRacialSkillRanks()));
         character.setRacialTraitNames(safeDraft.getRacialTraitNames());
+        character.setBackgroundSkills(resolveSkillRanks(safeGame, safeDraft.getBackgroundSkillRanks()));
         character.setClassSkills(resolveSkillRanks(safeGame, safeDraft.getClassSkillRanks()));
         character.setSelectedSkills(resolveSkillRanks(safeGame, safeDraft.getSelectedSkillRanks()));
         character.setSelectedSpells(resolveElements(safeGame, ElementRegistryKey.SPELLS, safeDraft.getSelectedSpellIds()));

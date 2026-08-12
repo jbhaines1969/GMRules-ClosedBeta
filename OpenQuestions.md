@@ -2,21 +2,19 @@
 
 ## Combat Resolution, Damage, and Harm
 
-- **Status — consideration only:** These are discussion findings and unsettled options, not implementation or naming decisions.
+- **Status — mixed:** Settled backend directions are labeled below. Remaining options are discussion findings, not implementation or naming decisions.
 - **Current model concern:** `ArmorClassMethod` currently represents only a nonnegative base Armor Class plus an optional Attribute reference; it has no explicit no-Armor-Class state or alternative defense model.
-- **Unsettled option — separate systems:** Replace the assumption of one Armor Class section with independent Attack Resolution, Damage Calculation, Damage Mitigation, and Harm Resolution concepts.
+- **Settled direction — separate systems:** Attack Resolution is independent from later Damage Calculation, Damage Mitigation, and Harm Resolution concepts.
 - **Unsettled option — optional stages:** A game may omit or bypass any stage; the framework must not require an attack roll, numeric damage, mitigation, or Hit Points.
 
 ### Attack Resolution
 
-- **Unsettled option — passive defense target:** The attacker rolls against a fixed or derived defense number; the number may come from Attributes, Skills, abilities, gear, or circumstances rather than armor.
-- **Unsettled option — active opposed defense:** Attacker and defender both roll; totals, success levels, or success counts determine the outcome.
-- **Unsettled option — defender-only resolution:** The attack supplies a difficulty or threat level and only the defender rolls.
-- **Unsettled option — outcome bands:** One roll produces full, partial, costly, or failed outcomes instead of binary hit and miss.
-- **Unsettled option — automatic contact:** Credible attacks skip accuracy resolution and proceed directly to damage or effects.
+- **Settled direction — defense generation:** `DefenseMethod` supports a passive value, an active roll, a modifier applied during attack generation, or no accuracy defense. Active rolls support additive totals, roll-under results, and success counts. Attack modifiers support flat adjustments, difficulty dice, removed attack dice, disadvantage, and adjusted thresholds.
+- **Settled direction — source-neutral comparison:** `AttackResolution` supports attack versus passive defense, attack versus a generated defense result, defender-only result versus an attack-supplied threat, and automatic contact. Comparison configuration does not depend on how either side generated its values.
+- **Settled direction — hybrid attack routing:** Every attack selects a stable `AttackSourceRoute` id. A configured default route is the only fallback; descendant applications must not infer a source from empty data. Routes cover `AttackMethod`, cards, Attributes, Skills, gear, and an open other-source category.
+- **Settled direction — outcomes:** Resolution supports meet-or-exceed, strict exceed, lower-wins, success-count, and creator-defined outcome-band comparisons, plus explicit tie handling. Runtime results must later retain raw results, computed values, margins, success counts, and resolved outcomes needed downstream.
+- **Settled boundary — later modifiers:** Parries, reaction costs, soak, armor reduction, and other changes applied after initial generation do not belong in `DefenseMethod`. Soaking armor has no effect on Attack Resolution and belongs in the later damage/mitigation contract.
 - **Unsettled option — consequence-first resolution:** A general action result establishes consequences that may later be resisted or reduced.
-- **Unsettled option — no attack/defense mechanic:** Some games may resolve conflict without a distinct attack subsystem.
-- **Unsettled option — degree of success:** Margin, extra successes, raises, or result bands may feed later damage or effect calculation.
 - **Unsettled option — reaction limits:** Defenses may consume actions, require declared reactions, apply only to certain attacks, or weaken with repeated use.
 - **Research examples:** Fate, BRP, and Year Zero use active defense variants; player-facing GUMSHOE uses defender-only resolution; Apocalypse World uses outcome bands and exchanged harm; Cairn uses automatic contact; Blades in the Dark uses consequence-first resistance.
 
@@ -74,4 +72,3 @@
 - **Unsettled option — frequency scopes:** Once per event, once per source, once per causal chain, once per round, and similar limits are distinct.
 - **Unsettled option — recursion safety:** Provenance and trigger eligibility prevent loops; a maximum reaction depth remains a final fail-safe rather than the primary rule.
 - **Unsettled option — retained attribution:** Complete provenance supports mitigation decisions, immunity, kill attribution, combat logs, ongoing effects, friendly-fire rules, and player-facing explanations.
-

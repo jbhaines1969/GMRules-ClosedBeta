@@ -11,8 +11,12 @@ package com.gamemaker.gmrules.CharacterElements;
 
 import com.gamemaker.gmrules.ArrayHandler;
 import com.gamemaker.gmrules.GameElement;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -76,6 +80,26 @@ public class Flaw extends GameElement implements Serializable {
         return arrayHandler.getArrayNames();
     }
 
+    /**
+     * Returns the stable Effect ids attached to this flaw.
+     * The underlying array name is retained for serialized-file compatibility.
+     */
+    public ArrayList<String> getEffectIds() {
+        return ensureEffectIds();
+    }
+
+    public void setEffectIds(Collection<String> effectIds) {
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        Collection<String> safeEffectIds = Objects.requireNonNullElseGet(effectIds, java.util.List::of);
+        for (String effectId : safeEffectIds) {
+            String safeId = Objects.toString(effectId, "").trim();
+            if (!safeId.isEmpty()) {
+                normalized.add(safeId);
+            }
+        }
+        arrayHandler.replaceArray("effectNames", new ArrayList<>(normalized));
+    }
+
     public String getTypeKey() { return typeKey; }
     public void setTypeKey(String typeKey) {
         this.typeKey = Objects.toString(typeKey, "");
@@ -108,8 +132,8 @@ public class Flaw extends GameElement implements Serializable {
             }
         }
 
-        ArrayList<String> effectNames = arrayHandler.getObjectArray("effectNames");
-        Iterator<String> effectIter = effectNames.iterator();
+        ArrayList<String> effectIds = ensureEffectIds();
+        Iterator<String> effectIter = effectIds.iterator();
         while (effectIter.hasNext()) {
             String effectId = effectIter.next();
             boolean exists = validEffectIds.contains(effectId);
@@ -120,5 +144,23 @@ public class Flaw extends GameElement implements Serializable {
         }
 
         return removedCount;
+    }
+
+    private ArrayList<String> ensureEffectIds() {
+        ArrayList<String> effectIds = arrayHandler.getObjectArray("effectNames");
+        if (effectIds == null) {
+            effectIds = new ArrayList<>();
+            arrayHandler.putArray("effectNames", effectIds);
+        }
+        return effectIds;
+    }
+
+    private void readObject(ObjectInputStream input) throws IOException, ClassNotFoundException {
+        input.defaultReadObject();
+        arrayHandler = Objects.requireNonNullElseGet(arrayHandler, ArrayHandler::new);
+        ensureEffectIds();
+        if (arrayHandler.getObjectArray("tags") == null) {
+            arrayHandler.putArray("tags", new ArrayList<String>());
+        }
     }
 }

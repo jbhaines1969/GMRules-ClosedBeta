@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-08-09
+Updated: 2026-08-12
 
 ## Beta Launch Blockers
 
@@ -19,9 +19,16 @@ Updated: 2026-08-09
 ## Current Development Priority: Attack/Defense And Damage
 
 1. [x] Add the initial `AttackMethod` core element with the shared dice-roll configuration fields and a non-null `Game.attackMethod` member.
-2. [ ] Define explicit attack-source guidance for hybrid systems so descendant applications know whether to obtain attack inputs from `AttackMethod`, Cards, Attributes, Skills, gear, or another configured source instead of inferring solely from empty collections or absent values. Decide whether this routing belongs in `AttackMethod` or the resolution contract.
-3. [ ] Settle the relevant options in `OpenQuestions.md`, then implement the Attack/Defense and Damage mechanics in the backend, including persistence and verification.
-4. [ ] Integrate the settled backend mechanics into the Rules Builder UI after the backend contract is stable.
+2. [x] Define explicit attack-source guidance for hybrid systems in `AttackResolution`. Each attack selects a stable `AttackSourceRoute` id; an explicitly configured default is the only fallback, so descendant applications do not infer a source from absent values or empty collections.
+3. [ ] Complete the Attack/Defense and Damage backend, including persistence and verification.
+   - [x] Implement and persist `DefenseMethod` generation modes and source-neutral `AttackResolution` configuration.
+   - [ ] Define complete runtime attack, defense, and resolution result contracts that retain raw and computed output for downstream damage and effects.
+   - [ ] Settle and implement Damage Calculation, Damage Mitigation, and Harm Resolution without folding soak, armor reduction, parry costs, or later result modifiers into initial attack/defense generation.
+4. [x] Integrate the attack/defense mechanics into the Rules Builder UI in staged review passes.
+   - [x] Replace the Rules Builder Armor Class stage with Attack Method, exposing and autosaving the five existing `AttackMethod` fields. Keep the legacy Armor Class API temporarily for Character Generator calculations.
+   - [x] Add Defense immediately after Attack Method with passive-value, active-roll, attack-adjustment, and no-accuracy-defense families. John has not yet launcher-smoked this screen.
+   - [x] Add Attack Resolution immediately after Defense with comparison, tie, automatic-outcome, attack-source-route, and outcome-band configuration. John has not yet launcher-smoked this screen.
+   - [ ] Perform the deferred combat-screen UI cleanup after the mechanics workflow has been exercised with real rules data.
 
 ## High Priority After First Invites
 
@@ -60,7 +67,10 @@ Updated: 2026-08-09
 - [x] Launcher-smoke the revised Hit Points layouts for Independent No Gain/Rolled/Fixed and Attribute Derived Direct/Single-Formula/Multi-Formula, including shared-versus-variable Fixed gain, `3d4+3` dice persistence, and structured formula persistence/rounding.
 - [x] Add Rules Builder controls for backend-supported Point Buy category budgets: creator-fixed category rules or player-assigned named slots, with one slot per Attribute Category.
 - [x] Add Backgrounds as an independent core `GameElement` collection so rulesets can use Backgrounds, Classes, or both.
-- [ ] Add Backgrounds to the web Rules Builder/API and Character Generator after their creator-facing fields and player-selection behavior are settled.
+- [x] Add one-time Background packages to the web Rules Builder/API and Character Generator immediately before Classes. Backgrounds carry starting Skill points, starting money, stable Skill references, and Attribute requirements without Class advancement fields; selections persist through text drafts and object-backed `.gmcf` exports. Launcher-smoked and accepted on 2026-08-12.
+- [x] Add Advantages and Flaws to the Rules Builder immediately after Skills with Name, Description, and stable Effect lists, so creators encounter Skills before describing options that grant or limit them; retain older core fields only for compatibility, and keep Equipment and Weapons last. Launcher-smoked and accepted on 2026-08-12.
+- [x] Make the ordered Rules Builder step registry the shared source for sidebar position, screen routes, and ordinary Continue navigation while preserving conditional Attribute Generation skips and the terminal Weapons download. The Skills/Advantages/Flaws reorder required no route or Continue-handler edits and passed launcher smoke.
+- [ ] Decide whether Advantage/Flaw Skill grants and limits require explicit stable Skill references or typed Effect targets. The current Name/Description/Effect contract can describe the rule but cannot machine-resolve a specific granted or restricted Skill; settle the relationship boundary before adding duplicate lists.
 - [x] Simplify Armor Class method entry to required base AC plus optional AC attribute; remove gear-based/base-plus method selections from the web screen, API, and core model.
 - [x] Add Damage Types before Statuses/Effects/Equipment so effects, spells, equipment, weapons, and armor can carry an optional damage type reference.
 - [x] Sort Attribute Generation default modifiers and per-Attribute modifier lists ascending by attribute score on render and refresh.

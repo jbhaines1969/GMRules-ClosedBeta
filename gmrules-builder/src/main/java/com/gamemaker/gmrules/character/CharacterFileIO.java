@@ -37,6 +37,7 @@ public class CharacterFileIO {
     private static final String CATEGORY_POINT_SLOT_PREFIX = "pointBuyCategorySlot.";
     private static final String RACIAL_SKILL_PREFIX = "racialSkill.";
     private static final String RACIAL_TRAIT_PREFIX = "racialTrait.";
+    private static final String BACKGROUND_SKILL_PREFIX = "backgroundSkill.";
     private static final String CLASS_SKILL_PREFIX = "classSkill.";
     private static final String SELECTED_SKILL_PREFIX = "selectedSkill.";
     private static final String CLASS_SKILL_POINTS_PER_LEVEL = "classSkillPointsPerLevel";
@@ -79,6 +80,7 @@ public class CharacterFileIO {
         CharacterDraft draft = new CharacterDraft();
         Map<String, Integer> racialSkillRanks = new java.util.LinkedHashMap<>();
         List<String> racialTraitNames = new ArrayList<>();
+        Map<String, Integer> backgroundSkillRanks = new java.util.LinkedHashMap<>();
         Map<String, Integer> classSkillRanks = new java.util.LinkedHashMap<>();
         Map<String, Integer> selectedSkillRanks = new java.util.LinkedHashMap<>();
         List<String> selectedSpellIds = new ArrayList<>();
@@ -109,6 +111,8 @@ public class CharacterFileIO {
                 draft.setCharacterName(value);
             } else if (key.equals("raceId")) {
                 draft.setRaceId(value);
+            } else if (key.equals("backgroundId")) {
+                draft.setBackgroundId(value);
             } else if (key.equals("classId")) {
                 draft.setClassId(value);
             } else if (key.equals(SKILL_POINT_SOURCE)) {
@@ -193,6 +197,8 @@ public class CharacterFileIO {
                 if (!value.isEmpty() && !racialTraitNames.contains(value)) {
                     racialTraitNames.add(value);
                 }
+            } else if (key.startsWith(BACKGROUND_SKILL_PREFIX)) {
+                putSkillRank(backgroundSkillRanks, value);
             } else if (key.startsWith(CLASS_SKILL_PREFIX)) {
                 putSkillRank(classSkillRanks, value);
             } else if (key.startsWith(SELECTED_SKILL_PREFIX)) {
@@ -272,6 +278,7 @@ public class CharacterFileIO {
         }
         draft.setRacialSkillRanks(racialSkillRanks);
         draft.setRacialTraitNames(racialTraitNames);
+        draft.setBackgroundSkillRanks(backgroundSkillRanks);
         draft.setClassSkillRanks(classSkillRanks);
         draft.setSelectedSkillRanks(selectedSkillRanks);
         draft.setSelectedSpellIds(selectedSpellIds);
@@ -308,8 +315,17 @@ public class CharacterFileIO {
         if (!safeDraft.getRaceId().isEmpty()) {
             lines.add("raceId=" + safeDraft.getRaceId());
         }
+        if (!safeDraft.getBackgroundId().isEmpty()) {
+            lines.add("backgroundId=" + safeDraft.getBackgroundId());
+        }
         if (!safeDraft.getClassId().isEmpty()) {
             lines.add("classId=" + safeDraft.getClassId());
+        }
+        List<Map.Entry<String, Integer>> backgroundSkillRanks =
+            new ArrayList<>(safeDraft.getBackgroundSkillRanks().entrySet());
+        backgroundSkillRanks.sort(Map.Entry.comparingByKey());
+        for (int index = 0; index < backgroundSkillRanks.size(); index++) {
+            lines.add(BACKGROUND_SKILL_PREFIX + index + "=" + formatSkillRank(backgroundSkillRanks.get(index)));
         }
         List<Map.Entry<String, Integer>> classSkillRanks = new ArrayList<>(safeDraft.getClassSkillRanks().entrySet());
         classSkillRanks.sort(Map.Entry.comparingByKey());

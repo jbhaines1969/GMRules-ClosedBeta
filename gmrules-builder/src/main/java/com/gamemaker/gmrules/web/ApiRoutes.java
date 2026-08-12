@@ -17,14 +17,20 @@ import com.gamemaker.gmrules.AtomicElements.EffectTypes;
 import com.gamemaker.gmrules.AtomicElements.RegistryKey;
 import com.gamemaker.gmrules.AtomicElements.SkillCategories;
 import com.gamemaker.gmrules.AtomicElements.SkillCategory;
+import com.gamemaker.gmrules.CharacterElements.Advantage;
+import com.gamemaker.gmrules.CharacterElements.Background;
 import com.gamemaker.gmrules.CharacterElements.CharacterClass;
+import com.gamemaker.gmrules.CharacterElements.Flaw;
 import com.gamemaker.gmrules.CharacterElements.Skill;
 import com.gamemaker.gmrules.CharacterElements.Race;
 import com.gamemaker.gmrules.ElementRegistry;
 import com.gamemaker.gmrules.ElementRegistryKey;
 import com.gamemaker.gmrules.Game;
 import com.gamemaker.gmrules.GameMechanics.ArmorClassMethod;
+import com.gamemaker.gmrules.GameMechanics.AttackMethod;
+import com.gamemaker.gmrules.GameMechanics.AttackResolution;
 import com.gamemaker.gmrules.GameMechanics.AttributeGenerationMethod;
+import com.gamemaker.gmrules.GameMechanics.DefenseMethod;
 import com.gamemaker.gmrules.GameMechanics.HPMethod;
 import com.gamemaker.gmrules.GameMechanics.LevelingMethod;
 import com.gamemaker.gmrules.GameSaveIO;
@@ -101,7 +107,9 @@ public final class ApiRoutes {
         "dice-rolling",
         "points-buy",
         "hit-points",
-        "armor-class",
+        "attack-method",
+        "defense",
+        "attack-resolution",
         "currency",
         "effect-types",
         "damage-types",
@@ -114,7 +122,10 @@ public final class ApiRoutes {
         "pantheons",
         "deities",
         "races",
-        "classes"
+        "backgrounds",
+        "classes",
+        "advantages",
+        "flaws"
     );
     private static final long FEEDBACK_MAX_BODY_BYTES = 16L * 1024;
     private static final int FEEDBACK_TITLE_MAX_LENGTH = 120;
@@ -245,6 +256,12 @@ public final class ApiRoutes {
         router.add("POST", "/api/drafts/{id}/points-buy", ApiRoutes::updatePointsBuy);
         router.add("GET", "/api/drafts/{id}/hit-points", ApiRoutes::getHitPoints);
         router.add("POST", "/api/drafts/{id}/hit-points", ApiRoutes::updateHitPoints);
+        router.add("GET", "/api/drafts/{id}/attack-method", ApiRoutes::getAttackMethod);
+        router.add("POST", "/api/drafts/{id}/attack-method", ApiRoutes::updateAttackMethod);
+        router.add("GET", "/api/drafts/{id}/defense", ApiRoutes::getDefense);
+        router.add("POST", "/api/drafts/{id}/defense", ApiRoutes::updateDefense);
+        router.add("GET", "/api/drafts/{id}/attack-resolution", ApiRoutes::getAttackResolution);
+        router.add("POST", "/api/drafts/{id}/attack-resolution", ApiRoutes::updateAttackResolution);
         router.add("GET", "/api/drafts/{id}/armor-class", ApiRoutes::getArmorClass);
         router.add("POST", "/api/drafts/{id}/armor-class", ApiRoutes::updateArmorClass);
         router.add("GET", "/api/drafts/{id}/armor", ApiRoutes::getArmor);
@@ -283,10 +300,25 @@ public final class ApiRoutes {
         router.add("DELETE", "/api/drafts/{id}/weapons", ApiRoutes::removeWeapon);
         router.add("POST", "/api/drafts/{id}/weapons/update", ApiRoutes::updateWeapon);
 
+        router.add("GET", "/api/drafts/{id}/backgrounds", ApiRoutes::getBackgrounds);
+        router.add("POST", "/api/drafts/{id}/backgrounds", ApiRoutes::addBackground);
+        router.add("DELETE", "/api/drafts/{id}/backgrounds", ApiRoutes::removeBackground);
+        router.add("POST", "/api/drafts/{id}/backgrounds/update", ApiRoutes::updateBackground);
+
         router.add("GET", "/api/drafts/{id}/classes", ApiRoutes::getClasses);
         router.add("POST", "/api/drafts/{id}/classes", ApiRoutes::addClass);
         router.add("DELETE", "/api/drafts/{id}/classes", ApiRoutes::removeClass);
         router.add("POST", "/api/drafts/{id}/classes/update", ApiRoutes::updateClass);
+
+        router.add("GET", "/api/drafts/{id}/advantages", ApiRoutes::getAdvantages);
+        router.add("POST", "/api/drafts/{id}/advantages", ApiRoutes::addAdvantage);
+        router.add("DELETE", "/api/drafts/{id}/advantages", ApiRoutes::removeAdvantage);
+        router.add("POST", "/api/drafts/{id}/advantages/update", ApiRoutes::updateAdvantage);
+
+        router.add("GET", "/api/drafts/{id}/flaws", ApiRoutes::getFlaws);
+        router.add("POST", "/api/drafts/{id}/flaws", ApiRoutes::addFlaw);
+        router.add("DELETE", "/api/drafts/{id}/flaws", ApiRoutes::removeFlaw);
+        router.add("POST", "/api/drafts/{id}/flaws/update", ApiRoutes::updateFlaw);
 
         router.add("GET", "/api/drafts/{id}/skills", ApiRoutes::getSkills);
         router.add("POST", "/api/drafts/{id}/skills/progression", ApiRoutes::updateSkillProgression);
@@ -2247,6 +2279,7 @@ public final class ApiRoutes {
             Attribute attribute = game.getElement("attributes", attributeId);
             if (attribute != null) {
                 game.removeElement("attributes", attribute);
+                cleanupBackgroundReferences(game);
             }
         });
         ctx.json(200, Map.of("ok", true));
@@ -3571,6 +3604,224 @@ public final class ApiRoutes {
         ctx.json(200, Map.of("ok", true));
     }
 
+    private static void getAttackMethod(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "attack-method");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            AttackMethod method = game.getAttackMethod();
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("diceRolled", method.isDiceRolled());
+            response.put("standardNumberOfDice", method.isStandardNumberOfDice());
+            response.put("numberOfRolls", method.getNumberOfRolls());
+            response.put("dieSides", method.getDieSides());
+            response.put("numberOfDiceRolled", method.getNumberOfDiceRolled());
+            response.put("diceUsed", new ArrayList<>(game.getDiceUsed()));
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void updateAttackMethod(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        boolean diceRolled = getBoolean(body, "diceRolled", false);
+        boolean standardNumberOfDice = getBoolean(body, "standardNumberOfDice", false);
+        int numberOfRolls = Math.max(0, getInt(body, "numberOfRolls", 0));
+        int dieSides = Math.max(0, getInt(body, "dieSides", 0));
+        int numberOfDiceRolled = Math.max(0, getInt(body, "numberOfDiceRolled", 0));
+
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttackMethod method = game.getAttackMethod();
+            method.setDiceRolled(diceRolled);
+            method.setStandardNumberOfDice(standardNumberOfDice);
+            method.setNumberOfRolls(numberOfRolls);
+            method.setDieSides(dieSides);
+            method.setNumberOfDiceRolled(numberOfDiceRolled);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getDefense(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "defense");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            DefenseMethod method = game.getDefenseMethod();
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("defenseMode", method.getDefenseMode());
+            response.put("standardDefenseValue", method.isStandardDefenseValue());
+            response.put("passiveDefenseValue", method.getPassiveDefenseValue());
+            response.put("activeRollEvaluation", method.getActiveRollEvaluation());
+            response.put("standardNumberOfDice", method.isStandardNumberOfDice());
+            response.put("numberOfRolls", method.getNumberOfRolls());
+            response.put("dieSides", method.getDieSides());
+            response.put("numberOfDiceRolled", method.getNumberOfDiceRolled());
+            response.put("baseRollModifier", method.getBaseRollModifier());
+            response.put("rollTargetNumber", method.getRollTargetNumber());
+            response.put("successThreshold", method.getSuccessThreshold());
+            response.put("attackModifierMethod", method.getAttackModifierMethod());
+            response.put("standardAttackModifier", method.isStandardAttackModifier());
+            response.put("attackModifierValue", method.getAttackModifierValue());
+            response.put("diceUsed", new ArrayList<>(game.getDiceUsed()));
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void updateDefense(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String defenseMode = getString(body, "defenseMode");
+        boolean standardDefenseValue = getBoolean(body, "standardDefenseValue", false);
+        int passiveDefenseValue = getInt(body, "passiveDefenseValue", 0);
+        String activeRollEvaluation = getString(body, "activeRollEvaluation");
+        boolean standardNumberOfDice = getBoolean(body, "standardNumberOfDice", false);
+        int numberOfRolls = Math.max(0, getInt(body, "numberOfRolls", 0));
+        int dieSides = Math.max(0, getInt(body, "dieSides", 0));
+        int numberOfDiceRolled = Math.max(0, getInt(body, "numberOfDiceRolled", 0));
+        int baseRollModifier = getInt(body, "baseRollModifier", 0);
+        int rollTargetNumber = getInt(body, "rollTargetNumber", 0);
+        int successThreshold = Math.max(0, getInt(body, "successThreshold", 0));
+        String attackModifierMethod = getString(body, "attackModifierMethod");
+        boolean standardAttackModifier = getBoolean(body, "standardAttackModifier", false);
+        int attackModifierValue = getInt(body, "attackModifierValue", 0);
+
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            DefenseMethod method = game.getDefenseMethod();
+            method.setDefenseMode(defenseMode);
+            method.setStandardDefenseValue(standardDefenseValue);
+            method.setPassiveDefenseValue(passiveDefenseValue);
+            method.setActiveRollEvaluation(activeRollEvaluation);
+            method.setStandardNumberOfDice(standardNumberOfDice);
+            method.setNumberOfRolls(numberOfRolls);
+            method.setDieSides(dieSides);
+            method.setNumberOfDiceRolled(numberOfDiceRolled);
+            method.setBaseRollModifier(baseRollModifier);
+            method.setRollTargetNumber(rollTargetNumber);
+            method.setSuccessThreshold(successThreshold);
+            method.setAttackModifierMethod(attackModifierMethod);
+            method.setStandardAttackModifier(standardAttackModifier);
+            method.setAttackModifierValue(attackModifierValue);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getAttackResolution(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "attack-resolution");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            AttackResolution method = game.getAttackResolution();
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("resolutionMode", method.getResolutionMode());
+            response.put("comparisonMethod", method.getComparisonMethod());
+            response.put("tieResolution", method.getTieResolution());
+            response.put("outcomeMetric", method.getOutcomeMetric());
+            response.put("automaticOutcomeKey", method.getAutomaticOutcomeKey());
+            response.put("defaultAttackSourceRouteId", method.getDefaultAttackSourceRouteId());
+            response.put("attackSourceRoutes", serializeAttackSourceRoutes(method));
+            response.put("outcomeBands", serializeAttackOutcomeBands(method));
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void updateAttackResolution(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String resolutionMode = getString(body, "resolutionMode");
+        String comparisonMethod = getString(body, "comparisonMethod");
+        String tieResolution = getString(body, "tieResolution");
+        String outcomeMetric = getString(body, "outcomeMetric");
+        String automaticOutcomeKey = getString(body, "automaticOutcomeKey");
+        String defaultAttackSourceRouteId = getString(body, "defaultAttackSourceRouteId").trim();
+        List<AttackResolution.AttackSourceRoute> attackSourceRoutes = new ArrayList<>();
+        for (Map<String, Object> entry : getMapList(body, "attackSourceRoutes")) {
+            AttackResolution.AttackSourceRoute route = new AttackResolution.AttackSourceRoute();
+            route.setId(getString(entry, "id"));
+            route.setName(getString(entry, "name"));
+            route.setSourceKind(getString(entry, "sourceKind"));
+            route.setSourceCollectionKey(getString(entry, "sourceCollectionKey"));
+            route.setSourceReferenceId(getString(entry, "sourceReferenceId"));
+            route.setDescription(getString(entry, "description"));
+            attackSourceRoutes.add(route);
+        }
+        List<AttackResolution.OutcomeBand> outcomeBands = new ArrayList<>();
+        for (Map<String, Object> entry : getMapList(body, "outcomeBands")) {
+            outcomeBands.add(new AttackResolution.OutcomeBand(
+                getInt(entry, "minimumValue", 0),
+                getInt(entry, "maximumValue", 0),
+                getString(entry, "outcomeKey"),
+                getString(entry, "name"),
+                getString(entry, "description")
+            ));
+        }
+
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            AttackResolution method = game.getAttackResolution();
+            method.setResolutionMode(resolutionMode);
+            method.setComparisonMethod(comparisonMethod);
+            method.setTieResolution(tieResolution);
+            method.setOutcomeMetric(outcomeMetric);
+            method.setAutomaticOutcomeKey(automaticOutcomeKey);
+            method.setAttackSourceRoutes(attackSourceRoutes);
+            method.setDefaultAttackSourceRouteId(defaultAttackSourceRouteId);
+            method.setOutcomeBands(outcomeBands);
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static List<Map<String, Object>> serializeAttackSourceRoutes(AttackResolution method) {
+        List<Map<String, Object>> routes = new ArrayList<>();
+        for (AttackResolution.AttackSourceRoute route : method.getAttackSourceRoutes()) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("id", route.getId());
+            entry.put("name", route.getName());
+            entry.put("sourceKind", route.getSourceKind());
+            entry.put("sourceCollectionKey", route.getSourceCollectionKey());
+            entry.put("sourceReferenceId", route.getSourceReferenceId());
+            entry.put("description", route.getDescription());
+            routes.add(entry);
+        }
+        return routes;
+    }
+
+    private static List<Map<String, Object>> serializeAttackOutcomeBands(AttackResolution method) {
+        List<Map<String, Object>> bands = new ArrayList<>();
+        for (AttackResolution.OutcomeBand band : method.getOutcomeBands()) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("minimumValue", band.getMinimumValue());
+            entry.put("maximumValue", band.getMaximumValue());
+            entry.put("outcomeKey", band.getOutcomeKey());
+            entry.put("name", band.getName());
+            entry.put("description", band.getDescription());
+            bands.add(entry);
+        }
+        return bands;
+    }
+
     private static void getArmorClass(RequestContext ctx) throws IOException {
         SessionStore.Session session = requireSession(ctx);
         if (session == null) {
@@ -4070,6 +4321,7 @@ public final class ApiRoutes {
                 return;
             }
             clearAttributeScoreBonusReferences(game, effect.getId(), effect.getName());
+            clearAdvantageAndFlawEffectReferences(game, effect.getId());
             registry.remove(effect);
             updateEffectReferences(game, effect.getName(), "");
         });
@@ -4602,6 +4854,211 @@ public final class ApiRoutes {
         }
     }
 
+    private static void applyBackgroundDetails(
+        Game game,
+        Background background,
+        int startingSkillPoints,
+        int startingMoney,
+        List<String> backgroundSkillIds,
+        List<Map<String, Object>> requiredScores
+    ) {
+        Background safeBackground = Objects.requireNonNullElse(background, new Background(""));
+        safeBackground.setStartingSkillPoints(startingSkillPoints);
+        safeBackground.setStartingMoney(startingMoney);
+
+        List<String> validSkillIds = new ArrayList<>();
+        for (String skillId : safeList(backgroundSkillIds)) {
+            String id = Objects.toString(skillId, "").trim();
+            if (!id.isEmpty() && game.getElement("skills", id) != null) {
+                validSkillIds.add(id);
+            }
+        }
+        safeBackground.setBackgroundSkillIds(validSkillIds);
+
+        Map<String, Integer> requiredAttributeScores = new LinkedHashMap<>();
+        for (Map<String, Object> entry : requiredScores) {
+            String attributeId = Objects.toString(entry.get("attributeId"), "").trim();
+            int score = getInt(entry, "score", 0);
+            if (!attributeId.isEmpty() && score > 0 && game.getElement("attributes", attributeId) != null) {
+                requiredAttributeScores.put(attributeId, score);
+            }
+        }
+        safeBackground.setRequiredAttributeScores(requiredAttributeScores);
+    }
+
+    private static void cleanupBackgroundReferences(Game game) {
+        Set<String> validAttributeIds = getAttributes(game).stream()
+            .map(attribute -> Objects.toString(attribute.getId(), ""))
+            .collect(java.util.stream.Collectors.toSet());
+        Set<String> validSkillIds = getSkills(game).stream()
+            .map(skill -> Objects.toString(skill.getId(), ""))
+            .collect(java.util.stream.Collectors.toSet());
+        for (Background background : getBackgrounds(game)) {
+            background.cleanupOrphanedReferences(validAttributeIds, validSkillIds);
+        }
+    }
+
+    private static void getBackgrounds(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "backgrounds");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, String> skillNamesById = new LinkedHashMap<>();
+            for (Skill skill : getSkills(game)) {
+                String id = Objects.toString(skill.getId(), "").trim();
+                if (!id.isEmpty()) {
+                    skillNamesById.put(id, Objects.toString(skill.getName(), ""));
+                }
+            }
+            List<Map<String, Object>> backgrounds = new ArrayList<>();
+            for (Background background : getBackgrounds(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(background.getId(), ""));
+                entry.put("name", Objects.toString(background.getName(), ""));
+                entry.put("description", Objects.toString(background.getDescription(), ""));
+                entry.put("startingSkillPoints", background.getStartingSkillPoints());
+                entry.put("startingMoney", background.getStartingMoney());
+                List<String> backgroundSkillIds = background.getBackgroundSkillIds();
+                entry.put("backgroundSkillIds", backgroundSkillIds);
+                List<String> backgroundSkillNames = new ArrayList<>();
+                for (String skillId : backgroundSkillIds) {
+                    String safeId = Objects.toString(skillId, "").trim();
+                    if (!safeId.isEmpty()) {
+                        backgroundSkillNames.add(skillNamesById.getOrDefault(safeId, safeId));
+                    }
+                }
+                entry.put("backgroundSkillNames", backgroundSkillNames);
+                List<Map<String, Object>> requiredScores = new ArrayList<>();
+                for (Map.Entry<String, Integer> requiredEntry : background.getRequiredAttributeScores().entrySet()) {
+                    Map<String, Object> requiredScore = new LinkedHashMap<>();
+                    requiredScore.put("attributeId", Objects.toString(requiredEntry.getKey(), ""));
+                    requiredScore.put("score", Objects.requireNonNullElse(requiredEntry.getValue(), 0));
+                    requiredScores.add(requiredScore);
+                }
+                entry.put("requiredAttributeScores", requiredScores);
+                backgrounds.add(entry);
+            }
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("systemName", game.getSystemName("backgrounds"));
+            response.put("backgrounds", backgrounds);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addBackground(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        Background background = new Background(name, getString(body, "description").trim());
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Background> registry = game.getElementRegistry(ElementRegistryKey.BACKGROUNDS);
+            if (registry.hasName(name)) {
+                return;
+            }
+            applyBackgroundDetails(
+                game,
+                background,
+                getInt(body, "startingSkillPoints", 0),
+                getInt(body, "startingMoney", 0),
+                getStringList(body, "backgroundSkillIds"),
+                getMapList(body, "requiredAttributeScores")
+            );
+            added[0] = registry.add(background);
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Background already exists"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(background.getId(), "")));
+    }
+
+    private static void removeBackground(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        String backgroundId = getString(ctx.readJsonMap(), "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Background> registry = game.getElementRegistry(ElementRegistryKey.BACKGROUNDS);
+            Background background = registry.getById(backgroundId);
+            if (background != null) {
+                registry.remove(background);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateBackground(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String backgroundId = getString(body, "id").trim();
+        String name = getString(body, "name").trim();
+        if (backgroundId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Background id is required"));
+            return;
+        }
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        boolean[] duplicate = new boolean[] { false };
+        boolean[] updated = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Background> registry = game.getElementRegistry(ElementRegistryKey.BACKGROUNDS);
+            Background background = registry.getById(backgroundId);
+            if (background == null) {
+                return;
+            }
+            String previousName = background.getName();
+            if (!previousName.equalsIgnoreCase(name) && registry.hasName(name)) {
+                duplicate[0] = true;
+                return;
+            }
+            if (!previousName.equalsIgnoreCase(name)) {
+                registry.remove(background);
+                background.setName(name);
+                registry.add(background);
+            }
+            background.setDescription(getString(body, "description").trim());
+            applyBackgroundDetails(
+                game,
+                background,
+                getInt(body, "startingSkillPoints", 0),
+                getInt(body, "startingMoney", 0),
+                getStringList(body, "backgroundSkillIds"),
+                getMapList(body, "requiredAttributeScores")
+            );
+            updated[0] = true;
+        });
+        if (duplicate[0]) {
+            ctx.json(400, Map.of("error", "Background already exists"));
+            return;
+        }
+        if (!updated[0]) {
+            ctx.json(404, Map.of("error", "Background not found"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
     private static void applyClassDetails(
         Game game,
         CharacterClass characterClass,
@@ -4863,6 +5320,269 @@ public final class ApiRoutes {
         ctx.json(200, Map.of("ok", true));
     }
 
+    private static void getAdvantages(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "advantages");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> advantages = new ArrayList<>();
+            for (Advantage advantage : getAdvantages(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(advantage.getId(), ""));
+                entry.put("name", Objects.toString(advantage.getName(), ""));
+                entry.put("description", Objects.toString(advantage.getDescription(), ""));
+                entry.put("effectIds", new ArrayList<>(advantage.getEffectIds()));
+                advantages.add(entry);
+            }
+            response.put("systemName", game.getSystemName("advantages"));
+            response.put("advantages", advantages);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addAdvantage(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        List<String> effectIds = getStringList(body, "effectIds");
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        Advantage advantage = new Advantage(name, description);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Advantage> registry = game.getElementRegistry(ElementRegistryKey.ADVANTAGES);
+            if (registry.hasName(name)) {
+                return;
+            }
+            advantage.setEffectIds(resolveEffectIds(game, effectIds));
+            added[0] = registry.add(advantage);
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Advantage already exists"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(advantage.getId(), "")));
+    }
+
+    private static void removeAdvantage(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        String advantageId = getString(ctx.readJsonMap(), "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Advantage> registry = game.getElementRegistry(ElementRegistryKey.ADVANTAGES);
+            Advantage advantage = registry.getById(advantageId);
+            if (advantage != null) {
+                registry.remove(advantage);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateAdvantage(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String advantageId = getString(body, "id");
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        List<String> effectIds = getStringList(body, "effectIds");
+        if (advantageId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Advantage id is required"));
+            return;
+        }
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        boolean[] duplicate = new boolean[] { false };
+        boolean[] updated = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Advantage> registry = game.getElementRegistry(ElementRegistryKey.ADVANTAGES);
+            Advantage advantage = registry.getById(advantageId);
+            if (advantage == null) {
+                return;
+            }
+            String previousName = advantage.getName();
+            if (!previousName.equalsIgnoreCase(name) && registry.hasName(name)) {
+                duplicate[0] = true;
+                return;
+            }
+            if (!previousName.equalsIgnoreCase(name)) {
+                registry.remove(advantage);
+                advantage.setName(name);
+                registry.add(advantage);
+            }
+            advantage.setDescription(description);
+            advantage.setEffectIds(resolveEffectIds(game, effectIds));
+            updated[0] = true;
+        });
+        if (duplicate[0]) {
+            ctx.json(400, Map.of("error", "Advantage already exists"));
+            return;
+        }
+        if (!updated[0]) {
+            ctx.json(404, Map.of("error", "Advantage not found"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void getFlaws(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        markStageCompleted(ctx, draftId, "flaws");
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> flaws = new ArrayList<>();
+            for (Flaw flaw : getFlaws(game)) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", Objects.toString(flaw.getId(), ""));
+                entry.put("name", Objects.toString(flaw.getName(), ""));
+                entry.put("description", Objects.toString(flaw.getDescription(), ""));
+                entry.put("effectIds", new ArrayList<>(flaw.getEffectIds()));
+                flaws.add(entry);
+            }
+            response.put("systemName", game.getSystemName("flaws"));
+            response.put("flaws", flaws);
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static void addFlaw(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        List<String> effectIds = getStringList(body, "effectIds");
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        Flaw flaw = new Flaw(name, description);
+        boolean[] added = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Flaw> registry = game.getElementRegistry(ElementRegistryKey.FLAWS);
+            if (registry.hasName(name)) {
+                return;
+            }
+            flaw.setEffectIds(resolveEffectIds(game, effectIds));
+            added[0] = registry.add(flaw);
+        });
+        if (!added[0]) {
+            ctx.json(400, Map.of("error", "Flaw already exists"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true, "id", Objects.toString(flaw.getId(), "")));
+    }
+
+    private static void removeFlaw(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        String flawId = getString(ctx.readJsonMap(), "id");
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Flaw> registry = game.getElementRegistry(ElementRegistryKey.FLAWS);
+            Flaw flaw = registry.getById(flawId);
+            if (flaw != null) {
+                registry.remove(flaw);
+            }
+        });
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static void updateFlaw(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        String flawId = getString(body, "id");
+        String name = getString(body, "name").trim();
+        String description = getString(body, "description").trim();
+        List<String> effectIds = getStringList(body, "effectIds");
+        if (flawId.isEmpty()) {
+            ctx.json(400, Map.of("error", "Flaw id is required"));
+            return;
+        }
+        if (name.isEmpty()) {
+            ctx.json(400, Map.of("error", "Name is required"));
+            return;
+        }
+        boolean[] duplicate = new boolean[] { false };
+        boolean[] updated = new boolean[] { false };
+        ctx.getDraftStore().updateDraft(draftId, game -> {
+            ElementRegistry<Flaw> registry = game.getElementRegistry(ElementRegistryKey.FLAWS);
+            Flaw flaw = registry.getById(flawId);
+            if (flaw == null) {
+                return;
+            }
+            String previousName = flaw.getName();
+            if (!previousName.equalsIgnoreCase(name) && registry.hasName(name)) {
+                duplicate[0] = true;
+                return;
+            }
+            if (!previousName.equalsIgnoreCase(name)) {
+                registry.remove(flaw);
+                flaw.setName(name);
+                registry.add(flaw);
+            }
+            flaw.setDescription(description);
+            flaw.setEffectIds(resolveEffectIds(game, effectIds));
+            updated[0] = true;
+        });
+        if (duplicate[0]) {
+            ctx.json(400, Map.of("error", "Flaw already exists"));
+            return;
+        }
+        if (!updated[0]) {
+            ctx.json(404, Map.of("error", "Flaw not found"));
+            return;
+        }
+        ctx.json(200, Map.of("ok", true));
+    }
+
+    private static List<String> resolveEffectIds(Game game, List<String> requestedIds) {
+        ElementRegistry<Effect> registry = game.getElementRegistry(ElementRegistryKey.EFFECTS);
+        LinkedHashSet<String> resolved = new LinkedHashSet<>();
+        List<String> safeRequestedIds = Objects.requireNonNullElseGet(requestedIds, List::of);
+        for (String requestedId : safeRequestedIds) {
+            String effectId = Objects.toString(requestedId, "").trim();
+            if (!effectId.isEmpty() && registry.getById(effectId) != null) {
+                resolved.add(effectId);
+            }
+        }
+        return new ArrayList<>(resolved);
+    }
+
     private static void getSkills(RequestContext ctx) throws IOException {
         SessionStore.Session session = requireSession(ctx);
         if (session == null) {
@@ -4993,6 +5713,7 @@ public final class ApiRoutes {
             if (skill != null) {
                 game.setTraitStartingMoneyModifier(Objects.toString(skill.getId(), ""), 0);
                 registry.remove(skill);
+                cleanupBackgroundReferences(game);
             }
         });
         ctx.json(200, Map.of("ok", true));
@@ -5861,6 +6582,19 @@ public final class ApiRoutes {
         }
     }
 
+    private static void clearAdvantageAndFlawEffectReferences(Game game, String effectId) {
+        String safeEffectId = Objects.toString(effectId, "").trim();
+        if (safeEffectId.isEmpty()) {
+            return;
+        }
+        for (Advantage advantage : getAdvantages(game)) {
+            advantage.getEffectIds().removeIf(safeEffectId::equals);
+        }
+        for (Flaw flaw : getFlaws(game)) {
+            flaw.getEffectIds().removeIf(safeEffectId::equals);
+        }
+    }
+
     private static void replaceLegacyAttributeScoreBonusReferences(
         Game game,
         String legacyEffectName,
@@ -6126,6 +6860,7 @@ public final class ApiRoutes {
         entry.put("gameName", gameName);
         entry.put("name", characterName.isEmpty() ? "Character Draft" : characterName);
         entry.put("raceId", summary.getRaceId());
+        entry.put("backgroundId", summary.getBackgroundId());
         entry.put("classId", summary.getClassId());
         entry.put("lastSaved", summary.getLastSaved().toString());
         return entry;
@@ -6197,6 +6932,10 @@ public final class ApiRoutes {
         if (!raceId.isEmpty()) {
             lines.add("raceId=" + raceId);
         }
+        String backgroundId = characterBackgroundId(safeCharacterFile);
+        if (!backgroundId.isEmpty()) {
+            lines.add("backgroundId=" + backgroundId);
+        }
         String classId = characterClassId(safeCharacterFile);
         if (!classId.isEmpty()) {
             lines.add("classId=" + classId);
@@ -6215,6 +6954,15 @@ public final class ApiRoutes {
                 String skillId = Objects.toString(entry.getKey().getId(), "").trim();
                 if (!skillId.isEmpty()) {
                     lines.add("classSkill." + skillId + "=" + skillId + "|" + Math.max(0, Objects.requireNonNullElse(entry.getValue(), 0)));
+                }
+            });
+        safeCharacterFile.getBackgroundSkills().entrySet().stream()
+            .sorted(Comparator.comparing(entry -> Objects.toString(entry.getKey().getId(), "")))
+            .forEach(entry -> {
+                String skillId = Objects.toString(entry.getKey().getId(), "").trim();
+                if (!skillId.isEmpty()) {
+                    lines.add("backgroundSkill." + skillId + "=" + skillId + "|"
+                        + Math.max(0, Objects.requireNonNullElse(entry.getValue(), 0)));
                 }
             });
         safeCharacterFile.getSelectedSkills().entrySet().stream()
@@ -6296,6 +7044,13 @@ public final class ApiRoutes {
         return Objects.toString(characterClass.getName(), "").trim().isEmpty()
             ? ""
             : Objects.toString(characterClass.getId(), "").trim();
+    }
+
+    private static String characterBackgroundId(CharacterFile characterFile) {
+        Background background = Objects.requireNonNullElseGet(characterFile, CharacterFile::new).getBackground();
+        return Objects.toString(background.getName(), "").trim().isEmpty()
+            ? ""
+            : Objects.toString(background.getId(), "").trim();
     }
 
     private static String characterSpellId(Spell spell) {
@@ -7039,9 +7794,27 @@ public final class ApiRoutes {
     }
 
     @SuppressWarnings("unchecked")
+    private static List<Background> getBackgrounds(Game game) {
+        List<Background> backgrounds = game.<Background>getObjectArray("backgrounds");
+        return backgrounds == null ? List.of() : backgrounds;
+    }
+
+    @SuppressWarnings("unchecked")
     private static List<CharacterClass> getClasses(Game game) {
         List<CharacterClass> classes = game.<CharacterClass>getObjectArray("characterClasses");
         return classes == null ? List.of() : classes;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Advantage> getAdvantages(Game game) {
+        List<Advantage> advantages = game.<Advantage>getObjectArray("advantages");
+        return advantages == null ? List.of() : advantages;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Flaw> getFlaws(Game game) {
+        List<Flaw> flaws = game.<Flaw>getObjectArray("flaws");
+        return flaws == null ? List.of() : flaws;
     }
 
     @SuppressWarnings("unchecked")

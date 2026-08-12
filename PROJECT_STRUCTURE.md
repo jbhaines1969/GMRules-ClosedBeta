@@ -226,9 +226,11 @@ GameElements/
 ```text
 GameMechanics/
 |-- AttackMethod.java
+|-- AttackResolution.java
 |-- ArmorClassMethod.java
 |-- AttributeGenerationMethod.java
 |-- CombatMethod.java
+|-- DefenseMethod.java
 |-- DifficultySystem.java
 |-- HPMethod.java
 |-- LevelingMethod.java

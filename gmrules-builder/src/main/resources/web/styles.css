@@ -605,7 +605,9 @@ textarea {
 }
 
 .hp-system-choice,
-.hp-settings-section {
+.hp-settings-section,
+.mechanic-system-choice,
+.mechanic-settings-section {
   max-width: 820px;
   margin-bottom: 24px;
   padding: 18px;
@@ -616,32 +618,47 @@ textarea {
 
 .hp-system-choice h2,
 .hp-settings-section h2,
+.mechanic-system-choice h2,
+.mechanic-settings-section h2,
 .hp-derived-terms-heading h3 {
   margin-top: 0;
 }
 
 .hp-system-choice h2,
-.hp-settings-section h2 {
+.hp-settings-section h2,
+.mechanic-system-choice h2,
+.mechanic-settings-section h2 {
   margin-bottom: 14px;
 }
 
-.hp-radio-option {
+.hp-radio-option,
+.mechanic-radio-option {
   align-items: flex-start;
   display: flex;
   gap: 12px;
   padding: 10px 0;
 }
 
-.hp-radio-option input[type="radio"] {
+.hp-radio-option input[type="radio"],
+.mechanic-radio-option input[type="radio"] {
   flex: 0 0 auto;
   height: 20px;
   margin-top: 2px;
   width: 20px;
 }
 
-.hp-radio-option > span {
+.hp-radio-option > span,
+.mechanic-radio-option > span {
   display: grid;
   gap: 3px;
+}
+
+.mechanic-settings-section .compact-field {
+  max-width: 520px;
+}
+
+.mechanic-settings-section h3 {
+  margin-bottom: 8px;
 }
 
 .hp-derived-mode-list {
@@ -1122,7 +1139,9 @@ textarea {
   }
 
   .hp-system-choice,
-  .hp-settings-section {
+  .hp-settings-section,
+  .mechanic-system-choice,
+  .mechanic-settings-section {
     padding: 14px;
   }
 

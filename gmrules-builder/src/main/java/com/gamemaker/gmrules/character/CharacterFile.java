@@ -10,6 +10,7 @@
 package com.gamemaker.gmrules.character;
 
 import com.gamemaker.gmrules.AtomicElements.Attribute;
+import com.gamemaker.gmrules.CharacterElements.Background;
 import com.gamemaker.gmrules.CharacterElements.CharacterClass;
 import com.gamemaker.gmrules.CharacterElements.Race;
 import com.gamemaker.gmrules.CharacterElements.Skill;
@@ -44,10 +45,12 @@ public class CharacterFile implements Serializable {
     private Map<String, String> ruleModeSelections = new LinkedHashMap<>();
     private Map<String, String> categoryPointSlotAssignments = new LinkedHashMap<>();
     private Race race = new Race("");
+    private Background background = new Background("");
     private CharacterClass characterClass = new CharacterClass("");
     private Map<Attribute, Integer> attributeScores = new LinkedHashMap<>();
     private Map<Skill, Integer> racialSkills = new LinkedHashMap<>();
     private List<String> racialTraitNames = new ArrayList<>();
+    private Map<Skill, Integer> backgroundSkills = new LinkedHashMap<>();
     private Map<Skill, Integer> classSkills = new LinkedHashMap<>();
     private Map<Skill, Integer> selectedSkills = new LinkedHashMap<>();
     private List<Spell> selectedSpells = new ArrayList<>();
@@ -141,6 +144,14 @@ public class CharacterFile implements Serializable {
         this.race = copyOf(Objects.requireNonNullElseGet(race, () -> new Race("")));
     }
 
+    public Background getBackground() {
+        return copyOf(background);
+    }
+
+    public void setBackground(Background background) {
+        this.background = copyOf(Objects.requireNonNullElseGet(background, () -> new Background("")));
+    }
+
     public CharacterClass getCharacterClass() {
         return copyOf(characterClass);
     }
@@ -179,6 +190,14 @@ public class CharacterFile implements Serializable {
             }
         }
         this.racialTraitNames = copy;
+    }
+
+    public Map<Skill, Integer> getBackgroundSkills() {
+        return copySkillMap(backgroundSkills);
+    }
+
+    public void setBackgroundSkills(Map<Skill, Integer> backgroundSkills) {
+        this.backgroundSkills = copySkillMap(Objects.requireNonNullElse(backgroundSkills, Map.of()));
     }
 
     public Map<Skill, Integer> getClassSkills() {
@@ -265,6 +284,8 @@ public class CharacterFile implements Serializable {
         stream.defaultReadObject();
         ruleModeSelections = new LinkedHashMap<>(Objects.requireNonNullElse(ruleModeSelections, Map.of()));
         setCategoryPointSlotAssignments(categoryPointSlotAssignments);
+        background = Objects.requireNonNullElseGet(background, () -> new Background(""));
+        backgroundSkills = new LinkedHashMap<>(Objects.requireNonNullElse(backgroundSkills, Map.of()));
         selectedSpells = new ArrayList<>(Objects.requireNonNullElse(selectedSpells, List.of()));
     }
 

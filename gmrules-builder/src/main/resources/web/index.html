@@ -71,6 +71,31 @@
     </div>
   </div>
 
+  <div class="modal hidden" id="traitModal" role="dialog" aria-modal="true" aria-labelledby="traitTitle">
+    <div class="modal-card wide">
+      <h3 id="traitTitle">Add Advantage</h3>
+      <div class="grid">
+        <div class="field">
+          <label for="traitName" id="traitNameLabel">Name</label>
+          <input type="text" id="traitName" maxlength="200">
+        </div>
+        <div class="field">
+          <label for="traitDescription" id="traitDescriptionLabel">Description</label>
+          <textarea id="traitDescription" rows="8"></textarea>
+        </div>
+      </div>
+      <fieldset class="edit-section">
+        <legend id="traitEffectsLegend">Effects</legend>
+        <p class="field-hint" id="traitEffectsHint">Choose any reusable Effects this option applies.</p>
+        <div class="list trait-effect-list" id="traitEffectList"></div>
+      </fieldset>
+      <div class="modal-actions">
+        <button class="btn ghost" id="traitCancel" type="button">Cancel</button>
+        <button class="btn" id="traitSave" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal hidden" id="tutorialModal" role="dialog" aria-modal="true">
     <div class="modal-card wide">
       <h3 id="tutorialTitle">Tutorial</h3>

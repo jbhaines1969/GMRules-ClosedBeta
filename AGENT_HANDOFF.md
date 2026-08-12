@@ -1,6 +1,6 @@
 # GMRules Closed Beta Agent Handoff
 
-Updated: 2026-08-09
+Updated: 2026-08-12
 Repo root: `C:\Users\John\IdeaProjects\GMRules-ClosedBeta`
 
 This is the primary recovery document for the next session. Read `AGENTS.md`, `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `PRODUCT_DESIGN_CONTEXT.md`, and local `USER.md` before editing. Inspect `git status --short`; the current feature batch is intentionally uncommitted and must not be reverted.
@@ -21,21 +21,41 @@ The Type CSVs retain all stored type/configuration fields; `EffectType` currentl
 
 CSV progress: complete. All 33 planned object CSVs are present through `Status.csv`. Final static review verified the complete inventory, one unique nonblank header row per file, 994 represented columns, model-field coverage for all 32 non-Game objects, and the documented selected-field coverage for `Game.csv`. No build or application tests were run because this package contains schema headers only. Unless John requests revisions to the CSV boundary or naming, resume normal feature work at the Attack/Defense routing section below.
 
-## Resume Here: Define Hybrid Attack-Source Routing
+## Resume Here: Launcher-Smoke Defense And Attack Resolution
 
-Attack/Defense backend work has begun with `GameMechanics.AttackMethod`, a `GameElement` carrying five initialized primitive fields: `diceRolled`, `standardNumberOfDice`, `numberOfRolls`, `dieSides`, and `numberOfDiceRolled`. Negative numeric setter input normalizes to zero. `Game.attackMethod` is eagerly initialized as `new AttackMethod("Attack Method")`; its setter normalizes null to a fresh default, and `Game.readObject(...)` repairs the absent member when older `.gmrf` files are loaded. It is not exposed through the web API/UI.
+Attack/Defense backend work began with `GameMechanics.AttackMethod`, a `GameElement` carrying five initialized primitive fields: `diceRolled`, `standardNumberOfDice`, `numberOfRolls`, `dieSides`, and `numberOfDiceRolled`. Negative numeric setter input normalizes to zero. `Game.attackMethod` is eagerly initialized as `new AttackMethod("Attack Method")`; its setter normalizes null to a fresh default, and `Game.readObject(...)` repairs the absent member when older `.gmrf` files are loaded.
 
-The agreed architecture separates generation from resolution:
+John directed implementation into three Rules Builder screens: Attack Method, then Defense, then Attack Resolution. Attack Method replaces the former Armor Class sidebar stage after Hit Points, exposes all five existing fields through authenticated GET/POST endpoints, autosaves on change, and offers either a shared dice roll or source-driven attack values. John launcher-smoked and accepted it on 2026-08-11, specifically confirming that all systems are represented and the show/hide mechanics work well. Cosmetic cleanup is deferred.
+
+Defense and Attack Resolution are now implemented directly after Attack Method and before Currency. Defense exposes passive value, active roll, attack-generation adjustment, and no accuracy defense. Its conditional sections cover final versus adjustable passive values; additive, roll-under, and success-count active rolls; complete dice configuration; and all five attack-adjustment methods. Attack Resolution exposes attack-versus-passive, opposed results, defender-versus-threat, and automatic contact; comparison and tie methods; automatic outcome key; stable attack-source route Add/Edit/Remove/default management; and validated nonoverlapping outcome bands. Both screens autosave, validate active configurations before Continue, use the shared tutorial/description/localization/navigation systems, and still exclude parry, soak, armor reduction, and damage.
+
+Do not remove the legacy `/api/drafts/{id}/armor-class` endpoints yet. The Rules Builder no longer exposes Armor Class, but the Character Generator's final Armor screen still reads that calculation.
+
+The implemented architecture separates generation, resolution configuration, and later damage:
 
 - `AttackMethod` configures the common dice-based attack generator. A standard count is final; a nonstandard count is the base pool that Attributes, Skills, Effects, gear, or other systems may adjust.
 - Card-based and other source-driven systems may generate attack values directly without passing through the dice-based `AttackMethod`.
 - A future complete attack result should retain all generated output needed downstream, including individual dice or rolls and computed values.
-- A future `DefenseMethod` should generate the defense-side number, result, or condition.
-- A future `AttackResolver` should compare the attack and defense results and determine the resolution outcome. It should not care whether the attack input came from dice, cards, Attributes, Skills, gear, or another source.
+- `DefenseMethod` configures only initial defense generation: passive value, active roll, attack-generation modifier, or no accuracy defense. Active rolls support additive totals, roll-under results, and success counts. Attack modifiers support flat adjustments, difficulty dice, removed dice, disadvantage, and threshold adjustment.
+- `AttackResolution` configures attack-versus-passive, attack-versus-defense-result, defender-versus-threat, and automatic-contact resolution. It supports meet-or-exceed, strict exceed, lower-wins, success-count, and outcome-band comparisons, explicit tie handling, and attack/defense/margin outcome metrics.
+- Hybrid attack-source routing lives in `AttackResolution`. Each attack explicitly selects a stable `AttackSourceRoute` id; an explicitly configured default is the only fallback. Routes identify `AttackMethod`, card, Attribute, Skill, gear, or other sources and may carry a collection key plus stable source reference.
+- Parries, reaction costs, soak, armor reduction, and other later result modifiers are deliberately excluded from `DefenseMethod` and initial Attack Resolution. Soaking armor belongs to the later damage/mitigation contract.
 
-`AttackResult`, `DefenseMethod`, defense-result types, and `AttackResolver` do not exist yet. The immediate unresolved decision is whether to store explicit hybrid-system routing guidance on `AttackMethod` or in the resolution contract, so descendant applications know which configured attack source applies instead of inferring solely from empty collections or absent values. Settle that contract before implementing the remaining classes.
+`Game.defenseMethod` and `Game.attackResolution` are eagerly initialized, normalize null setter input, serialize with the ruleset, and are repaired by `Game.readObject(...)` when older `.gmrf` files lack them. They are not yet exposed through the web API/UI. `AttackResult`, defense-result, and runtime resolution-result types do not exist yet; those later contracts must let damage and effects consume complete raw and computed output without knowing its source.
 
-Focused local verification `AttackMethodGameLocalTest` covers eager initialization, null setter normalization, and a complete `Game` serialization round trip of all five fields. The 2026-08-09 `mvn test` run passed all 22 local tests; port 8080 was free afterward.
+Focused ignored verification `AttackDefenseResolutionLocalTest` covers all four defense families, numeric normalization, explicit route selection and default fallback, defensive copies, outcome-band validation/resolution, non-null `Game` ownership, legacy absent-field repair, and complete serialization. `AttackMethodGameLocalTest` continues to cover the attack generator. The 2026-08-11 `mvn package` run after the Defense/Resolution UI/API pass passed all 28 local tests and rebuilt `target/gmrules-app.jar`. Focused static checks verified route wiring, DOM references, unique per-screen IDs, and all 119 directly referenced English/French combat localization keys; `git diff --check` passed and port 8080 was free afterward. Direct JavaScript syntax verification was unavailable because `node` is not on the sandbox command path. John still needs to launcher-smoke Defense and Attack Resolution.
+
+## Advantages And Flaws Rules Builder State
+
+Skills now follows Effects, with Advantages and Flaws immediately afterward and before Spells. This keeps the referenced capability available before character options that may grant or limit it: Effects Continue opens Skills, Skills Continue opens Advantages, Advantage Continue opens Flaws, and Flaw Continue opens Spells. Equipment and Weapons remain at the end of the Rules Builder; Class Continue opens Equipment, Equipment Continue opens Weapons, and Weapon Done owns the existing ruleset-download prompt. The Advantage and Flaw screens use the established optional section name, Add/Edit/Remove collection, focused modal, tutorial, creator section-description, localization, and sidebar patterns.
+
+The ordered `steps` registry in `app.js` is now the single source for each Rules Builder stage's id, renderer, sidebar position, tutorial metadata, and ordinary next-stage navigation. The old separately maintained `stepRoutes` table was removed; routes are derived and validated from the registry, and Continue handlers call the shared next-stage helper after their existing save/validation work. Attribute Generation retains registry-owned conditional resolvers that skip unused Standard Array, Dice Rolling, or Points Buy screens, while Weapons remains the intentional terminal download action. The only route outside the visible registry is the compatibility alias from retired `armor-class` history entries to Attack Method. Moving Skills ahead of Advantages/Flaws required moving one registry block and no route or Continue-handler edits, directly validating the refactor's maintenance benefit. The final registry check verified 28 ordered stages/routes and all 29 unchanged shared transition call sites; `mvn test` and `mvn package` pass all 29 local tests and rebuilt `target/gmrules-app.jar`.
+
+The creator-facing item contract is intentionally limited to Name, Description, and Effects. The older `Advantage` fields (`typeKey`, `level`, `cost`, `systemType`, and `systemProperties`) and corresponding `Flaw` fields remain serialized for compatibility but are not exposed. Both core classes retain the legacy serialized `effectNames` array name while adding explicit `getEffectIds()`/`setEffectIds(...)` accessors, duplicate/blank normalization, and deserialization repair. The API validates requested stable Effect IDs against the current registry, and live Effect deletion clears Advantage/Flaw references.
+
+Authenticated GET/POST/DELETE/update routes exist at `/api/drafts/{id}/advantages` and `/api/drafts/{id}/flaws`. The editors present existing Effects as a checkbox list; they do not create Effects inline because the Effects stage precedes them. English and French copy is present. The 2026-08-12 `mvn test` and `mvn package` runs passed all 29 local tests and rebuilt `target/gmrules-app.jar`; focused `AdvantageFlawEffectsLocalTest` covers effect normalization and complete `Game` serialization. Static checks verified the exact late-stage order and Continue/download wiring, route wiring, unique DOM ids, and unique localization keys. John launcher-smoked and accepted the Advantage/Flaw editors, final `Effects -> Skills -> Advantages -> Flaws -> Spells` sequence, and shared registry navigation on 2026-08-12.
+
+Current completeness boundary: the Rules Builder is broad enough to author a complete descriptive proof-of-concept ruleset, and Backgrounds are now fully wired through authoring and character creation. The data contract is still not fully executable. Advantages and Flaws currently store only description and Effect IDs, so a rule that grants or limits one specific Skill is human-readable but not represented by a stable Skill relationship; decide whether that belongs directly on the option or in typed Effect targeting. Runtime attack/defense/resolution results and the later Damage Calculation, Damage Mitigation, and Harm Resolution contracts also remain unfinished.
 
 ## Accepted Attribute Generation Context
 
@@ -81,7 +101,7 @@ Choose recipes additionally persist both completed score maps as `attributeStepR
 
 The current Character Generator Point Buy screen, `renderCharGenPointsBuy()` in `gmrules-builder/src/main/resources/web/app.js`, understands only one global `basePoints` budget. Its shared-budget Add/Spend baseline accounting is corrected, but it must still be extended to honor the backend-supported category modes described below while preserving the existing generation-option recipes, score-cost calculation, local/server character autosave, Back behavior, and Continue into Race.
 
-Backgrounds were just added to the core as an independent collection, but they deliberately have no web API, Rules Builder screen, or Character Generator screen yet. Do not treat Backgrounds as an alias or replacement for Classes. Creator-facing Background fields and player-selection behavior should be settled before that UI/API work.
+Backgrounds are an independent one-time character-creation package, not an alias or replacement for Classes. Authenticated CRUD, Rules Builder authoring, Character Generator selection, draft persistence, and `.gmcf` snapshots are now implemented as described in the Background state below.
 
 ## Point Buy Backend Contract Already Available
 
@@ -186,7 +206,7 @@ Important gap: browser-side `app.js` does not yet carry this mapping in Characte
 
 Keep old character drafts compatible: absence of these lines means an empty assignment map.
 
-## Background Core State
+## Background Creation-Package State
 
 New tracked file:
 
@@ -195,15 +215,18 @@ New tracked file:
 Current behavior:
 
 - Extends `GameElement` and implements `Serializable`.
-- Has standard `(String name)` and `(String name, String description)` constructors.
+- Has standard `(String name)` and `(String name, String description)` constructors plus creation-time starting Skill points, starting money, stable Background Skill IDs, and minimum Attribute requirements. Backgrounds deliberately have no primary Attribute.
 - `ElementRegistryKey.BACKGROUNDS` uses stable key `backgrounds`.
 - `Game` initializes a typed registry and legacy-compatible named array for Backgrounds.
 - `usesBackgrounds` is independent of `usesClasses`.
 - `Game.readObject` gives older `.gmrf` files an empty Background registry.
 - Game summaries report Background counts.
-- Classes and Backgrounds can coexist.
-
-No Background-specific fields were invented. The pending web/API/Character Generator work is recorded in `TODO.md`.
+- Classes and Backgrounds can coexist. Backgrounds have no hit die, level table, per-level Skill points, or other advancement mechanisms.
+- Authenticated `/api/drafts/{id}/backgrounds` GET/POST/DELETE/update routes validate stable Attribute and Skill references. Live Attribute or Skill deletion and `.gmrf` load cleanup remove stale references.
+- The Rules Builder registry places Backgrounds immediately after Races and before Classes. The shared creation-package modal switches labels and hides primary Attribute, hit-die, and per-level controls in Background mode, preserving the legacy Class serialization contract.
+- The Character Generator follows Race -> Background -> Class. Background requirements are checked before continuing; Background Skills receive distinct badges; Background starting Skill points appear in the Skill summary; and Background starting money adds to the base/Class starting amount.
+- Lightweight `.gmcf` drafts persist `backgroundId` and `backgroundSkill.*` ranks. Object-backed character files snapshot both the selected `Background` and resolved Background Skill objects.
+- `spreadsheet-schema/Background.csv` reflects the complete stored field contract.
 
 ## Accepted Work in the Current Uncommitted Batch
 
@@ -224,7 +247,11 @@ John has visually accepted all implemented refactors and UI adjustments precedin
 
 ## Verification State
 
-Latest verification on 2026-08-09:
+Latest verification on 2026-08-12:
+
+- Background `mvn test` and `mvn package`: passed all 30 ignored local tests across the reactor and rebuilt `target/gmrules-app.jar`. `BackgroundRegistryLocalTest` now covers the complete one-time package through `Game` serialization and the selected Background/Skill-rank character snapshot.
+- Static Background checks verified the exact late Builder order `... Races -> Backgrounds -> Classes -> Equipment -> Weapons`, all four authenticated routes, no duplicate JavaScript function declarations, no duplicate static DOM ids, and no duplicate English/French localization keys. `git diff --check` passed with only Windows line-ending warnings; port 8080 was free. Direct JavaScript syntax checking remains unavailable because `node` is not on the sandbox command path.
+- John launcher-smoked and accepted the Background Rules Builder editor and Character Generator sequence on 2026-08-12, then explicitly removed Primary Attribute from the Background contract.
 
 - AttackMethod `mvn test` on 2026-08-09: passed all 22 local tests across the reactor while recompiling 63 core Java sources and all 21 builder Java sources. The focused test covers eager `Game` initialization, null setter normalization, and complete `Game` serialization of all five AttackMethod values.
 - Collection-action `mvn test` and `mvn package`: passed 20 local tests across the reactor while recompiling all 21 builder Java sources and the new focused update routes; the shaded `target/gmrules-app.jar` was rebuilt.
@@ -240,6 +267,7 @@ Latest verification on 2026-08-09:
 
 Ignored local verification tests currently compiled by Maven:
 
+- `AdvantageFlawEffectsLocalTest`
 - `AttackMethodGameLocalTest`
 - `AttributeGenerationMethodMigrationLocalTest`
 - `PointBuyCategoryRulesLocalTest`
@@ -299,14 +327,12 @@ The richer external `gmrules-character` project remains reference-only unless Jo
 
 ## Current Priority Order
 
-The remaining unsettled options in `OpenQuestions.md` stay nonbinding. The generation/resolution separation and hybrid-routing requirement under **Resume Here** are the current implementation direction. Continue in this order:
+The remaining unsettled options in `OpenQuestions.md` stay nonbinding. The generation/resolution separation, explicit hybrid routing, and later-damage boundary under **Resume Here** are settled backend direction. Continue in this order:
 
-1. Decide whether explicit hybrid attack-source routing belongs in `AttackMethod` or the resolution contract, and define how descendant applications select the applicable source.
-2. Define and implement the remaining `AttackResult`, `DefenseMethod`, defense-result, and `AttackResolver` contracts, followed by Damage mechanics, persistence, and verification.
-3. Integrate the settled backend contract into the Rules Builder UI.
-4. Resume later Character Generator stages; the accepted PoC Attribute Generation workflow no longer blocks them.
-5. Add Backgrounds to the web API, Rules Builder, and Character Generator only after their fields/selection behavior are settled.
-6. Hosted-smoke the completed character flow and broader migration behavior tracked in `TODO.md`.
+1. Have John launcher-smoke Defense and Attack Resolution and address functional issues; keep cosmetic cleanup deferred unless it blocks use. Advantages, Flaws, and their final navigation order are accepted.
+2. Define complete runtime attack, defense, and resolution results that retain raw rolls, totals, margins, success counts, and resolved outcomes.
+3. Settle and implement Damage Calculation, Damage Mitigation, and Harm Resolution without folding soak or other post-generation modifiers back into Attack Resolution.
+4. Resume later Character Generator stages and hosted migration/smoke work tracked in `TODO.md`.
 
 Build from the repo root:
 

@@ -327,6 +327,12 @@ public class GameIO {
             report.recordRaceCleanup(race.getName(), removed);
         }
 
+        // Clean up one-time background package references.
+        java.util.ArrayList<Background> backgrounds = game.getObjectArray("backgrounds");
+        for (Background background : backgrounds) {
+            background.cleanupOrphanedReferences(validAttributeIds, validSkillIds);
+        }
+
         // Clean up all advantages
         java.util.ArrayList<com.gamemaker.gmrules.CharacterElements.Advantage> advantages =
             game.getObjectArray("advantages");

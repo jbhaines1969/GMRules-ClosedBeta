@@ -1,6 +1,6 @@
 # GMRules Product Design Context
 
-Updated: 2026-08-07
+Updated: 2026-08-12
 
 ## Purpose
 
@@ -32,7 +32,7 @@ The product must serve creators who understand their own rules but may not think
 
 ## `.gmrf`: the Product’s Source of Truth
 
-A `.gmrf` file is a portable, system-agnostic rules definition. It represents a **ruleset**, not a campaign or an individual character. The core `Game` model can carry identity and authorship, creator-written descriptions, custom system names, measurements and dice, configuration choices, reusable mechanics, and registries of game elements such as Attributes, Skills, Effects, Equipment, Weapons, Spells, Races, Classes, Currencies, Damage Types, Pantheons, and Deities.
+A `.gmrf` file is a portable, system-agnostic rules definition. It represents a **ruleset**, not a campaign or an individual character. The core `Game` model can carry identity and authorship, creator-written descriptions, custom system names, measurements and dice, configuration choices, reusable mechanics, and registries of game elements such as Attributes, Skills, Effects, Equipment, Weapons, Spells, Races, Backgrounds, Classes, Currencies, Damage Types, Pantheons, and Deities.
 
 Relationships use stable element identities so descendant applications can resolve choices and references. For example, a Skill can reference Effects, character options can reference Attributes, and equipment or spells can reference a Damage Type.
 
@@ -80,9 +80,11 @@ A creator starts, opens, or imports a ruleset. **Game Setup** establishes the re
 
 The current flow covers:
 
-Game Setup; Measurements; Dice Options; Attribute Categories; Attributes; Attribute Generation; Standard Arrays; Dice Rolling; Points Buy; Hit Points; Armor Class; Currency; Affected Systems; Damage Types; Statuses; Effects; Equipment; Weapons; Skills; Spells; Pantheons; Deities; Races; and Classes.
+Game Setup; Measurements; Dice Options; Attribute Categories; Attributes; Attribute Generation; Standard Arrays; Dice Rolling; Points Buy; Hit Points; Attack Method; Defense; Attack Resolution; Currency; Affected Systems; Damage Types; Statuses; Effects; Skills; Advantages; Flaws; Spells; Pantheons; Deities; Races; Backgrounds; Classes; Equipment; and Weapons.
 
-The order establishes reusable concepts before content that references them. Attribute-generation detail screens follow Attributes because they may depend on the completed list. Damage Types precede Effects and gear so later entries can reference them.
+The order establishes reusable concepts before content that references them. Attribute-generation detail screens follow Attributes because they may depend on the completed list. Damage Types precede Effects and gear so later entries can reference them. After reusable Effects, Skills comes before Advantages and Flaws because those character options may grant or limit Skills; Spells and Races continue the character-creation-first flow, followed by one-time Background packages and then advancing Classes. Equipment and Weapons finish the builder.
+
+Attack Method occupies the former Rules Builder Armor Class position, followed directly by Defense and Attack Resolution before Currency. Attack Method was launcher-smoked and accepted on 2026-08-11; its UI cleanup is intentionally deferred. Defense and Attack Resolution are implemented and awaiting visual review. The legacy Armor Class API remains available only because the current Character Generator still uses it for its final defensive calculation.
 
 Affected Systems is the user-facing term for reusable labels that identify the parts of the game, or recurring rule interactions, that actions, events, Effects, and Statuses may change or invoke. Its existing defaults remain examples rather than a closed taxonomy. The implementation and saved-data contract continue to use the internal `EffectType` name.
 
@@ -92,7 +94,7 @@ Drafts save online, can be downloaded as `.gmrf`, and can be reopened and revise
 
 A player chooses a saved ruleset or imports a compatible ruleset/character file, confirms the game, and names the character. The flow then applies the ruleset through Attribute Generation, optional Point Buy, Race, Class, Skills, Spells, Equipment, Weapons, and Armor before final `.gmcf` export.
 
-The generator must reflect the creator’s actual options and terminology. Empty systems currently show explicit messages on Race, Class, and Spell screens; skipping empty screens is under consideration.
+The generator must reflect the creator’s actual options and terminology. Background selection occurs after Race and before Class; it applies a one-time starting package without Class advancement. Empty systems currently show explicit messages on Race, Background, Class, and Spell screens; skipping empty screens is under consideration.
 
 ## Important Terminology
 
@@ -169,4 +171,8 @@ The current proof-of-concept Attribute Generation workflow is launcher-smoked an
 
 The revised Hit Points screen distinguishes Independent Hit Points from Attribute Derived health. Independent mode visually separates Starting Hit Points and Hit Point Gain, offers Rolled or Fixed advancement, and retains No Hit Point Gain for a static pool. Rolled gain can use a shared `Rolls`d`Die` plus one total `Modifier` expression; variable dice remain open to future character-defining systems instead of being modeled as Class-only. Attribute Derived replaces both starting HP and advancement through mutually exclusive Direct Attribute, Single-Attribute Formula, and Multi-Attribute Formula calculations built from stable Attribute references, multipliers, a base value, an optional divisor, and rounding. Average and direct HP Attribute Modifier bonus controls are retired. John launcher-smoked and accepted this presentation and formula workflow on 2026-08-07.
 
-All implemented refactors and UI adjustments preceding the combat-system consideration track are now visually accepted. The active design discussion is the nonbinding combat-resolution, damage, mitigation, harm, reaction, and provenance framework in `OpenQuestions.md`; its unsettled options are not code decisions until John explicitly says the discussion has entered implementation.
+Attack Method was launcher-smoked and accepted on 2026-08-11. It represents the required attack-generation systems cleanly and uses progressive disclosure effectively; cosmetic cleanup is deferred until later. Defense and Attack Resolution now follow it directly in the Rules Builder and await John's launcher smoke. Their implemented boundary remains initial generation and comparison only: parries, reaction costs, soak, armor reduction, damage, mitigation, and harm stay outside these screens.
+
+Skills now follows Effects, and Advantages and Flaws follow Skills immediately before Spells so creators define the capabilities before describing character options that grant or limit them. Their focused collection editors use only Name, Description, and reusable Effect selection because these options generally represent permanent rules or triggered calculations rather than Attribute-derived mechanics. This current contract does not itself store stable Skill references; whether those relationships belong directly on Advantages/Flaws or as typed Effect targets remains open. Legacy extra core fields remain serialized for compatibility but are not presented in this workflow. Equipment and Weapons close the builder, with Weapons offering the final ruleset download. John launcher-smoked and accepted the editors, final order, and registry-driven navigation on 2026-08-12.
+
+Backgrounds sit between Races and Classes in both authoring and character creation. They use the same single-choice package concept as Classes but expose only creation-time data: starting Skill points, starting money, stable Background Skill links, and minimum Attribute requirements. They deliberately omit a primary Attribute, hit dice, per-level Skill points, level tables, and other advancement mechanisms. The shared Class/package editor is configured by mode so this common UI and validation behavior stays aligned without changing the legacy serialized Class contract. John launcher-smoked and accepted this flow on 2026-08-12.

@@ -80,6 +80,8 @@ public class Game extends GameElement {
     private HPMethod hpMethod = new HPMethod("Hit Points");
     private ArmorClassMethod armorClassMethod = new ArmorClassMethod("Armor Class");
     private AttackMethod attackMethod = new AttackMethod("Attack Method");
+    private DefenseMethod defenseMethod = new DefenseMethod("Defense Method");
+    private AttackResolution attackResolution = new AttackResolution("Attack Resolution");
     private CombatMethod combatMethod = new CombatMethod("Combat");
     private LevelingMethod levelingMethod = new LevelingMethod("Leveling");
     private Map<RegistryKey<?>, AtomicRegistry> registries = new HashMap<>();
@@ -1341,6 +1343,24 @@ public class Game extends GameElement {
         updateLastModified();
     }
 
+    public DefenseMethod getDefenseMethod() { return defenseMethod; }
+    public void setDefenseMethod(DefenseMethod defenseMethod) {
+        this.defenseMethod = Objects.requireNonNullElseGet(
+            defenseMethod,
+            () -> new DefenseMethod("Defense Method")
+        );
+        updateLastModified();
+    }
+
+    public AttackResolution getAttackResolution() { return attackResolution; }
+    public void setAttackResolution(AttackResolution attackResolution) {
+        this.attackResolution = Objects.requireNonNullElseGet(
+            attackResolution,
+            () -> new AttackResolution("Attack Resolution")
+        );
+        updateLastModified();
+    }
+
     public CombatMethod getCombatMethod() { return combatMethod; }
     public void setCombatMethod(CombatMethod combatMethod) {
         this.combatMethod = Objects.requireNonNullElseGet(combatMethod, () -> new CombatMethod("Combat"));
@@ -1451,6 +1471,11 @@ public class Game extends GameElement {
         }
         armorClassMethod = Objects.requireNonNullElseGet(armorClassMethod, () -> new ArmorClassMethod("Armor Class"));
         attackMethod = Objects.requireNonNullElseGet(attackMethod, () -> new AttackMethod("Attack Method"));
+        defenseMethod = Objects.requireNonNullElseGet(defenseMethod, () -> new DefenseMethod("Defense Method"));
+        attackResolution = Objects.requireNonNullElseGet(
+            attackResolution,
+            () -> new AttackResolution("Attack Resolution")
+        );
         combatMethod = Objects.requireNonNullElseGet(combatMethod, () -> new CombatMethod("Combat"));
         levelingMethod = Objects.requireNonNullElseGet(levelingMethod, () -> new LevelingMethod("Leveling"));
     }

@@ -22,7 +22,9 @@ const state = {
   chargenAttributeResultChoice: "",
   chargenPointBuyBaselineScores: {},
   chargenRaceId: "",
+  chargenBackgroundId: "",
   chargenClassId: "",
+  chargenBackgroundSkillRanks: {},
   chargenClassSkillRanks: {},
   chargenSelectedSkillRanks: {},
   chargenSelectedSpellIds: [],
@@ -70,6 +72,7 @@ const state = {
 const steps = [
   {
     id: "setup",
+    render: renderSetup,
     labelKey: "setup.title",
     fallback: "Game Setup",
     tutorialKey: "web.download.note",
@@ -77,6 +80,7 @@ const steps = [
   },
   {
     id: "measurements",
+    render: renderMeasurements,
     labelKey: "measurements.title",
     fallback: "Measurements",
     tutorialParagraphs: [
@@ -92,6 +96,7 @@ const steps = [
   },
   {
     id: "dice",
+    render: renderDice,
     labelKey: "dice.title",
     fallback: "Dice Options",
     tutorialKey: "dice.intro",
@@ -99,6 +104,7 @@ const steps = [
   },
   {
     id: "attribute-types",
+    render: renderAttributeTypes,
     labelKey: "attrtypes.title",
     fallback: "Attribute Categories",
     tutorialKey: "attrtypes.intro",
@@ -106,6 +112,7 @@ const steps = [
   },
   {
     id: "attributes",
+    render: renderAttributes,
     labelKey: "attributes.title",
     fallback: "Attributes",
     tutorialKey: "attributes.intro",
@@ -113,6 +120,8 @@ const steps = [
   },
   {
     id: "attribute-generation",
+    render: renderAttributeGeneration,
+    resolveNext: () => getNextAttributeGenerationStep("attribute-generation"),
     labelKey: "attrgen.title",
     fallback: "Attribute Generation",
     tutorialPages: [
@@ -176,6 +185,10 @@ const steps = [
   },
   {
     id: "standard-array",
+    render: renderStandardArray,
+    resolveNext: (options = {}) => options.skipUnavailable
+      ? getNextAvailableAttributeGenerationStep("standard-array")
+      : getNextAttributeGenerationStep("standard-array"),
     labelKey: "attrgen.standard.title",
     fallback: "Standard Array/Base Scores",
     tutorialKey: "attrgen.standard.intro",
@@ -183,6 +196,10 @@ const steps = [
   },
   {
     id: "dice-rolling",
+    render: renderDiceRolling,
+    resolveNext: (options = {}) => options.skipUnavailable
+      ? getNextAvailableAttributeGenerationStep("dice-rolling")
+      : getNextAttributeGenerationStep("dice-rolling"),
     labelKey: "attrgen.dice.title",
     fallback: "Dice Rolling",
     tutorialKey: "attrgen.dice.intro",
@@ -190,6 +207,10 @@ const steps = [
   },
   {
     id: "points-buy",
+    render: renderPointsBuy,
+    resolveNext: (options = {}) => options.skipUnavailable
+      ? getNextAvailableAttributeGenerationStep("points-buy")
+      : getNextAttributeGenerationStep("points-buy"),
     labelKey: "attrgen.point.title",
     fallback: "Points Buy",
     tutorialKey: "attrgen.point.intro",
@@ -197,6 +218,7 @@ const steps = [
   },
   {
     id: "hit-points",
+    render: renderHitPoints,
     labelKey: "hp.title",
     fallback: "Hit Points",
     tutorialParagraphs: [
@@ -215,14 +237,56 @@ const steps = [
     ],
   },
   {
-    id: "armor-class",
-    labelKey: "armorclass.title",
-    fallback: "Armor Class",
-    tutorialKey: "armorclass.intro",
-    tutorialFallback: "Set the starting armor class value and optional attribute modifier used for armor class.",
+    id: "attack-method",
+    render: renderAttackMethod,
+    labelKey: "attackmethod.title",
+    fallback: "Attack Method",
+    tutorialParagraphs: [
+      {
+        key: "attackmethod.intro",
+        fallback: "Define whether your game uses one shared dice method to generate attack values, and configure that roll when it does.",
+      },
+      {
+        key: "attackmethod.intro.sources",
+        fallback: "Choose No shared attack roll when cards, Attributes, Skills, gear, or other sources supply attack values directly. Those sources will be connected to the appropriate comparison later in Attack Resolution.",
+      },
+    ],
+  },
+  {
+    id: "defense",
+    render: renderDefense,
+    labelKey: "defense.title",
+    fallback: "Defense",
+    tutorialParagraphs: [
+      {
+        key: "defense.intro",
+        fallback: "Define how the defense-side input is generated before an attack is resolved: a passive value, an active roll, an adjustment to the attack, or no accuracy defense.",
+      },
+      {
+        key: "defense.intro.boundary",
+        fallback: "This screen covers only the initial defense input. Parries, reaction costs, soak, armor reduction, and other later result modifiers belong to their later rules stages.",
+      },
+    ],
+  },
+  {
+    id: "attack-resolution",
+    render: renderAttackResolution,
+    labelKey: "attackresolution.title",
+    fallback: "Attack Resolution",
+    tutorialParagraphs: [
+      {
+        key: "attackresolution.intro",
+        fallback: "Define how generated attack and defense inputs are compared, how ties resolve, and which outcome is produced.",
+      },
+      {
+        key: "attackresolution.intro.routing",
+        fallback: "Attack Source Routes explicitly connect each kind of attack to the value it supplies. A configured default is the only fallback, so descendant applications never have to guess where an attack came from.",
+      },
+    ],
   },
   {
     id: "currency",
+    render: renderCurrency,
     labelKey: "currency.title",
     fallback: "Currency",
     systemNameKey: "currencies",
@@ -231,6 +295,7 @@ const steps = [
   },
   {
     id: "effect-types",
+    render: renderEffectTypes,
     labelKey: "effecttypes.title",
     fallback: "Affected Systems",
     tutorialKey: "effecttypes.intro",
@@ -238,6 +303,7 @@ const steps = [
   },
   {
     id: "damage-types",
+    render: renderDamageTypes,
     labelKey: "damagetypes.title",
     fallback: "Damage Types",
     systemNameKey: "damage-types",
@@ -246,6 +312,7 @@ const steps = [
   },
   {
     id: "statuses",
+    render: renderStatuses,
     labelKey: "statuses.title",
     fallback: "Statuses",
     tutorialKey: "statuses.intro",
@@ -253,34 +320,41 @@ const steps = [
   },
   {
     id: "effects",
+    render: renderEffects,
     labelKey: "effects.title",
     fallback: "Effects",
     tutorialKey: "effects.intro",
     tutorialFallback: "Effects are reusable rules snippets that can be referenced by skills, spells, and equipment.",
   },
   {
-    id: "equipment",
-    labelKey: "equipment.title",
-    fallback: "Equipment",
-    tutorialKey: "equipment.intro",
-    tutorialFallback: "List the gear available in your game and describe what each item does.",
-  },
-  {
-    id: "weapons",
-    labelKey: "weapons.title",
-    fallback: "Weapons",
-    tutorialKey: "weapons.intro",
-    tutorialFallback: "Define the weapons available in your game along with their damage and effects.",
-  },
-  {
     id: "skills",
+    render: renderSkills,
     labelKey: "skills.title",
     fallback: "Skills",
     tutorialKey: "skills.intro",
     tutorialFallback: "Skills describe what characters can do and can reference effects for automation.",
   },
   {
+    id: "advantages",
+    render: renderAdvantages,
+    labelKey: "advantages.title",
+    fallback: "Advantages",
+    systemNameKey: "advantages",
+    tutorialKey: "advantages.intro",
+    tutorialFallback: "Advantages are lasting beneficial character options whose rules can be described directly and connected to reusable Effects.",
+  },
+  {
+    id: "flaws",
+    render: renderFlaws,
+    labelKey: "flaws.title",
+    fallback: "Flaws",
+    systemNameKey: "flaws",
+    tutorialKey: "flaws.intro",
+    tutorialFallback: "Flaws are lasting detrimental character options whose rules can be described directly and connected to reusable Effects.",
+  },
+  {
     id: "spells",
+    render: renderSpells,
     labelKey: "spells.title",
     fallback: "Spells",
     tutorialKey: "spells.intro",
@@ -288,6 +362,7 @@ const steps = [
   },
   {
     id: "pantheons",
+    render: renderPantheons,
     labelKey: "pantheons.title",
     fallback: "Pantheons",
     systemNameKey: "pantheons",
@@ -296,6 +371,7 @@ const steps = [
   },
   {
     id: "deities",
+    render: renderDeities,
     labelKey: "deities.title",
     fallback: "Deities",
     systemNameKey: "deities",
@@ -304,17 +380,44 @@ const steps = [
   },
   {
     id: "races",
+    render: renderRaces,
     labelKey: "races.title",
     fallback: "Races",
     tutorialKey: "races.intro",
     tutorialFallback: "Races define species options and the traits or limits that come with them.",
   },
   {
+    id: "backgrounds",
+    render: renderBackgrounds,
+    labelKey: "backgrounds.title",
+    fallback: "Backgrounds",
+    systemNameKey: "backgrounds",
+    tutorialKey: "backgrounds.intro",
+    tutorialFallback: "Backgrounds are one-time character-creation packages for a character's history, origin, or prior vocation. They may provide starting resources, skills, and requirements, but do not advance with levels.",
+  },
+  {
     id: "classes",
+    render: renderClasses,
     labelKey: "classes.title",
     fallback: "Classes",
     tutorialKey: "classes.intro",
     tutorialFallback: "Classes bundle progression rules, requirements, and starting packages.",
+  },
+  {
+    id: "equipment",
+    render: renderEquipment,
+    labelKey: "equipment.title",
+    fallback: "Equipment",
+    tutorialKey: "equipment.intro",
+    tutorialFallback: "List the gear available in your game and describe what each item does.",
+  },
+  {
+    id: "weapons",
+    render: renderWeapons,
+    labelKey: "weapons.title",
+    fallback: "Weapons",
+    tutorialKey: "weapons.intro",
+    tutorialFallback: "Define the weapons available in your game along with their damage and effects.",
   },
 ];
 
@@ -587,21 +690,65 @@ const tutorialSpecificPages = {
       },
     ],
   },
-  "armor-class": {
-    titleKey: "armorclass.info.specifics.title",
-    titleFallback: "Using Armor Class",
+  "attack-method": {
+    titleKey: "attackmethod.info.specifics.title",
+    titleFallback: "Using Attack Method",
     paragraphs: [
       {
-        key: "armorclass.info.specifics.base",
-        fallback: "Base Armor Class is the unmodified defensive value from which a character begins. Set it to the number an unarmored character would use before Attribute modifiers, worn armor, effects, or other bonuses are applied.",
+        key: "attackmethod.info.specifics.shared",
+        fallback: "Use a shared dice roll when the same basic roll generates attack values throughout the game. The selected die, Rolls per Attack, and Dice per Roll define that common generator; individual attacks can add their own modifiers later.",
       },
       {
-        key: "armorclass.info.specifics.attribute",
-        fallback: "AC Attribute optionally identifies the Attribute whose modifier contributes to Armor Class. Choose None for a fixed base with no inherent Attribute contribution, or select the capability your game uses for avoidance, reflexes, defense, or a similar concept.",
+        key: "attackmethod.info.specifics.count",
+        fallback: "Fixed dice count means the configured Dice per Roll is the final count for every use of this method. Adjustable base pool means it is the starting count and later rules such as Attributes, Skills, equipment, or Effects may change it.",
       },
       {
-        key: "armorclass.info.specifics.use",
-        fallback: "Character generation combines this rule with the selected Attribute's modifier and any Armor Class changes supplied by equipment. Both fields save when changed, so you can return later if the Attribute list or defensive model evolves.",
+        key: "attackmethod.info.specifics.routing",
+        fallback: "Choose No shared attack roll when attack values come directly from other game content. Attack Resolution will later identify how each source is compared; this screen does not define defense, success, damage, parries, or soak.",
+      },
+    ],
+  },
+  defense: {
+    titleKey: "defense.info.specifics.title",
+    titleFallback: "Using Defense",
+    paragraphs: [
+      {
+        key: "defense.info.specifics.modes",
+        fallback: "Passive Value supplies a standing defensive number. Active Roll generates a separate defense result. Attack Adjustment changes attack generation instead of producing a defense result. No Accuracy Defense means contact is not prevented at this stage.",
+      },
+      {
+        key: "defense.info.specifics.active",
+        fallback: "Active rolls can produce an additive total, a roll-under result, or a count of dice meeting a success threshold. Fixed dice counts are final; adjustable base pools may be changed later by Attributes, Skills, equipment, Effects, or other rules.",
+      },
+      {
+        key: "defense.info.specifics.modifier",
+        fallback: "Attack adjustments can apply a flat modifier, add difficulty dice, remove attack dice, impose disadvantage, or adjust a success threshold. The configured value is the shared final adjustment or a base adjustment that later rules may change.",
+      },
+      {
+        key: "defense.info.specifics.boundary",
+        fallback: "Defense generation stops before comparison and damage. Attack Resolution handles comparison, ties, and outcomes; later stages handle parries, reaction costs, soak, armor reduction, damage, and harm.",
+      },
+    ],
+  },
+  "attack-resolution": {
+    titleKey: "attackresolution.info.specifics.title",
+    titleFallback: "Using Attack Resolution",
+    paragraphs: [
+      {
+        key: "attackresolution.info.specifics.modes",
+        fallback: "Resolution may compare an attack result to a passive defense, compare separately generated attack and defense results, compare a defender-only result to an attack-supplied threat, or make contact automatic.",
+      },
+      {
+        key: "attackresolution.info.specifics.comparison",
+        fallback: "Comparison Method defines which side wins numerically. Tie Resolution records the explicit tie result. Outcome Bands replace a single pass/fail comparison with creator-defined ranges based on the attack result, defense result, or margin.",
+      },
+      {
+        key: "attackresolution.info.specifics.routes",
+        fallback: "Every nonautomatic attack selects an Attack Source Route by stable id. Routes can identify the shared Attack Method, a card, Attribute, Skill, gear entry, or another source. The selected default is used only when no more-specific route is supplied.",
+      },
+      {
+        key: "attackresolution.info.specifics.boundary",
+        fallback: "This screen resolves initial contact or another creator-named outcome. It does not calculate damage, soak, armor reduction, parry costs, reactions, or later harm.",
       },
     ],
   },
@@ -775,7 +922,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "weapons.info.specifics.manage",
-        fallback: "Edit revises the complete weapon and Remove deletes it. Review character options and other rules that may grant or reference a weapon before removing it from an established ruleset.",
+        fallback: "Edit revises the complete weapon and Remove deletes it. Review character options and other rules that may grant or reference a weapon before removing it from an established ruleset. Done offers to download the completed ruleset.",
       },
     ],
   },
@@ -947,13 +1094,51 @@ const tutorialSpecificPages = {
       },
       {
         key: "classes.info.specifics.manage",
-        fallback: "Save creates or updates the Class. Edit revises an entry, Remove deletes it, and the optional system name changes what this collection is called. Done offers to download the completed ruleset.",
+        fallback: "Save creates or updates the Class. Edit revises an entry, Remove deletes it, and the optional system name changes what this collection is called.",
+      },
+    ],
+  },
+  advantages: {
+    titleKey: "advantages.info.specifics.title",
+    titleFallback: "Using Advantages",
+    paragraphs: [
+      {
+        key: "advantages.info.specifics.entries",
+        fallback: "Give each Advantage a name and description. Use the description for its permanent rule, recurring trigger, or one-time calculation.",
+      },
+      {
+        key: "advantages.info.specifics.effects",
+        fallback: "Attach any reusable Effects that implement or describe the Advantage's gameplay consequences. Advantages do not require an Attribute relationship.",
+      },
+      {
+        key: "advantages.info.specifics.manage",
+        fallback: "Save creates or updates the Advantage. Edit revises it, Remove deletes it, and the optional system name changes what this collection is called.",
+      },
+    ],
+  },
+  flaws: {
+    titleKey: "flaws.info.specifics.title",
+    titleFallback: "Using Flaws",
+    paragraphs: [
+      {
+        key: "flaws.info.specifics.entries",
+        fallback: "Give each Flaw a name and description. Use the description for its permanent rule, recurring trigger, or one-time calculation.",
+      },
+      {
+        key: "flaws.info.specifics.effects",
+        fallback: "Attach any reusable Effects that implement or describe the Flaw's gameplay consequences. Flaws do not require an Attribute relationship.",
+      },
+      {
+        key: "flaws.info.specifics.manage",
+        fallback: "Save creates or updates the Flaw. Edit revises it, Remove deletes it, and the optional system name changes what this collection is called.",
       },
     ],
   },
 };
 
-const stepRoutes = {};
+const stepRoutes = buildBuilderStepRoutes(steps);
+// Older history entries may still use the retired Rules Builder stage id.
+stepRoutes["armor-class"] = renderAttackMethod;
 const historyRoutes = {};
 const visitedSteps = new Set();
 const tutorialVisitedScreens = new Set();
@@ -998,6 +1183,18 @@ const confirmTitle = document.getElementById("confirmTitle");
 const confirmMessage = document.getElementById("confirmMessage");
 const confirmCancel = document.getElementById("confirmCancel");
 const confirmOk = document.getElementById("confirmOk");
+
+const traitModal = document.getElementById("traitModal");
+const traitTitle = document.getElementById("traitTitle");
+const traitNameLabel = document.getElementById("traitNameLabel");
+const traitName = document.getElementById("traitName");
+const traitDescriptionLabel = document.getElementById("traitDescriptionLabel");
+const traitDescription = document.getElementById("traitDescription");
+const traitEffectsLegend = document.getElementById("traitEffectsLegend");
+const traitEffectsHint = document.getElementById("traitEffectsHint");
+const traitEffectList = document.getElementById("traitEffectList");
+const traitCancel = document.getElementById("traitCancel");
+const traitSave = document.getElementById("traitSave");
 
 const tutorialModal = document.getElementById("tutorialModal");
 const tutorialTitle = document.getElementById("tutorialTitle");
@@ -1395,6 +1592,7 @@ let editModifiers = [];
 let editBonuses = [];
 let editEffectTypeKeys = [];
 let editSuspend = null;
+let traitContext = null;
 let attributeTypeOptions = [];
 let attributeEffectOptions = [];
 let effectTypeOptions = [];
@@ -2636,6 +2834,38 @@ function openCharacterRulesetRequiredPopup() {
   );
 }
 
+function buildBuilderStepRoutes(stepDefinitions) {
+  const routes = {};
+  const seenIds = new Set();
+  stepDefinitions.forEach((entry) => {
+    const id = String(entry.id || "").trim();
+    if (!id || seenIds.has(id) || typeof entry.render !== "function") {
+      throw new Error(`Invalid Rules Builder step definition: ${id || "(missing id)"}`);
+    }
+    seenIds.add(id);
+    routes[id] = entry.render;
+  });
+  return routes;
+}
+
+function getNextBuilderStepId(currentStepId, options = {}) {
+  const safeStepId = String(currentStepId || "").trim();
+  const currentIndex = steps.findIndex((entry) => entry.id === safeStepId);
+  if (currentIndex < 0) {
+    return "";
+  }
+  const currentStep = steps[currentIndex];
+  if (typeof currentStep.resolveNext === "function") {
+    return String(currentStep.resolveNext(options) || "").trim();
+  }
+  return steps[currentIndex + 1]?.id || "";
+}
+
+function navigateToNextBuilderStep(currentStepId, options = {}) {
+  const nextStepId = getNextBuilderStepId(currentStepId, options);
+  return nextStepId ? navigateToStep(nextStepId) : false;
+}
+
 function renderSidebar() {
   if (!sidebarNav || !sidebarTitle) {
     return;
@@ -2683,14 +2913,16 @@ function renderSidebar() {
 }
 
 function navigateToStep(stepId) {
-  const route = stepRoutes[stepId];
-  if (!route) {
-    return;
+  const safeStepId = String(stepId || "").trim();
+  const route = stepRoutes[safeStepId];
+  if (typeof route !== "function") {
+    return false;
   }
   if (state.mode !== "builder") {
     setMode("builder");
   }
   route();
+  return true;
 }
 
 function resolveHistoryStep(event) {
@@ -2713,15 +2945,12 @@ function navigateToHistoryStep(stepId) {
   if (!safeStep) {
     return;
   }
-  if (stepRoutes[safeStep]) {
+  if (typeof stepRoutes[safeStep] === "function") {
     if (!state.draftId) {
       renderBuilderSplash();
       return;
     }
-    if (state.mode !== "builder") {
-      setMode("builder");
-    }
-    stepRoutes[safeStep]();
+    navigateToStep(safeStep);
     return;
   }
   const route = historyRoutes[safeStep];
@@ -2997,6 +3226,110 @@ confirmOk.addEventListener("click", () => {
   }
 });
 
+function traitEditorConfig(kind) {
+  const flaw = kind === "flaw";
+  return {
+    kind: flaw ? "flaw" : "advantage",
+    endpoint: flaw ? "flaws" : "advantages",
+    singular: flaw ? t("flaws.singular", "Flaw") : t("advantages.singular", "Advantage"),
+    nameLabel: flaw ? t("flaws.name", "Flaw Name") : t("advantages.name", "Advantage Name"),
+    descriptionLabel: flaw ? t("flaws.description", "Description") : t("advantages.description", "Description"),
+    effectsLabel: flaw ? t("flaws.effects", "Effects") : t("advantages.effects", "Effects"),
+    effectsHint: flaw
+      ? t("flaws.effects.help", "Choose the reusable Effects this Flaw applies or invokes.")
+      : t("advantages.effects.help", "Choose the reusable Effects this Advantage applies or invokes."),
+    noneEffects: t("traits.effects.none", "No Effects have been created yet."),
+  };
+}
+
+function closeTraitModal() {
+  traitModal.classList.add("hidden");
+  traitContext = null;
+}
+
+function openTraitEditor(kind, entry, effects) {
+  const config = traitEditorConfig(kind);
+  const item = entry || {};
+  const selectedIds = new Set(Array.isArray(item.effectIds) ? item.effectIds.map(String) : []);
+  const effectOptions = sortByLabel(effects || [], (effect) => effect.name || effect.displayName || "");
+  traitContext = {
+    kind: config.kind,
+    endpoint: config.endpoint,
+    id: String(item.id || ""),
+  };
+  traitTitle.textContent = item.id
+    ? t("traits.edit.title", "Edit {0}").replace("{0}", config.singular)
+    : t("traits.add.title", "Add {0}").replace("{0}", config.singular);
+  traitNameLabel.textContent = config.nameLabel;
+  traitDescriptionLabel.textContent = config.descriptionLabel;
+  traitEffectsLegend.textContent = config.effectsLabel;
+  traitEffectsHint.textContent = config.effectsHint;
+  traitCancel.textContent = t("common.cancel", "Cancel");
+  traitSave.textContent = t("common.save", "Save");
+  traitName.value = String(item.name || "");
+  traitDescription.value = String(item.description || "");
+  traitEffectList.innerHTML = effectOptions.length
+    ? effectOptions
+        .map((effect, index) => {
+          const effectId = String(effect.id || "");
+          const label = String(effect.name || effect.displayName || effectId);
+          return `
+            <label class="list-item" for="traitEffect${index}">
+              <span>${escapeHtml(label)}</span>
+              <input type="checkbox" id="traitEffect${index}" value="${escapeHtml(effectId)}" ${selectedIds.has(effectId) ? "checked" : ""}>
+            </label>
+          `;
+        })
+        .join("")
+    : `<div class="list-item">${config.noneEffects}</div>`;
+  traitModal.classList.remove("hidden");
+  traitName.focus();
+}
+
+traitCancel.addEventListener("click", closeTraitModal);
+traitSave.addEventListener("click", async () => {
+  if (!traitContext) {
+    return;
+  }
+  const name = String(traitName.value || "").trim();
+  if (!name) {
+    showToast(t("web.error.name_required", "Name is required"));
+    return;
+  }
+  const payload = {
+    name,
+    description: String(traitDescription.value || "").trim(),
+    effectIds: Array.from(traitEffectList.querySelectorAll('input[type="checkbox"]:checked')).map(
+      (input) => String(input.value || "")
+    ),
+  };
+  const editing = Boolean(traitContext.id);
+  if (editing) {
+    payload.id = traitContext.id;
+  }
+  const endpoint = traitContext.endpoint;
+  const kind = traitContext.kind;
+  traitSave.disabled = true;
+  try {
+    await api("POST", `/api/drafts/${state.draftId}/${endpoint}${editing ? "/update" : ""}`, payload);
+    markSaved(
+      kind === "flaw"
+        ? t("web.toast.flaw_saved", "Flaw saved")
+        : t("web.toast.advantage_saved", "Advantage saved")
+    );
+    closeTraitModal();
+    if (kind === "flaw") {
+      renderFlaws();
+    } else {
+      renderAdvantages();
+    }
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    traitSave.disabled = false;
+  }
+});
+
 if (tutorialOk) {
   tutorialOk.addEventListener("click", () => {
     const informationAction = activeInformationAction;
@@ -3206,6 +3539,44 @@ function resetClassEditSection() {
   }
   if (editClassRequiredList) {
     editClassRequiredList.innerHTML = "";
+  }
+}
+
+function isBackgroundEditor() {
+  return editContext && (editContext.kind === "background" || editContext.kind === "background-create");
+}
+
+function configureCreationPackageEditor(backgroundMode) {
+  if (editClassTitle) {
+    editClassTitle.textContent = backgroundMode
+      ? t("backgrounds.details", "Background Details")
+      : t("classes.details", "Class Details");
+  }
+  if (editClassSkillPointsLabel) {
+    editClassSkillPointsLabel.textContent = backgroundMode
+      ? t("backgrounds.starting_skill_points", "Starting Skill Points")
+      : t("classes.skill_points", "Skill Points per Level");
+  }
+  if (editClassStartingMoneyLabel) {
+    editClassStartingMoneyLabel.textContent = backgroundMode
+      ? t("backgrounds.starting_money", "Background Starting Money")
+      : t("classes.starting_money", "Class Starting Money");
+  }
+  if (editClassSkillsTitle) {
+    editClassSkillsTitle.textContent = backgroundMode
+      ? t("backgrounds.skills", "Background Skills")
+      : t("classes.skills", "Class Skills");
+  }
+  const primaryAttributeField = editClassPrimary ? editClassPrimary.closest(".field") : null;
+  const hitDieField = editClassHitDieSelect ? editClassHitDieSelect.closest(".field") : null;
+  const hitDieModifierField = editClassHitDieModifier ? editClassHitDieModifier.closest(".field") : null;
+  const sameAllGrid = editClassSkillPointsSame ? editClassSkillPointsSame.closest(".grid") : null;
+  const perLevelGrid = editClassSkillPointsLevel ? editClassSkillPointsLevel.closest(".grid") : null;
+  [primaryAttributeField, hitDieField, hitDieModifierField, sameAllGrid, perLevelGrid, editClassSkillPointsAdd, editClassSkillPointsList]
+    .filter(Boolean)
+    .forEach((element) => element.classList.toggle("hidden", backgroundMode));
+  if (editClassSkillPoints) {
+    editClassSkillPoints.disabled = false;
   }
 }
 
@@ -4241,6 +4612,7 @@ function openClassEditor(characterClass) {
   resetWeaponEditSection();
   resetRaceEditSection();
   editContext = { kind: "class", id: characterClass.id };
+  configureCreationPackageEditor(false);
   editTitle.textContent = t("classes.edit.title", "Edit Class");
   editName.value = characterClass.name || "";
   editDescription.value = characterClass.description || "";
@@ -4308,6 +4680,7 @@ function openClassCreate() {
   resetWeaponEditSection();
   resetRaceEditSection();
   editContext = { kind: "class-create" };
+  configureCreationPackageEditor(false);
   editTitle.textContent = t("classes.edit.title", "Edit Class");
   editName.value = "";
   editDescription.value = "";
@@ -4347,6 +4720,62 @@ function openClassCreate() {
   renderClassRequiredList();
   renderClassSkillPointsList();
   updateClassSkillPointsModeUI();
+  editTypeField.classList.add("hidden");
+  editRangeFields.classList.add("hidden");
+  editModifierSection.classList.add("hidden");
+  editBonusSection.classList.add("hidden");
+  editModal.classList.remove("hidden");
+}
+
+function openBackgroundEditor(background) {
+  if (!background) {
+    return;
+  }
+  resetClassEditSection();
+  resetWeaponEditSection();
+  resetRaceEditSection();
+  editContext = { kind: "background", id: background.id };
+  configureCreationPackageEditor(true);
+  editTitle.textContent = t("backgrounds.edit.title", "Edit Background");
+  editName.value = background.name || "";
+  editDescription.value = background.description || "";
+  editClassSection.classList.remove("hidden");
+  editClassSkillIds = Array.isArray(background.backgroundSkillIds) ? background.backgroundSkillIds.slice() : [];
+  editClassRequiredScores = Array.isArray(background.requiredAttributeScores)
+    ? background.requiredAttributeScores.map((entry) => ({
+        attributeId: String(entry.attributeId || ""),
+        score: Number(entry.score || 0),
+      }))
+    : [];
+  populateClassSkillSelect();
+  populateClassRequiredSelect();
+  editClassSkillPoints.value = Number(background.startingSkillPoints || 0);
+  editClassStartingMoney.value = Number(background.startingMoney || 0);
+  renderClassSkillList();
+  renderClassRequiredList();
+  editTypeField.classList.add("hidden");
+  editRangeFields.classList.add("hidden");
+  editModifierSection.classList.add("hidden");
+  editBonusSection.classList.add("hidden");
+  editModal.classList.remove("hidden");
+}
+
+function openBackgroundCreate() {
+  resetClassEditSection();
+  resetWeaponEditSection();
+  resetRaceEditSection();
+  editContext = { kind: "background-create" };
+  configureCreationPackageEditor(true);
+  editTitle.textContent = t("backgrounds.edit.title", "Edit Background");
+  editName.value = "";
+  editDescription.value = "";
+  editClassSection.classList.remove("hidden");
+  populateClassSkillSelect();
+  populateClassRequiredSelect();
+  editClassSkillPoints.value = "0";
+  editClassStartingMoney.value = "0";
+  renderClassSkillList();
+  renderClassRequiredList();
   editTypeField.classList.add("hidden");
   editRangeFields.classList.add("hidden");
   editModifierSection.classList.add("hidden");
@@ -4419,7 +4848,9 @@ function populateClassSkillSelect() {
     return;
   }
   const options = [
-    `<option value="">${t("classes.skills.select", "Select Skill")}</option>`,
+    `<option value="">${isBackgroundEditor()
+      ? t("backgrounds.skills.select", "Select Skill")
+      : t("classes.skills.select", "Select Skill")}</option>`,
     `<option value="${NEW_INLINE_OPTION}">${t("skills.new", "New Skill")}</option>`,
   ]
     .concat(
@@ -4523,7 +4954,9 @@ function renderClassSkillList() {
     return;
   }
   if (!editClassSkillIds.length) {
-    editClassSkillList.innerHTML = `<div class="list-item">${t("classes.skills.none", "No class skills assigned.")}</div>`;
+    editClassSkillList.innerHTML = `<div class="list-item">${isBackgroundEditor()
+      ? t("backgrounds.skills.none", "No background skills assigned.")
+      : t("classes.skills.none", "No class skills assigned.")}</div>`;
     return;
   }
   editClassSkillList.innerHTML = editClassSkillIds
@@ -5206,7 +5639,7 @@ async function openSkillCreateModal(origin, prefillName, prefillDescription) {
   renderSkillRaceLimitOptions("");
   renderSkillClassLimitList();
   renderSkillRaceLimitList();
-  if ((skillContext.origin === "race" || skillContext.origin === "class") && editModal) {
+  if ((skillContext.origin === "race" || skillContext.origin === "class" || skillContext.origin === "background") && editModal) {
     editModal.classList.add("hidden");
     skillReturnToEdit = true;
   }
@@ -5439,7 +5872,7 @@ async function renderRaces(openRaceId = "") {
         </div>
         <div class="actions-row">
           <div class="left">
-            <button class="btn ghost" id="backToSpells" type="button">${t("setup.back", "Back")}</button>
+            <button class="btn ghost" id="backToDeities" type="button">${t("setup.back", "Back")}</button>
           </div>
           <div class="right">
             <button class="btn ghost" id="racesContinue" type="button">${t("common.continue", "Continue")}</button>
@@ -5480,10 +5913,10 @@ async function renderRaces(openRaceId = "") {
       });
     });
 
-    document.getElementById("backToSpells").addEventListener("click", navigateBackInApp);
+    document.getElementById("backToDeities").addEventListener("click", navigateBackInApp);
     document.getElementById("racesContinue").addEventListener("click", () => {
       markSaved(t("web.toast.races_saved", "Races saved"));
-      renderClasses();
+      navigateToNextBuilderStep("races");
     });
     wireSystemNameSave("races", () => renderRaces());
     if (openRaceId) {
@@ -5737,7 +6170,7 @@ if (editClassSkillSelect) {
       return;
     }
     editClassSkillSelect.value = "";
-    await openSkillCreateModal("class", "", "");
+    await openSkillCreateModal(isBackgroundEditor() ? "background" : "class", "", "");
   });
 }
 
@@ -6355,6 +6788,24 @@ editOk.addEventListener("click", async () => {
     }
     return;
   }
+  if (editContext.kind === "background-create") {
+    try {
+      await api("POST", `/api/drafts/${state.draftId}/backgrounds`, {
+        name,
+        description,
+        startingSkillPoints: Number(editClassSkillPoints.value || 0),
+        startingMoney: Number(editClassStartingMoney.value || 0),
+        backgroundSkillIds: editClassSkillIds.slice(),
+        requiredAttributeScores: editClassRequiredScores.slice(),
+      });
+      markSaved(t("web.toast.background_added", "Background added"));
+      closeEditModal();
+      renderBackgrounds();
+    } catch (error) {
+      showToast(error.message);
+    }
+    return;
+  }
   if (editContext.kind === "class-create") {
     try {
       const hitDieSides = editClassHitDieSelect ? Number(editClassHitDieSelect.value || 0) : 0;
@@ -6449,6 +6900,25 @@ editOk.addEventListener("click", async () => {
       markSaved(t("web.toast.weapon_updated", "Weapon updated"));
       closeEditModal();
       renderWeapons();
+    } catch (error) {
+      showToast(error.message);
+    }
+    return;
+  }
+  if (editContext.kind === "background") {
+    try {
+      await api("POST", `/api/drafts/${state.draftId}/backgrounds/update`, {
+        id: editContext.id,
+        name,
+        description,
+        startingSkillPoints: Number(editClassSkillPoints.value || 0),
+        startingMoney: Number(editClassStartingMoney.value || 0),
+        backgroundSkillIds: editClassSkillIds.slice(),
+        requiredAttributeScores: editClassRequiredScores.slice(),
+      });
+      markSaved(t("web.toast.background_updated", "Background updated"));
+      closeEditModal();
+      renderBackgrounds();
     } catch (error) {
       showToast(error.message);
     }
@@ -6816,7 +7286,7 @@ if (skillSave) {
         closeSkillModal();
         return;
       }
-      if (skillContext.origin === "class") {
+      if (skillContext.origin === "class" || skillContext.origin === "background") {
         if (!classSkillOptions.some((skill) => skill.id === entry.id)) {
           classSkillOptions.push(entry);
         }
@@ -7822,6 +8292,8 @@ async function openSavedCharacter(characterDraftId) {
     const target = resolveCharGenResumeStage();
     if (target === "classes") {
       renderCharGenClasses();
+    } else if (target === "backgrounds") {
+      renderCharGenBackgrounds();
     } else if (target === "races") {
       renderCharGenRaces();
     } else if (target === "attribute-result-choice") {
@@ -7861,6 +8333,8 @@ async function importServerCharacterFile(file) {
   const target = resolveCharGenResumeStage();
   if (target === "classes") {
     renderCharGenClasses();
+  } else if (target === "backgrounds") {
+    renderCharGenBackgrounds();
   } else if (target === "races") {
     renderCharGenRaces();
   } else if (target === "attribute-result-choice") {
@@ -8692,6 +9166,8 @@ function renderCharGenResume() {
         renderCharGenSkills();
       } else if (target === "classes") {
         renderCharGenClasses();
+      } else if (target === "backgrounds") {
+        renderCharGenBackgrounds();
       } else if (target === "races") {
         renderCharGenRaces();
       } else if (target === "attribute-result-choice") {
@@ -9931,10 +10407,83 @@ async function renderCharGenRaces() {
       }
       state.chargenRaceId = id;
       saveCharGenDraftLocal();
-      renderCharGenClasses();
+      renderCharGenBackgrounds();
     });
   } catch (error) {
     renderCharGenLoadError(error, renderCharGenRaces);
+  }
+}
+
+async function renderCharGenBackgrounds() {
+  if (!state.draftId) {
+    renderCharGenUpload();
+    return;
+  }
+  setMode("chargen");
+  setStep("chargen-backgrounds");
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const data = await api("GET", `/api/drafts/${state.draftId}/backgrounds`);
+    const backgrounds = Array.isArray(data.backgrounds) ? data.backgrounds : [];
+    const hasBackgrounds = backgrounds.length > 0;
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${t("backgrounds.title", "Backgrounds")}</h1>
+        ${hasBackgrounds ? "" : `<p class="field-hint">${t("web.chargen.backgrounds.empty_system", "This game system does not use backgrounds; proceed to the next screen.")}</p>`}
+        <div class="field">
+          <label for="chargenBackgroundSelect">${t("backgrounds.select", "Select Background")}</label>
+          <select id="chargenBackgroundSelect" ${hasBackgrounds ? "" : "disabled"}></select>
+        </div>
+        <div class="field">
+          <label for="chargenBackgroundDescription">${t("common.description", "Description")}</label>
+          <textarea id="chargenBackgroundDescription" readonly></textarea>
+        </div>
+        <div class="field">
+          <label for="chargenBackgroundSkills">${t("backgrounds.skills", "Background Skills")}</label>
+          <textarea id="chargenBackgroundSkills" readonly></textarea>
+        </div>
+        <div class="actions-row">
+          <div class="left"><button class="btn ghost" id="chargenBackgroundBack" type="button">${t("setup.back", "Back")}</button></div>
+          <div class="right"><button class="btn" id="chargenBackgroundContinue" type="button">${t("common.continue", "Continue")}</button></div>
+        </div>
+      </section>`;
+    const select = document.getElementById("chargenBackgroundSelect");
+    const description = document.getElementById("chargenBackgroundDescription");
+    const skills = document.getElementById("chargenBackgroundSkills");
+    select.innerHTML = [`<option value="">${t("backgrounds.select", "Select Background")}</option>`]
+      .concat(backgrounds.map((entry) => `<option value="${escapeHtml(entry.id || "")}">${escapeHtml(entry.name || t("backgrounds.untitled", "Untitled"))}</option>`))
+      .join("");
+    select.value = state.chargenBackgroundId || "";
+    const updateDescription = () => {
+      const match = backgrounds.find((entry) => String(entry.id || "") === String(select.value || ""));
+      description.value = match && match.description ? match.description : t("common.no_data", "No data available.");
+      const entries = match && Array.isArray(match.backgroundSkillNames)
+        ? match.backgroundSkillNames
+        : match && match.backgroundSkillIds;
+      const lines = Array.isArray(entries) ? entries.map((entry) => String(entry || "").trim()).filter(Boolean) : [];
+      skills.value = lines.length ? lines.join("\n") : t("common.none", "None");
+    };
+    updateDescription();
+    select.addEventListener("change", updateDescription);
+    document.getElementById("chargenBackgroundBack").addEventListener("click", () => {
+      state.chargenBackgroundId = String(select.value || "");
+      saveCharGenDraftLocal();
+      renderCharGenRaces();
+    });
+    document.getElementById("chargenBackgroundContinue").addEventListener("click", () => {
+      state.chargenBackgroundId = String(select.value || "");
+      const background = backgrounds.find((entry) => String(entry.id || "") === state.chargenBackgroundId);
+      const message = buildCharGenBackgroundRequirementMessage(background);
+      if (message) {
+        alert(message);
+        return;
+      }
+      state.chargenBackgroundSkillRanks = buildCharGenBackgroundSkillRanks(background);
+      saveCharGenDraftLocal();
+      renderCharGenClasses();
+    });
+  } catch (error) {
+    renderCharGenLoadError(error, renderCharGenBackgrounds);
   }
 }
 
@@ -10015,7 +10564,7 @@ async function renderCharGenClasses() {
     document.getElementById("chargenBackToRaces").addEventListener("click", () => {
       state.chargenClassId = String(select.value || "");
       saveCharGenDraftLocal();
-      renderCharGenRaces();
+      renderCharGenBackgrounds();
     });
     document.getElementById("chargenClassContinue").addEventListener("click", () => {
       state.chargenClassId = String(select.value || "");
@@ -10038,20 +10587,27 @@ async function renderCharGenSkills() {
   setStep("chargen-skills");
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
-    const [skillData, classData] = await Promise.all([
+    const [skillData, backgroundData, classData] = await Promise.all([
       api("GET", `/api/drafts/${state.draftId}/skills`),
+      api("GET", `/api/drafts/${state.draftId}/backgrounds`),
       api("GET", `/api/drafts/${state.draftId}/classes`),
     ]);
     const skills = sortByLabel(skillData.skills || [], (skill) => skill.displayName || skill.name || "");
+    const backgrounds = Array.isArray(backgroundData.backgrounds) ? backgroundData.backgrounds : [];
     const classes = Array.isArray(classData.classes) ? classData.classes : [];
+    const background = backgrounds.find((entry) => String(entry.id || "") === String(state.chargenBackgroundId || ""));
     const characterClass = classes.find((entry) => String(entry.id || "") === String(state.chargenClassId || ""));
+    if (!Object.keys(state.chargenBackgroundSkillRanks || {}).length) {
+      state.chargenBackgroundSkillRanks = buildCharGenBackgroundSkillRanks(background);
+    }
     if (!Object.keys(state.chargenClassSkillRanks || {}).length) {
       state.chargenClassSkillRanks = buildCharGenClassSkillRanks(characterClass);
     }
     const classSkillRanks = state.chargenClassSkillRanks || {};
+    const backgroundSkillRanks = state.chargenBackgroundSkillRanks || {};
     const selectedRanks = state.chargenSelectedSkillRanks || {};
     const progression = skillData.progression || {};
-    const skillPointText = buildCharGenSkillPointSummary(characterClass, progression);
+    const skillPointText = buildCharGenSkillPointSummary(background, characterClass, progression);
     const list = skills
       .map((skill, index) => {
         const id = String(skill.id || "").trim();
@@ -10059,12 +10615,15 @@ async function renderCharGenSkills() {
         const classBadge = classSkillRanks[id] !== undefined
           ? ` <span class="badge">${t("classes.skills", "Class Skills")}</span>`
           : "";
+        const backgroundBadge = backgroundSkillRanks[id] !== undefined
+          ? ` <span class="badge">${t("backgrounds.skills", "Background Skills")}</span>`
+          : "";
         const category = skill.category ? ` <span class="badge">${escapeHtml(skill.category)}</span>` : "";
         const rank = Math.max(0, Number(selectedRanks[id] || 0));
         return `
           <div class="list-item">
             <div>
-              <strong>${escapeHtml(label)}</strong>${classBadge}${category}
+              <strong>${escapeHtml(label)}</strong>${backgroundBadge}${classBadge}${category}
             </div>
             <div class="field inline-field">
               <label for="chargenSkillRank${index}">${t("skills.rank", "Rank")}</label>
@@ -10096,6 +10655,7 @@ async function renderCharGenSkills() {
 
     const save = () => {
       state.chargenSelectedSkillRanks = collectCharGenSkillRanks();
+      state.chargenBackgroundSkillRanks = backgroundSkillRanks;
       state.chargenClassSkillRanks = classSkillRanks;
       saveCharGenDraftLocal();
     };
@@ -10200,18 +10760,21 @@ async function renderCharGenEquipment() {
   setStep("chargen-equipment");
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
-    const [equipmentData, currencyData, classData, damageTypeData] = await Promise.all([
+    const [equipmentData, currencyData, backgroundData, classData, damageTypeData] = await Promise.all([
       api("GET", `/api/drafts/${state.draftId}/equipment`),
       api("GET", `/api/drafts/${state.draftId}/currency`),
+      api("GET", `/api/drafts/${state.draftId}/backgrounds`),
       api("GET", `/api/drafts/${state.draftId}/classes`),
       api("GET", `/api/drafts/${state.draftId}/damage-types`),
     ]);
     const equipment = sortByLabel(equipmentData.equipment || [], (item) => item.displayName || item.name || "");
     damageTypeOptions = sortByLabel(damageTypeData.damageTypes || [], (type) => type.displayName || type.name || "");
     const currencies = sortByLabel(currencyData.currencies || [], (currency) => currency.name || "");
+    const backgrounds = Array.isArray(backgroundData.backgrounds) ? backgroundData.backgrounds : [];
     const classes = Array.isArray(classData.classes) ? classData.classes : [];
+    const background = backgrounds.find((entry) => String(entry.id || "") === String(state.chargenBackgroundId || ""));
     const characterClass = classes.find((entry) => String(entry.id || "") === String(state.chargenClassId || ""));
-    applyCharGenStartingMoneyDefaults(currencyData.startingMoney || {}, characterClass);
+    applyCharGenStartingMoneyDefaults(currencyData.startingMoney || {}, background, characterClass);
     const selected = new Set(normalizeCharGenIdList(state.chargenSelectedEquipmentIds));
     const currencyOptions = [`<option value="">${t("common.none", "None")}</option>`]
       .concat(
@@ -10795,6 +11358,27 @@ function buildCharGenRaceRequirementMessage(race) {
   return "";
 }
 
+function buildCharGenBackgroundRequirementMessage(background) {
+  if (!background) {
+    return "";
+  }
+  const requirements = Array.isArray(background.requiredAttributeScores)
+    ? background.requiredAttributeScores
+    : [];
+  const scores = state.chargenAttributeScores || {};
+  for (const requirement of requirements) {
+    const attributeId = String(requirement.attributeId || "").trim();
+    const requiredScore = Number(requirement.score || 0);
+    if (attributeId && requiredScore > 0 && Number(scores[attributeId] || 0) < requiredScore) {
+      return t("backgrounds.requirement.blocked", "You cannot select {background} because {attribute} must be at least {value}")
+        .replace("{background}", String(background.name || ""))
+        .replace("{attribute}", resolveCharGenAttributeName(attributeId))
+        .replace("{value}", String(requiredScore));
+    }
+  }
+  return "";
+}
+
 function resolveCharGenAttributeName(attributeId) {
   const safeId = String(attributeId || "").trim();
   if (!safeId) {
@@ -10819,18 +11403,36 @@ function buildCharGenClassSkillRanks(characterClass) {
   return ranks;
 }
 
-function buildCharGenSkillPointSummary(characterClass, progression) {
+function buildCharGenBackgroundSkillRanks(background) {
+  const ranks = {};
+  const ids = background && Array.isArray(background.backgroundSkillIds) ? background.backgroundSkillIds : [];
+  ids.forEach((id) => {
+    const safeId = String(id || "").trim();
+    if (safeId) {
+      ranks[safeId] = 0;
+    }
+  });
+  return ranks;
+}
+
+function buildCharGenSkillPointSummary(background, characterClass, progression) {
   const className = characterClass && characterClass.name ? characterClass.name : t("classes.select", "Select Class");
   const classPoints = characterClass ? Math.max(0, Number(characterClass.skillPointsPerLevel || 0)) : 0;
+  const backgroundPoints = background ? Math.max(0, Number(background.startingSkillPoints || 0)) : 0;
+  const backgroundText = backgroundPoints > 0
+    ? t("web.chargen.skills.points.background", "Background starting skill points: {points}.")
+        .replace("{points}", String(backgroundPoints))
+    : "";
+  const backgroundPrefix = backgroundText ? `${backgroundText} ` : "";
   const progressionType = String(progression && progression.skillPointProgression ? progression.skillPointProgression : "byClass");
   if (progressionType === "byClass") {
-    return t("web.chargen.skills.points.class", "{class}: {points} skill points per level.")
+    return backgroundPrefix + t("web.chargen.skills.points.class", "{class}: {points} skill points per level.")
       .replace("{class}", className)
       .replace("{points}", String(classPoints));
   }
   const base = Math.max(0, Number(progression && progression.baseSkillPointsPerLevel || 0));
   const minimum = Math.max(0, Number(progression && progression.minimumSkillPointsPerLevel || 0));
-  return t("web.chargen.skills.points.global", "Skill points: {points} per level, minimum {minimum}.")
+  return backgroundPrefix + t("web.chargen.skills.points.global", "Skill points: {points} per level, minimum {minimum}.")
     .replace("{points}", String(base))
     .replace("{minimum}", String(minimum));
 }
@@ -10907,7 +11509,7 @@ function collectCheckedIds(selector) {
   return ids;
 }
 
-function applyCharGenStartingMoneyDefaults(startingMoney, characterClass) {
+function applyCharGenStartingMoneyDefaults(startingMoney, background, characterClass) {
   const method = String(startingMoney.method || "base").trim() || "base";
   state.chargenStartingMoneyMethod = method;
   if (!state.chargenStartingMoneyCurrencyId) {
@@ -10916,11 +11518,11 @@ function applyCharGenStartingMoneyDefaults(startingMoney, characterClass) {
   if (Number(state.chargenStartingMoneyAmount || 0) > 0) {
     return;
   }
-  if (method === "class" && characterClass) {
-    state.chargenStartingMoneyAmount = Math.max(0, Number(characterClass.startingMoney || 0));
-    return;
-  }
-  state.chargenStartingMoneyAmount = Math.max(0, Number(startingMoney.baseAmount || 0));
+  const baseAmount = method === "class" && characterClass
+    ? Math.max(0, Number(characterClass.startingMoney || 0))
+    : Math.max(0, Number(startingMoney.baseAmount || 0));
+  const backgroundAmount = background ? Math.max(0, Number(background.startingMoney || 0)) : 0;
+  state.chargenStartingMoneyAmount = baseAmount + backgroundAmount;
 }
 
 function calculateCharGenArmorClass(armorClassData, armor, selectedIds) {
@@ -11100,7 +11702,9 @@ function buildCharGenDraft() {
     ruleModeSelections: state.chargenRuleModeSelections || {},
     diceSubstitutionsUsed: Number(state.chargenDiceSubstitutionsUsed || 0),
     raceId: String(state.chargenRaceId || ""),
+    backgroundId: String(state.chargenBackgroundId || ""),
     classId: String(state.chargenClassId || ""),
+    backgroundSkillRanks: normalizeCharGenRankMap(state.chargenBackgroundSkillRanks),
     classSkillRanks: normalizeCharGenRankMap(state.chargenClassSkillRanks),
     selectedSkillRanks: normalizeCharGenRankMap(state.chargenSelectedSkillRanks),
     selectedSpellIds: normalizeCharGenIdList(state.chargenSelectedSpellIds),
@@ -11170,9 +11774,18 @@ function serializeCharGenDraft(draft) {
   if (safeDraft.raceId) {
     lines.push(`raceId=${safeDraft.raceId}`);
   }
+  if (safeDraft.backgroundId) {
+    lines.push(`backgroundId=${safeDraft.backgroundId}`);
+  }
   if (safeDraft.classId) {
     lines.push(`classId=${safeDraft.classId}`);
   }
+  const backgroundSkillRanks = normalizeCharGenRankMap(safeDraft.backgroundSkillRanks);
+  Object.keys(backgroundSkillRanks)
+    .sort()
+    .forEach((key, index) => {
+      lines.push(`backgroundSkill.${index}=${key}|${backgroundSkillRanks[key]}`);
+    });
   const classSkillRanks = normalizeCharGenRankMap(safeDraft.classSkillRanks);
   Object.keys(classSkillRanks)
     .sort()
@@ -11242,7 +11855,9 @@ function parseCharGenDraft(text) {
     ruleModeSelections: {},
     diceSubstitutionsUsed: 0,
     raceId: "",
+    backgroundId: "",
     classId: "",
+    backgroundSkillRanks: {},
     classSkillRanks: {},
     selectedSkillRanks: {},
     selectedSpellIds: [],
@@ -11320,8 +11935,12 @@ function parseCharGenDraft(text) {
       }
     } else if (key === "raceId") {
       draft.raceId = value;
+    } else if (key === "backgroundId") {
+      draft.backgroundId = value;
     } else if (key === "classId") {
       draft.classId = value;
+    } else if (key.startsWith("backgroundSkill.")) {
+      putCharGenRank(draft.backgroundSkillRanks, value);
     } else if (key.startsWith("classSkill.")) {
       putCharGenRank(draft.classSkillRanks, value);
     } else if (key.startsWith("selectedSkill.")) {
@@ -11377,7 +11996,9 @@ function applyCharGenDraft(draft) {
   state.chargenRuleModeSelections = safeDraft.ruleModeSelections || {};
   state.chargenDiceSubstitutionsUsed = Math.max(0, Number(safeDraft.diceSubstitutionsUsed || 0));
   state.chargenRaceId = String(safeDraft.raceId || "");
+  state.chargenBackgroundId = String(safeDraft.backgroundId || "");
   state.chargenClassId = String(safeDraft.classId || "");
+  state.chargenBackgroundSkillRanks = normalizeCharGenRankMap(safeDraft.backgroundSkillRanks);
   state.chargenClassSkillRanks = normalizeCharGenRankMap(safeDraft.classSkillRanks);
   state.chargenSelectedSkillRanks = normalizeCharGenRankMap(safeDraft.selectedSkillRanks);
   state.chargenSelectedSpellIds = normalizeCharGenIdList(safeDraft.selectedSpellIds);
@@ -11400,7 +12021,9 @@ function resetCharGenState() {
   state.chargenSelectedArrayType = "";
   state.chargenArrayAssignments = {};
   state.chargenRaceId = "";
+  state.chargenBackgroundId = "";
   state.chargenClassId = "";
+  state.chargenBackgroundSkillRanks = {};
   state.chargenClassSkillRanks = {};
   state.chargenSelectedSkillRanks = {};
   state.chargenSelectedSpellIds = [];
@@ -11575,6 +12198,9 @@ function resolveCharGenResumeStage() {
   }
   if (state.chargenClassId) {
     return "classes";
+  }
+  if (state.chargenBackgroundId) {
+    return "backgrounds";
   }
   if (state.chargenRaceId) {
     return "races";
@@ -12262,7 +12888,7 @@ async function renderSetup() {
     });
     document.getElementById("setupContinue").addEventListener("click", async () => {
       if (await saveSetup(true)) {
-        renderMeasurements();
+        navigateToNextBuilderStep("setup");
       }
     });
   } catch (error) {
@@ -12493,7 +13119,7 @@ async function renderMeasurements() {
     document.getElementById("measurementsContinue").addEventListener("click", async () => {
       try {
         await saveMeasurements(timeUnits, "web.toast.measurements_saved", "Measurements saved");
-        renderDice();
+        navigateToNextBuilderStep("measurements");
       } catch (error) {
         showToast(error.message);
       }
@@ -12715,7 +13341,9 @@ async function renderDice() {
     });
 
     document.getElementById("backToSetup").addEventListener("click", navigateBackInApp);
-    document.getElementById("diceContinue").addEventListener("click", renderAttributeTypes);
+    document.getElementById("diceContinue").addEventListener("click", () => {
+      navigateToNextBuilderStep("dice");
+    });
   } catch (error) {
     showToast(error.message);
   }
@@ -12795,7 +13423,9 @@ async function renderAttributeTypes(openKey = "") {
     });
 
     document.getElementById("backToDice").addEventListener("click", navigateBackInApp);
-    document.getElementById("typesContinue").addEventListener("click", renderAttributes);
+    document.getElementById("typesContinue").addEventListener("click", () => {
+      navigateToNextBuilderStep("attribute-types");
+    });
     wireSystemNameSave("attribute-types", () => renderAttributeTypes());
     if (openKey) {
       const target = typeMap[openKey];
@@ -12911,7 +13541,9 @@ async function renderAttributes(openId = "") {
     });
 
     document.getElementById("backToTypes").addEventListener("click", navigateBackInApp);
-    document.getElementById("attributesContinue").addEventListener("click", renderAttributeGeneration);
+    document.getElementById("attributesContinue").addEventListener("click", () => {
+      navigateToNextBuilderStep("attributes");
+    });
     wireSystemNameSave("attributes", () => renderAttributes());
     if (openId) {
       const target = attributeMap[openId];
@@ -13072,12 +13704,12 @@ function getNextAttributeGenerationStep(currentStep) {
 
 function getPreviousAttributeGenerationStep(currentStep) {
   const order = getAttributeGenerationOrder(state.attributeGenerationType, state.attributeGenerationStages);
-  if (!order.length) {
-    return "attribute-generation";
-  }
   const safeStep = String(currentStep || "");
   if (safeStep === "currency") {
-    return "armor-class";
+    return "attack-resolution";
+  }
+  if (!order.length) {
+    return "attribute-generation";
   }
   if (safeStep === "hit-points") {
     return order[order.length - 1] || "attribute-generation";
@@ -13571,7 +14203,7 @@ async function renderAttributeGeneration() {
       }
       const saved = await syncSelection();
       if (saved) {
-        navigateToStep(getNextAttributeGenerationStep("attribute-generation"));
+        navigateToNextBuilderStep("attribute-generation");
       }
     });
   } catch (error) {
@@ -13607,7 +14239,7 @@ async function renderStandardArray() {
       `;
       document.getElementById("backToGeneration").addEventListener("click", navigateBackInApp);
       document.getElementById("standardContinue").addEventListener("click", () => {
-        navigateToStep(getNextAvailableAttributeGenerationStep("standard-array"));
+        navigateToNextBuilderStep("standard-array", { skipUnavailable: true });
       });
       return;
     }
@@ -14093,7 +14725,7 @@ async function renderStandardArray() {
     });
     document.getElementById("standardContinue").addEventListener("click", () => {
       confirmUnassignedNavigation(() => {
-        navigateToStep(getNextAttributeGenerationStep("standard-array"));
+        navigateToNextBuilderStep("standard-array");
       });
     });
   } catch (error) {
@@ -14129,7 +14761,7 @@ async function renderDiceRolling() {
       `;
       document.getElementById("backToStandard").addEventListener("click", navigateBackInApp);
       document.getElementById("diceContinue").addEventListener("click", () => {
-        navigateToStep(getNextAvailableAttributeGenerationStep("dice-rolling"));
+        navigateToNextBuilderStep("dice-rolling", { skipUnavailable: true });
       });
       return;
     }
@@ -14507,7 +15139,7 @@ async function renderDiceRolling() {
 
     document.getElementById("backToStandard").addEventListener("click", navigateBackInApp);
     document.getElementById("diceContinue").addEventListener("click", () => {
-      navigateToStep(getNextAttributeGenerationStep("dice-rolling"));
+      navigateToNextBuilderStep("dice-rolling");
     });
   } catch (error) {
     showToast(error.message);
@@ -14542,7 +15174,7 @@ async function renderPointsBuy() {
       `;
       document.getElementById("backToDiceRolling").addEventListener("click", navigateBackInApp);
       document.getElementById("pointsContinue").addEventListener("click", () => {
-        navigateToStep(getNextAvailableAttributeGenerationStep("points-buy"));
+        navigateToNextBuilderStep("points-buy", { skipUnavailable: true });
       });
       return;
     }
@@ -14915,7 +15547,7 @@ async function renderPointsBuy() {
         ));
         return;
       }
-      navigateToStep(getNextAttributeGenerationStep("points-buy"));
+      navigateToNextBuilderStep("points-buy");
     });
   } catch (error) {
     showToast(error.message);
@@ -15464,85 +16096,750 @@ async function renderHitPoints() {
         }
       }
       await saveHitPoints();
-      navigateToStep("armor-class");
+      navigateToNextBuilderStep("hit-points");
     });
   } catch (error) {
     showToast(error.message);
   }
 }
 
-async function renderArmorClass() {
+async function renderAttackMethod() {
   if (!ensureDraft()) {
     return;
   }
-  setStep("armor-class");
+  setStep("attack-method");
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
-    const data = await api("GET", `/api/drafts/${state.draftId}/armor-class`);
-    const baseArmorClass = Number(data.baseArmorClass || 10);
-    const acAbilityAttributeId = String(data.acAbilityAttributeId || "");
-    const attributes = Array.isArray(data.attributes) ? data.attributes : [];
+    const data = await api("GET", `/api/drafts/${state.draftId}/attack-method`);
+    const diceRolled = data.diceRolled === true;
+    const standardNumberOfDice = data.standardNumberOfDice === true;
+    const numberOfRolls = Math.max(1, Math.trunc(Number(data.numberOfRolls || 1)));
+    const dieSides = Math.max(0, Math.trunc(Number(data.dieSides || 0)));
+    const numberOfDiceRolled = Math.max(1, Math.trunc(Number(data.numberOfDiceRolled || 1)));
+    const availableDice = Array.from(new Set(
+      (Array.isArray(data.diceUsed) ? data.diceUsed : [])
+        .map((value) => Math.trunc(Number(value || 0)))
+        .filter((value) => value > 0)
+        .concat(dieSides > 0 ? [dieSides] : [])
+    )).sort((left, right) => left - right);
+    const dieOptions = [
+      `<option value="">${t("attackmethod.die.choose", "Choose a die")}</option>`,
+      ...availableDice.map((sides) => `<option value="${sides}"${sides === dieSides ? " selected" : ""}>d${sides}</option>`),
+    ].join("");
 
     view.innerHTML = `
       <section class="panel">
-        <h1>${t("armorclass.title", "Armor Class")}</h1>
-        <div class="grid two">
-          <div class="field">
-            <label for="acBaseValue">${t("armorclass.base", "Base Armor Class")}</label>
-            <input type="number" id="acBaseValue" min="0" step="1" value="${Number.isFinite(baseArmorClass) ? baseArmorClass : 10}">
+        <h1>${t("attackmethod.title", "Attack Method")}</h1>
+        <div class="mechanic-system-choice">
+          <h2>${t("attackmethod.system.section", "How are attack values generated?")}</h2>
+          <label class="mechanic-radio-option" for="attackMethodSharedDice">
+            <input type="radio" name="attackMethodSystem" id="attackMethodSharedDice" value="dice" ${diceRolled ? "checked" : ""}>
+            <span>
+              <strong>${t("attackmethod.system.dice", "Use a shared dice roll")}</strong>
+              <span class="field-hint">${t("attackmethod.system.dice.help", "The same basic dice method generates attack values throughout the game.")}</span>
+            </span>
+          </label>
+          <label class="mechanic-radio-option" for="attackMethodOtherSource">
+            <input type="radio" name="attackMethodSystem" id="attackMethodOtherSource" value="other" ${diceRolled ? "" : "checked"}>
+            <span>
+              <strong>${t("attackmethod.system.other", "No shared attack roll")}</strong>
+              <span class="field-hint">${t("attackmethod.system.other.help", "Cards, Attributes, Skills, gear, or other game content supply attack values directly.")}</span>
+            </span>
+          </label>
+        </div>
+        <div class="mechanic-settings-section" id="attackMethodDiceSettings" ${diceRolled ? "" : "hidden"}>
+          <h2>${t("attackmethod.roll.section", "Shared Attack Roll")}</h2>
+          <div class="grid three">
+            <div class="field">
+              <label for="attackMethodDieSides">${t("attackmethod.die", "Die")}</label>
+              <select id="attackMethodDieSides">${dieOptions}</select>
+            </div>
+            <div class="field">
+              <label for="attackMethodNumberOfRolls">${t("attackmethod.number_of_rolls", "Rolls per Attack")}</label>
+              <input type="number" id="attackMethodNumberOfRolls" min="1" step="1" value="${numberOfRolls}">
+              <span class="field-hint">${t("attackmethod.number_of_rolls.help", "How many times the complete dice expression is rolled for one attack.")}</span>
+            </div>
+            <div class="field">
+              <label for="attackMethodDiceRolled">${t("attackmethod.dice_per_roll", "Dice per Roll")}</label>
+              <input type="number" id="attackMethodDiceRolled" min="1" step="1" value="${numberOfDiceRolled}">
+              <span class="field-hint">${t("attackmethod.dice_per_roll.help", "How many of the selected die are rolled each time.")}</span>
+            </div>
           </div>
-          <div class="field">
-            <label for="acAbilityAttr">${t("armorclass.ability.attribute", "AC Attribute")}</label>
-            <select id="acAbilityAttr"></select>
-          </div>
+          <h3>${t("attackmethod.pool.section", "Dice Count")}</h3>
+          <label class="mechanic-radio-option" for="attackMethodFixedCount">
+            <input type="radio" name="attackMethodDiceCount" id="attackMethodFixedCount" value="fixed" ${standardNumberOfDice ? "checked" : ""}>
+            <span>
+              <strong>${t("attackmethod.pool.fixed", "Fixed dice count")}</strong>
+              <span class="field-hint">${t("attackmethod.pool.fixed.help", "Dice per Roll is the final count for every use of this method.")}</span>
+            </span>
+          </label>
+          <label class="mechanic-radio-option" for="attackMethodAdjustableCount">
+            <input type="radio" name="attackMethodDiceCount" id="attackMethodAdjustableCount" value="adjustable" ${standardNumberOfDice ? "" : "checked"}>
+            <span>
+              <strong>${t("attackmethod.pool.adjustable", "Adjustable base pool")}</strong>
+              <span class="field-hint">${t("attackmethod.pool.adjustable.help", "Dice per Roll is a starting pool that later rules may change.")}</span>
+            </span>
+          </label>
         </div>
         <div class="actions-row">
           <div class="left">
             <button class="btn ghost" id="backToHP" type="button">${t("setup.back", "Back")}</button>
           </div>
           <div class="right">
-            <button class="btn" id="acContinue" type="button">${t("common.continue", "Continue")}</button>
+            <button class="btn" id="attackMethodContinue" type="button">${t("common.continue", "Continue")}</button>
           </div>
         </div>
       </section>
     `;
 
-    const populateAbilityAttributes = () => {
-      const select = document.getElementById("acAbilityAttr");
-      if (!select) {
-        return;
-      }
-      const options = [`<option value="">${t("common.none", "None")}</option>`];
-      attributes.forEach((attr) => {
-        const id = String(attr.id || "");
-        const label = String(attr.displayName || attr.name || id || "");
-        options.push(`<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`);
-      });
-      select.innerHTML = options.join("");
-      select.value = acAbilityAttributeId;
+    const updateDiceSettings = () => {
+      document.getElementById("attackMethodDiceSettings").hidden = !document.getElementById("attackMethodSharedDice").checked;
     };
 
-    const saveSelection = async () => {
-      const selected = {
-        baseArmorClass: Number(document.getElementById("acBaseValue").value || 0),
-        acAbilityAttributeId: String(document.getElementById("acAbilityAttr").value || "").trim(),
-      };
-      try {
-        await api("POST", `/api/drafts/${state.draftId}/armor-class`, selected);
-        markSaved(t("web.toast.armor_class_updated", "Armor class updated"));
-      } catch (error) {
-        showToast(error.message);
-      }
-    };
-
-    document.getElementById("acBaseValue").addEventListener("change", saveSelection);
-    document.getElementById("acAbilityAttr").addEventListener("change", saveSelection);
-    document.getElementById("backToHP").addEventListener("click", navigateBackInApp);
-    document.getElementById("acContinue").addEventListener("click", () => {
-      navigateToStep("currency");
+    const readSelection = () => ({
+      diceRolled: document.getElementById("attackMethodSharedDice").checked,
+      standardNumberOfDice: document.getElementById("attackMethodFixedCount").checked,
+      numberOfRolls: Math.max(0, Math.trunc(Number(document.getElementById("attackMethodNumberOfRolls").value || 0))),
+      dieSides: Math.max(0, Math.trunc(Number(document.getElementById("attackMethodDieSides").value || 0))),
+      numberOfDiceRolled: Math.max(0, Math.trunc(Number(document.getElementById("attackMethodDiceRolled").value || 0))),
     });
 
-    populateAbilityAttributes();
+    let savePromise = Promise.resolve(true);
+    const saveSelection = () => {
+      const selected = readSelection();
+      savePromise = savePromise.then(async () => {
+        try {
+          await api("POST", `/api/drafts/${state.draftId}/attack-method`, selected);
+          markSaved(t("web.toast.attack_method_updated", "Attack method updated"));
+          return true;
+        } catch (error) {
+          showToast(error.message);
+          return false;
+        }
+      });
+      return savePromise;
+    };
+
+    document.querySelectorAll('input[name="attackMethodSystem"]').forEach((input) => {
+      input.addEventListener("change", () => {
+        updateDiceSettings();
+        void saveSelection();
+      });
+    });
+    document.querySelectorAll('input[name="attackMethodDiceCount"]').forEach((input) => {
+      input.addEventListener("change", () => {
+        void saveSelection();
+      });
+    });
+    ["attackMethodDieSides", "attackMethodNumberOfRolls", "attackMethodDiceRolled"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", () => {
+        void saveSelection();
+      });
+    });
+    document.getElementById("backToHP").addEventListener("click", navigateBackInApp);
+    document.getElementById("attackMethodContinue").addEventListener("click", async () => {
+      const selected = readSelection();
+      if (
+        selected.diceRolled
+        && (selected.dieSides <= 0 || selected.numberOfRolls <= 0 || selected.numberOfDiceRolled <= 0)
+      ) {
+        showToast(t(
+          "attackmethod.validation.dice",
+          "Choose a die and enter at least one roll and one die per roll."
+        ));
+        return;
+      }
+      if (await saveSelection()) {
+        navigateToNextBuilderStep("attack-method");
+      }
+    });
+
+    updateDiceSettings();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function renderDefense() {
+  if (!ensureDraft()) {
+    return;
+  }
+  setStep("defense");
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const data = await api("GET", `/api/drafts/${state.draftId}/defense`);
+    const validModes = ["passive_value", "active_roll", "attack_modifier", "none"];
+    const defenseMode = validModes.includes(data.defenseMode) ? data.defenseMode : "none";
+    const validEvaluations = ["additive_total", "roll_under", "success_count"];
+    const activeRollEvaluation = validEvaluations.includes(data.activeRollEvaluation)
+      ? data.activeRollEvaluation
+      : "additive_total";
+    const validAttackModifiers = [
+      "flat_modifier",
+      "difficulty_dice",
+      "remove_attack_dice",
+      "disadvantage",
+      "adjust_threshold",
+    ];
+    const attackModifierMethod = validAttackModifiers.includes(data.attackModifierMethod)
+      ? data.attackModifierMethod
+      : "flat_modifier";
+    const dieSides = Math.max(0, Math.trunc(Number(data.dieSides || 0)));
+    const numberOfRolls = Math.max(1, Math.trunc(Number(data.numberOfRolls || 1)));
+    const numberOfDiceRolled = Math.max(1, Math.trunc(Number(data.numberOfDiceRolled || 1)));
+    const availableDice = Array.from(new Set(
+      (Array.isArray(data.diceUsed) ? data.diceUsed : [])
+        .map((value) => Math.trunc(Number(value || 0)))
+        .filter((value) => value > 0)
+        .concat(dieSides > 0 ? [dieSides] : [])
+    )).sort((left, right) => left - right);
+    const dieOptions = [
+      `<option value="">${t("defense.die.choose", "Choose a die")}</option>`,
+      ...availableDice.map((sides) => `<option value="${sides}"${sides === dieSides ? " selected" : ""}>d${sides}</option>`),
+    ].join("");
+    const evaluationOptions = [
+      ["additive_total", t("defense.active.evaluation.additive", "Additive total")],
+      ["roll_under", t("defense.active.evaluation.roll_under", "Roll under a target")],
+      ["success_count", t("defense.active.evaluation.success_count", "Count successes")],
+    ].map(([value, label]) => `<option value="${value}"${value === activeRollEvaluation ? " selected" : ""}>${label}</option>`).join("");
+    const attackModifierOptions = [
+      ["flat_modifier", t("defense.modifier.method.flat", "Flat modifier")],
+      ["difficulty_dice", t("defense.modifier.method.difficulty", "Add difficulty dice")],
+      ["remove_attack_dice", t("defense.modifier.method.remove", "Remove attack dice")],
+      ["disadvantage", t("defense.modifier.method.disadvantage", "Impose disadvantage")],
+      ["adjust_threshold", t("defense.modifier.method.threshold", "Adjust success threshold")],
+    ].map(([value, label]) => `<option value="${value}"${value === attackModifierMethod ? " selected" : ""}>${label}</option>`).join("");
+
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${t("defense.title", "Defense")}</h1>
+        <div class="mechanic-system-choice">
+          <h2>${t("defense.system.section", "How is the initial defense generated?")}</h2>
+          <label class="mechanic-radio-option" for="defenseModePassive">
+            <input type="radio" name="defenseMode" id="defenseModePassive" value="passive_value" ${defenseMode === "passive_value" ? "checked" : ""}>
+            <span><strong>${t("defense.system.passive", "Passive value")}</strong><span class="field-hint">${t("defense.system.passive.help", "The defender supplies a standing number that an attack is compared against.")}</span></span>
+          </label>
+          <label class="mechanic-radio-option" for="defenseModeActive">
+            <input type="radio" name="defenseMode" id="defenseModeActive" value="active_roll" ${defenseMode === "active_roll" ? "checked" : ""}>
+            <span><strong>${t("defense.system.active", "Active defense roll")}</strong><span class="field-hint">${t("defense.system.active.help", "The defender generates a separate roll result when an attack is resolved.")}</span></span>
+          </label>
+          <label class="mechanic-radio-option" for="defenseModeModifier">
+            <input type="radio" name="defenseMode" id="defenseModeModifier" value="attack_modifier" ${defenseMode === "attack_modifier" ? "checked" : ""}>
+            <span><strong>${t("defense.system.modifier", "Adjust attack generation")}</strong><span class="field-hint">${t("defense.system.modifier.help", "Defense changes the attack roll, dice pool, disadvantage, or threshold instead of producing its own value.")}</span></span>
+          </label>
+          <label class="mechanic-radio-option" for="defenseModeNone">
+            <input type="radio" name="defenseMode" id="defenseModeNone" value="none" ${defenseMode === "none" ? "checked" : ""}>
+            <span><strong>${t("defense.system.none", "No accuracy defense")}</strong><span class="field-hint">${t("defense.system.none.help", "Initial contact is not prevented by a defense value or roll.")}</span></span>
+          </label>
+        </div>
+
+        <div class="mechanic-settings-section" id="defensePassiveSettings">
+          <h2>${t("defense.passive.section", "Passive Defense")}</h2>
+          <div class="field compact-field">
+            <label for="defensePassiveValue">${t("defense.passive.value", "Passive Defense Value")}</label>
+            <input type="number" id="defensePassiveValue" step="1" value="${Math.trunc(Number(data.passiveDefenseValue || 0))}">
+          </div>
+          <label class="mechanic-radio-option" for="defensePassiveFinal">
+            <input type="radio" name="defensePassiveType" id="defensePassiveFinal" value="final" ${data.standardDefenseValue === true ? "checked" : ""}>
+            <span><strong>${t("defense.value.final", "Final value")}</strong><span class="field-hint">${t("defense.value.final.help", "The configured defense value is used without a standard adjustment from other systems.")}</span></span>
+          </label>
+          <label class="mechanic-radio-option" for="defensePassiveBase">
+            <input type="radio" name="defensePassiveType" id="defensePassiveBase" value="base" ${data.standardDefenseValue === true ? "" : "checked"}>
+            <span><strong>${t("defense.value.base", "Adjustable base value")}</strong><span class="field-hint">${t("defense.value.base.help", "Attributes, Skills, equipment, Effects, or other rules may change this starting value.")}</span></span>
+          </label>
+        </div>
+
+        <div class="mechanic-settings-section" id="defenseActiveSettings">
+          <h2>${t("defense.active.section", "Active Defense Roll")}</h2>
+          <div class="field compact-field">
+            <label for="defenseActiveEvaluation">${t("defense.active.evaluation", "How is the roll evaluated?")}</label>
+            <select id="defenseActiveEvaluation">${evaluationOptions}</select>
+          </div>
+          <div class="grid three">
+            <div class="field"><label for="defenseDieSides">${t("defense.die", "Die")}</label><select id="defenseDieSides">${dieOptions}</select></div>
+            <div class="field"><label for="defenseNumberOfRolls">${t("defense.number_of_rolls", "Rolls per Defense")}</label><input type="number" id="defenseNumberOfRolls" min="1" step="1" value="${numberOfRolls}"></div>
+            <div class="field"><label for="defenseDiceRolled">${t("defense.dice_per_roll", "Dice per Roll")}</label><input type="number" id="defenseDiceRolled" min="1" step="1" value="${numberOfDiceRolled}"></div>
+          </div>
+          <div class="grid three">
+            <div class="field"><label for="defenseBaseRollModifier">${t("defense.active.base_modifier", "Base Roll Modifier")}</label><input type="number" id="defenseBaseRollModifier" step="1" value="${Math.trunc(Number(data.baseRollModifier || 0))}"></div>
+            <div class="field" id="defenseRollTargetField"><label for="defenseRollTarget">${t("defense.active.roll_target", "Roll-Under Target")}</label><input type="number" id="defenseRollTarget" step="1" value="${Math.trunc(Number(data.rollTargetNumber || 0))}"></div>
+            <div class="field" id="defenseSuccessThresholdField"><label for="defenseSuccessThreshold">${t("defense.active.success_threshold", "Success Threshold")}</label><input type="number" id="defenseSuccessThreshold" min="1" step="1" value="${Math.max(0, Math.trunc(Number(data.successThreshold || 0)))}"><span class="field-hint">${t("defense.active.success_threshold.help", "Each die meeting or exceeding this value counts as one success.")}</span></div>
+          </div>
+          <h3>${t("defense.pool.section", "Defense Dice Count")}</h3>
+          <label class="mechanic-radio-option" for="defenseDiceFinal"><input type="radio" name="defenseDiceType" id="defenseDiceFinal" value="final" ${data.standardNumberOfDice === true ? "checked" : ""}><span><strong>${t("defense.pool.fixed", "Fixed dice count")}</strong><span class="field-hint">${t("defense.pool.fixed.help", "Dice per Roll is the final count for every use of this defense method.")}</span></span></label>
+          <label class="mechanic-radio-option" for="defenseDiceBase"><input type="radio" name="defenseDiceType" id="defenseDiceBase" value="base" ${data.standardNumberOfDice === true ? "" : "checked"}><span><strong>${t("defense.pool.adjustable", "Adjustable base pool")}</strong><span class="field-hint">${t("defense.pool.adjustable.help", "Dice per Roll is a starting pool that later rules may change.")}</span></span></label>
+        </div>
+
+        <div class="mechanic-settings-section" id="defenseModifierSettings">
+          <h2>${t("defense.modifier.section", "Attack Adjustment")}</h2>
+          <div class="grid two">
+            <div class="field"><label for="defenseAttackModifierMethod">${t("defense.modifier.method", "Adjustment Method")}</label><select id="defenseAttackModifierMethod">${attackModifierOptions}</select></div>
+            <div class="field"><label for="defenseAttackModifierValue">${t("defense.modifier.value", "Adjustment Value")}</label><input type="number" id="defenseAttackModifierValue" step="1" value="${Math.trunc(Number(data.attackModifierValue || 0))}"><span class="field-hint">${t("defense.modifier.value.help", "The signed amount, die count, or threshold change used by the selected method. Disadvantage systems may use their own downstream interpretation.")}</span></div>
+          </div>
+          <label class="mechanic-radio-option" for="defenseModifierFinal"><input type="radio" name="defenseModifierType" id="defenseModifierFinal" value="final" ${data.standardAttackModifier === true ? "checked" : ""}><span><strong>${t("defense.modifier.final", "Final adjustment")}</strong><span class="field-hint">${t("defense.modifier.final.help", "Use the configured adjustment as the complete shared defensive change.")}</span></span></label>
+          <label class="mechanic-radio-option" for="defenseModifierBase"><input type="radio" name="defenseModifierType" id="defenseModifierBase" value="base" ${data.standardAttackModifier === true ? "" : "checked"}><span><strong>${t("defense.modifier.base", "Adjustable base change")}</strong><span class="field-hint">${t("defense.modifier.base.help", "Later rules may add to or replace this starting adjustment.")}</span></span></label>
+        </div>
+
+        <div class="actions-row"><div class="left"><button class="btn ghost" id="backToAttackMethod" type="button">${t("setup.back", "Back")}</button></div><div class="right"><button class="btn" id="defenseContinue" type="button">${t("common.continue", "Continue")}</button></div></div>
+      </section>
+    `;
+
+    const selectedMode = () => String(document.querySelector('input[name="defenseMode"]:checked')?.value || "none");
+    const updateVisibility = () => {
+      const mode = selectedMode();
+      document.getElementById("defensePassiveSettings").hidden = mode !== "passive_value";
+      document.getElementById("defenseActiveSettings").hidden = mode !== "active_roll";
+      document.getElementById("defenseModifierSettings").hidden = mode !== "attack_modifier";
+      const evaluation = document.getElementById("defenseActiveEvaluation").value;
+      document.getElementById("defenseRollTargetField").hidden = evaluation !== "roll_under";
+      document.getElementById("defenseSuccessThresholdField").hidden = evaluation !== "success_count";
+    };
+    const readSelection = () => ({
+      defenseMode: selectedMode(),
+      standardDefenseValue: document.getElementById("defensePassiveFinal").checked,
+      passiveDefenseValue: Math.trunc(Number(document.getElementById("defensePassiveValue").value || 0)),
+      activeRollEvaluation: document.getElementById("defenseActiveEvaluation").value,
+      standardNumberOfDice: document.getElementById("defenseDiceFinal").checked,
+      numberOfRolls: Math.max(0, Math.trunc(Number(document.getElementById("defenseNumberOfRolls").value || 0))),
+      dieSides: Math.max(0, Math.trunc(Number(document.getElementById("defenseDieSides").value || 0))),
+      numberOfDiceRolled: Math.max(0, Math.trunc(Number(document.getElementById("defenseDiceRolled").value || 0))),
+      baseRollModifier: Math.trunc(Number(document.getElementById("defenseBaseRollModifier").value || 0)),
+      rollTargetNumber: Math.trunc(Number(document.getElementById("defenseRollTarget").value || 0)),
+      successThreshold: Math.max(0, Math.trunc(Number(document.getElementById("defenseSuccessThreshold").value || 0))),
+      attackModifierMethod: document.getElementById("defenseAttackModifierMethod").value,
+      standardAttackModifier: document.getElementById("defenseModifierFinal").checked,
+      attackModifierValue: Math.trunc(Number(document.getElementById("defenseAttackModifierValue").value || 0)),
+    });
+    let savePromise = Promise.resolve(true);
+    const saveSelection = () => {
+      const selected = readSelection();
+      savePromise = savePromise.catch(() => false).then(async () => {
+        try {
+          await api("POST", `/api/drafts/${state.draftId}/defense`, selected);
+          markSaved(t("web.toast.defense_updated", "Defense updated"));
+          return true;
+        } catch (error) {
+          showToast(error.message);
+          return false;
+        }
+      });
+      return savePromise;
+    };
+    document.querySelectorAll('input[name="defenseMode"], input[name="defensePassiveType"], input[name="defenseDiceType"], input[name="defenseModifierType"]').forEach((input) => {
+      input.addEventListener("change", () => {
+        updateVisibility();
+        void saveSelection();
+      });
+    });
+    ["defensePassiveValue", "defenseActiveEvaluation", "defenseDieSides", "defenseNumberOfRolls", "defenseDiceRolled", "defenseBaseRollModifier", "defenseRollTarget", "defenseSuccessThreshold", "defenseAttackModifierMethod", "defenseAttackModifierValue"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", () => {
+        updateVisibility();
+        void saveSelection();
+      });
+    });
+    document.getElementById("backToAttackMethod").addEventListener("click", navigateBackInApp);
+    document.getElementById("defenseContinue").addEventListener("click", async () => {
+      const selected = readSelection();
+      if (selected.defenseMode === "active_roll" && (selected.dieSides <= 0 || selected.numberOfRolls <= 0 || selected.numberOfDiceRolled <= 0)) {
+        showToast(t("defense.validation.dice", "Choose a die and enter at least one roll and one die per roll."));
+        return;
+      }
+      if (selected.defenseMode === "active_roll" && selected.activeRollEvaluation === "roll_under" && selected.rollTargetNumber === 0) {
+        showToast(t("defense.validation.roll_target", "Enter a nonzero roll-under target."));
+        return;
+      }
+      if (selected.defenseMode === "active_roll" && selected.activeRollEvaluation === "success_count" && (selected.successThreshold <= 0 || selected.successThreshold > selected.dieSides)) {
+        showToast(t("defense.validation.success_threshold", "Enter a success threshold between 1 and the selected die's highest value."));
+        return;
+      }
+      if (await saveSelection()) {
+        navigateToNextBuilderStep("defense");
+      }
+    });
+    updateVisibility();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function renderAttackResolution() {
+  if (!ensureDraft()) {
+    return;
+  }
+  setStep("attack-resolution");
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const data = await api("GET", `/api/drafts/${state.draftId}/attack-resolution`);
+    const validModes = ["attack_vs_passive", "attack_vs_defense_result", "defense_vs_threat", "automatic"];
+    const resolutionMode = validModes.includes(data.resolutionMode) ? data.resolutionMode : "automatic";
+    const validComparisons = ["meet_or_exceed", "exceed", "lower_wins", "success_count", "outcome_bands"];
+    const comparisonMethod = validComparisons.includes(data.comparisonMethod) ? data.comparisonMethod : "meet_or_exceed";
+    const validTieResolutions = ["attacker", "defender", "outcome"];
+    const tieResolution = validTieResolutions.includes(data.tieResolution) ? data.tieResolution : "defender";
+    const validOutcomeMetrics = ["attack_result", "defense_result", "margin"];
+    const outcomeMetric = validOutcomeMetrics.includes(data.outcomeMetric) ? data.outcomeMetric : "margin";
+    let defaultAttackSourceRouteId = String(data.defaultAttackSourceRouteId || "");
+    let attackSourceRoutes = (Array.isArray(data.attackSourceRoutes) ? data.attackSourceRoutes : []).map((route) => ({
+      id: String(route.id || ""),
+      name: String(route.name || ""),
+      sourceKind: String(route.sourceKind || "other"),
+      sourceCollectionKey: String(route.sourceCollectionKey || ""),
+      sourceReferenceId: String(route.sourceReferenceId || ""),
+      description: String(route.description || ""),
+    }));
+    let outcomeBands = (Array.isArray(data.outcomeBands) ? data.outcomeBands : []).map((band) => ({
+      minimumValue: Math.trunc(Number(band.minimumValue || 0)),
+      maximumValue: Math.trunc(Number(band.maximumValue || 0)),
+      outcomeKey: String(band.outcomeKey || ""),
+      name: String(band.name || ""),
+      description: String(band.description || ""),
+    }));
+    const sourceKindLabels = {
+      attack_method: t("attackresolution.source.attack_method", "Attack Method"),
+      card: t("attackresolution.source.card", "Card"),
+      attribute: t("attackresolution.source.attribute", "Attribute"),
+      skill: t("attackresolution.source.skill", "Skill"),
+      gear: t("attackresolution.source.gear", "Gear"),
+      other: t("attackresolution.source.other", "Other"),
+    };
+    const sourceKindOptions = Object.entries(sourceKindLabels)
+      .map(([value, label]) => `<option value="${value}">${escapeHtml(label)}</option>`)
+      .join("");
+    const routeList = attackSourceRoutes.length
+      ? attackSourceRoutes.map((route, index) => {
+          const detail = [
+            sourceKindLabels[route.sourceKind] || sourceKindLabels.other,
+            route.sourceCollectionKey,
+            route.sourceReferenceId,
+          ].filter(Boolean).join(" · ");
+          const defaultBadge = route.id === defaultAttackSourceRouteId
+            ? ` <span class="badge">${t("attackresolution.routes.default_badge", "Default")}</span>`
+            : "";
+          return renderCollectionRow(
+            `<span><strong>${escapeHtml(route.name || t("attackresolution.routes.untitled", "Untitled route"))}</strong>${defaultBadge}<br><span class="field-hint">${escapeHtml(detail)}</span></span>`,
+            [collectionEditAction("edit-attack-route", index), collectionRemoveAction("remove-attack-route", index)]
+          );
+        }).join("")
+      : `<div class="empty-state">${t("attackresolution.routes.none", "No attack source routes yet.")}</div>`;
+    const defaultRouteOptions = attackSourceRoutes.map((route) => `<option value="${escapeHtml(route.id)}"${route.id === defaultAttackSourceRouteId ? " selected" : ""}>${escapeHtml(route.name || t("attackresolution.routes.untitled", "Untitled route"))}</option>`).join("");
+    const bandList = outcomeBands.length
+      ? outcomeBands.map((band, index) => renderCollectionRow(
+          `<span><strong>${escapeHtml(band.name || band.outcomeKey || t("attackresolution.bands.untitled", "Untitled outcome"))}</strong> <span class="badge">${band.minimumValue}–${band.maximumValue}</span><br><span class="field-hint">${escapeHtml(band.outcomeKey)}</span></span>`,
+          [collectionEditAction("edit-outcome-band", index), collectionRemoveAction("remove-outcome-band", index)]
+        )).join("")
+      : `<div class="empty-state">${t("attackresolution.bands.none", "No outcome bands yet.")}</div>`;
+    const comparisonOptions = [
+      ["meet_or_exceed", t("attackresolution.comparison.meet", "Meet or exceed")],
+      ["exceed", t("attackresolution.comparison.exceed", "Strictly exceed")],
+      ["lower_wins", t("attackresolution.comparison.lower", "Lower result wins")],
+      ["success_count", t("attackresolution.comparison.successes", "Compare success counts")],
+      ["outcome_bands", t("attackresolution.comparison.bands", "Resolve through outcome bands")],
+    ].map(([value, label]) => `<option value="${value}"${value === comparisonMethod ? " selected" : ""}>${label}</option>`).join("");
+    const tieOptions = [
+      ["attacker", t("attackresolution.tie.attacker", "Attacker wins")],
+      ["defender", t("attackresolution.tie.defender", "Defender wins")],
+      ["outcome", t("attackresolution.tie.outcome", "Tie is its own outcome")],
+    ].map(([value, label]) => `<option value="${value}"${value === tieResolution ? " selected" : ""}>${label}</option>`).join("");
+    const metricOptions = [
+      ["attack_result", t("attackresolution.metric.attack", "Attack result")],
+      ["defense_result", t("attackresolution.metric.defense", "Defense result")],
+      ["margin", t("attackresolution.metric.margin", "Margin between results")],
+    ].map(([value, label]) => `<option value="${value}"${value === outcomeMetric ? " selected" : ""}>${label}</option>`).join("");
+
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${t("attackresolution.title", "Attack Resolution")}</h1>
+        <div class="mechanic-system-choice">
+          <h2>${t("attackresolution.system.section", "How is initial contact resolved?")}</h2>
+          <label class="mechanic-radio-option" for="resolutionAttackPassive"><input type="radio" name="resolutionMode" id="resolutionAttackPassive" value="attack_vs_passive" ${resolutionMode === "attack_vs_passive" ? "checked" : ""}><span><strong>${t("attackresolution.system.attack_passive", "Attack versus passive defense")}</strong><span class="field-hint">${t("attackresolution.system.attack_passive.help", "Compare an attack result to the defender's standing defense value.")}</span></span></label>
+          <label class="mechanic-radio-option" for="resolutionOpposed"><input type="radio" name="resolutionMode" id="resolutionOpposed" value="attack_vs_defense_result" ${resolutionMode === "attack_vs_defense_result" ? "checked" : ""}><span><strong>${t("attackresolution.system.opposed", "Attack versus defense result")}</strong><span class="field-hint">${t("attackresolution.system.opposed.help", "Compare separately generated attack and active-defense results.")}</span></span></label>
+          <label class="mechanic-radio-option" for="resolutionDefenseThreat"><input type="radio" name="resolutionMode" id="resolutionDefenseThreat" value="defense_vs_threat" ${resolutionMode === "defense_vs_threat" ? "checked" : ""}><span><strong>${t("attackresolution.system.defense_threat", "Defense versus threat")}</strong><span class="field-hint">${t("attackresolution.system.defense_threat.help", "The defender generates the compared result while the attack supplies a threat or target.")}</span></span></label>
+          <label class="mechanic-radio-option" for="resolutionAutomatic"><input type="radio" name="resolutionMode" id="resolutionAutomatic" value="automatic" ${resolutionMode === "automatic" ? "checked" : ""}><span><strong>${t("attackresolution.system.automatic", "Automatic contact")}</strong><span class="field-hint">${t("attackresolution.system.automatic.help", "No attack-versus-defense comparison is required for initial contact.")}</span></span></label>
+        </div>
+
+        <div class="mechanic-settings-section" id="resolutionAutomaticSettings">
+          <h2>${t("attackresolution.automatic.section", "Automatic Outcome")}</h2>
+          <div class="field compact-field"><label for="resolutionAutomaticOutcome">${t("attackresolution.automatic.key", "Outcome Key")}</label><input type="text" id="resolutionAutomaticOutcome" maxlength="80" value="${escapeHtml(String(data.automaticOutcomeKey || "contact"))}"><span class="field-hint">${t("attackresolution.automatic.key.help", "A short stable key such as contact, hit, or success for the result produced automatically.")}</span></div>
+        </div>
+
+        <div id="resolutionComparedSettings">
+          <div class="mechanic-settings-section">
+            <h2>${t("attackresolution.comparison.section", "Comparison")}</h2>
+            <div class="grid two">
+              <div class="field"><label for="resolutionComparisonMethod">${t("attackresolution.comparison.method", "Comparison Method")}</label><select id="resolutionComparisonMethod">${comparisonOptions}</select></div>
+              <div class="field"><label for="resolutionTie">${t("attackresolution.tie", "Tie Resolution")}</label><select id="resolutionTie">${tieOptions}</select></div>
+            </div>
+          </div>
+
+          <div class="mechanic-settings-section">
+            <h2>${t("attackresolution.routes.section", "Attack Source Routes")}</h2>
+            <p class="field-hint">${t("attackresolution.routes.help", "Create every supported way an attack can supply its comparison input. Descendant applications select a stable route id; the default is the only fallback.")}</p>
+            <div class="field compact-field"><label for="resolutionDefaultRoute">${t("attackresolution.routes.default", "Default Attack Source")}</label><select id="resolutionDefaultRoute" ${attackSourceRoutes.length ? "" : "disabled"}>${defaultRouteOptions}</select></div>
+            <button class="btn secondary collection-add-button" id="addAttackRoute" type="button">${t("attackresolution.routes.add", "Add Attack Source Route")}</button>
+            <div class="list">${routeList}</div>
+          </div>
+
+          <div class="mechanic-settings-section" id="resolutionBandsSettings">
+            <h2>${t("attackresolution.bands.section", "Outcome Bands")}</h2>
+            <div class="field compact-field"><label for="resolutionOutcomeMetric">${t("attackresolution.metric", "Band Metric")}</label><select id="resolutionOutcomeMetric">${metricOptions}</select></div>
+            <p class="field-hint">${t("attackresolution.bands.help", "Each inclusive range maps the selected metric to one creator-defined outcome. Ranges may not overlap and outcome keys must be unique.")}</p>
+            <button class="btn secondary collection-add-button" id="addOutcomeBand" type="button">${t("attackresolution.bands.add", "Add Outcome Band")}</button>
+            <div class="list">${bandList}</div>
+          </div>
+        </div>
+
+        <div class="actions-row"><div class="left"><button class="btn ghost" id="backToDefense" type="button">${t("setup.back", "Back")}</button></div><div class="right"><button class="btn" id="resolutionContinue" type="button">${t("common.continue", "Continue")}</button></div></div>
+      </section>
+
+      <div class="modal hidden" id="resolutionRouteModal" role="dialog" aria-modal="true" aria-labelledby="resolutionRouteModalTitle">
+        <div class="modal-card wide">
+          <h3 id="resolutionRouteModalTitle"></h3>
+          <div class="grid two">
+            <div class="field"><label for="resolutionRouteName">${t("attackresolution.routes.name", "Route Name")}</label><input type="text" id="resolutionRouteName" maxlength="120"></div>
+            <div class="field"><label for="resolutionRouteKind">${t("attackresolution.routes.kind", "Source Kind")}</label><select id="resolutionRouteKind">${sourceKindOptions}</select></div>
+            <div class="field" id="resolutionRouteCollectionField"><label for="resolutionRouteCollection">${t("attackresolution.routes.collection", "Source Collection Key")}</label><input type="text" id="resolutionRouteCollection" maxlength="120"><span class="field-hint">${t("attackresolution.routes.collection.help", "The collection or subsystem that owns the source, when applicable.")}</span></div>
+            <div class="field" id="resolutionRouteReferenceField"><label for="resolutionRouteReference">${t("attackresolution.routes.reference", "Source Reference ID")}</label><input type="text" id="resolutionRouteReference" maxlength="160"><span class="field-hint">${t("attackresolution.routes.reference.help", "A stable element or external source id, when this route targets one specific source.")}</span></div>
+          </div>
+          <div class="field"><label for="resolutionRouteDescription">${t("common.description", "Description")}</label><textarea id="resolutionRouteDescription" rows="5" maxlength="4000"></textarea></div>
+          <div class="modal-actions"><button class="btn ghost" id="resolutionRouteCancel" type="button">${t("common.cancel", "Cancel")}</button><button class="btn" id="resolutionRouteSave" type="button">${t("common.save", "Save")}</button></div>
+        </div>
+      </div>
+
+      <div class="modal hidden" id="resolutionBandModal" role="dialog" aria-modal="true" aria-labelledby="resolutionBandModalTitle">
+        <div class="modal-card wide">
+          <h3 id="resolutionBandModalTitle"></h3>
+          <div class="grid two">
+            <div class="field"><label for="resolutionBandMinimum">${t("attackresolution.bands.minimum", "Minimum Value")}</label><input type="number" id="resolutionBandMinimum" step="1"></div>
+            <div class="field"><label for="resolutionBandMaximum">${t("attackresolution.bands.maximum", "Maximum Value")}</label><input type="number" id="resolutionBandMaximum" step="1"></div>
+            <div class="field"><label for="resolutionBandKey">${t("attackresolution.bands.key", "Outcome Key")}</label><input type="text" id="resolutionBandKey" maxlength="80"></div>
+            <div class="field"><label for="resolutionBandName">${t("attackresolution.bands.name", "Outcome Name")}</label><input type="text" id="resolutionBandName" maxlength="120"></div>
+          </div>
+          <div class="field"><label for="resolutionBandDescription">${t("common.description", "Description")}</label><textarea id="resolutionBandDescription" rows="5" maxlength="4000"></textarea></div>
+          <div class="modal-actions"><button class="btn ghost" id="resolutionBandCancel" type="button">${t("common.cancel", "Cancel")}</button><button class="btn" id="resolutionBandSave" type="button">${t("common.save", "Save")}</button></div>
+        </div>
+      </div>
+    `;
+
+    const selectedMode = () => String(document.querySelector('input[name="resolutionMode"]:checked')?.value || "automatic");
+    const updateVisibility = () => {
+      const automatic = selectedMode() === "automatic";
+      document.getElementById("resolutionAutomaticSettings").hidden = !automatic;
+      document.getElementById("resolutionComparedSettings").hidden = automatic;
+      document.getElementById("resolutionBandsSettings").hidden = automatic || document.getElementById("resolutionComparisonMethod").value !== "outcome_bands";
+    };
+    const readSelection = () => ({
+      resolutionMode: selectedMode(),
+      comparisonMethod: document.getElementById("resolutionComparisonMethod").value,
+      tieResolution: document.getElementById("resolutionTie").value,
+      outcomeMetric: document.getElementById("resolutionOutcomeMetric").value,
+      automaticOutcomeKey: String(document.getElementById("resolutionAutomaticOutcome").value || "").trim().toLowerCase(),
+      defaultAttackSourceRouteId,
+      attackSourceRoutes: attackSourceRoutes.map((route) => ({ ...route })),
+      outcomeBands: outcomeBands.map((band) => ({ ...band })),
+    });
+    let savePromise = Promise.resolve(true);
+    const saveSelection = (rerender = false) => {
+      const selected = readSelection();
+      savePromise = savePromise.catch(() => false).then(async () => {
+        try {
+          await api("POST", `/api/drafts/${state.draftId}/attack-resolution`, selected);
+          markSaved(t("web.toast.attack_resolution_updated", "Attack resolution updated"));
+          if (rerender) {
+            await renderAttackResolution();
+          }
+          return true;
+        } catch (error) {
+          showToast(error.message);
+          return false;
+        }
+      });
+      return savePromise;
+    };
+    document.querySelectorAll('input[name="resolutionMode"]').forEach((input) => input.addEventListener("change", () => {
+      updateVisibility();
+      void saveSelection();
+    }));
+    ["resolutionComparisonMethod", "resolutionTie", "resolutionOutcomeMetric", "resolutionAutomaticOutcome"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", () => {
+        updateVisibility();
+        void saveSelection();
+      });
+    });
+    document.getElementById("resolutionDefaultRoute").addEventListener("change", (event) => {
+      defaultAttackSourceRouteId = String(event.target.value || "");
+      void saveSelection();
+    });
+
+    const routeModal = document.getElementById("resolutionRouteModal");
+    const routeKind = document.getElementById("resolutionRouteKind");
+    const updateRouteModalVisibility = () => {
+      const usesSharedMethod = routeKind.value === "attack_method";
+      document.getElementById("resolutionRouteCollectionField").hidden = usesSharedMethod;
+      document.getElementById("resolutionRouteReferenceField").hidden = usesSharedMethod;
+    };
+    routeKind.addEventListener("change", updateRouteModalVisibility);
+    document.getElementById("resolutionRouteCancel").addEventListener("click", () => routeModal.classList.add("hidden"));
+    const openRouteModal = (index = -1) => {
+      const editing = index >= 0;
+      const route = editing ? attackSourceRoutes[index] : {
+        id: "",
+        name: "",
+        sourceKind: "other",
+        sourceCollectionKey: "",
+        sourceReferenceId: "",
+        description: "",
+      };
+      document.getElementById("resolutionRouteModalTitle").textContent = editing ? t("attackresolution.routes.edit", "Edit Attack Source Route") : t("attackresolution.routes.add", "Add Attack Source Route");
+      document.getElementById("resolutionRouteName").value = route.name;
+      routeKind.value = sourceKindLabels[route.sourceKind] ? route.sourceKind : "other";
+      document.getElementById("resolutionRouteCollection").value = route.sourceCollectionKey;
+      document.getElementById("resolutionRouteReference").value = route.sourceReferenceId;
+      document.getElementById("resolutionRouteDescription").value = route.description;
+      updateRouteModalVisibility();
+      routeModal.classList.remove("hidden");
+      window.requestAnimationFrame(() => document.getElementById("resolutionRouteName").focus());
+      document.getElementById("resolutionRouteSave").onclick = async () => {
+        const name = document.getElementById("resolutionRouteName").value.trim();
+        if (!name) {
+          showToast(t("attackresolution.validation.route_name", "Enter a name for the attack source route."));
+          return;
+        }
+        const duplicateName = attackSourceRoutes.some((entry, routeIndex) => routeIndex !== index && entry.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase());
+        if (duplicateName) {
+          showToast(t("attackresolution.validation.route_unique", "Each attack source route needs a unique name."));
+          return;
+        }
+        const nextRoute = {
+          id: route.id,
+          name,
+          sourceKind: routeKind.value,
+          sourceCollectionKey: routeKind.value === "attack_method" ? "" : document.getElementById("resolutionRouteCollection").value.trim(),
+          sourceReferenceId: routeKind.value === "attack_method" ? "" : document.getElementById("resolutionRouteReference").value.trim(),
+          description: document.getElementById("resolutionRouteDescription").value,
+        };
+        if (editing) {
+          attackSourceRoutes[index] = nextRoute;
+        } else {
+          attackSourceRoutes.push(nextRoute);
+        }
+        document.getElementById("resolutionRouteSave").disabled = true;
+        if (await saveSelection(true)) {
+          routeModal.classList.add("hidden");
+        } else {
+          document.getElementById("resolutionRouteSave").disabled = false;
+        }
+      };
+    };
+    document.getElementById("addAttackRoute").addEventListener("click", () => openRouteModal());
+    document.querySelectorAll("[data-edit-attack-route]").forEach((button) => button.addEventListener("click", () => openRouteModal(Number(button.dataset.editAttackRoute))));
+    document.querySelectorAll("[data-remove-attack-route]").forEach((button) => button.addEventListener("click", async () => {
+      const index = Number(button.dataset.removeAttackRoute);
+      if (!await showConfirm(t("attackresolution.routes.remove_confirm", "Remove this attack source route?"), t("common.remove", "Remove"))) {
+        return;
+      }
+      const removedId = attackSourceRoutes[index]?.id || "";
+      attackSourceRoutes.splice(index, 1);
+      if (removedId === defaultAttackSourceRouteId) {
+        defaultAttackSourceRouteId = attackSourceRoutes[0]?.id || "";
+      }
+      await saveSelection(true);
+    }));
+
+    const bandModal = document.getElementById("resolutionBandModal");
+    document.getElementById("resolutionBandCancel").addEventListener("click", () => bandModal.classList.add("hidden"));
+    const openBandModal = (index = -1) => {
+      const editing = index >= 0;
+      const band = editing ? outcomeBands[index] : { minimumValue: 0, maximumValue: 0, outcomeKey: "", name: "", description: "" };
+      document.getElementById("resolutionBandModalTitle").textContent = editing ? t("attackresolution.bands.edit", "Edit Outcome Band") : t("attackresolution.bands.add", "Add Outcome Band");
+      document.getElementById("resolutionBandMinimum").value = String(band.minimumValue);
+      document.getElementById("resolutionBandMaximum").value = String(band.maximumValue);
+      document.getElementById("resolutionBandKey").value = band.outcomeKey;
+      document.getElementById("resolutionBandName").value = band.name;
+      document.getElementById("resolutionBandDescription").value = band.description;
+      bandModal.classList.remove("hidden");
+      window.requestAnimationFrame(() => document.getElementById("resolutionBandMinimum").focus());
+      document.getElementById("resolutionBandSave").onclick = async () => {
+        const minimumValue = Number(document.getElementById("resolutionBandMinimum").value);
+        const maximumValue = Number(document.getElementById("resolutionBandMaximum").value);
+        const outcomeKey = document.getElementById("resolutionBandKey").value.trim().toLowerCase();
+        if (!Number.isInteger(minimumValue) || !Number.isInteger(maximumValue) || minimumValue > maximumValue) {
+          showToast(t("attackresolution.validation.band_range", "Enter a whole-number minimum that is not greater than the maximum."));
+          return;
+        }
+        if (!/^[a-z0-9][a-z0-9_-]*$/.test(outcomeKey)) {
+          showToast(t("attackresolution.validation.band_key", "Enter a unique outcome key using letters, numbers, hyphens, or underscores."));
+          return;
+        }
+        if (outcomeBands.some((entry, bandIndex) => bandIndex !== index && entry.outcomeKey.toLowerCase() === outcomeKey)) {
+          showToast(t("attackresolution.validation.band_unique", "Each outcome band needs a unique outcome key."));
+          return;
+        }
+        if (outcomeBands.some((entry, bandIndex) => bandIndex !== index && minimumValue <= entry.maximumValue && maximumValue >= entry.minimumValue)) {
+          showToast(t("attackresolution.validation.band_overlap", "Outcome band ranges may not overlap."));
+          return;
+        }
+        const nextBand = {
+          minimumValue,
+          maximumValue,
+          outcomeKey,
+          name: document.getElementById("resolutionBandName").value.trim(),
+          description: document.getElementById("resolutionBandDescription").value,
+        };
+        if (editing) {
+          outcomeBands[index] = nextBand;
+        } else {
+          outcomeBands.push(nextBand);
+        }
+        outcomeBands.sort((left, right) => left.minimumValue - right.minimumValue);
+        document.getElementById("resolutionBandSave").disabled = true;
+        if (await saveSelection(true)) {
+          bandModal.classList.add("hidden");
+        } else {
+          document.getElementById("resolutionBandSave").disabled = false;
+        }
+      };
+    };
+    document.getElementById("addOutcomeBand").addEventListener("click", () => openBandModal());
+    document.querySelectorAll("[data-edit-outcome-band]").forEach((button) => button.addEventListener("click", () => openBandModal(Number(button.dataset.editOutcomeBand))));
+    document.querySelectorAll("[data-remove-outcome-band]").forEach((button) => button.addEventListener("click", async () => {
+      const index = Number(button.dataset.removeOutcomeBand);
+      if (!await showConfirm(t("attackresolution.bands.remove_confirm", "Remove this outcome band?"), t("common.remove", "Remove"))) {
+        return;
+      }
+      outcomeBands.splice(index, 1);
+      await saveSelection(true);
+    }));
+
+    document.getElementById("backToDefense").addEventListener("click", navigateBackInApp);
+    document.getElementById("resolutionContinue").addEventListener("click", async () => {
+      const selected = readSelection();
+      if (selected.resolutionMode === "automatic" && !selected.automaticOutcomeKey) {
+        showToast(t("attackresolution.validation.automatic_key", "Enter an outcome key for automatic contact."));
+        return;
+      }
+      if (selected.resolutionMode !== "automatic" && (!selected.attackSourceRoutes.length || !selected.attackSourceRoutes.some((route) => route.id === selected.defaultAttackSourceRouteId))) {
+        showToast(t("attackresolution.validation.routes", "Add at least one attack source route and choose its default."));
+        return;
+      }
+      const sortedBands = selected.outcomeBands.slice().sort((left, right) => left.minimumValue - right.minimumValue);
+      const outcomeKeys = new Set();
+      const validBands = sortedBands.length > 0 && sortedBands.every((band, index) => {
+        const previousBand = index > 0 ? sortedBands[index - 1] : null;
+        if (!band.outcomeKey || outcomeKeys.has(band.outcomeKey)) {
+          return false;
+        }
+        outcomeKeys.add(band.outcomeKey);
+        return !previousBand || band.minimumValue > previousBand.maximumValue;
+      });
+      if (selected.resolutionMode !== "automatic" && selected.comparisonMethod === "outcome_bands" && !validBands) {
+        showToast(t("attackresolution.validation.bands", "Add at least one valid, nonoverlapping outcome band before continuing."));
+        return;
+      }
+      if (await saveSelection()) {
+        navigateToNextBuilderStep("attack-resolution");
+      }
+    });
+    updateVisibility();
   } catch (error) {
     showToast(error.message);
   }
@@ -15879,7 +17176,7 @@ async function renderCurrency() {
     document.getElementById("backToPoints").addEventListener("click", navigateBackInApp);
     document.getElementById("currencyContinue").addEventListener("click", async () => {
       if (await saveStartingMoney()) {
-        renderEffectTypes();
+        navigateToNextBuilderStep("currency");
       }
     });
 
@@ -15974,7 +17271,7 @@ async function renderEffectTypes(openKey = "") {
     document.getElementById("backToCurrency").addEventListener("click", navigateBackInApp);
     document.getElementById("effectTypesContinue").addEventListener("click", () => {
       markSaved(t("web.toast.effect_types_saved", "Affected systems saved"));
-      renderDamageTypes();
+      navigateToNextBuilderStep("effect-types");
     });
     wireSystemNameSave("effect-types", () => renderEffectTypes());
     if (openKey) {
@@ -16075,7 +17372,7 @@ async function renderStatuses(openId = "") {
     document.getElementById("backToDamageTypes").addEventListener("click", navigateBackInApp);
     document.getElementById("statusesContinue").addEventListener("click", () => {
       markSaved(t("web.toast.statuses_saved", "Statuses saved"));
-      renderEffects();
+      navigateToNextBuilderStep("statuses");
     });
     wireSystemNameSave("statuses", () => renderStatuses());
     if (openId) {
@@ -16167,7 +17464,7 @@ async function renderDamageTypes(openId = "") {
     document.getElementById("backToEffectTypes").addEventListener("click", navigateBackInApp);
     document.getElementById("damageTypesContinue").addEventListener("click", () => {
       markSaved(t("web.toast.damage_types_saved", "Damage types saved"));
-      renderStatuses();
+      navigateToNextBuilderStep("damage-types");
     });
     wireSystemNameSave("damage-types", () => renderDamageTypes());
     if (openId) {
@@ -16271,7 +17568,7 @@ async function renderEffects(openId = "") {
     document.getElementById("backToStatuses").addEventListener("click", navigateBackInApp);
     document.getElementById("effectsContinue").addEventListener("click", () => {
       markSaved(t("web.toast.effects_saved", "Effects saved"));
-      renderEquipment();
+      navigateToNextBuilderStep("effects");
     });
     wireSystemNameSave("effects", () => renderEffects());
     if (openId) {
@@ -16331,7 +17628,7 @@ async function renderEquipment(openId = "") {
         </div>
         <div class="actions-row">
           <div class="left">
-            <button class="btn ghost" id="backToEffects" type="button">${t("setup.back", "Back")}</button>
+            <button class="btn ghost" id="backToClasses" type="button">${t("setup.back", "Back")}</button>
           </div>
           <div class="right">
             <button class="btn ghost" id="equipmentContinue" type="button">${t("common.continue", "Continue")}</button>
@@ -16372,10 +17669,10 @@ async function renderEquipment(openId = "") {
       });
     });
 
-    document.getElementById("backToEffects").addEventListener("click", navigateBackInApp);
+    document.getElementById("backToClasses").addEventListener("click", navigateBackInApp);
     document.getElementById("equipmentContinue").addEventListener("click", () => {
       markSaved(t("web.toast.equipment_saved", "Equipment saved"));
-      renderWeapons();
+      navigateToNextBuilderStep("equipment");
     });
     wireSystemNameSave("equipment", () => renderEquipment());
     if (openId) {
@@ -16437,7 +17734,7 @@ async function renderWeapons(openId = "") {
             <button class="btn ghost" id="backToEquipment" type="button">${t("setup.back", "Back")}</button>
           </div>
           <div class="right">
-            <button class="btn ghost" id="weaponsContinue" type="button">${t("common.continue", "Continue")}</button>
+            <button class="btn ghost" id="weaponsContinue" type="button">${t("common.done", "Done")}</button>
           </div>
         </div>
       </section>
@@ -16479,13 +17776,95 @@ async function renderWeapons(openId = "") {
     });
 
     document.getElementById("backToEquipment").addEventListener("click", navigateBackInApp);
-    document.getElementById("weaponsContinue").addEventListener("click", () => {
+    document.getElementById("weaponsContinue").addEventListener("click", async () => {
       markSaved(t("web.toast.weapons_saved", "Weapons saved"));
-      renderSkills();
+      const confirmed = await showConfirm(
+        t("web.download.confirm", "Download your ruleset now?"),
+        t("web.download.cta", "Download")
+      );
+      if (confirmed) {
+        await downloadDraft();
+      }
     });
     if (openId) {
       const target = weapons.find((item) => item.id === openId);
       openWeaponEditor(target);
+    }
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function renderBackgrounds(openId = "") {
+  if (!ensureDraft()) {
+    return;
+  }
+  setStep("backgrounds");
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const [data, skillsData, attributesData] = await Promise.all([
+      api("GET", `/api/drafts/${state.draftId}/backgrounds`),
+      api("GET", `/api/drafts/${state.draftId}/skills`),
+      api("GET", `/api/drafts/${state.draftId}/attributes`),
+    ]);
+    const systemName = String(data.systemName || "");
+    const title = systemNameTitle(systemName, t("backgrounds.title", "Backgrounds"));
+    const backgrounds = sortByLabel(data.backgrounds || [], (entry) => entry.name || "");
+    classSkillOptions = sortByLabel(skillsData.skills || [], (skill) => skill.displayName || skill.name || "");
+    classAttributeOptions = attributesData.attributes || [];
+    const backgroundList = backgrounds
+      .map((background) => `
+        <div class="list-item">
+          <div><strong>${escapeHtml(background.name || t("backgrounds.untitled", "Untitled"))}</strong></div>
+          <div>
+            ${collectionEditAction("edit-background", background.id)}
+            ${collectionRemoveAction("remove-background", background.id)}
+          </div>
+        </div>`)
+      .join("");
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${escapeHtml(title)}</h1>
+        ${renderSystemNameControls(systemName, t("backgrounds.title", "Backgrounds"))}
+        <button class="btn" id="addBackground" type="button">${t("backgrounds.add", "Add Background")}</button>
+        <div class="list">${backgroundList || `<div class="list-item">${t("backgrounds.none", "No backgrounds yet.")}</div>`}</div>
+        <div class="actions-row">
+          <div class="left"><button class="btn ghost" id="backgroundsBack" type="button">${t("setup.back", "Back")}</button></div>
+          <div class="right"><button class="btn ghost" id="backgroundsContinue" type="button">${t("common.continue", "Continue")}</button></div>
+        </div>
+      </section>`;
+    document.getElementById("addBackground").addEventListener("click", openBackgroundCreate);
+    document.querySelectorAll("[data-edit-background]").forEach((button) => {
+      button.addEventListener("click", () => openBackgroundEditor(
+        backgrounds.find((entry) => entry.id === button.dataset.editBackground)
+      ));
+    });
+    document.querySelectorAll("[data-remove-background]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const confirmed = await showConfirm(
+          t("backgrounds.remove.confirm", "Remove this background?"),
+          t("common.remove", "Remove")
+        );
+        if (!confirmed) {
+          return;
+        }
+        try {
+          await api("DELETE", `/api/drafts/${state.draftId}/backgrounds`, { id: button.dataset.removeBackground });
+          markSaved(t("web.toast.background_removed", "Background removed"));
+          renderBackgrounds();
+        } catch (error) {
+          showToast(error.message);
+        }
+      });
+    });
+    document.getElementById("backgroundsBack").addEventListener("click", navigateBackInApp);
+    document.getElementById("backgroundsContinue").addEventListener("click", () => {
+      markSaved(t("web.toast.backgrounds_saved", "Backgrounds saved"));
+      navigateToNextBuilderStep("backgrounds");
+    });
+    wireSystemNameSave("backgrounds", () => renderBackgrounds());
+    if (openId) {
+      openBackgroundEditor(backgrounds.find((entry) => entry.id === openId));
     }
   } catch (error) {
     showToast(error.message);
@@ -16543,7 +17922,7 @@ async function renderClasses(openId = "") {
             <button class="btn ghost" id="backToRaces" type="button">${t("setup.back", "Back")}</button>
           </div>
           <div class="right">
-            <button class="btn ghost" id="classesContinue" type="button">${t("common.done", "Done")}</button>
+            <button class="btn ghost" id="classesContinue" type="button">${t("common.continue", "Continue")}</button>
           </div>
         </div>
       </section>
@@ -16585,15 +17964,9 @@ async function renderClasses(openId = "") {
     });
 
     document.getElementById("backToRaces").addEventListener("click", navigateBackInApp);
-    document.getElementById("classesContinue").addEventListener("click", async () => {
-      const confirmed = await showConfirm(
-        t("web.download.confirm", "Download your ruleset now?"),
-        t("web.download.cta", "Download")
-      );
-      if (!confirmed) {
-        return;
-      }
-      await downloadDraft();
+    document.getElementById("classesContinue").addEventListener("click", () => {
+      markSaved(t("web.toast.classes_saved", "Classes saved"));
+      navigateToNextBuilderStep("classes");
     });
     wireSystemNameSave("classes", () => renderClasses());
     if (openId) {
@@ -16603,6 +17976,132 @@ async function renderClasses(openId = "") {
   } catch (error) {
     showToast(error.message);
   }
+}
+
+async function renderTraitCollection(kind, openId = "") {
+  if (!ensureDraft()) {
+    return;
+  }
+  const config = traitEditorConfig(kind);
+  const pluralKey = config.kind === "flaw" ? "flaws" : "advantages";
+  const titleKey = config.kind === "flaw" ? "flaws.title" : "advantages.title";
+  const titleFallback = config.kind === "flaw" ? "Flaws" : "Advantages";
+  const addKey = config.kind === "flaw" ? "flaws.add" : "advantages.add";
+  const addFallback = config.kind === "flaw" ? "Add Flaw" : "Add Advantage";
+  const noneKey = config.kind === "flaw" ? "flaws.none" : "advantages.none";
+  const noneFallback = config.kind === "flaw" ? "No flaws yet." : "No advantages yet.";
+  const removeKey = config.kind === "flaw" ? "flaws.remove.confirm" : "advantages.remove.confirm";
+  const removeFallback = config.kind === "flaw" ? "Remove this flaw?" : "Remove this advantage?";
+  setStep(pluralKey);
+  view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
+  try {
+    const [data, effectsData] = await Promise.all([
+      api("GET", `/api/drafts/${state.draftId}/${config.endpoint}`),
+      api("GET", `/api/drafts/${state.draftId}/effects`),
+    ]);
+    const systemName = String(data.systemName || "");
+    const title = systemNameTitle(systemName, t(titleKey, titleFallback));
+    const items = sortByLabel(data[pluralKey] || [], (item) => item.name || "");
+    const effects = effectsData.effects || [];
+    const rows = items
+      .map((item) => {
+        const effectCount = Array.isArray(item.effectIds) ? item.effectIds.length : 0;
+        const effectBadge = effectCount
+          ? ` <span class="badge">${escapeHtml(
+              (effectCount === 1
+                ? t("traits.effect.count", "{0} Effect")
+                : t("traits.effects.count", "{0} Effects")
+              ).replace("{0}", String(effectCount))
+            )}</span>`
+          : "";
+        return `
+          <div class="list-item">
+            <div><strong>${escapeHtml(item.name || t("common.untitled", "Untitled"))}</strong>${effectBadge}</div>
+            <div>
+              ${collectionEditAction(`edit-${config.kind}`, item.id)}
+              ${collectionRemoveAction(`remove-${config.kind}`, item.id)}
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    view.innerHTML = `
+      <section class="panel">
+        <h1>${escapeHtml(title)}</h1>
+        ${renderSystemNameControls(systemName, t(titleKey, titleFallback))}
+        <button class="btn" id="addTrait" type="button">${t(addKey, addFallback)}</button>
+        <div class="list">
+          ${rows || `<div class="list-item">${t(noneKey, noneFallback)}</div>`}
+        </div>
+        <div class="actions-row">
+          <div class="left">
+            <button class="btn ghost" id="traitBack" type="button">${t("setup.back", "Back")}</button>
+          </div>
+          <div class="right">
+            <button class="btn ghost" id="traitContinue" type="button">${t("common.continue", "Continue")}</button>
+          </div>
+        </div>
+      </section>
+    `;
+
+    document.getElementById("addTrait").addEventListener("click", () => openTraitEditor(config.kind, null, effects));
+    document.querySelectorAll(`[data-edit-${config.kind}]`).forEach((button) => {
+      button.addEventListener("click", () => {
+        const id = button.dataset[`edit${config.kind[0].toUpperCase()}${config.kind.slice(1)}`];
+        const item = items.find((candidate) => String(candidate.id || "") === String(id || ""));
+        if (item) {
+          openTraitEditor(config.kind, item, effects);
+        }
+      });
+    });
+    document.querySelectorAll(`[data-remove-${config.kind}]`).forEach((button) => {
+      button.addEventListener("click", async () => {
+        const id = button.dataset[`remove${config.kind[0].toUpperCase()}${config.kind.slice(1)}`];
+        const confirmed = await showConfirm(t(removeKey, removeFallback), t("common.remove", "Remove"));
+        if (!confirmed) {
+          return;
+        }
+        try {
+          await api("DELETE", `/api/drafts/${state.draftId}/${config.endpoint}`, { id });
+          markSaved(
+            config.kind === "flaw"
+              ? t("web.toast.flaw_removed", "Flaw removed")
+              : t("web.toast.advantage_removed", "Advantage removed")
+          );
+          renderTraitCollection(config.kind);
+        } catch (error) {
+          showToast(error.message);
+        }
+      });
+    });
+    document.getElementById("traitBack").addEventListener("click", navigateBackInApp);
+    document.getElementById("traitContinue").addEventListener("click", () => {
+      if (config.kind === "advantage") {
+        markSaved(t("web.toast.advantages_saved", "Advantages saved"));
+      } else {
+        markSaved(t("web.toast.flaws_saved", "Flaws saved"));
+      }
+      navigateToNextBuilderStep(pluralKey);
+    });
+    wireSystemNameSave(pluralKey, () => renderTraitCollection(config.kind));
+    if (openId) {
+      const target = items.find((item) => String(item.id || "") === String(openId));
+      if (target) {
+        openTraitEditor(config.kind, target, effects);
+      }
+    }
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+function renderAdvantages(openId = "") {
+  return renderTraitCollection("advantage", openId);
+}
+
+function renderFlaws(openId = "") {
+  return renderTraitCollection("flaw", openId);
 }
 
 async function renderSkills(openId = "") {
@@ -16737,7 +18236,7 @@ async function renderSkills(openId = "") {
         </div>
         <div class="actions-row">
           <div class="left">
-            <button class="btn ghost" id="backToWeapons" type="button">${t("setup.back", "Back")}</button>
+            <button class="btn ghost" id="backToFlaws" type="button">${t("setup.back", "Back")}</button>
           </div>
           <div class="right">
             <button class="btn ghost" id="skillsContinue" type="button">${t("common.continue", "Continue")}</button>
@@ -16942,12 +18441,12 @@ async function renderSkills(openId = "") {
       });
     });
 
-    document.getElementById("backToWeapons").addEventListener("click", navigateBackInApp);
+    document.getElementById("backToFlaws").addEventListener("click", navigateBackInApp);
     document.getElementById("skillsContinue").addEventListener("click", async () => {
       try {
         await saveSkillProgressionData();
         markSaved(t("web.toast.skills_saved", "Skills saved"));
-        renderSpells();
+        navigateToNextBuilderStep("skills");
       } catch (error) {
         showToast(error.message);
       }
@@ -17055,7 +18554,7 @@ async function renderSpells(openId = "") {
     document.getElementById("backToSkills").addEventListener("click", navigateBackInApp);
     document.getElementById("spellsContinue").addEventListener("click", () => {
       markSaved(t("web.toast.spells_saved", "Spells saved"));
-      renderPantheons();
+      navigateToNextBuilderStep("spells");
     });
     wireSystemNameSave("spells", () => renderSpells());
     if (openId) {
@@ -17223,7 +18722,9 @@ async function renderPantheons(openId = "") {
       });
     });
     document.getElementById("backToSpells").addEventListener("click", navigateBackInApp);
-    document.getElementById("pantheonsContinue").addEventListener("click", renderDeities);
+    document.getElementById("pantheonsContinue").addEventListener("click", () => {
+      navigateToNextBuilderStep("pantheons");
+    });
     wireSystemNameSave("pantheons", () => renderPantheons());
     if (openId) {
       loadForm(pantheonMap[openId]);
@@ -17452,7 +18953,9 @@ async function renderDeities(openId = "") {
       });
     });
     document.getElementById("backToPantheons").addEventListener("click", navigateBackInApp);
-    document.getElementById("deitiesContinue").addEventListener("click", renderRaces);
+    document.getElementById("deitiesContinue").addEventListener("click", () => {
+      navigateToNextBuilderStep("deities");
+    });
     wireSystemNameSave("deities", () => renderDeities());
     if (openId) {
       loadForm(deityMap[openId]);
@@ -17461,33 +18964,6 @@ async function renderDeities(openId = "") {
     showToast(error.message);
   }
 }
-
-Object.assign(stepRoutes, {
-  setup: renderSetup,
-  measurements: renderMeasurements,
-  dice: renderDice,
-  "attribute-types": renderAttributeTypes,
-  attributes: renderAttributes,
-  "attribute-generation": renderAttributeGeneration,
-  "standard-array": renderStandardArray,
-  "dice-rolling": renderDiceRolling,
-  "points-buy": renderPointsBuy,
-  "hit-points": renderHitPoints,
-  "armor-class": renderArmorClass,
-  currency: renderCurrency,
-  "effect-types": renderEffectTypes,
-  "damage-types": renderDamageTypes,
-  statuses: renderStatuses,
-  effects: renderEffects,
-  equipment: renderEquipment,
-  weapons: renderWeapons,
-  skills: renderSkills,
-  spells: renderSpells,
-  pantheons: renderPantheons,
-  deities: renderDeities,
-  races: renderRaces,
-  classes: renderClasses,
-});
 
 Object.assign(historyRoutes, {
   "beta-application": renderClosedBetaApplication,
@@ -17502,6 +18978,7 @@ Object.assign(historyRoutes, {
   "chargen-attrgen": renderCharGenAttributes,
   "chargen-points-buy": renderCharGenPointsBuy,
   "chargen-races": renderCharGenRaces,
+  "chargen-backgrounds": renderCharGenBackgrounds,
   "chargen-classes": renderCharGenClasses,
   "chargen-skills": renderCharGenSkills,
   "chargen-spells": renderCharGenSpells,

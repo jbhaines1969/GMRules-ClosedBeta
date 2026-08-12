@@ -92,6 +92,7 @@ public final class CharacterDraftStore {
             Objects.toString(fields.get("characterName"), ""),
             Objects.toString(fields.get("gameName"), ""),
             Objects.toString(fields.get("raceId"), ""),
+            Objects.toString(fields.get("backgroundId"), ""),
             Objects.toString(fields.get("classId"), ""),
             draft.getLastSaved()
         );
@@ -192,6 +193,7 @@ public final class CharacterDraftStore {
         private final String characterName;
         private final String gameName;
         private final String raceId;
+        private final String backgroundId;
         private final String classId;
         private final Instant lastSaved;
 
@@ -204,6 +206,7 @@ public final class CharacterDraftStore {
                 String characterName,
                 String gameName,
                 String raceId,
+                String backgroundId,
                 String classId,
                 Instant lastSaved
         ) {
@@ -214,6 +217,7 @@ public final class CharacterDraftStore {
             this.characterName = Objects.toString(characterName, "");
             this.gameName = Objects.toString(gameName, "");
             this.raceId = Objects.toString(raceId, "");
+            this.backgroundId = Objects.toString(backgroundId, "");
             this.classId = Objects.toString(classId, "");
             this.lastSaved = Objects.requireNonNullElseGet(lastSaved, Instant::now);
         }
@@ -245,6 +249,10 @@ public final class CharacterDraftStore {
 
         public String getRaceId() {
             return raceId;
+        }
+
+        public String getBackgroundId() {
+            return backgroundId;
         }
 
         public String getClassId() {
