@@ -1,6 +1,6 @@
 # GMRules Closed Beta Deploy Structure
 
-Updated: 2026-08-09
+Updated: 2026-08-15
 
 This file is the deploy-release filesystem map for `GMRules-ClosedBeta`.
 Update it whenever tracked files or deploy-relevant directories are added, removed, or moved. Its purpose is to let agents find known paths from this document before falling back to repository searches.
@@ -32,11 +32,15 @@ GMRules-ClosedBeta/
 |-- TODO.md
 |-- deploy.sh
 |-- docs/
+|-- generate-combat-poc-rulesets.ps1
 |-- spreadsheet-schema/
 |-- makebackup.sh
 |-- pom.xml
 |-- restore.sh
+|-- run-combat-poc.ps1
 |-- gmrules-core/
+|-- gmrules-attack-resolution-audit/
+|-- gmrules-combat-poc/
 `-- gmrules-builder/
 ```
 
@@ -45,6 +49,8 @@ GMRules-ClosedBeta/
 ```text
 pom.xml
 |-- module: gmrules-core
+|-- module: gmrules-attack-resolution-audit
+|-- module: gmrules-combat-poc
 `-- module: gmrules-builder
 ```
 
@@ -52,6 +58,53 @@ pom.xml
 - Parent artifact: `com.gamemaker.gmrules:gmrules:1.0-SNAPSHOT`
 - Builder package target: `target/gmrules-app.jar` after `mvn package`
 - Web main class: `com.gamemaker.gmrules.web.WebMain`
+- Combat PoC package target: `target/gmrules-combat-poc.jar` after `mvn package`
+
+### Attack Resolution Consumer Audit
+
+```text
+gmrules-attack-resolution-audit/
+|-- pom.xml
+|-- README.md
+`-- src/
+    |-- main/java/com/gamemaker/gmrules/audit/
+    |   `-- AttackSequenceConsumer.java
+    `-- test/java/com/gamemaker/gmrules/audit/
+        `-- AttackSequenceConsumerTest.java
+```
+
+This module depends only on `gmrules-core` and behaves like an independent
+downstream application. Its tracked tests cover every current Attack Resolution
+mode, comparison, tie policy, outcome metric, and source kind. Indeterminate
+results are intentional audit findings when the stored configuration cannot
+select a unique attack value, defense value, or success result. Resolution
+calculations delegate to the core-owned `AttackResolution` runtime contract; the
+audit consumer does not maintain a separate rules implementation.
+
+### Combat Automator Proof of Concept
+
+```text
+gmrules-combat-poc/
+|-- pom.xml
+|-- README.md
+`-- src/
+    |-- main/java/com/gamemaker/gmrules/combatpoc/
+    |   |-- CombatAutomatorFrame.java
+    |   |-- CombatAutomatorMain.java
+    |   |-- CombatPocRulesetGenerator.java
+    |   |-- CombatRulesSupport.java
+    |   `-- SingleRoundCombatConsumer.java
+    `-- test/java/com/gamemaker/gmrules/combatpoc/
+        |-- CombatPocRulesetGeneratorTest.java
+        `-- SingleRoundCombatConsumerTest.java
+```
+
+This intentionally small standalone Swing application depends only on
+`gmrules-core`. It loads an exported `.gmrf`, shows the three relevant mechanics,
+and runs the currently supported one-roll/passive-defense combat path. The
+mechanics-facing `SingleRoundCombatConsumer` now makes one no-argument
+`AttackResolution.getAttackResult()` call so future core expansion can be
+compared against consumer-code growth.
 
 ## Root Deploy Files
 
@@ -59,8 +112,10 @@ pom.xml
 .env.example        # Hosted service env example, including storage, local-mode safety, Resend, NDA audit, and Discord webhook variables.
 .gitignore          # Excludes build/runtime/secrets/data files and local-only USER.md.
 deploy.sh           # Pull, clean-compile the Maven exec:java service classes, verify character routes, restart gmrules service, show status/logs.
+generate-combat-poc-rulesets.ps1 # Package and generate the non-overwriting current combat PoC .gmrf matrix.
 makebackup.sh       # Create encrypted droplet backup and remove unencrypted archive.
 restore.sh          # Restore runtime data from encrypted backup after confirmation.
+run-combat-poc.ps1  # Build and launch the standalone one-round combat automator, optionally opening a supplied .gmrf.
 PROJECT_NOTES.md    # Current project status, risks, and launch path.
 PRODUCT_DESIGN_CONTEXT.md # Concise product vision, journeys, terminology, UX invariants, concerns, and design-review resume point.
 TODO.md             # Launch-ordered beta checklist.
@@ -231,7 +286,9 @@ GameMechanics/
 |-- AttributeGenerationMethod.java
 |-- CombatMethod.java
 |-- DefenseMethod.java
+|-- DiceRoller.java
 |-- DifficultySystem.java
+|-- GeneratedValue.java
 |-- HPMethod.java
 |-- LevelingMethod.java
 `-- SaveMethod.java

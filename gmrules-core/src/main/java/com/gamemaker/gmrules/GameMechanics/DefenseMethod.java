@@ -12,8 +12,10 @@ package com.gamemaker.gmrules.GameMechanics;
 import com.gamemaker.gmrules.GameElement;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.OptionalInt;
 
 /**
  * Configures generation of the defense-side input used during attack resolution.
@@ -48,6 +50,19 @@ public class DefenseMethod extends GameElement {
     public static final String ATTACK_MODIFIER_REMOVE_DICE = "remove_attack_dice";
     public static final String ATTACK_MODIFIER_DISADVANTAGE = "disadvantage";
     public static final String ATTACK_MODIFIER_THRESHOLD = "adjust_threshold";
+
+    public static final String REASON_ADJUSTED_PASSIVE_VALUE_REQUIRED =
+        "The passive defense is an adjustable base, but no adjusted value was supplied.";
+    public static final String REASON_ROLL_AGGREGATION_MISSING =
+        "DefenseMethod does not define how multiple complete rolls become one defense value.";
+    public static final String REASON_SUCCESS_COUNT_MODIFIER_MISSING =
+        "DefenseMethod does not define how Base Roll Modifier changes a success-count result.";
+    public static final String REASON_ROLL_UNDER_RESULT_MISSING =
+        "DefenseMethod does not define whether a roll-under defense supplies its raw total, a boolean, or a success count to AttackResolution.";
+    public static final String REASON_ATTACK_MODIFIER_HAS_NO_VALUE =
+        "This defense changes attack generation instead of producing a defense value.";
+    public static final String REASON_NO_ACCURACY_DEFENSE =
+        "This ruleset has no accuracy defense value.";
 
     private String defenseMode = MODE_NONE;
 
@@ -221,6 +236,80 @@ public class DefenseMethod extends GameElement {
 
     public void setAttackModifierValue(int attackModifierValue) {
         this.attackModifierValue = attackModifierValue;
+    }
+
+    // === RUNTIME DEFENSE VALUE GENERATION ===
+
+    /** Generates and evaluates the configured defense using the core random die source. */
+    public GeneratedValue generateDefenseValue() {
+        return generateDefenseValue(DiceRoller.random());
+    }
+
+    /** Generates and evaluates the configured defense using a caller-supplied die source. */
+    public GeneratedValue generateDefenseValue(DiceRoller diceRoller) {
+        if (!usesActiveRoll()) {
+            return evaluateDefenseValue(List.of(), OptionalInt.empty());
+        }
+        List<List<Integer>> rolls = DiceRoller.generate(
+            numberOfRolls,
+            numberOfDiceRolled,
+            dieSides,
+            diceRoller
+        );
+        return evaluateDefenseValue(rolls, OptionalInt.empty());
+    }
+
+    /** Evaluates already generated defense data or a supplied final defense value. */
+    public GeneratedValue evaluateDefenseValue(
+        List<List<Integer>> rolls,
+        OptionalInt suppliedDefenseValue
+    ) {
+        List<List<Integer>> safeRolls = DiceRoller.immutableRolls(rolls);
+        OptionalInt safeSuppliedValue = Objects.requireNonNullElseGet(
+            suppliedDefenseValue,
+            OptionalInt::empty
+        );
+        if (safeSuppliedValue.isPresent()) {
+            return GeneratedValue.available(safeSuppliedValue.getAsInt(), safeRolls);
+        }
+        if (usesPassiveValue()) {
+            return standardDefenseValue
+                ? GeneratedValue.available(passiveDefenseValue, safeRolls)
+                : GeneratedValue.indeterminate(
+                    safeRolls,
+                    REASON_ADJUSTED_PASSIVE_VALUE_REQUIRED
+                );
+        }
+        if (hasNoAccuracyDefense()) {
+            return GeneratedValue.notApplicable(REASON_NO_ACCURACY_DEFENSE);
+        }
+        if (modifiesAttackGeneration()) {
+            return GeneratedValue.notApplicable(REASON_ATTACK_MODIFIER_HAS_NO_VALUE);
+        }
+        if (safeRolls.size() != 1) {
+            return GeneratedValue.indeterminate(safeRolls, REASON_ROLL_AGGREGATION_MISSING);
+        }
+        if (ACTIVE_ROLL_ADDITIVE_TOTAL.equals(activeRollEvaluation)) {
+            int total = safeRolls.get(0).stream().mapToInt(Integer::intValue).sum();
+            return GeneratedValue.available(total + baseRollModifier, safeRolls);
+        }
+        if (ACTIVE_ROLL_SUCCESS_COUNT.equals(activeRollEvaluation)) {
+            if (baseRollModifier != 0) {
+                return GeneratedValue.indeterminate(
+                    safeRolls,
+                    REASON_SUCCESS_COUNT_MODIFIER_MISSING
+                );
+            }
+            int successes = (int) safeRolls.get(0).stream()
+                .filter(value -> value >= successThreshold)
+                .count();
+            return GeneratedValue.available(successes, safeRolls);
+        }
+        return GeneratedValue.indeterminate(safeRolls, REASON_ROLL_UNDER_RESULT_MISSING);
+    }
+
+    public GeneratedValue useSuppliedDefenseValue(int defenseValue) {
+        return evaluateDefenseValue(List.of(), OptionalInt.of(defenseValue));
     }
 
     private static String normalizeDefenseMode(String value) {

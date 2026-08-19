@@ -1,6 +1,6 @@
 # GMRules Product Design Context
 
-Updated: 2026-08-12
+Updated: 2026-08-15
 
 ## Purpose
 
@@ -45,6 +45,35 @@ The `.gmrf` should remain:
 
 Character files use `.gmcf`. The web app currently keeps a lightweight character draft for save/resume, then exports an object-backed character snapshot linked to its source ruleset.
 
+## Core and Descendant Application Contract
+
+The core is the sole executable authority for rules and mechanics. It owns value
+generation, modifiers, validation, formulas, comparisons, resolution selection,
+and mechanical outcomes. Increasing the complexity of a rule in core should not
+require descendants to reproduce that complexity.
+
+A descendant application is deliberately thin. It may:
+
+- provide runtime context or player choices required by a core operation;
+- call a core operation;
+- present, store, transmit, or react to the returned result; and
+- implement application behavior triggered by that result.
+
+It must not recreate a rule calculation already represented by core. Language
+bridges and interpreters translate calls and result objects; they do not become
+parallel mechanics engines. Databases, exports, reports, and derived spreadsheets
+are projections or extrapolations of core data rather than competing sources of
+rules truth.
+
+For example, a combat UI or video-game engine calls
+`game.getAttackResolution().getAttackResult()`. Core generates the Attack and
+Defense values, selects and executes the configured Resolution method, and returns
+the mechanical outcome. The descendant can display “Attack succeeded,” play a hit
+animation, or begin its own success workflow without computing why the attack
+succeeded. The same boundary applies to future mechanics: core answers the rules
+question; descendants specialize the interface or automate what happens with the
+answer.
+
 ## Modeling and UX Principles
 
 1. **System-agnostic first.** Ask about the role of a mechanic, not whether the game copies a familiar named rule. Allow creator-defined labels where practical.
@@ -61,6 +90,7 @@ Character files use `.gmcf`. The web app currently keeps a lightweight character
 
 9. **Collections remain the primary content.** A collection editor should show its heading, modest spacing, a left-aligned Add action, and the existing items. Collection rows show the element name plus concise category/type metadata where useful; long-form descriptions remain in editors or dedicated detail views because prose makes working lists impractical. Blank creation fields should not remain visible while the creator is only reviewing the collection. Add and existing Edit actions should share a focused modal when their fields are the same; page-level mechanic settings remain inline.
 10. **Save at the natural commitment point.** Short, single-value page settings save when changed and do not need Apply/Save buttons. Longer creator-authored mechanic descriptions save when their disclosure closes or the creator continues, avoiding per-keystroke monitoring while preserving the draft before navigation.
+11. **Core computes; descendants present or react.** UI, automation, bridge, database, and spreadsheet work should consume core data and outcomes instead of duplicating rules formulas.
 
 ## Main User Journeys
 
@@ -84,7 +114,7 @@ Game Setup; Measurements; Dice Options; Attribute Categories; Attributes; Attrib
 
 The order establishes reusable concepts before content that references them. Attribute-generation detail screens follow Attributes because they may depend on the completed list. Damage Types precede Effects and gear so later entries can reference them. After reusable Effects, Skills comes before Advantages and Flaws because those character options may grant or limit Skills; Spells and Races continue the character-creation-first flow, followed by one-time Background packages and then advancing Classes. Equipment and Weapons finish the builder.
 
-Attack Method occupies the former Rules Builder Armor Class position, followed directly by Defense and Attack Resolution before Currency. Attack Method was launcher-smoked and accepted on 2026-08-11; its UI cleanup is intentionally deferred. Defense and Attack Resolution are implemented and awaiting visual review. The legacy Armor Class API remains available only because the current Character Generator still uses it for its final defensive calculation.
+Attack Method occupies the former Rules Builder Armor Class position, followed directly by Defense and Attack Resolution before Currency. Attack Method was launcher-smoked and accepted on 2026-08-11; its UI cleanup is intentionally deferred. Defense and Attack Resolution are implemented and awaiting visual review. For one attack die rolled once against passive Defense, Resolution now presents roll over/under, an independent `Attacker wins ties` checkbox, and a `Target value is Defense value` checkbox. Unchecking the Defense target hides equality and reveals the Attack Chart creator; switching back preserves both equality and chart draft data. Core binds `AttackMethod` and `DefenseMethod` to `AttackResolution`; a descendant calls no-argument `getAttackResult()` and reacts to the returned success/failure without generating values, selecting a section, or comparing results. Other input combinations retain the existing full Resolution screen until their focused sections are designed, with the same reusable equality checkbox in place of a method-specific tie selector. The legacy Armor Class API remains available only because the current Character Generator still uses it for its final defensive calculation.
 
 Affected Systems is the user-facing term for reusable labels that identify the parts of the game, or recurring rule interactions, that actions, events, Effects, and Statuses may change or invoke. Its existing defaults remain examples rather than a closed taxonomy. The implementation and saved-data contract continue to use the internal `EffectType` name.
 
@@ -106,7 +136,7 @@ The generator must reflect the creator’s actual options and terminology. Backg
 - **Skill:** a more specific capability that may have ranks, restrictions, and linked effects.
 - **Effect:** reusable rules behavior; a **Status** is a reusable condition.
 - **Player Option:** an offered Attribute Generation recipe, possibly containing ordered Standard Array, Dice, or Point Buy steps.
-- **Descendant application:** any tool that consumes a ruleset, including character, campaign, automation, reference, or publishing experiences.
+- **Descendant application:** a purpose-specific UI, automator, bridge, reference, publishing experience, or derived data projection that calls or extrapolates core and does not independently implement rules mechanics.
 - **System name:** creator-defined terminology that replaces a default collection label in supported contexts.
 
 ## Navigation and Interaction Conventions
@@ -171,7 +201,7 @@ The current proof-of-concept Attribute Generation workflow is launcher-smoked an
 
 The revised Hit Points screen distinguishes Independent Hit Points from Attribute Derived health. Independent mode visually separates Starting Hit Points and Hit Point Gain, offers Rolled or Fixed advancement, and retains No Hit Point Gain for a static pool. Rolled gain can use a shared `Rolls`d`Die` plus one total `Modifier` expression; variable dice remain open to future character-defining systems instead of being modeled as Class-only. Attribute Derived replaces both starting HP and advancement through mutually exclusive Direct Attribute, Single-Attribute Formula, and Multi-Attribute Formula calculations built from stable Attribute references, multipliers, a base value, an optional divisor, and rounding. Average and direct HP Attribute Modifier bonus controls are retired. John launcher-smoked and accepted this presentation and formula workflow on 2026-08-07.
 
-Attack Method was launcher-smoked and accepted on 2026-08-11. It represents the required attack-generation systems cleanly and uses progressive disclosure effectively; cosmetic cleanup is deferred until later. Defense and Attack Resolution now follow it directly in the Rules Builder and await John's launcher smoke. Their implemented boundary remains initial generation and comparison only: parries, reaction costs, soak, armor reduction, damage, mitigation, and harm stay outside these screens.
+Attack Method was launcher-smoked and accepted on 2026-08-11. It represents the required attack-generation systems cleanly and uses progressive disclosure effectively; cosmetic cleanup is deferred until later. Dice per Roll reflects the selected count model: Fixed dice count requires at least one, while an Adjustable base pool may start at zero when Attributes, Skills, gear, or other systems construct it. For exactly one die rolled once, the screen temporarily exposes the signed Attack Roll Modifier so exported rulesets can demonstrate backend modifier behavior in the standalone combat PoC; negative values are penalties, and hidden draft data remains retained. These focused additions await launcher smoke. Defense and Attack Resolution now follow Attack Method directly and also await John's launcher smoke. The first input-aware Resolution view covers one die/one roll against passive Defense: it summarizes the active inputs, offers roll over/under, applies reusable equality through `Attacker wins ties`, and switches between the Defense value and a retained Attack Chart through a checkbox. Equality is hidden for charts because their inclusive ranges own equal values; all inactive draft data remains saved. Other input pairings still use the earlier full configuration screen while the Resolution workflow is divided into further focused sections. The implemented boundary remains initial generation and comparison only: parries, reaction costs, soak, armor reduction, damage, mitigation, and harm stay outside these screens.
 
 Skills now follows Effects, and Advantages and Flaws follow Skills immediately before Spells so creators define the capabilities before describing character options that grant or limit them. Their focused collection editors use only Name, Description, and reusable Effect selection because these options generally represent permanent rules or triggered calculations rather than Attribute-derived mechanics. This current contract does not itself store stable Skill references; whether those relationships belong directly on Advantages/Flaws or as typed Effect targets remains open. Legacy extra core fields remain serialized for compatibility but are not presented in this workflow. Equipment and Weapons close the builder, with Weapons offering the final ruleset download. John launcher-smoked and accepted the editors, final order, and registry-driven navigation on 2026-08-12.
 

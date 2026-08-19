@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.UUID;
 
@@ -37,9 +38,13 @@ import java.util.UUID;
  * attack-supplied threat, or resolve contact automatically. Comparison and outcome
  * configuration is independent of how either side generated its values.</p>
  *
- * <p>This class stores ruleset configuration only. Complete runtime attack,
- * defense, and resolution results remain separate contracts so downstream damage
- * and effects can retain raw rolls, totals, margins, success counts, and outcomes.</p>
+ * <p>This class is the ruleset source of truth for generating attack and defense
+ * values and turning them into an attack result. The owning {@code Game} binds
+ * its configured generators so ordinary consumers call
+ * {@link #getAttackResult()} with no arguments. Lower-level integrations may still
+ * supply generators or runtime values directly. Consumers apply the returned
+ * success, failure, or creator-defined outcome without recreating rules
+ * calculations or selecting a resolution section.</p>
  */
 public class AttackResolution extends GameElement {
 
@@ -57,9 +62,8 @@ public class AttackResolution extends GameElement {
     public static final String COMPARISON_SUCCESS_COUNT = "success_count";
     public static final String COMPARISON_OUTCOME_BANDS = "outcome_bands";
 
-    public static final String TIE_ATTACKER = "attacker";
-    public static final String TIE_DEFENDER = "defender";
-    public static final String TIE_OUTCOME = "outcome";
+    public static final String ROLL_DIRECTION_OVER = "over";
+    public static final String ROLL_DIRECTION_UNDER = "under";
 
     public static final String OUTCOME_METRIC_ATTACK_RESULT = "attack_result";
     public static final String OUTCOME_METRIC_DEFENSE_RESULT = "defense_result";
@@ -72,14 +76,29 @@ public class AttackResolution extends GameElement {
     public static final String SOURCE_GEAR = "gear";
     public static final String SOURCE_OTHER = "other";
 
+    public static final String REASON_OUTCOME_SUCCESS_CLASSIFICATION_MISSING =
+        "OutcomeBand does not classify its outcome as attack success or failure.";
+    public static final String REASON_ATTACK_CHART_ENTRY_MISSING =
+        "No configured attack-chart entry includes the generated attack value.";
+    public static final String REASON_OUTCOME_BAND_MISSING =
+        "No configured OutcomeBand includes the calculated metric.";
+
     private String resolutionMode = MODE_AUTOMATIC;
     private String comparisonMethod = COMPARISON_MEET_OR_EXCEED;
-    private String tieResolution = TIE_DEFENDER;
+    /** Retained only so older serialized rulesets can migrate their tie setting. */
+    private String tieResolution = "";
+    private boolean attackerWinsTies = false;
+    private boolean equalityHandlingConfigured = true;
+    private String attackRollDirection = ROLL_DIRECTION_OVER;
+    private boolean targetValueIsDefenseValue = true;
+    private boolean initialResolutionSelectionConfigured = true;
     private String outcomeMetric = OUTCOME_METRIC_MARGIN;
     private String automaticOutcomeKey = "contact";
     private ArrayList<AttackSourceRoute> attackSourceRoutes = new ArrayList<>();
     private String defaultAttackSourceRouteId = "";
     private ArrayList<OutcomeBand> outcomeBands = new ArrayList<>();
+    private transient Optional<AttackMethod> runtimeAttackMethod = Optional.empty();
+    private transient Optional<DefenseMethod> runtimeDefenseMethod = Optional.empty();
 
     // *** CONSTRUCTORS ***
     public AttackResolution(String name) {
@@ -125,12 +144,39 @@ public class AttackResolution extends GameElement {
         this.comparisonMethod = normalizeComparisonMethod(comparisonMethod);
     }
 
-    public String getTieResolution() {
-        return tieResolution;
+    public boolean isAttackerWinsTies() {
+        return attackerWinsTies;
     }
 
-    public void setTieResolution(String tieResolution) {
-        this.tieResolution = normalizeTieResolution(tieResolution);
+    /**
+     * Defines equality once for every comparison that can produce equal values.
+     * When false, equality belongs to the defender.
+     */
+    public void setAttackerWinsTies(boolean attackerWinsTies) {
+        this.attackerWinsTies = attackerWinsTies;
+        equalityHandlingConfigured = true;
+    }
+
+    public String getAttackRollDirection() {
+        return attackRollDirection;
+    }
+
+    public void setAttackRollDirection(String attackRollDirection) {
+        this.attackRollDirection = normalizeAttackRollDirection(attackRollDirection);
+        initialResolutionSelectionConfigured = true;
+    }
+
+    public boolean isTargetValueDefenseValue() {
+        return targetValueIsDefenseValue;
+    }
+
+    /**
+     * Selects direct comparison with the generated defense value. When false,
+     * the attack result is resolved through the retained attack outcome chart.
+     */
+    public void setTargetValueIsDefenseValue(boolean targetValueIsDefenseValue) {
+        this.targetValueIsDefenseValue = targetValueIsDefenseValue;
+        initialResolutionSelectionConfigured = true;
     }
 
     public String getOutcomeMetric() {
@@ -232,7 +278,7 @@ public class AttackResolution extends GameElement {
     }
 
     public boolean hasValidOutcomeBands() {
-        if (!COMPARISON_OUTCOME_BANDS.equals(comparisonMethod)) {
+        if (targetValueIsDefenseValue && !COMPARISON_OUTCOME_BANDS.equals(comparisonMethod)) {
             return true;
         }
         if (outcomeBands.isEmpty()) {
@@ -252,6 +298,382 @@ public class AttackResolution extends GameElement {
             first = false;
         }
         return true;
+    }
+
+    // === RUNTIME RESOLUTION ===
+
+    /**
+     * Binds this configuration to its owning Game's generators. Game maintains
+     * this transient runtime relationship; it is not part of ruleset persistence.
+     */
+    public void bindRuntimeGenerators(
+        AttackMethod attackMethod,
+        DefenseMethod defenseMethod
+    ) {
+        runtimeAttackMethod = Optional.of(Objects.requireNonNull(attackMethod, "attackMethod"));
+        runtimeDefenseMethod = Optional.of(Objects.requireNonNull(defenseMethod, "defenseMethod"));
+    }
+
+    /** Generates and resolves one attack using the generators bound by the owning Game. */
+    public AttackResult getAttackResult() {
+        return getAttackResult(DiceRoller.random(), DiceRoller.random());
+    }
+
+    /** Deterministic form of {@link #getAttackResult()} for tests and language bridges. */
+    public AttackResult getAttackResult(
+        DiceRoller attackDiceRoller,
+        DiceRoller defenseDiceRoller
+    ) {
+        AttackMethod attackMethod = runtimeAttackMethod.orElseThrow(
+            () -> new IllegalStateException(
+                "AttackResolution must be obtained from its owning Game before resolving an attack."
+            )
+        );
+        DefenseMethod defenseMethod = runtimeDefenseMethod.orElseThrow(
+            () -> new IllegalStateException(
+                "AttackResolution must be obtained from its owning Game before resolving an attack."
+            )
+        );
+        return getAttackResult(
+            attackMethod,
+            defenseMethod,
+            attackDiceRoller,
+            defenseDiceRoller
+        );
+    }
+
+    /**
+     * Runs the configured Attack and Defense generators and resolves their values
+     * through this instance's configured resolution section.
+     */
+    public AttackResult getAttackResult(
+        AttackMethod attackMethod,
+        DefenseMethod defenseMethod
+    ) {
+        return getAttackResult(
+            attackMethod,
+            defenseMethod,
+            DiceRoller.random(),
+            DiceRoller.random()
+        );
+    }
+
+    /**
+     * Deterministic form of {@link #getAttackResult(AttackMethod, DefenseMethod)}
+     * for tests, bridges, and consumers that provide their own die sources.
+     */
+    public AttackResult getAttackResult(
+        AttackMethod attackMethod,
+        DefenseMethod defenseMethod,
+        DiceRoller attackDiceRoller,
+        DiceRoller defenseDiceRoller
+    ) {
+        AttackMethod safeAttackMethod = Objects.requireNonNull(attackMethod, "attackMethod");
+        DefenseMethod safeDefenseMethod = Objects.requireNonNull(defenseMethod, "defenseMethod");
+        GeneratedValue attack = safeAttackMethod.generateAttackValue(attackDiceRoller);
+        GeneratedValue defense = safeDefenseMethod.generateDefenseValue(defenseDiceRoller);
+        ResolutionInput input = switch (resolutionMode) {
+            case MODE_DEFENSE_VS_THREAT -> new ResolutionInput(
+                "",
+                OptionalInt.empty(),
+                defense.value(),
+                attack.value()
+            );
+            case MODE_AUTOMATIC -> ResolutionInput.automatic();
+            default -> new ResolutionInput(
+                "",
+                attack.value(),
+                defense.value(),
+                OptionalInt.empty()
+            );
+        };
+        return new AttackResult(attack, defense, resolve(input));
+    }
+
+    /** Dispatches the configured resolution section using caller-supplied runtime values. */
+    public ResolutionResult resolve(ResolutionInput input) {
+        ResolutionInput safeInput = Objects.requireNonNullElseGet(input, ResolutionInput::empty);
+        return switch (resolutionMode) {
+            case MODE_ATTACK_VS_PASSIVE -> resolveAttackVersusPassive(safeInput);
+            case MODE_ATTACK_VS_DEFENSE_RESULT -> resolveAttackVersusDefenseResult(safeInput);
+            case MODE_DEFENSE_VS_THREAT -> resolveDefenseVersusThreat(safeInput);
+            default -> resolveAutomaticContact();
+        };
+    }
+
+    // --- Attack value versus passive Defense value ---
+
+    public ResolutionResult resolveAttackVersusPassive(ResolutionInput input) {
+        ResolutionInput safeInput = Objects.requireNonNullElseGet(input, ResolutionInput::empty);
+        int attackValue = requireValue(safeInput.attackValue(), "attack value");
+        if (!targetValueIsDefenseValue) {
+            return resolveAttackChart(safeInput.requestedRouteId(), attackValue);
+        }
+        int defenseValue = requireValue(safeInput.defenseValue(), "passive defense value");
+        return resolveInitialDirectComparison(
+            safeInput.requestedRouteId(),
+            attackValue,
+            defenseValue
+        );
+    }
+
+    // --- Attack value versus generated Defense result ---
+
+    public ResolutionResult resolveAttackVersusDefenseResult(ResolutionInput input) {
+        ResolutionInput safeInput = Objects.requireNonNullElseGet(input, ResolutionInput::empty);
+        int attackValue = requireValue(safeInput.attackValue(), "attack value");
+        int defenseValue = requireValue(safeInput.defenseValue(), "defense result");
+        return resolveConfiguredComparison(
+            safeInput.requestedRouteId(),
+            attackValue,
+            defenseValue,
+            true
+        );
+    }
+
+    // --- Defender-only result versus attack-supplied threat ---
+
+    public ResolutionResult resolveDefenseVersusThreat(ResolutionInput input) {
+        ResolutionInput safeInput = Objects.requireNonNullElseGet(input, ResolutionInput::empty);
+        int defenseValue = requireValue(safeInput.defenseValue(), "defense result");
+        int threatValue = requireValue(safeInput.threatValue(), "threat value");
+        return resolveConfiguredComparison(
+            safeInput.requestedRouteId(),
+            threatValue,
+            defenseValue,
+            false
+        );
+    }
+
+    // --- Automatic contact ---
+
+    public ResolutionResult resolveAutomaticContact() {
+        return new ResolutionResult(
+            AttackSuccess.SUCCEEDED,
+            automaticOutcomeKey,
+            OptionalInt.empty(),
+            OptionalInt.empty(),
+            OptionalInt.empty(),
+            "",
+            "",
+            ""
+        );
+    }
+
+    // === REUSABLE COMPARISON RULES ===
+
+    public static boolean resolveDirectionalComparison(
+        int actingValue,
+        int opposingValue,
+        String direction,
+        boolean actingSideWinsTies
+    ) {
+        boolean rollUnder = ROLL_DIRECTION_UNDER.equals(normalizeAttackRollDirection(direction));
+        return rollUnder
+            ? actingSideWinsTies
+                ? actingValue <= opposingValue
+                : actingValue < opposingValue
+            : actingSideWinsTies
+                ? actingValue >= opposingValue
+                : actingValue > opposingValue;
+    }
+
+    public static boolean resolveMeetOrExceedComparison(int actingValue, int opposingValue) {
+        return resolveDirectionalComparison(
+            actingValue,
+            opposingValue,
+            ROLL_DIRECTION_OVER,
+            true
+        );
+    }
+
+    public static boolean resolveStrictExceedComparison(int actingValue, int opposingValue) {
+        return resolveDirectionalComparison(
+            actingValue,
+            opposingValue,
+            ROLL_DIRECTION_OVER,
+            false
+        );
+    }
+
+    public static boolean resolveLowerWinsComparison(int actingValue, int opposingValue) {
+        return resolveDirectionalComparison(
+            actingValue,
+            opposingValue,
+            ROLL_DIRECTION_UNDER,
+            false
+        );
+    }
+
+    public static boolean resolveSuccessCountComparison(
+        int actingSuccesses,
+        int opposingSuccesses
+    ) {
+        return resolveDirectionalComparison(
+            actingSuccesses,
+            opposingSuccesses,
+            ROLL_DIRECTION_OVER,
+            true
+        );
+    }
+
+    public static int attackResultMetric(int attackValue) {
+        return attackValue;
+    }
+
+    public static int defenseResultMetric(int defenseValue) {
+        return defenseValue;
+    }
+
+    /** Margin is defined once as the attack value minus the defense value. */
+    public static int marginMetric(int attackValue, int defenseValue) {
+        return attackValue - defenseValue;
+    }
+
+    private ResolutionResult resolveInitialDirectComparison(
+        String requestedRouteId,
+        int attackValue,
+        int defenseValue
+    ) {
+        boolean attackSucceeded = resolveDirectionalComparison(
+            attackValue,
+            defenseValue,
+            attackRollDirection,
+            attackerWinsTies
+        );
+        return comparedResult(
+            attackSucceeded ? AttackSuccess.SUCCEEDED : AttackSuccess.FAILED,
+            "",
+            attackValue,
+            defenseValue,
+            requireAttackSourceRoute(requestedRouteId),
+            ""
+        );
+    }
+
+    private ResolutionResult resolveConfiguredComparison(
+        String requestedRouteId,
+        int attackValue,
+        int defenseValue,
+        boolean actingSideIsAttacker
+    ) {
+        AttackSourceRoute route = requireAttackSourceRoute(requestedRouteId);
+        int margin = marginMetric(attackValue, defenseValue);
+        if (COMPARISON_OUTCOME_BANDS.equals(comparisonMethod)) {
+            return resolveOutcomeBandComparison(attackValue, defenseValue, margin, route);
+        }
+
+        int actingValue = actingSideIsAttacker ? attackValue : defenseValue;
+        int opposingValue = actingSideIsAttacker ? defenseValue : attackValue;
+        if (actingValue == opposingValue) {
+            return comparedResult(
+                attackerWinsTies ? AttackSuccess.SUCCEEDED : AttackSuccess.FAILED,
+                "",
+                attackValue,
+                defenseValue,
+                route,
+                ""
+            );
+        }
+
+        boolean actingSideWon = switch (comparisonMethod) {
+            case COMPARISON_LOWER_WINS ->
+                resolveLowerWinsComparison(actingValue, opposingValue);
+            case COMPARISON_SUCCESS_COUNT ->
+                resolveSuccessCountComparison(actingValue, opposingValue);
+            case COMPARISON_EXCEED ->
+                resolveStrictExceedComparison(actingValue, opposingValue);
+            default -> resolveMeetOrExceedComparison(actingValue, opposingValue);
+        };
+        boolean attackSucceeded = actingSideIsAttacker ? actingSideWon : !actingSideWon;
+        return comparedResult(
+            attackSucceeded ? AttackSuccess.SUCCEEDED : AttackSuccess.FAILED,
+            "",
+            attackValue,
+            defenseValue,
+            route,
+            ""
+        );
+    }
+
+    private ResolutionResult resolveAttackChart(String requestedRouteId, int attackValue) {
+        AttackSourceRoute route = requireAttackSourceRoute(requestedRouteId);
+        String outcomeKey = resolveOutcomeBand(attackValue)
+            .map(OutcomeBand::getOutcomeKey)
+            .orElse("");
+        String reason = outcomeKey.isEmpty()
+            ? REASON_ATTACK_CHART_ENTRY_MISSING
+            : REASON_OUTCOME_SUCCESS_CLASSIFICATION_MISSING;
+        return new ResolutionResult(
+            AttackSuccess.INDETERMINATE,
+            outcomeKey,
+            OptionalInt.of(attackValue),
+            OptionalInt.empty(),
+            OptionalInt.empty(),
+            route.getId(),
+            route.getSourceKind(),
+            reason
+        );
+    }
+
+    private ResolutionResult resolveOutcomeBandComparison(
+        int attackValue,
+        int defenseValue,
+        int margin,
+        AttackSourceRoute route
+    ) {
+        int metric = switch (outcomeMetric) {
+            case OUTCOME_METRIC_ATTACK_RESULT -> attackResultMetric(attackValue);
+            case OUTCOME_METRIC_DEFENSE_RESULT -> defenseResultMetric(defenseValue);
+            default -> margin;
+        };
+        String outcomeKey = resolveOutcomeBand(metric)
+            .map(OutcomeBand::getOutcomeKey)
+            .orElse("");
+        String reason = outcomeKey.isEmpty()
+            ? REASON_OUTCOME_BAND_MISSING
+            : REASON_OUTCOME_SUCCESS_CLASSIFICATION_MISSING;
+        return comparedResult(
+            AttackSuccess.INDETERMINATE,
+            outcomeKey,
+            attackValue,
+            defenseValue,
+            route,
+            reason
+        );
+    }
+
+    private ResolutionResult comparedResult(
+        AttackSuccess attackSuccess,
+        String outcomeKey,
+        int attackValue,
+        int defenseValue,
+        AttackSourceRoute route,
+        String reason
+    ) {
+        return new ResolutionResult(
+            attackSuccess,
+            outcomeKey,
+            OptionalInt.of(attackValue),
+            OptionalInt.of(defenseValue),
+            OptionalInt.of(marginMetric(attackValue, defenseValue)),
+            route.getId(),
+            route.getSourceKind(),
+            reason
+        );
+    }
+
+    private AttackSourceRoute requireAttackSourceRoute(String requestedRouteId) {
+        return selectAttackSourceRoute(requestedRouteId)
+            .orElseThrow(() -> new IllegalArgumentException("No attack source route is available."));
+    }
+
+    private static int requireValue(OptionalInt value, String name) {
+        OptionalInt safeValue = Objects.requireNonNullElseGet(value, OptionalInt::empty);
+        if (safeValue.isEmpty()) {
+            throw new IllegalArgumentException("Resolution requires " + name + ".");
+        }
+        return safeValue.getAsInt();
     }
 
     private void initializeDefaultAttackSourceRoute() {
@@ -332,12 +754,10 @@ public class AttackResolution extends GameElement {
         };
     }
 
-    private static String normalizeTieResolution(String value) {
-        String safeValue = normalizeKey(value);
-        return switch (safeValue) {
-            case TIE_ATTACKER, TIE_OUTCOME -> safeValue;
-            default -> TIE_DEFENDER;
-        };
+    private static String normalizeAttackRollDirection(String value) {
+        return ROLL_DIRECTION_UNDER.equals(normalizeKey(value))
+            ? ROLL_DIRECTION_UNDER
+            : ROLL_DIRECTION_OVER;
     }
 
     private static String normalizeOutcomeMetric(String value) {
@@ -374,10 +794,27 @@ public class AttackResolution extends GameElement {
 
     private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
         stream.defaultReadObject();
+        runtimeAttackMethod = Optional.empty();
+        runtimeDefenseMethod = Optional.empty();
         boolean attackSourceRoutesWereAbsent = Objects.isNull(attackSourceRoutes);
+        boolean initialResolutionSelectionWasAbsent = !initialResolutionSelectionConfigured;
+        boolean equalityHandlingWasAbsent = !equalityHandlingConfigured;
         setResolutionMode(resolutionMode);
         setComparisonMethod(comparisonMethod);
-        setTieResolution(tieResolution);
+        if (equalityHandlingWasAbsent) {
+            attackerWinsTies = "attacker".equals(normalizeKey(tieResolution));
+        }
+        equalityHandlingConfigured = true;
+        tieResolution = "";
+        if (initialResolutionSelectionWasAbsent) {
+            attackRollDirection = COMPARISON_LOWER_WINS.equals(comparisonMethod)
+                ? ROLL_DIRECTION_UNDER
+                : ROLL_DIRECTION_OVER;
+            targetValueIsDefenseValue = !COMPARISON_OUTCOME_BANDS.equals(comparisonMethod);
+        } else {
+            setAttackRollDirection(attackRollDirection);
+        }
+        initialResolutionSelectionConfigured = true;
         setOutcomeMetric(outcomeMetric);
         setAutomaticOutcomeKey(automaticOutcomeKey);
         setAttackSourceRoutes(attackSourceRoutes);
@@ -386,6 +823,127 @@ public class AttackResolution extends GameElement {
         }
         setDefaultAttackSourceRouteId(defaultAttackSourceRouteId);
         setOutcomeBands(outcomeBands);
+    }
+
+    /** Core-owned success state returned to every descendant application. */
+    public enum AttackSuccess {
+        SUCCEEDED,
+        FAILED,
+        INDETERMINATE
+    }
+
+    /** Complete core-owned output from generating and resolving one attack. */
+    public record AttackResult(
+        GeneratedValue attack,
+        GeneratedValue defense,
+        ResolutionResult resolution
+    ) {
+        public AttackResult {
+            attack = Objects.requireNonNull(attack, "attack");
+            defense = Objects.requireNonNull(defense, "defense");
+            resolution = Objects.requireNonNull(resolution, "resolution");
+        }
+
+        public AttackSuccess attackSuccess() {
+            return resolution.attackSuccess();
+        }
+    }
+
+    /**
+     * Runtime values supplied by a consumer. Only the values required by the
+     * configured resolution section need to be present.
+     */
+    public record ResolutionInput(
+        String requestedRouteId,
+        OptionalInt attackValue,
+        OptionalInt defenseValue,
+        OptionalInt threatValue
+    ) {
+        public ResolutionInput {
+            requestedRouteId = normalizeId(requestedRouteId);
+            attackValue = Objects.requireNonNullElseGet(attackValue, OptionalInt::empty);
+            defenseValue = Objects.requireNonNullElseGet(defenseValue, OptionalInt::empty);
+            threatValue = Objects.requireNonNullElseGet(threatValue, OptionalInt::empty);
+        }
+
+        public static ResolutionInput attackVersusPassive(
+            String routeId,
+            int attackValue,
+            int passiveDefenseValue
+        ) {
+            return new ResolutionInput(
+                routeId,
+                OptionalInt.of(attackValue),
+                OptionalInt.of(passiveDefenseValue),
+                OptionalInt.empty()
+            );
+        }
+
+        public static ResolutionInput attackVersusDefense(
+            String routeId,
+            int attackValue,
+            int defenseValue
+        ) {
+            return attackVersusPassive(routeId, attackValue, defenseValue);
+        }
+
+        public static ResolutionInput defenseVersusThreat(
+            String routeId,
+            int defenseValue,
+            int threatValue
+        ) {
+            return new ResolutionInput(
+                routeId,
+                OptionalInt.empty(),
+                OptionalInt.of(defenseValue),
+                OptionalInt.of(threatValue)
+            );
+        }
+
+        public static ResolutionInput automatic() {
+            return empty();
+        }
+
+        private static ResolutionInput empty() {
+            return new ResolutionInput(
+                "",
+                OptionalInt.empty(),
+                OptionalInt.empty(),
+                OptionalInt.empty()
+            );
+        }
+    }
+
+    /**
+     * Complete initial-contact result returned by the core. Runtime values are
+     * retained so later damage and effect stages do not need to reconstruct them.
+     */
+    public record ResolutionResult(
+        AttackSuccess attackSuccess,
+        String outcomeKey,
+        OptionalInt attackValue,
+        OptionalInt defenseValue,
+        OptionalInt margin,
+        String selectedRouteId,
+        String selectedSourceKind,
+        String reason
+    ) {
+        public ResolutionResult {
+            attackSuccess = Objects.requireNonNullElse(
+                attackSuccess,
+                AttackSuccess.INDETERMINATE
+            );
+            outcomeKey = normalizeKey(outcomeKey);
+            attackValue = Objects.requireNonNullElseGet(attackValue, OptionalInt::empty);
+            defenseValue = Objects.requireNonNullElseGet(defenseValue, OptionalInt::empty);
+            margin = Objects.requireNonNullElseGet(margin, OptionalInt::empty);
+            selectedRouteId = normalizeId(selectedRouteId);
+            String safeSourceKind = normalizeKey(selectedSourceKind);
+            selectedSourceKind = safeSourceKind.isEmpty()
+                ? ""
+                : normalizeSourceKind(safeSourceKind);
+            reason = Objects.toString(reason, "");
+        }
     }
 
     /**

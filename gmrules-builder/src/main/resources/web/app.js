@@ -740,7 +740,7 @@ const tutorialSpecificPages = {
       },
       {
         key: "attackresolution.info.specifics.comparison",
-        fallback: "Comparison Method defines which side wins numerically. Tie Resolution records the explicit tie result. Outcome Bands replace a single pass/fail comparison with creator-defined ranges based on the attack result, defense result, or margin.",
+        fallback: "Comparison Method defines which side wins numerically. Attacker Wins Ties controls whether equality is included; when unchecked, equality favors the defender. Outcome Bands replace a single pass/fail comparison with creator-defined ranges based on the attack result, defense result, or margin.",
       },
       {
         key: "attackresolution.info.specifics.routes",
@@ -16115,7 +16115,9 @@ async function renderAttackMethod() {
     const standardNumberOfDice = data.standardNumberOfDice === true;
     const numberOfRolls = Math.max(1, Math.trunc(Number(data.numberOfRolls || 1)));
     const dieSides = Math.max(0, Math.trunc(Number(data.dieSides || 0)));
-    const numberOfDiceRolled = Math.max(1, Math.trunc(Number(data.numberOfDiceRolled || 1)));
+    const minimumDicePerRoll = standardNumberOfDice ? 1 : 0;
+    const numberOfDiceRolled = Math.max(minimumDicePerRoll, Math.trunc(Number(data.numberOfDiceRolled ?? minimumDicePerRoll)));
+    const singleRollModifier = Math.trunc(Number(data.singleRollModifier || 0));
     const availableDice = Array.from(new Set(
       (Array.isArray(data.diceUsed) ? data.diceUsed : [])
         .map((value) => Math.trunc(Number(value || 0)))
@@ -16161,8 +16163,15 @@ async function renderAttackMethod() {
             </div>
             <div class="field">
               <label for="attackMethodDiceRolled">${t("attackmethod.dice_per_roll", "Dice per Roll")}</label>
-              <input type="number" id="attackMethodDiceRolled" min="1" step="1" value="${numberOfDiceRolled}">
+              <input type="number" id="attackMethodDiceRolled" min="${minimumDicePerRoll}" step="1" value="${numberOfDiceRolled}">
               <span class="field-hint">${t("attackmethod.dice_per_roll.help", "How many of the selected die are rolled each time.")}</span>
+            </div>
+          </div>
+          <div class="grid two" id="attackMethodSingleRollModifierSettings">
+            <div class="field">
+              <label for="attackMethodSingleRollModifier">${t("attackmethod.single_roll_modifier", "Attack Roll Modifier")}</label>
+              <input type="number" id="attackMethodSingleRollModifier" step="1" value="${singleRollModifier}">
+              <span class="field-hint">${t("attackmethod.single_roll_modifier.help", "Added directly to the result when one die is rolled once. Enter a negative value for a penalty.")}</span>
             </div>
           </div>
           <h3>${t("attackmethod.pool.section", "Dice Count")}</h3>
@@ -16195,13 +16204,29 @@ async function renderAttackMethod() {
     const updateDiceSettings = () => {
       document.getElementById("attackMethodDiceSettings").hidden = !document.getElementById("attackMethodSharedDice").checked;
     };
-
+    const updateDiceCountMinimum = () => {
+      const diceInput = document.getElementById("attackMethodDiceRolled");
+      const fixedCount = document.getElementById("attackMethodFixedCount").checked;
+      diceInput.min = fixedCount ? "1" : "0";
+      if (fixedCount && Number(diceInput.value) < 1) {
+        diceInput.value = "1";
+      }
+    };
+    const updateSingleRollModifierVisibility = () => {
+      const numberOfCompleteRolls = Math.trunc(Number(document.getElementById("attackMethodNumberOfRolls").value || 0));
+      const dicePerRoll = Math.trunc(Number(document.getElementById("attackMethodDiceRolled").value || 0));
+      document.getElementById("attackMethodSingleRollModifierSettings").classList.toggle(
+        "hidden",
+        numberOfCompleteRolls !== 1 || dicePerRoll !== 1
+      );
+    };
     const readSelection = () => ({
       diceRolled: document.getElementById("attackMethodSharedDice").checked,
       standardNumberOfDice: document.getElementById("attackMethodFixedCount").checked,
       numberOfRolls: Math.max(0, Math.trunc(Number(document.getElementById("attackMethodNumberOfRolls").value || 0))),
       dieSides: Math.max(0, Math.trunc(Number(document.getElementById("attackMethodDieSides").value || 0))),
       numberOfDiceRolled: Math.max(0, Math.trunc(Number(document.getElementById("attackMethodDiceRolled").value || 0))),
+      singleRollModifier: Math.trunc(Number(document.getElementById("attackMethodSingleRollModifier").value || 0)),
     });
 
     let savePromise = Promise.resolve(true);
@@ -16228,24 +16253,34 @@ async function renderAttackMethod() {
     });
     document.querySelectorAll('input[name="attackMethodDiceCount"]').forEach((input) => {
       input.addEventListener("change", () => {
+        updateDiceCountMinimum();
+        updateSingleRollModifierVisibility();
         void saveSelection();
       });
     });
     ["attackMethodDieSides", "attackMethodNumberOfRolls", "attackMethodDiceRolled"].forEach((id) => {
       document.getElementById(id).addEventListener("change", () => {
+        updateSingleRollModifierVisibility();
         void saveSelection();
       });
+    });
+    document.getElementById("attackMethodSingleRollModifier").addEventListener("change", () => {
+      void saveSelection();
     });
     document.getElementById("backToHP").addEventListener("click", navigateBackInApp);
     document.getElementById("attackMethodContinue").addEventListener("click", async () => {
       const selected = readSelection();
       if (
         selected.diceRolled
-        && (selected.dieSides <= 0 || selected.numberOfRolls <= 0 || selected.numberOfDiceRolled <= 0)
+        && (
+          selected.dieSides <= 0
+          || selected.numberOfRolls <= 0
+          || (selected.standardNumberOfDice && selected.numberOfDiceRolled <= 0)
+        )
       ) {
         showToast(t(
           "attackmethod.validation.dice",
-          "Choose a die and enter at least one roll and one die per roll."
+          "Choose a die and enter at least one roll. A fixed dice count requires at least one die; an adjustable pool may start at zero."
         ));
         return;
       }
@@ -16255,6 +16290,7 @@ async function renderAttackMethod() {
     });
 
     updateDiceSettings();
+    updateSingleRollModifierVisibility();
   } catch (error) {
     showToast(error.message);
   }
@@ -16462,6 +16498,257 @@ async function renderDefense() {
   }
 }
 
+function renderSingleRollPassiveAttackResolution(data) {
+  const attackMethod = data.attackMethod || {};
+  const defenseMethod = data.defenseMethod || {};
+  const attackRollDirection = data.attackRollDirection === "under" ? "under" : "over";
+  const attackerWinsTies = data.attackerWinsTies === true;
+  const targetValueIsDefenseValue = data.targetValueIsDefenseValue !== false;
+  const attackSourceRoutes = (Array.isArray(data.attackSourceRoutes) ? data.attackSourceRoutes : []).map((route) => ({
+    id: String(route.id || ""),
+    name: String(route.name || ""),
+    sourceKind: String(route.sourceKind || "other"),
+    sourceCollectionKey: String(route.sourceCollectionKey || ""),
+    sourceReferenceId: String(route.sourceReferenceId || ""),
+    description: String(route.description || ""),
+  }));
+  let outcomeBands = (Array.isArray(data.outcomeBands) ? data.outcomeBands : []).map((band) => ({
+    minimumValue: Math.trunc(Number(band.minimumValue || 0)),
+    maximumValue: Math.trunc(Number(band.maximumValue || 0)),
+    outcomeKey: String(band.outcomeKey || ""),
+    name: String(band.name || ""),
+    description: String(band.description || ""),
+  }));
+  const dieSides = Math.max(0, Math.trunc(Number(attackMethod.dieSides || 0)));
+  const singleRollModifier = Math.trunc(Number(attackMethod.singleRollModifier || 0));
+  const attackSummary = singleRollModifier === 0
+    ? t("attackresolution.initial.attack.single", "One d{die} roll").replace("{die}", String(dieSides))
+    : t("attackresolution.initial.attack.single_modifier", "One d{die} roll {modifier}")
+        .replace("{die}", String(dieSides))
+        .replace("{modifier}", singleRollModifier > 0 ? `+${singleRollModifier}` : String(singleRollModifier));
+  const passiveDefenseValue = Math.trunc(Number(defenseMethod.passiveDefenseValue || 0));
+  const defenseSummary = defenseMethod.standardDefenseValue === true
+    ? t("attackresolution.initial.defense.final", "Final passive defense: {value}").replace("{value}", String(passiveDefenseValue))
+    : t("attackresolution.initial.defense.base", "Adjustable passive defense, base {value}").replace("{value}", String(passiveDefenseValue));
+  const renderAttackChartRows = () => outcomeBands.length
+    ? outcomeBands.map((band, index) => renderCollectionRow(
+        `<span><strong>${escapeHtml(band.name || band.outcomeKey || t("attackresolution.chart.untitled", "Untitled chart result"))}</strong> <span class="badge">${band.minimumValue}&ndash;${band.maximumValue}</span><br><span class="field-hint">${escapeHtml(band.outcomeKey)}</span></span>`,
+        [collectionEditAction("edit-attack-chart-band", index), collectionRemoveAction("remove-attack-chart-band", index)]
+      )).join("")
+    : `<div class="empty-state">${t("attackresolution.chart.none", "No attack chart entries yet.")}</div>`;
+
+  view.innerHTML = `
+    <section class="panel">
+      <h1>${t("attackresolution.title", "Attack Resolution")}</h1>
+      <div class="mechanic-settings-section">
+        <h2>${t("attackresolution.initial.inputs", "Current Attack and Defense")}</h2>
+        <div class="grid two">
+          <div class="field"><strong>${t("attackresolution.initial.attack", "Attack")}</strong><span class="field-hint">${escapeHtml(attackSummary)}</span></div>
+          <div class="field"><strong>${t("attackresolution.initial.defense", "Defense")}</strong><span class="field-hint">${escapeHtml(defenseSummary)}</span></div>
+        </div>
+      </div>
+
+      <div class="mechanic-system-choice">
+        <h2>${t("attackresolution.initial.direction", "How is the attack roll evaluated?")}</h2>
+        <label class="mechanic-radio-option" for="resolutionRollOver">
+          <input type="radio" name="attackRollDirection" id="resolutionRollOver" value="over" ${attackRollDirection === "over" ? "checked" : ""}>
+          <span><strong id="resolutionRollOverLabel">${attackerWinsTies ? t("attackresolution.initial.over_equal", "Roll target value or over") : t("attackresolution.initial.over", "Roll over target value")}</strong></span>
+        </label>
+        <label class="mechanic-radio-option" for="resolutionRollUnder">
+          <input type="radio" name="attackRollDirection" id="resolutionRollUnder" value="under" ${attackRollDirection === "under" ? "checked" : ""}>
+          <span><strong id="resolutionRollUnderLabel">${attackerWinsTies ? t("attackresolution.initial.under_equal", "Roll target value or under") : t("attackresolution.initial.under", "Roll under target value")}</strong></span>
+        </label>
+      </div>
+
+      <div class="mechanic-settings-section" id="attackResolutionEqualitySettings">
+        <h2>${t("attackresolution.equality.section", "Equality")}</h2>
+        <label class="mechanic-radio-option" for="resolutionAttackerWinsTies">
+          <input type="checkbox" id="resolutionAttackerWinsTies" ${attackerWinsTies ? "checked" : ""}>
+          <span><strong>${t("attackresolution.equality.attacker", "Attacker wins ties")}</strong><span class="field-hint">${t("attackresolution.equality.help", "When unchecked, equal attack and target values favor the defender.")}</span></span>
+        </label>
+      </div>
+
+      <div class="mechanic-settings-section">
+        <label class="mechanic-radio-option" for="resolutionTargetIsDefense">
+          <input type="checkbox" id="resolutionTargetIsDefense" ${targetValueIsDefenseValue ? "checked" : ""}>
+          <span><strong>${t("attackresolution.initial.target_defense", "Target value is Defense value")}</strong><span class="field-hint">${t("attackresolution.initial.target_defense.help", "When selected, compare the attack roll directly to the defender's generated Defense value.")}</span></span>
+        </label>
+      </div>
+
+      <div class="mechanic-settings-section" id="attackResolutionChartSettings">
+        <h2>${t("attackresolution.chart.section", "Attack Chart")}</h2>
+        <p class="field-hint">${t("attackresolution.chart.help", "Map attack-roll ranges to named results when the roll is resolved through a chart instead of directly against Defense.")}</p>
+        <button class="btn secondary collection-add-button" id="addAttackChartBand" type="button">${t("attackresolution.chart.add", "Add Attack Chart Entry")}</button>
+        <div class="list">${renderAttackChartRows()}</div>
+      </div>
+
+      <div class="actions-row"><div class="left"><button class="btn ghost" id="backToDefense" type="button">${t("setup.back", "Back")}</button></div><div class="right"><button class="btn" id="resolutionContinue" type="button">${t("common.continue", "Continue")}</button></div></div>
+    </section>
+
+    <div class="modal hidden" id="attackChartModal" role="dialog" aria-modal="true" aria-labelledby="attackChartModalTitle">
+      <div class="modal-card wide">
+        <h3 id="attackChartModalTitle"></h3>
+        <div class="grid two">
+          <div class="field"><label for="attackChartMinimum">${t("attackresolution.chart.minimum", "Minimum Roll")}</label><input type="number" id="attackChartMinimum" step="1"></div>
+          <div class="field"><label for="attackChartMaximum">${t("attackresolution.chart.maximum", "Maximum Roll")}</label><input type="number" id="attackChartMaximum" step="1"></div>
+          <div class="field"><label for="attackChartKey">${t("attackresolution.chart.key", "Result Key")}</label><input type="text" id="attackChartKey" maxlength="80"></div>
+          <div class="field"><label for="attackChartName">${t("attackresolution.chart.name", "Result Name")}</label><input type="text" id="attackChartName" maxlength="120"></div>
+        </div>
+        <div class="field"><label for="attackChartDescription">${t("common.description", "Description")}</label><textarea id="attackChartDescription" rows="5" maxlength="4000"></textarea></div>
+        <div class="modal-actions"><button class="btn ghost" id="attackChartCancel" type="button">${t("common.cancel", "Cancel")}</button><button class="btn" id="attackChartSave" type="button">${t("common.save", "Save")}</button></div>
+      </div>
+    </div>
+  `;
+
+  const selectedDirection = () => String(document.querySelector('input[name="attackRollDirection"]:checked')?.value || "over");
+  const updateDirectionLabels = () => {
+    const includesEquality = document.getElementById("resolutionAttackerWinsTies").checked;
+    document.getElementById("resolutionRollOverLabel").textContent = includesEquality
+      ? t("attackresolution.initial.over_equal", "Roll target value or over")
+      : t("attackresolution.initial.over", "Roll over target value");
+    document.getElementById("resolutionRollUnderLabel").textContent = includesEquality
+      ? t("attackresolution.initial.under_equal", "Roll target value or under")
+      : t("attackresolution.initial.under", "Roll under target value");
+  };
+  const updateVisibility = () => {
+    const usesDefenseTarget = document.getElementById("resolutionTargetIsDefense").checked;
+    document.getElementById("attackResolutionChartSettings").hidden = usesDefenseTarget;
+    document.getElementById("attackResolutionEqualitySettings").hidden = !usesDefenseTarget;
+  };
+  const readSelection = () => ({
+    resolutionMode: "attack_vs_passive",
+    comparisonMethod: String(data.comparisonMethod || "meet_or_exceed"),
+    attackerWinsTies: document.getElementById("resolutionAttackerWinsTies").checked,
+    attackRollDirection: selectedDirection(),
+    targetValueIsDefenseValue: document.getElementById("resolutionTargetIsDefense").checked,
+    outcomeMetric: String(data.outcomeMetric || "attack_result"),
+    automaticOutcomeKey: String(data.automaticOutcomeKey || "contact"),
+    defaultAttackSourceRouteId: String(data.defaultAttackSourceRouteId || ""),
+    attackSourceRoutes: attackSourceRoutes.map((route) => ({ ...route })),
+    outcomeBands: outcomeBands.map((band) => ({ ...band })),
+  });
+  let savePromise = Promise.resolve(true);
+  const saveSelection = (rerender = false) => {
+    const selected = readSelection();
+    savePromise = savePromise.catch(() => false).then(async () => {
+      try {
+        await api("POST", `/api/drafts/${state.draftId}/attack-resolution`, selected);
+        markSaved(t("web.toast.attack_resolution_updated", "Attack resolution updated"));
+        if (rerender) {
+          await renderAttackResolution();
+        }
+        return true;
+      } catch (error) {
+        showToast(error.message);
+        return false;
+      }
+    });
+    return savePromise;
+  };
+
+  document.querySelectorAll('input[name="attackRollDirection"]').forEach((input) => input.addEventListener("change", () => {
+    void saveSelection();
+  }));
+  document.getElementById("resolutionAttackerWinsTies").addEventListener("change", () => {
+    updateDirectionLabels();
+    void saveSelection();
+  });
+  document.getElementById("resolutionTargetIsDefense").addEventListener("change", () => {
+    updateVisibility();
+    void saveSelection();
+  });
+
+  const chartModal = document.getElementById("attackChartModal");
+  document.getElementById("attackChartCancel").addEventListener("click", () => chartModal.classList.add("hidden"));
+  const openChartModal = (index = -1) => {
+    const editing = index >= 0;
+    const band = editing ? outcomeBands[index] : { minimumValue: 0, maximumValue: 0, outcomeKey: "", name: "", description: "" };
+    document.getElementById("attackChartModalTitle").textContent = editing ? t("attackresolution.chart.edit", "Edit Attack Chart Entry") : t("attackresolution.chart.add", "Add Attack Chart Entry");
+    document.getElementById("attackChartMinimum").value = String(band.minimumValue);
+    document.getElementById("attackChartMaximum").value = String(band.maximumValue);
+    document.getElementById("attackChartKey").value = band.outcomeKey;
+    document.getElementById("attackChartName").value = band.name;
+    document.getElementById("attackChartDescription").value = band.description;
+    chartModal.classList.remove("hidden");
+    window.requestAnimationFrame(() => document.getElementById("attackChartMinimum").focus());
+    document.getElementById("attackChartSave").onclick = async () => {
+      const minimumValue = Number(document.getElementById("attackChartMinimum").value);
+      const maximumValue = Number(document.getElementById("attackChartMaximum").value);
+      const outcomeKey = document.getElementById("attackChartKey").value.trim().toLowerCase();
+      if (!Number.isInteger(minimumValue) || !Number.isInteger(maximumValue) || minimumValue > maximumValue) {
+        showToast(t("attackresolution.validation.chart_range", "Enter a whole-number minimum roll that is not greater than the maximum roll."));
+        return;
+      }
+      if (!/^[a-z0-9][a-z0-9_-]*$/.test(outcomeKey)) {
+        showToast(t("attackresolution.validation.chart_key", "Enter a unique result key using letters, numbers, hyphens, or underscores."));
+        return;
+      }
+      if (outcomeBands.some((entry, bandIndex) => bandIndex !== index && entry.outcomeKey.toLowerCase() === outcomeKey)) {
+        showToast(t("attackresolution.validation.chart_unique", "Each attack chart entry needs a unique result key."));
+        return;
+      }
+      if (outcomeBands.some((entry, bandIndex) => bandIndex !== index && minimumValue <= entry.maximumValue && maximumValue >= entry.minimumValue)) {
+        showToast(t("attackresolution.validation.chart_overlap", "Attack chart ranges may not overlap."));
+        return;
+      }
+      const nextBand = {
+        minimumValue,
+        maximumValue,
+        outcomeKey,
+        name: document.getElementById("attackChartName").value.trim(),
+        description: document.getElementById("attackChartDescription").value,
+      };
+      if (editing) {
+        outcomeBands[index] = nextBand;
+      } else {
+        outcomeBands.push(nextBand);
+      }
+      outcomeBands.sort((left, right) => left.minimumValue - right.minimumValue);
+      document.getElementById("attackChartSave").disabled = true;
+      if (await saveSelection(true)) {
+        chartModal.classList.add("hidden");
+      } else {
+        document.getElementById("attackChartSave").disabled = false;
+      }
+    };
+  };
+  document.getElementById("addAttackChartBand").addEventListener("click", () => openChartModal());
+  document.querySelectorAll("[data-edit-attack-chart-band]").forEach((button) => button.addEventListener("click", () => openChartModal(Number(button.dataset.editAttackChartBand))));
+  document.querySelectorAll("[data-remove-attack-chart-band]").forEach((button) => button.addEventListener("click", async () => {
+    const index = Number(button.dataset.removeAttackChartBand);
+    if (!await showConfirm(t("attackresolution.chart.remove_confirm", "Remove this attack chart entry?"), t("common.remove", "Remove"))) {
+      return;
+    }
+    outcomeBands.splice(index, 1);
+    await saveSelection(true);
+  }));
+
+  document.getElementById("backToDefense").addEventListener("click", navigateBackInApp);
+  document.getElementById("resolutionContinue").addEventListener("click", async () => {
+    const selected = readSelection();
+    if (!selected.targetValueIsDefenseValue) {
+      const sortedBands = selected.outcomeBands.slice().sort((left, right) => left.minimumValue - right.minimumValue);
+      const outcomeKeys = new Set();
+      const validBands = sortedBands.length > 0 && sortedBands.every((band, index) => {
+        const previousBand = index > 0 ? sortedBands[index - 1] : null;
+        if (!band.outcomeKey || outcomeKeys.has(band.outcomeKey)) {
+          return false;
+        }
+        outcomeKeys.add(band.outcomeKey);
+        return !previousBand || band.minimumValue > previousBand.maximumValue;
+      });
+      if (!validBands) {
+        showToast(t("attackresolution.validation.chart", "Add at least one valid, nonoverlapping attack chart entry before continuing."));
+        return;
+      }
+    }
+    if (await saveSelection()) {
+      navigateToNextBuilderStep("attack-resolution");
+    }
+  });
+  updateVisibility();
+}
+
 async function renderAttackResolution() {
   if (!ensureDraft()) {
     return;
@@ -16474,8 +16761,9 @@ async function renderAttackResolution() {
     const resolutionMode = validModes.includes(data.resolutionMode) ? data.resolutionMode : "automatic";
     const validComparisons = ["meet_or_exceed", "exceed", "lower_wins", "success_count", "outcome_bands"];
     const comparisonMethod = validComparisons.includes(data.comparisonMethod) ? data.comparisonMethod : "meet_or_exceed";
-    const validTieResolutions = ["attacker", "defender", "outcome"];
-    const tieResolution = validTieResolutions.includes(data.tieResolution) ? data.tieResolution : "defender";
+    const attackerWinsTies = data.attackerWinsTies === true;
+    const attackRollDirection = data.attackRollDirection === "under" ? "under" : "over";
+    const targetValueIsDefenseValue = data.targetValueIsDefenseValue !== false;
     const validOutcomeMetrics = ["attack_result", "defense_result", "margin"];
     const outcomeMetric = validOutcomeMetrics.includes(data.outcomeMetric) ? data.outcomeMetric : "margin";
     let defaultAttackSourceRouteId = String(data.defaultAttackSourceRouteId || "");
@@ -16494,6 +16782,21 @@ async function renderAttackResolution() {
       name: String(band.name || ""),
       description: String(band.description || ""),
     }));
+    const attackContext = data.attackMethod || {};
+    const defenseContext = data.defenseMethod || {};
+    const usesSingleRollPassiveView = attackContext.diceRolled === true
+      && Math.trunc(Number(attackContext.numberOfRolls || 0)) === 1
+      && Math.trunc(Number(attackContext.numberOfDiceRolled || 0)) === 1
+      && String(defenseContext.defenseMode || "") === "passive_value";
+    if (usesSingleRollPassiveView) {
+      renderSingleRollPassiveAttackResolution({
+        ...data,
+        attackRollDirection,
+        targetValueIsDefenseValue,
+        outcomeBands,
+      });
+      return;
+    }
     const sourceKindLabels = {
       attack_method: t("attackresolution.source.attack_method", "Attack Method"),
       card: t("attackresolution.source.card", "Card"),
@@ -16535,11 +16838,6 @@ async function renderAttackResolution() {
       ["success_count", t("attackresolution.comparison.successes", "Compare success counts")],
       ["outcome_bands", t("attackresolution.comparison.bands", "Resolve through outcome bands")],
     ].map(([value, label]) => `<option value="${value}"${value === comparisonMethod ? " selected" : ""}>${label}</option>`).join("");
-    const tieOptions = [
-      ["attacker", t("attackresolution.tie.attacker", "Attacker wins")],
-      ["defender", t("attackresolution.tie.defender", "Defender wins")],
-      ["outcome", t("attackresolution.tie.outcome", "Tie is its own outcome")],
-    ].map(([value, label]) => `<option value="${value}"${value === tieResolution ? " selected" : ""}>${label}</option>`).join("");
     const metricOptions = [
       ["attack_result", t("attackresolution.metric.attack", "Attack result")],
       ["defense_result", t("attackresolution.metric.defense", "Defense result")],
@@ -16565,10 +16863,15 @@ async function renderAttackResolution() {
         <div id="resolutionComparedSettings">
           <div class="mechanic-settings-section">
             <h2>${t("attackresolution.comparison.section", "Comparison")}</h2>
-            <div class="grid two">
-              <div class="field"><label for="resolutionComparisonMethod">${t("attackresolution.comparison.method", "Comparison Method")}</label><select id="resolutionComparisonMethod">${comparisonOptions}</select></div>
-              <div class="field"><label for="resolutionTie">${t("attackresolution.tie", "Tie Resolution")}</label><select id="resolutionTie">${tieOptions}</select></div>
-            </div>
+            <div class="field compact-field"><label for="resolutionComparisonMethod">${t("attackresolution.comparison.method", "Comparison Method")}</label><select id="resolutionComparisonMethod">${comparisonOptions}</select></div>
+          </div>
+
+          <div class="mechanic-settings-section" id="resolutionEqualitySettings">
+            <h2>${t("attackresolution.equality.section", "Equality")}</h2>
+            <label class="mechanic-radio-option" for="resolutionAttackerWinsTies">
+              <input type="checkbox" id="resolutionAttackerWinsTies" ${attackerWinsTies ? "checked" : ""}>
+              <span><strong>${t("attackresolution.equality.attacker", "Attacker wins ties")}</strong><span class="field-hint">${t("attackresolution.equality.help", "When unchecked, equal attack and target values favor the defender.")}</span></span>
+            </label>
           </div>
 
           <div class="mechanic-settings-section">
@@ -16625,12 +16928,15 @@ async function renderAttackResolution() {
       const automatic = selectedMode() === "automatic";
       document.getElementById("resolutionAutomaticSettings").hidden = !automatic;
       document.getElementById("resolutionComparedSettings").hidden = automatic;
+      document.getElementById("resolutionEqualitySettings").hidden = automatic || document.getElementById("resolutionComparisonMethod").value === "outcome_bands";
       document.getElementById("resolutionBandsSettings").hidden = automatic || document.getElementById("resolutionComparisonMethod").value !== "outcome_bands";
     };
     const readSelection = () => ({
       resolutionMode: selectedMode(),
       comparisonMethod: document.getElementById("resolutionComparisonMethod").value,
-      tieResolution: document.getElementById("resolutionTie").value,
+      attackerWinsTies: document.getElementById("resolutionAttackerWinsTies").checked,
+      attackRollDirection,
+      targetValueIsDefenseValue,
       outcomeMetric: document.getElementById("resolutionOutcomeMetric").value,
       automaticOutcomeKey: String(document.getElementById("resolutionAutomaticOutcome").value || "").trim().toLowerCase(),
       defaultAttackSourceRouteId,
@@ -16659,7 +16965,7 @@ async function renderAttackResolution() {
       updateVisibility();
       void saveSelection();
     }));
-    ["resolutionComparisonMethod", "resolutionTie", "resolutionOutcomeMetric", "resolutionAutomaticOutcome"].forEach((id) => {
+    ["resolutionComparisonMethod", "resolutionAttackerWinsTies", "resolutionOutcomeMetric", "resolutionAutomaticOutcome"].forEach((id) => {
       document.getElementById(id).addEventListener("change", () => {
         updateVisibility();
         void saveSelection();

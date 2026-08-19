@@ -3619,6 +3619,7 @@ public final class ApiRoutes {
             response.put("numberOfRolls", method.getNumberOfRolls());
             response.put("dieSides", method.getDieSides());
             response.put("numberOfDiceRolled", method.getNumberOfDiceRolled());
+            response.put("singleRollModifier", method.getSingleRollModifier());
             response.put("diceUsed", new ArrayList<>(game.getDiceUsed()));
             return response;
         });
@@ -3637,6 +3638,7 @@ public final class ApiRoutes {
         int numberOfRolls = Math.max(0, getInt(body, "numberOfRolls", 0));
         int dieSides = Math.max(0, getInt(body, "dieSides", 0));
         int numberOfDiceRolled = Math.max(0, getInt(body, "numberOfDiceRolled", 0));
+        int singleRollModifier = getInt(body, "singleRollModifier", 0);
 
         ctx.getDraftStore().updateDraft(draftId, game -> {
             AttackMethod method = game.getAttackMethod();
@@ -3645,6 +3647,7 @@ public final class ApiRoutes {
             method.setNumberOfRolls(numberOfRolls);
             method.setDieSides(dieSides);
             method.setNumberOfDiceRolled(numberOfDiceRolled);
+            method.setSingleRollModifier(singleRollModifier);
         });
         ctx.json(200, Map.of("ok", true));
     }
@@ -3733,12 +3736,28 @@ public final class ApiRoutes {
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("resolutionMode", method.getResolutionMode());
             response.put("comparisonMethod", method.getComparisonMethod());
-            response.put("tieResolution", method.getTieResolution());
+            response.put("attackerWinsTies", method.isAttackerWinsTies());
+            response.put("attackRollDirection", method.getAttackRollDirection());
+            response.put("targetValueIsDefenseValue", method.isTargetValueDefenseValue());
             response.put("outcomeMetric", method.getOutcomeMetric());
             response.put("automaticOutcomeKey", method.getAutomaticOutcomeKey());
             response.put("defaultAttackSourceRouteId", method.getDefaultAttackSourceRouteId());
             response.put("attackSourceRoutes", serializeAttackSourceRoutes(method));
             response.put("outcomeBands", serializeAttackOutcomeBands(method));
+            AttackMethod attackMethod = game.getAttackMethod();
+            Map<String, Object> attackContext = new LinkedHashMap<>();
+            attackContext.put("diceRolled", attackMethod.isDiceRolled());
+            attackContext.put("numberOfRolls", attackMethod.getNumberOfRolls());
+            attackContext.put("dieSides", attackMethod.getDieSides());
+            attackContext.put("numberOfDiceRolled", attackMethod.getNumberOfDiceRolled());
+            attackContext.put("singleRollModifier", attackMethod.getSingleRollModifier());
+            response.put("attackMethod", attackContext);
+            DefenseMethod defenseMethod = game.getDefenseMethod();
+            Map<String, Object> defenseContext = new LinkedHashMap<>();
+            defenseContext.put("defenseMode", defenseMethod.getDefenseMode());
+            defenseContext.put("standardDefenseValue", defenseMethod.isStandardDefenseValue());
+            defenseContext.put("passiveDefenseValue", defenseMethod.getPassiveDefenseValue());
+            response.put("defenseMethod", defenseContext);
             return response;
         });
         ctx.json(200, payload);
@@ -3753,7 +3772,15 @@ public final class ApiRoutes {
         Map<String, Object> body = ctx.readJsonMap();
         String resolutionMode = getString(body, "resolutionMode");
         String comparisonMethod = getString(body, "comparisonMethod");
-        String tieResolution = getString(body, "tieResolution");
+        boolean attackerWinsTies = body.containsKey("attackerWinsTies")
+            ? getBoolean(body, "attackerWinsTies", false)
+            : "attacker".equalsIgnoreCase(getString(body, "tieResolution"));
+        String attackRollDirection = getString(body, "attackRollDirection");
+        boolean targetValueIsDefenseValue = getBoolean(
+            body,
+            "targetValueIsDefenseValue",
+            true
+        );
         String outcomeMetric = getString(body, "outcomeMetric");
         String automaticOutcomeKey = getString(body, "automaticOutcomeKey");
         String defaultAttackSourceRouteId = getString(body, "defaultAttackSourceRouteId").trim();
@@ -3783,7 +3810,9 @@ public final class ApiRoutes {
             AttackResolution method = game.getAttackResolution();
             method.setResolutionMode(resolutionMode);
             method.setComparisonMethod(comparisonMethod);
-            method.setTieResolution(tieResolution);
+            method.setAttackerWinsTies(attackerWinsTies);
+            method.setAttackRollDirection(attackRollDirection);
+            method.setTargetValueIsDefenseValue(targetValueIsDefenseValue);
             method.setOutcomeMetric(outcomeMetric);
             method.setAutomaticOutcomeKey(automaticOutcomeKey);
             method.setAttackSourceRoutes(attackSourceRoutes);
