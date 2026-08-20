@@ -160,20 +160,40 @@ public final class CombatAutomatorFrame extends JFrame {
         String equality = resolution.isAttackerWinsTies()
             ? "attacker wins ties"
             : "defender wins ties";
+        boolean usesAttackPool = attack.getNumberOfDiceRolled() > 1;
+        String poolSummary = switch (resolution.getAttackPoolResolutionMethod()) {
+            case AttackResolution.POOL_RESOLUTION_HIGHEST_DIE -> "; use highest die";
+            case AttackResolution.POOL_RESOLUTION_LOWEST_DIE -> "; use lowest die";
+            case AttackResolution.POOL_RESOLUTION_SUM -> "; sum all dice";
+            default -> "; successes on " + resolution.getAttackPoolSuccessThreshold()
+                + (AttackResolution.ROLL_DIRECTION_UNDER.equals(
+                    resolution.getAttackRollDirection()
+                ) ? "-" : "+");
+        };
 
         fileValue.setText(file.getAbsolutePath());
         gameValue.setText(game.getName().isBlank() ? "Unnamed ruleset" : game.getName());
         attackValue.setText(
             attack.getNumberOfRolls() + " × "
                 + attack.getNumberOfDiceRolled() + "d" + attack.getDieSides()
-                + " " + modifier
+                + (usesAttackPool
+                    ? poolSummary
+                    : " " + modifier)
         );
         defenseValue.setText(
             defense.usesPassiveValue()
                 ? "Passive " + defense.getPassiveDefenseValue()
                 : defense.getDefenseMode()
         );
-        resolutionValue.setText(direction + "; " + equality);
+        resolutionValue.setText(
+            usesAttackPool
+                ? AttackResolution.POOL_RESOLUTION_SUCCESS_COUNT.equals(
+                    resolution.getAttackPoolResolutionMethod()
+                )
+                    ? "success count versus passive Defense; " + equality
+                    : direction + " pool value versus passive Defense; " + equality
+                : direction + "; " + equality
+        );
 
         String unsupportedReason = CombatRulesSupport.unsupportedReason(game);
         boolean supported = unsupportedReason.isEmpty();
@@ -189,12 +209,20 @@ public final class CombatAutomatorFrame extends JFrame {
 
     private void runCombatRound() {
         try {
-            AttackResolution.AttackResult round = consumer.run(loadedGame.orElseThrow());
+            Game game = loadedGame.orElseThrow();
+            AttackResolution.AttackResult round = consumer.run(game);
             AttackResolution.AttackSuccess success = round.attackSuccess();
+            boolean usedAttackPool = round.attack().rolls().size() == 1
+                && round.attack().rolls().get(0).size() > 1;
+            boolean usedSuccessCountPool = usedAttackPool
+                && AttackResolution.POOL_RESOLUTION_SUCCESS_COUNT.equals(
+                    game.getAttackResolution().getAttackPoolResolutionMethod()
+                );
             resultArea.setText(
                 "RESULT: " + resultLabel(success) + "\n\n"
                     + "Raw attack roll: " + round.attack().rolls() + "\n"
-                    + "Attack value:    " + round.attack().requireValue() + "\n"
+                    + (usedSuccessCountPool ? "Attack successes: " : "Attack value:    ")
+                    + round.attack().requireValue() + "\n"
                     + "Defense value:   " + round.defense().requireValue() + "\n"
                     + "Margin:          " + round.resolution().margin().orElse(0) + "\n"
                     + "Core result:     " + success

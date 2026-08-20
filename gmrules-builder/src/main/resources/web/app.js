@@ -16621,6 +16621,8 @@ function renderSingleRollPassiveAttackResolution(data) {
     attackerWinsTies: document.getElementById("resolutionAttackerWinsTies").checked,
     attackRollDirection: selectedDirection(),
     targetValueIsDefenseValue: document.getElementById("resolutionTargetIsDefense").checked,
+    attackPoolResolutionMethod: String(data.attackPoolResolutionMethod || "success_count"),
+    attackPoolSuccessThreshold: Math.max(0, Math.trunc(Number(data.attackPoolSuccessThreshold || 0))),
     outcomeMetric: String(data.outcomeMetric || "attack_result"),
     automaticOutcomeKey: String(data.automaticOutcomeKey || "contact"),
     defaultAttackSourceRouteId: String(data.defaultAttackSourceRouteId || ""),
@@ -16749,6 +16751,170 @@ function renderSingleRollPassiveAttackResolution(data) {
   updateVisibility();
 }
 
+function renderDicePoolPassiveAttackResolution(data) {
+  const attackMethod = data.attackMethod || {};
+  const defenseMethod = data.defenseMethod || {};
+  const dieSides = Math.max(0, Math.trunc(Number(attackMethod.dieSides || 0)));
+  const dicePerRoll = Math.max(0, Math.trunc(Number(attackMethod.numberOfDiceRolled || 0)));
+  const validPoolMethods = ["success_count", "highest_die", "lowest_die", "sum"];
+  const configuredPoolMethod = validPoolMethods.includes(data.attackPoolResolutionMethod)
+    ? data.attackPoolResolutionMethod
+    : "success_count";
+  const configuredThreshold = Math.max(0, Math.trunc(Number(data.attackPoolSuccessThreshold || 0)));
+  const passiveDefenseValue = Math.trunc(Number(defenseMethod.passiveDefenseValue || 0));
+  const attackSummary = t("attackresolution.pool.attack_summary", "One pool of {dice}d{die}")
+    .replace("{dice}", String(dicePerRoll))
+    .replace("{die}", String(dieSides));
+  const defenseSummary = defenseMethod.standardDefenseValue === true
+    ? t("attackresolution.initial.defense.final", "Final passive defense: {value}").replace("{value}", String(passiveDefenseValue))
+    : t("attackresolution.initial.defense.base", "Adjustable passive defense, base {value}").replace("{value}", String(passiveDefenseValue));
+  const attackSourceRoutes = (Array.isArray(data.attackSourceRoutes) ? data.attackSourceRoutes : []).map((route) => ({ ...route }));
+  const outcomeBands = (Array.isArray(data.outcomeBands) ? data.outcomeBands : []).map((band) => ({ ...band }));
+
+  view.innerHTML = `
+    <section class="panel">
+      <h1>${t("attackresolution.title", "Attack Resolution")}</h1>
+      <div class="mechanic-settings-section">
+        <h2>${t("attackresolution.initial.inputs", "Current Attack and Defense")}</h2>
+        <div class="grid two">
+          <div class="field"><strong>${t("attackresolution.initial.attack", "Attack")}</strong><span class="field-hint">${escapeHtml(attackSummary)}</span></div>
+          <div class="field"><strong>${t("attackresolution.initial.defense", "Defense")}</strong><span class="field-hint">${escapeHtml(defenseSummary)}</span></div>
+        </div>
+      </div>
+
+      <div class="mechanic-settings-section">
+        <h2>${t("attackresolution.pool.section", "How does the pool become one attack value?")}</h2>
+        <div class="field"><label for="attackPoolResolutionMethod">${t("attackresolution.pool.method", "Pool Resolution Method")}</label><select id="attackPoolResolutionMethod">
+          <option value="success_count" ${configuredPoolMethod === "success_count" ? "selected" : ""}>${t("attackresolution.pool.method.success_count", "Count successful dice")}</option>
+          <option value="highest_die" ${configuredPoolMethod === "highest_die" ? "selected" : ""}>${t("attackresolution.pool.method.highest_die", "Use the highest die")}</option>
+          <option value="lowest_die" ${configuredPoolMethod === "lowest_die" ? "selected" : ""}>${t("attackresolution.pool.method.lowest_die", "Use the lowest die")}</option>
+          <option value="sum" ${configuredPoolMethod === "sum" ? "selected" : ""}>${t("attackresolution.pool.method.sum", "Sum all dice")}</option>
+        </select></div>
+        <div class="field">
+          <label>${t("attackresolution.pool.direction", "Resolution Direction")}</label>
+          <label class="mechanic-radio-option" for="attackPoolRollOver">
+            <input type="radio" name="attackPoolRollDirection" id="attackPoolRollOver" value="over" ${data.attackRollDirection === "under" ? "" : "checked"}>
+            <span><strong>${t("attackresolution.pool.direction.over", "Higher results succeed")}</strong></span>
+          </label>
+          <label class="mechanic-radio-option" for="attackPoolRollUnder">
+            <input type="radio" name="attackPoolRollDirection" id="attackPoolRollUnder" value="under" ${data.attackRollDirection === "under" ? "checked" : ""}>
+            <span><strong>${t("attackresolution.pool.direction.under", "Lower results succeed")}</strong></span>
+          </label>
+          <span class="field-hint" id="attackPoolDirectionHelp"></span>
+        </div>
+        <div class="field" id="attackPoolThresholdField">
+          <label for="attackPoolSuccessThreshold" id="attackPoolThresholdLabel"></label>
+          <input type="number" id="attackPoolSuccessThreshold" min="1" max="${dieSides}" step="1" value="${configuredThreshold > 0 ? configuredThreshold : ""}">
+          <span class="field-hint" id="attackPoolThresholdHelp"></span>
+        </div>
+        <label class="mechanic-radio-option" for="attackPoolAttackerWinsTies">
+          <input type="checkbox" id="attackPoolAttackerWinsTies" ${data.attackerWinsTies !== false ? "checked" : ""}>
+          <span><strong>${t("attackresolution.equality.attacker", "Attacker wins ties")}</strong><span class="field-hint" id="attackPoolEqualityHelp"></span></span>
+        </label>
+      </div>
+
+      <div class="mechanic-settings-section">
+        <h2>${t("attackresolution.pool.result.section", "Resolve Against Defense")}</h2>
+        <p id="attackPoolResultHelp"></p>
+      </div>
+
+      <div class="actions-row"><div class="left"><button class="btn ghost" id="backToDefense" type="button">${t("setup.back", "Back")}</button></div><div class="right"><button class="btn" id="resolutionContinue" type="button">${t("common.continue", "Continue")}</button></div></div>
+    </section>
+  `;
+
+  const selectedDirection = () => String(document.querySelector('input[name="attackPoolRollDirection"]:checked')?.value || "over");
+  const readSelection = () => ({
+    resolutionMode: "attack_vs_passive",
+    comparisonMethod: String(data.comparisonMethod || "meet_or_exceed"),
+    attackerWinsTies: document.getElementById("attackPoolAttackerWinsTies").checked,
+    attackRollDirection: selectedDirection(),
+    targetValueIsDefenseValue: true,
+    attackPoolResolutionMethod: document.getElementById("attackPoolResolutionMethod").value,
+    attackPoolSuccessThreshold: Math.max(0, Math.trunc(Number(document.getElementById("attackPoolSuccessThreshold").value || 0))),
+    outcomeMetric: String(data.outcomeMetric || "attack_result"),
+    automaticOutcomeKey: String(data.automaticOutcomeKey || "contact"),
+    defaultAttackSourceRouteId: String(data.defaultAttackSourceRouteId || ""),
+    attackSourceRoutes,
+    outcomeBands,
+  });
+  let savePromise = Promise.resolve(true);
+  const saveSelection = () => {
+    const selected = readSelection();
+    savePromise = savePromise.catch(() => false).then(async () => {
+      try {
+        await api("POST", `/api/drafts/${state.draftId}/attack-resolution`, selected);
+        markSaved(t("web.toast.attack_resolution_updated", "Attack resolution updated"));
+        return true;
+      } catch (error) {
+        showToast(error.message);
+        return false;
+      }
+    });
+    return savePromise;
+  };
+
+  const updatePoolPresentation = () => {
+    const method = document.getElementById("attackPoolResolutionMethod").value;
+    const countsSuccesses = method === "success_count";
+    const rollUnder = selectedDirection() === "under";
+    const attackerWinsTies = document.getElementById("attackPoolAttackerWinsTies").checked;
+    document.getElementById("attackPoolThresholdField").hidden = !countsSuccesses;
+    if (countsSuccesses) {
+      document.getElementById("attackPoolDirectionHelp").textContent = t("attackresolution.pool.direction.success_count", "Direction determines whether each die must roll high or low. More counted successes are always better.");
+      document.getElementById("attackPoolThresholdLabel").textContent = rollUnder
+        ? t("attackresolution.pool.threshold.maximum", "Maximum Successful Roll")
+        : t("attackresolution.pool.threshold.minimum", "Minimum Successful Roll");
+      document.getElementById("attackPoolThresholdHelp").textContent = rollUnder
+        ? t("attackresolution.pool.threshold.help.under", "Each attack die that meets or falls below this number counts as one success.")
+        : t("attackresolution.pool.threshold.help.over", "Each attack die that meets or exceeds this number counts as one success.");
+      document.getElementById("attackPoolEqualityHelp").textContent = t("attackresolution.pool.equality.success_count", "When unchecked, the success count must exceed passive Defense.");
+      document.getElementById("attackPoolResultHelp").textContent = attackerWinsTies
+        ? t("attackresolution.pool.result.success_count_equal", "The attack succeeds when its success count meets or exceeds passive Defense.")
+        : t("attackresolution.pool.result.success_count_strict", "The attack succeeds only when its success count exceeds passive Defense.");
+      return;
+    }
+    document.getElementById("attackPoolDirectionHelp").textContent = t("attackresolution.pool.direction.value", "Direction compares the pool's derived attack value with passive Defense.");
+    document.getElementById("attackPoolEqualityHelp").textContent = rollUnder
+      ? t("attackresolution.pool.equality.under", "When unchecked, the derived attack value must be lower than passive Defense.")
+      : t("attackresolution.pool.equality.over", "When unchecked, the derived attack value must exceed passive Defense.");
+    document.getElementById("attackPoolResultHelp").textContent = rollUnder
+      ? attackerWinsTies
+        ? t("attackresolution.pool.result.value_under_equal", "The attack succeeds when its derived value meets or falls below passive Defense.")
+        : t("attackresolution.pool.result.value_under_strict", "The attack succeeds only when its derived value is lower than passive Defense.")
+      : attackerWinsTies
+        ? t("attackresolution.pool.result.value_over_equal", "The attack succeeds when its derived value meets or exceeds passive Defense.")
+        : t("attackresolution.pool.result.value_over_strict", "The attack succeeds only when its derived value exceeds passive Defense.");
+  };
+  document.getElementById("attackPoolResolutionMethod").addEventListener("change", () => {
+    updatePoolPresentation();
+    void saveSelection();
+  });
+  document.querySelectorAll('input[name="attackPoolRollDirection"]').forEach((input) => input.addEventListener("change", () => {
+    updatePoolPresentation();
+    void saveSelection();
+  }));
+  document.getElementById("attackPoolSuccessThreshold").addEventListener("change", () => {
+    void saveSelection();
+  });
+  document.getElementById("attackPoolAttackerWinsTies").addEventListener("change", () => {
+    updatePoolPresentation();
+    void saveSelection();
+  });
+  document.getElementById("backToDefense").addEventListener("click", navigateBackInApp);
+  document.getElementById("resolutionContinue").addEventListener("click", async () => {
+    const selected = readSelection();
+    if (selected.attackPoolResolutionMethod === "success_count"
+      && (selected.attackPoolSuccessThreshold <= 0 || selected.attackPoolSuccessThreshold > dieSides)) {
+      showToast(t("attackresolution.pool.validation.threshold", "Enter a minimum successful roll between 1 and the selected die's highest value."));
+      return;
+    }
+    if (await saveSelection()) {
+      navigateToNextBuilderStep("attack-resolution");
+    }
+  });
+  updatePoolPresentation();
+}
+
 async function renderAttackResolution() {
   if (!ensureDraft()) {
     return;
@@ -16764,6 +16930,10 @@ async function renderAttackResolution() {
     const attackerWinsTies = data.attackerWinsTies === true;
     const attackRollDirection = data.attackRollDirection === "under" ? "under" : "over";
     const targetValueIsDefenseValue = data.targetValueIsDefenseValue !== false;
+    const attackPoolResolutionMethod = ["success_count", "highest_die", "lowest_die", "sum"].includes(data.attackPoolResolutionMethod)
+      ? data.attackPoolResolutionMethod
+      : "success_count";
+    const attackPoolSuccessThreshold = Math.max(0, Math.trunc(Number(data.attackPoolSuccessThreshold || 0)));
     const validOutcomeMetrics = ["attack_result", "defense_result", "margin"];
     const outcomeMetric = validOutcomeMetrics.includes(data.outcomeMetric) ? data.outcomeMetric : "margin";
     let defaultAttackSourceRouteId = String(data.defaultAttackSourceRouteId || "");
@@ -16788,6 +16958,17 @@ async function renderAttackResolution() {
       && Math.trunc(Number(attackContext.numberOfRolls || 0)) === 1
       && Math.trunc(Number(attackContext.numberOfDiceRolled || 0)) === 1
       && String(defenseContext.defenseMode || "") === "passive_value";
+    const usesDicePoolPassiveView = attackContext.diceRolled === true
+      && Math.trunc(Number(attackContext.numberOfRolls || 0)) === 1
+      && Math.trunc(Number(attackContext.numberOfDiceRolled || 0)) > 1
+      && String(defenseContext.defenseMode || "") === "passive_value";
+    if (usesDicePoolPassiveView) {
+      renderDicePoolPassiveAttackResolution({
+        ...data,
+        attackPoolSuccessThreshold,
+      });
+      return;
+    }
     if (usesSingleRollPassiveView) {
       renderSingleRollPassiveAttackResolution({
         ...data,
@@ -16937,6 +17118,8 @@ async function renderAttackResolution() {
       attackerWinsTies: document.getElementById("resolutionAttackerWinsTies").checked,
       attackRollDirection,
       targetValueIsDefenseValue,
+      attackPoolResolutionMethod,
+      attackPoolSuccessThreshold,
       outcomeMetric: document.getElementById("resolutionOutcomeMetric").value,
       automaticOutcomeKey: String(document.getElementById("resolutionAutomaticOutcome").value || "").trim().toLowerCase(),
       defaultAttackSourceRouteId,

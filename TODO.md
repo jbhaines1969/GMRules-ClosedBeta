@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-08-15
+Updated: 2026-08-19
 
 ## Beta Launch Blockers
 
@@ -23,10 +23,14 @@ Updated: 2026-08-15
 3. [ ] Complete the Attack/Defense and Damage backend, including persistence and verification.
    - [x] Implement and persist `DefenseMethod` generation modes and source-neutral `AttackResolution` configuration.
    - [x] Add a standalone downstream-consumer audit module covering every current resolution mode, comparison, equality state, outcome metric, and source kind; preserve indeterminate findings rather than filling missing rules with hidden assumptions.
-   - [x] Move currently determinate resolution behavior into core `AttackResolution`: Game-bound Attack/Defense generation, section dispatch, direct over/under comparison, reusable equality, opposed/defender-only comparison, automatic contact, margin, routes, and core-owned runtime input/result contracts. Ordinary consumers make one no-argument `getAttackResult()` call; the lower-level APIs remain available for external generators and runtime values.
+   - [x] Move currently determinate resolution behavior into core `AttackResolution`: section dispatch, direct over/under comparison, reusable equality, opposed/defender-only comparison, automatic contact, margin, routes, and core-owned runtime input/result contracts. Ordinary consumers obtain complete values from the core Attack/Defense generators and pass them to `getAttackResult(...)`, preserving a presentation/reaction point before final resolution; lower-level APIs remain available for external runtime values.
    - [x] Move current Attack/Defense runtime generation into core. `AttackMethod` and `DefenseMethod` now return immutable `GeneratedValue` results, use a built-in random `DiceRoller`, accept an injected roller for deterministic consumers, and preserve indeterminate results where Resolution still lacks a reducer.
    - [x] Add a standalone combat-automator PoC that loads an exported `.gmrf`, reads the three core combat sections, and runs the supported one-roll/passive-defense path through a deliberately small consumer class.
    - [x] Add and run a non-overwriting example generator for the current PoC matrix: two differently valued `.gmrf` files for each over/under and attacker/defender-wins-ties combination, all carrying d4/d6/d8/d10/d20/d100 selections.
+- [x] Add the next focused Attack Resolution section: for one attack pool against passive Defense, count dice that meet an inclusive persisted threshold in the configured over/under direction, then compare the success count with the passive Defense requirement using the shared equality setting. More counted successes remain better in either die direction.
+- [x] Add highest- and lowest-die pool resolution against passive Defense, preserving the raw pool and applying the shared over/under direction plus attacker-wins-ties setting.
+- [x] Add summed pool resolution against passive Defense, preserving the raw pool and applying the shared over/under direction plus attacker-wins-ties setting. The one-die modifier remains intentionally limited to one die rolled once.
+   - [x] Keep multiple complete attacks outside Attack Resolution: core defines how one attack value is generated and resolved; combat, Skill, or other systems decide how many attacks occur and call the one-attack flow repeatedly.
    - [ ] Expand the preliminary core `GeneratedValue` contract and initial resolution result as needed so downstream damage and effects retain every generated and computed value.
    - [ ] Settle and implement Damage Calculation, Damage Mitigation, and Harm Resolution without folding soak, armor reduction, parry costs, or later result modifiers into initial attack/defense generation.
 4. [x] Integrate the attack/defense mechanics into the Rules Builder UI in staged review passes.
@@ -36,6 +40,8 @@ Updated: 2026-08-15
    - [x] Add Defense immediately after Attack Method with passive-value, active-roll, attack-adjustment, and no-accuracy-defense families. John has not yet launcher-smoked this screen.
    - [x] Add Attack Resolution immediately after Defense with comparison, equality, automatic-outcome, attack-source-route, and outcome-band configuration. John has not yet launcher-smoked this screen.
    - [x] Add the first input-aware Attack Resolution section for one attack die rolled once against passive Defense: roll over/under, reusable `Attacker wins ties`, a persisted `Target value is Defense value` checkbox, and a retained Attack Chart editor when the Defense target is unchecked. This focused view still needs John's launcher smoke; other input combinations intentionally retain the previous full screen until their sections are designed.
+   - [x] Add the focused one-roll attack-pool/passive-Defense section with a persisted inclusive Minimum Successful Roll and fixed success-count-versus-passive-Defense resolution. This focused view still needs John's launcher smoke.
+- [x] Extend the focused pool/passive-Defense section with Count successful dice, Use the highest die, Use the lowest die, and Sum all dice choices. Every method exposes roll over/under and the shared Attacker wins ties setting, defaulted on for new rulesets. Success-count direction controls the inclusive per-die threshold while the final count still treats more successes as better. This focused view still needs John's launcher smoke.
    - [ ] Perform the deferred combat-screen UI cleanup after the mechanics workflow has been exercised with real rules data.
 
 ## High Priority After First Invites

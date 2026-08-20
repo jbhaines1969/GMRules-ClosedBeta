@@ -3739,6 +3739,8 @@ public final class ApiRoutes {
             response.put("attackerWinsTies", method.isAttackerWinsTies());
             response.put("attackRollDirection", method.getAttackRollDirection());
             response.put("targetValueIsDefenseValue", method.isTargetValueDefenseValue());
+            response.put("attackPoolResolutionMethod", method.getAttackPoolResolutionMethod());
+            response.put("attackPoolSuccessThreshold", method.getAttackPoolSuccessThreshold());
             response.put("outcomeMetric", method.getOutcomeMetric());
             response.put("automaticOutcomeKey", method.getAutomaticOutcomeKey());
             response.put("defaultAttackSourceRouteId", method.getDefaultAttackSourceRouteId());
@@ -3781,6 +3783,8 @@ public final class ApiRoutes {
             "targetValueIsDefenseValue",
             true
         );
+        String attackPoolResolutionMethod = getString(body, "attackPoolResolutionMethod");
+        int attackPoolSuccessThreshold = getInt(body, "attackPoolSuccessThreshold", 0);
         String outcomeMetric = getString(body, "outcomeMetric");
         String automaticOutcomeKey = getString(body, "automaticOutcomeKey");
         String defaultAttackSourceRouteId = getString(body, "defaultAttackSourceRouteId").trim();
@@ -3813,6 +3817,8 @@ public final class ApiRoutes {
             method.setAttackerWinsTies(attackerWinsTies);
             method.setAttackRollDirection(attackRollDirection);
             method.setTargetValueIsDefenseValue(targetValueIsDefenseValue);
+            method.setAttackPoolResolutionMethod(attackPoolResolutionMethod);
+            method.setAttackPoolSuccessThreshold(attackPoolSuccessThreshold);
             method.setOutcomeMetric(outcomeMetric);
             method.setAutomaticOutcomeKey(automaticOutcomeKey);
             method.setAttackSourceRoutes(attackSourceRoutes);

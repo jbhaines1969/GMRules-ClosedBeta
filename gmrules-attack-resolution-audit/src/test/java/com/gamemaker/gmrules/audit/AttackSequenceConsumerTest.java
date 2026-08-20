@@ -61,6 +61,15 @@ class AttackSequenceConsumerTest {
         );
         assertEquals(
             Set.of(
+                AttackResolution.POOL_RESOLUTION_SUCCESS_COUNT,
+                AttackResolution.POOL_RESOLUTION_HIGHEST_DIE,
+                AttackResolution.POOL_RESOLUTION_LOWEST_DIE,
+                AttackResolution.POOL_RESOLUTION_SUM
+            ),
+            stringConstantsWithPrefix("POOL_RESOLUTION_")
+        );
+        assertEquals(
+            Set.of(
                 AttackResolution.OUTCOME_METRIC_ATTACK_RESULT,
                 AttackResolution.OUTCOME_METRIC_DEFENSE_RESULT,
                 AttackResolution.OUTCOME_METRIC_MARGIN
@@ -161,6 +170,206 @@ class AttackSequenceConsumerTest {
         assertEquals(List.of(List.of(2, 4, 6)), raw.rolls());
         assertEquals(AttackSequenceConsumer.Availability.INDETERMINATE, value.availability());
         assertEquals(AttackSequenceConsumer.REASON_ATTACK_POOL_REDUCER_MISSING, value.reason());
+    }
+
+    @Test
+    void attackResolutionCountsPoolDiceMeetingTheMinimumAgainstPassiveDefense() {
+        AttackMethod attack = attackDice(1, 4, 10);
+        attack.setSingleRollModifier(99);
+        GeneratedValue rawAttack = attack.generateAttackValue(roller(6, 7, 8, 10)::roll);
+        DefenseMethod defense = new DefenseMethod("Passive Defense");
+        defense.setDefenseMode(DefenseMethod.MODE_PASSIVE_VALUE);
+        defense.setStandardDefenseValue(true);
+        defense.setPassiveDefenseValue(3);
+        AttackResolution resolution = resolution(
+            AttackResolution.MODE_ATTACK_VS_PASSIVE,
+            AttackResolution.COMPARISON_MEET_OR_EXCEED,
+            true
+        );
+        resolution.setAttackPoolSuccessThreshold(7);
+
+        AttackResolution.AttackResult result = resolution.getAttackResult(
+            rawAttack,
+            defense.generateDefenseValue()
+        );
+
+        assertEquals(List.of(List.of(6, 7, 8, 10)), result.attack().rolls());
+        assertEquals(3, result.attack().requireValue());
+        assertEquals(3, result.defense().requireValue());
+        assertEquals(0, result.resolution().margin().orElseThrow());
+        assertEquals(AttackResolution.AttackSuccess.SUCCEEDED, result.attackSuccess());
+    }
+
+    @Test
+    void attackPoolFailsWhenItsSuccessCountIsBelowPassiveDefense() {
+        AttackMethod attack = attackDice(1, 3, 10);
+        DefenseMethod defense = new DefenseMethod("Passive Defense");
+        defense.setDefenseMode(DefenseMethod.MODE_PASSIVE_VALUE);
+        defense.setStandardDefenseValue(true);
+        defense.setPassiveDefenseValue(2);
+        AttackResolution resolution = resolution(
+            AttackResolution.MODE_ATTACK_VS_PASSIVE,
+            AttackResolution.COMPARISON_MEET_OR_EXCEED,
+            true
+        );
+        resolution.setAttackPoolSuccessThreshold(7);
+
+        AttackResolution.AttackResult result = resolution.getAttackResult(
+            attack.generateAttackValue(roller(6, 7, 3)::roll),
+            defense.generateDefenseValue()
+        );
+
+        assertEquals(1, result.attack().requireValue());
+        assertEquals(-1, result.resolution().margin().orElseThrow());
+        assertEquals(AttackResolution.AttackSuccess.FAILED, result.attackSuccess());
+    }
+
+    @Test
+    void highestDiePoolUsesAttackerWinsTiesByDefault() {
+        AttackMethod attack = attackDice(1, 4, 10);
+        DefenseMethod defense = new DefenseMethod("Passive Defense");
+        defense.setDefenseMode(DefenseMethod.MODE_PASSIVE_VALUE);
+        defense.setStandardDefenseValue(true);
+        defense.setPassiveDefenseValue(8);
+        AttackResolution resolution = new AttackResolution("Resolution");
+        resolution.setResolutionMode(AttackResolution.MODE_ATTACK_VS_PASSIVE);
+        resolution.setAttackPoolResolutionMethod(AttackResolution.POOL_RESOLUTION_HIGHEST_DIE);
+
+        AttackResolution.AttackResult result = resolution.getAttackResult(
+            attack.generateAttackValue(roller(2, 8, 5, 7)::roll),
+            defense.generateDefenseValue()
+        );
+
+        assertTrue(resolution.isAttackerWinsTies());
+        assertEquals(8, result.attack().requireValue());
+        assertEquals(List.of(List.of(2, 8, 5, 7)), result.attack().rolls());
+        assertEquals(AttackResolution.AttackSuccess.SUCCEEDED, result.attackSuccess());
+    }
+
+    @Test
+    void summedPoolUsesAttackerWinsTiesByDefault() {
+        AttackMethod attack = attackDice(1, 3, 6);
+        DefenseMethod defense = new DefenseMethod("Passive Defense");
+        defense.setDefenseMode(DefenseMethod.MODE_PASSIVE_VALUE);
+        defense.setStandardDefenseValue(true);
+        defense.setPassiveDefenseValue(9);
+        AttackResolution resolution = new AttackResolution("Resolution");
+        resolution.setResolutionMode(AttackResolution.MODE_ATTACK_VS_PASSIVE);
+        resolution.setAttackPoolResolutionMethod(AttackResolution.POOL_RESOLUTION_SUM);
+
+        AttackResolution.AttackResult result = resolution.getAttackResult(
+            attack.generateAttackValue(roller(2, 3, 4)::roll),
+            defense.generateDefenseValue()
+        );
+
+        assertTrue(resolution.isAttackerWinsTies());
+        assertEquals(9, result.attack().requireValue());
+        assertEquals(List.of(List.of(2, 3, 4)), result.attack().rolls());
+        assertEquals(AttackResolution.AttackSuccess.SUCCEEDED, result.attackSuccess());
+    }
+
+    @ParameterizedTest
+    @MethodSource("scalarPoolMethods")
+    void scalarPoolReducersHonorDirectionAndEquality(
+        String poolMethod,
+        List<Integer> rolls,
+        int expectedAttackValue
+    ) {
+        AttackMethod attack = attackDice(1, rolls.size(), 20);
+        GeneratedValue rawAttack = attack.evaluateAttackValue(
+            List.of(rolls),
+            OptionalInt.empty()
+        );
+        DefenseMethod defense = new DefenseMethod("Passive Defense");
+        defense.setDefenseMode(DefenseMethod.MODE_PASSIVE_VALUE);
+        defense.setStandardDefenseValue(true);
+        AttackResolution resolution = new AttackResolution("Resolution");
+        resolution.setResolutionMode(AttackResolution.MODE_ATTACK_VS_PASSIVE);
+        resolution.setAttackPoolResolutionMethod(poolMethod);
+
+        defense.setPassiveDefenseValue(expectedAttackValue);
+        for (String direction : List.of(
+            AttackResolution.ROLL_DIRECTION_OVER,
+            AttackResolution.ROLL_DIRECTION_UNDER
+        )) {
+            resolution.setAttackRollDirection(direction);
+            resolution.setAttackerWinsTies(true);
+            assertEquals(
+                AttackResolution.AttackSuccess.SUCCEEDED,
+                resolution.getAttackResult(rawAttack, defense.generateDefenseValue()).attackSuccess()
+            );
+
+            resolution.setAttackerWinsTies(false);
+            assertEquals(
+                AttackResolution.AttackSuccess.FAILED,
+                resolution.getAttackResult(rawAttack, defense.generateDefenseValue()).attackSuccess()
+            );
+        }
+
+        resolution.setAttackerWinsTies(false);
+        resolution.setAttackRollDirection(AttackResolution.ROLL_DIRECTION_OVER);
+        defense.setPassiveDefenseValue(expectedAttackValue - 1);
+        AttackResolution.AttackResult strictOver = resolution.getAttackResult(
+            rawAttack,
+            defense.generateDefenseValue()
+        );
+        resolution.setAttackRollDirection(AttackResolution.ROLL_DIRECTION_UNDER);
+        defense.setPassiveDefenseValue(expectedAttackValue + 1);
+        AttackResolution.AttackResult strictUnder = resolution.getAttackResult(
+            rawAttack,
+            defense.generateDefenseValue()
+        );
+
+        assertEquals(expectedAttackValue, strictOver.attack().requireValue());
+        assertEquals(List.of(rolls), strictOver.attack().rolls());
+        assertEquals(AttackResolution.AttackSuccess.SUCCEEDED, strictOver.attackSuccess());
+        assertEquals(AttackResolution.AttackSuccess.SUCCEEDED, strictUnder.attackSuccess());
+    }
+
+    @Test
+    void successCountPoolUsesInclusiveThresholdAndConfiguredEqualityInBothDirections() {
+        AttackMethod attack = attackDice(1, 4, 10);
+        GeneratedValue rawAttack = attack.generateAttackValue(roller(2, 4, 6, 8)::roll);
+        DefenseMethod defense = new DefenseMethod("Passive Defense");
+        defense.setDefenseMode(DefenseMethod.MODE_PASSIVE_VALUE);
+        defense.setStandardDefenseValue(true);
+        AttackResolution resolution = new AttackResolution("Resolution");
+        resolution.setResolutionMode(AttackResolution.MODE_ATTACK_VS_PASSIVE);
+        resolution.setAttackPoolResolutionMethod(AttackResolution.POOL_RESOLUTION_SUCCESS_COUNT);
+        resolution.setAttackPoolSuccessThreshold(4);
+
+        resolution.setAttackRollDirection(AttackResolution.ROLL_DIRECTION_UNDER);
+        defense.setPassiveDefenseValue(2);
+        resolution.setAttackerWinsTies(true);
+        AttackResolution.AttackResult inclusiveUnder = resolution.getAttackResult(
+            rawAttack,
+            defense.generateDefenseValue()
+        );
+        resolution.setAttackerWinsTies(false);
+        AttackResolution.AttackResult strictUnder = resolution.getAttackResult(
+            rawAttack,
+            defense.generateDefenseValue()
+        );
+
+        resolution.setAttackRollDirection(AttackResolution.ROLL_DIRECTION_OVER);
+        defense.setPassiveDefenseValue(3);
+        resolution.setAttackerWinsTies(true);
+        AttackResolution.AttackResult inclusiveOver = resolution.getAttackResult(
+            rawAttack,
+            defense.generateDefenseValue()
+        );
+        resolution.setAttackerWinsTies(false);
+        AttackResolution.AttackResult strictOver = resolution.getAttackResult(
+            rawAttack,
+            defense.generateDefenseValue()
+        );
+
+        assertEquals(2, inclusiveUnder.attack().requireValue());
+        assertEquals(AttackResolution.AttackSuccess.SUCCEEDED, inclusiveUnder.attackSuccess());
+        assertEquals(AttackResolution.AttackSuccess.FAILED, strictUnder.attackSuccess());
+        assertEquals(3, inclusiveOver.attack().requireValue());
+        assertEquals(AttackResolution.AttackSuccess.SUCCEEDED, inclusiveOver.attackSuccess());
+        assertEquals(AttackResolution.AttackSuccess.FAILED, strictOver.attackSuccess());
     }
 
     @Test
@@ -610,6 +819,8 @@ class AttackSequenceConsumerTest {
             new AttackResolution.OutcomeBand(1, 20, "result", "Result", "")
         ));
         resolution.setTargetValueIsDefenseValue(true);
+        resolution.setAttackPoolResolutionMethod(AttackResolution.POOL_RESOLUTION_HIGHEST_DIE);
+        resolution.setAttackPoolSuccessThreshold(7);
 
         AttackResolution restored;
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -623,6 +834,11 @@ class AttackSequenceConsumerTest {
         assertEquals(AttackResolution.ROLL_DIRECTION_UNDER, restored.getAttackRollDirection());
         assertTrue(restored.isAttackerWinsTies());
         assertTrue(restored.isTargetValueDefenseValue());
+        assertEquals(
+            AttackResolution.POOL_RESOLUTION_HIGHEST_DIE,
+            restored.getAttackPoolResolutionMethod()
+        );
+        assertEquals(7, restored.getAttackPoolSuccessThreshold());
         assertEquals("result", restored.getOutcomeBands().get(0).getOutcomeKey());
     }
 
@@ -886,6 +1102,26 @@ class AttackSequenceConsumerTest {
             }
             return remaining.remove();
         };
+    }
+
+    private static Stream<Arguments> scalarPoolMethods() {
+        return Stream.of(
+            Arguments.of(
+                AttackResolution.POOL_RESOLUTION_HIGHEST_DIE,
+                List.of(2, 8, 5),
+                8
+            ),
+            Arguments.of(
+                AttackResolution.POOL_RESOLUTION_LOWEST_DIE,
+                List.of(2, 8, 5),
+                2
+            ),
+            Arguments.of(
+                AttackResolution.POOL_RESOLUTION_SUM,
+                List.of(2, 3, 4),
+                9
+            )
+        );
     }
 
     private static Stream<Arguments> outcomeMetrics() {

@@ -1,6 +1,6 @@
 # GMRules Product Design Context
 
-Updated: 2026-08-15
+Updated: 2026-08-19
 
 ## Purpose
 
@@ -65,10 +65,12 @@ parallel mechanics engines. Databases, exports, reports, and derived spreadsheet
 are projections or extrapolations of core data rather than competing sources of
 rules truth.
 
-For example, a combat UI or video-game engine calls
-`game.getAttackResolution().getAttackResult()`. Core generates the Attack and
-Defense values, selects and executes the configured Resolution method, and returns
-the mechanical outcome. The descendant can display “Attack succeeded,” play a hit
+For example, a combat UI or video-game engine obtains complete values from the core
+Attack and Defense generators and passes them to
+`game.getAttackResolution().getAttackResult(attack, defense)`. This gives the
+descendant a point to present the attack or gather reactions before Defense and
+final resolution. Core still selects and executes the configured Resolution method
+and returns the mechanical outcome. The descendant can display “Attack succeeded,” play a hit
 animation, or begin its own success workflow without computing why the attack
 succeeded. The same boundary applies to future mechanics: core answers the rules
 question; descendants specialize the interface or automate what happens with the
@@ -114,7 +116,7 @@ Game Setup; Measurements; Dice Options; Attribute Categories; Attributes; Attrib
 
 The order establishes reusable concepts before content that references them. Attribute-generation detail screens follow Attributes because they may depend on the completed list. Damage Types precede Effects and gear so later entries can reference them. After reusable Effects, Skills comes before Advantages and Flaws because those character options may grant or limit Skills; Spells and Races continue the character-creation-first flow, followed by one-time Background packages and then advancing Classes. Equipment and Weapons finish the builder.
 
-Attack Method occupies the former Rules Builder Armor Class position, followed directly by Defense and Attack Resolution before Currency. Attack Method was launcher-smoked and accepted on 2026-08-11; its UI cleanup is intentionally deferred. Defense and Attack Resolution are implemented and awaiting visual review. For one attack die rolled once against passive Defense, Resolution now presents roll over/under, an independent `Attacker wins ties` checkbox, and a `Target value is Defense value` checkbox. Unchecking the Defense target hides equality and reveals the Attack Chart creator; switching back preserves both equality and chart draft data. Core binds `AttackMethod` and `DefenseMethod` to `AttackResolution`; a descendant calls no-argument `getAttackResult()` and reacts to the returned success/failure without generating values, selecting a section, or comparing results. Other input combinations retain the existing full Resolution screen until their focused sections are designed, with the same reusable equality checkbox in place of a method-specific tie selector. The legacy Armor Class API remains available only because the current Character Generator still uses it for its final defensive calculation.
+Attack Method occupies the former Rules Builder Armor Class position, followed directly by Defense and Attack Resolution before Currency. Attack Method was launcher-smoked and accepted on 2026-08-11; its UI cleanup is intentionally deferred. Defense and Attack Resolution are implemented and awaiting visual review. For one attack die rolled once against passive Defense, Resolution presents roll over/under, an independent `Attacker wins ties` checkbox, and a `Target value is Defense value` checkbox. Unchecking the Defense target hides equality and reveals the Attack Chart creator; switching back preserves both equality and chart draft data. For one attack dice pool rolled once against passive Defense, Resolution asks how the pool becomes one attack value: count dice meeting an inclusive over/under threshold, keep the highest die, keep the lowest die, or sum all dice. Every method exposes the shared direction and equality settings. For success count, direction applies to the per-die threshold while more counted successes remain better; equality controls the count-versus-Defense tie. For the three scalar reducers, direction and equality apply directly against passive Defense. A descendant obtains complete values from core `AttackMethod` and `DefenseMethod`, may present or react to them, and passes them to `AttackResolution`; core selects the section, performs the configured pool reduction, and resolves the comparison. Attack Resolution intentionally answers one attack; combat, Skill, or other systems decide how many attacks occur. Other input combinations retain the existing full Resolution screen until their focused sections are designed. The legacy Armor Class API remains available only because the current Character Generator still uses it for its final defensive calculation.
 
 Affected Systems is the user-facing term for reusable labels that identify the parts of the game, or recurring rule interactions, that actions, events, Effects, and Statuses may change or invoke. Its existing defaults remain examples rather than a closed taxonomy. The implementation and saved-data contract continue to use the internal `EffectType` name.
 

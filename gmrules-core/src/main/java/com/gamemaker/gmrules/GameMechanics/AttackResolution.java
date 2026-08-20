@@ -38,13 +38,12 @@ import java.util.UUID;
  * attack-supplied threat, or resolve contact automatically. Comparison and outcome
  * configuration is independent of how either side generated its values.</p>
  *
- * <p>This class is the ruleset source of truth for generating attack and defense
- * values and turning them into an attack result. The owning {@code Game} binds
- * its configured generators so ordinary consumers call
- * {@link #getAttackResult()} with no arguments. Lower-level integrations may still
- * supply generators or runtime values directly. Consumers apply the returned
- * success, failure, or creator-defined outcome without recreating rules
- * calculations or selecting a resolution section.</p>
+ * <p>This class is the ruleset source of truth for turning core-generated attack
+ * and defense values into an attack result. Consumers ask {@link AttackMethod}
+ * and {@link DefenseMethod} to generate their values, may present or react to
+ * those intermediate results, and then pass both {@link GeneratedValue} objects
+ * to {@link #getAttackResult(GeneratedValue, GeneratedValue)}. Consumers do not
+ * recreate generation formulas, comparisons, or resolution-section selection.</p>
  */
 public class AttackResolution extends GameElement {
 
@@ -65,6 +64,11 @@ public class AttackResolution extends GameElement {
     public static final String ROLL_DIRECTION_OVER = "over";
     public static final String ROLL_DIRECTION_UNDER = "under";
 
+    public static final String POOL_RESOLUTION_SUCCESS_COUNT = "success_count";
+    public static final String POOL_RESOLUTION_HIGHEST_DIE = "highest_die";
+    public static final String POOL_RESOLUTION_LOWEST_DIE = "lowest_die";
+    public static final String POOL_RESOLUTION_SUM = "sum";
+
     public static final String OUTCOME_METRIC_ATTACK_RESULT = "attack_result";
     public static final String OUTCOME_METRIC_DEFENSE_RESULT = "defense_result";
     public static final String OUTCOME_METRIC_MARGIN = "margin";
@@ -82,23 +86,25 @@ public class AttackResolution extends GameElement {
         "No configured attack-chart entry includes the generated attack value.";
     public static final String REASON_OUTCOME_BAND_MISSING =
         "No configured OutcomeBand includes the calculated metric.";
+    public static final String REASON_ATTACK_POOL_THRESHOLD_MISSING =
+        "AttackResolution requires a minimum successful roll for attack pools.";
 
     private String resolutionMode = MODE_AUTOMATIC;
     private String comparisonMethod = COMPARISON_MEET_OR_EXCEED;
     /** Retained only so older serialized rulesets can migrate their tie setting. */
     private String tieResolution = "";
-    private boolean attackerWinsTies = false;
+    private boolean attackerWinsTies = true;
     private boolean equalityHandlingConfigured = true;
     private String attackRollDirection = ROLL_DIRECTION_OVER;
     private boolean targetValueIsDefenseValue = true;
     private boolean initialResolutionSelectionConfigured = true;
+    private String attackPoolResolutionMethod = POOL_RESOLUTION_SUCCESS_COUNT;
+    private int attackPoolSuccessThreshold = 0;
     private String outcomeMetric = OUTCOME_METRIC_MARGIN;
     private String automaticOutcomeKey = "contact";
     private ArrayList<AttackSourceRoute> attackSourceRoutes = new ArrayList<>();
     private String defaultAttackSourceRouteId = "";
     private ArrayList<OutcomeBand> outcomeBands = new ArrayList<>();
-    private transient Optional<AttackMethod> runtimeAttackMethod = Optional.empty();
-    private transient Optional<DefenseMethod> runtimeDefenseMethod = Optional.empty();
 
     // *** CONSTRUCTORS ***
     public AttackResolution(String name) {
@@ -177,6 +183,29 @@ public class AttackResolution extends GameElement {
     public void setTargetValueIsDefenseValue(boolean targetValueIsDefenseValue) {
         this.targetValueIsDefenseValue = targetValueIsDefenseValue;
         initialResolutionSelectionConfigured = true;
+    }
+
+    public String getAttackPoolResolutionMethod() {
+        return attackPoolResolutionMethod;
+    }
+
+    public void setAttackPoolResolutionMethod(String attackPoolResolutionMethod) {
+        this.attackPoolResolutionMethod = normalizeAttackPoolResolutionMethod(
+            attackPoolResolutionMethod
+        );
+    }
+
+    /**
+     * Returns the inclusive per-die threshold used to count attack-pool successes.
+     * It is a minimum for roll-over attacks and a maximum for roll-under attacks.
+     */
+    public int getAttackPoolSuccessThreshold() {
+        return attackPoolSuccessThreshold;
+    }
+
+    /** Zero represents an attack-pool threshold that has not been configured yet. */
+    public void setAttackPoolSuccessThreshold(int attackPoolSuccessThreshold) {
+        this.attackPoolSuccessThreshold = Math.max(0, attackPoolSuccessThreshold);
     }
 
     public String getOutcomeMetric() {
@@ -302,92 +331,166 @@ public class AttackResolution extends GameElement {
 
     // === RUNTIME RESOLUTION ===
 
-    /**
-     * Binds this configuration to its owning Game's generators. Game maintains
-     * this transient runtime relationship; it is not part of ruleset persistence.
-     */
-    public void bindRuntimeGenerators(
-        AttackMethod attackMethod,
-        DefenseMethod defenseMethod
-    ) {
-        runtimeAttackMethod = Optional.of(Objects.requireNonNull(attackMethod, "attackMethod"));
-        runtimeDefenseMethod = Optional.of(Objects.requireNonNull(defenseMethod, "defenseMethod"));
-    }
-
-    /** Generates and resolves one attack using the generators bound by the owning Game. */
-    public AttackResult getAttackResult() {
-        return getAttackResult(DiceRoller.random(), DiceRoller.random());
-    }
-
-    /** Deterministic form of {@link #getAttackResult()} for tests and language bridges. */
+    /** Resolves caller-obtained core attack and defense values through the configured section. */
     public AttackResult getAttackResult(
-        DiceRoller attackDiceRoller,
-        DiceRoller defenseDiceRoller
+        GeneratedValue attack,
+        GeneratedValue defense
     ) {
-        AttackMethod attackMethod = runtimeAttackMethod.orElseThrow(
-            () -> new IllegalStateException(
-                "AttackResolution must be obtained from its owning Game before resolving an attack."
+        return getAttackResult("", attack, defense);
+    }
+
+    /**
+     * Resolves caller-obtained values for an explicitly selected attack-source route.
+     * A blank or unknown route id uses only the configured default fallback.
+     */
+    public AttackResult getAttackResult(
+        String requestedRouteId,
+        GeneratedValue attack,
+        GeneratedValue defense
+    ) {
+        GeneratedValue safeAttack = Objects.requireNonNull(attack, "attack");
+        GeneratedValue safeDefense = Objects.requireNonNull(defense, "defense");
+        if (usesAttackPoolAgainstPassiveDefense(safeAttack)) {
+            GeneratedValue reducedAttack = reduceAttackPool(safeAttack);
+            int passiveDefense = requireValue(
+                safeDefense.value(),
+                "passive defense value"
+            );
+            ResolutionResult resolution = POOL_RESOLUTION_SUCCESS_COUNT.equals(
+                attackPoolResolutionMethod
             )
-        );
-        DefenseMethod defenseMethod = runtimeDefenseMethod.orElseThrow(
-            () -> new IllegalStateException(
-                "AttackResolution must be obtained from its owning Game before resolving an attack."
-            )
-        );
-        return getAttackResult(
-            attackMethod,
-            defenseMethod,
-            attackDiceRoller,
-            defenseDiceRoller
-        );
-    }
-
-    /**
-     * Runs the configured Attack and Defense generators and resolves their values
-     * through this instance's configured resolution section.
-     */
-    public AttackResult getAttackResult(
-        AttackMethod attackMethod,
-        DefenseMethod defenseMethod
-    ) {
-        return getAttackResult(
-            attackMethod,
-            defenseMethod,
-            DiceRoller.random(),
-            DiceRoller.random()
-        );
-    }
-
-    /**
-     * Deterministic form of {@link #getAttackResult(AttackMethod, DefenseMethod)}
-     * for tests, bridges, and consumers that provide their own die sources.
-     */
-    public AttackResult getAttackResult(
-        AttackMethod attackMethod,
-        DefenseMethod defenseMethod,
-        DiceRoller attackDiceRoller,
-        DiceRoller defenseDiceRoller
-    ) {
-        AttackMethod safeAttackMethod = Objects.requireNonNull(attackMethod, "attackMethod");
-        DefenseMethod safeDefenseMethod = Objects.requireNonNull(defenseMethod, "defenseMethod");
-        GeneratedValue attack = safeAttackMethod.generateAttackValue(attackDiceRoller);
-        GeneratedValue defense = safeDefenseMethod.generateDefenseValue(defenseDiceRoller);
+                ? resolveAttackPoolSuccessCountAgainstPassiveDefense(
+                    requestedRouteId,
+                    reducedAttack.requireValue(),
+                    passiveDefense
+                )
+                : resolveAttackPoolValueAgainstPassiveDefense(
+                    requestedRouteId,
+                    reducedAttack.requireValue(),
+                    passiveDefense
+                );
+            return new AttackResult(
+                reducedAttack,
+                safeDefense,
+                resolution
+            );
+        }
         ResolutionInput input = switch (resolutionMode) {
             case MODE_DEFENSE_VS_THREAT -> new ResolutionInput(
-                "",
+                requestedRouteId,
                 OptionalInt.empty(),
-                defense.value(),
-                attack.value()
+                safeDefense.value(),
+                safeAttack.value()
             );
             case MODE_AUTOMATIC -> ResolutionInput.automatic();
             default -> new ResolutionInput(
-                "",
-                attack.value(),
-                defense.value(),
+                requestedRouteId,
+                safeAttack.value(),
+                safeDefense.value(),
                 OptionalInt.empty()
             );
         };
-        return new AttackResult(attack, defense, resolve(input));
+        return new AttackResult(safeAttack, safeDefense, resolve(input));
+    }
+
+    /** Reduces one generated attack pool through the configured core method. */
+    public GeneratedValue reduceAttackPool(GeneratedValue attack) {
+        return switch (attackPoolResolutionMethod) {
+            case POOL_RESOLUTION_HIGHEST_DIE -> reduceAttackPoolToHighestDie(attack);
+            case POOL_RESOLUTION_LOWEST_DIE -> reduceAttackPoolToLowestDie(attack);
+            case POOL_RESOLUTION_SUM -> reduceAttackPoolToSum(attack);
+            default -> reduceAttackPoolToSuccessCount(attack);
+        };
+    }
+
+    /** Counts dice meeting the configured inclusive over/under threshold. */
+    public GeneratedValue reduceAttackPoolToSuccessCount(GeneratedValue attack) {
+        GeneratedValue safeAttack = Objects.requireNonNull(attack, "attack");
+        if (attackPoolSuccessThreshold <= 0) {
+            throw new IllegalStateException(REASON_ATTACK_POOL_THRESHOLD_MISSING);
+        }
+        if (!usesSingleAttackPool(safeAttack)) {
+            throw new IllegalArgumentException(
+                "Attack-pool success counting requires one complete roll containing multiple dice."
+            );
+        }
+        int successes = (int) safeAttack.rolls().get(0).stream()
+            .filter(this::attackPoolDieSucceeds)
+            .count();
+        return GeneratedValue.available(successes, safeAttack.rolls());
+    }
+
+    /** Uses the highest die in one generated attack pool as its attack value. */
+    public GeneratedValue reduceAttackPoolToHighestDie(GeneratedValue attack) {
+        GeneratedValue safeAttack = requireSingleAttackPool(attack);
+        int highestDie = safeAttack.rolls().get(0).stream()
+            .mapToInt(Integer::intValue)
+            .max()
+            .orElseThrow();
+        return GeneratedValue.available(highestDie, safeAttack.rolls());
+    }
+
+    /** Uses the lowest die in one generated attack pool as its attack value. */
+    public GeneratedValue reduceAttackPoolToLowestDie(GeneratedValue attack) {
+        GeneratedValue safeAttack = requireSingleAttackPool(attack);
+        int lowestDie = safeAttack.rolls().get(0).stream()
+            .mapToInt(Integer::intValue)
+            .min()
+            .orElseThrow();
+        return GeneratedValue.available(lowestDie, safeAttack.rolls());
+    }
+
+    /** Sums every die in one generated attack pool into its attack value. */
+    public GeneratedValue reduceAttackPoolToSum(GeneratedValue attack) {
+        GeneratedValue safeAttack = requireSingleAttackPool(attack);
+        int total = safeAttack.rolls().get(0).stream()
+            .mapToInt(Integer::intValue)
+            .sum();
+        return GeneratedValue.available(total, safeAttack.rolls());
+    }
+
+    /** Resolves an attack-pool success count against its minimum passive requirement. */
+    public ResolutionResult resolveAttackPoolSuccessCountAgainstPassiveDefense(
+        String requestedRouteId,
+        int attackSuccesses,
+        int requiredSuccesses
+    ) {
+        boolean attackSucceeded = resolveDirectionalComparison(
+            attackSuccesses,
+            requiredSuccesses,
+            ROLL_DIRECTION_OVER,
+            attackerWinsTies
+        );
+        return comparedResult(
+            attackSucceeded ? AttackSuccess.SUCCEEDED : AttackSuccess.FAILED,
+            "",
+            attackSuccesses,
+            requiredSuccesses,
+            requireAttackSourceRoute(requestedRouteId),
+            ""
+        );
+    }
+
+    /** Resolves a highest-die, lowest-die, or summed pool value against passive Defense. */
+    public ResolutionResult resolveAttackPoolValueAgainstPassiveDefense(
+        String requestedRouteId,
+        int attackValue,
+        int passiveDefense
+    ) {
+        boolean attackSucceeded = resolveDirectionalComparison(
+            attackValue,
+            passiveDefense,
+            attackRollDirection,
+            attackerWinsTies
+        );
+        return comparedResult(
+            attackSucceeded ? AttackSuccess.SUCCEEDED : AttackSuccess.FAILED,
+            "",
+            attackValue,
+            passiveDefense,
+            requireAttackSourceRoute(requestedRouteId),
+            ""
+        );
     }
 
     /** Dispatches the configured resolution section using caller-supplied runtime values. */
@@ -676,6 +779,32 @@ public class AttackResolution extends GameElement {
         return safeValue.getAsInt();
     }
 
+    private boolean usesAttackPoolAgainstPassiveDefense(GeneratedValue attack) {
+        return MODE_ATTACK_VS_PASSIVE.equals(resolutionMode)
+            && attack.value().isEmpty()
+            && usesSingleAttackPool(attack);
+    }
+
+    private static boolean usesSingleAttackPool(GeneratedValue attack) {
+        return attack.rolls().size() == 1 && attack.rolls().get(0).size() > 1;
+    }
+
+    private static GeneratedValue requireSingleAttackPool(GeneratedValue attack) {
+        GeneratedValue safeAttack = Objects.requireNonNull(attack, "attack");
+        if (!usesSingleAttackPool(safeAttack)) {
+            throw new IllegalArgumentException(
+                "Attack-pool reduction requires one complete roll containing multiple dice."
+            );
+        }
+        return safeAttack;
+    }
+
+    private boolean attackPoolDieSucceeds(int roll) {
+        return ROLL_DIRECTION_UNDER.equals(attackRollDirection)
+            ? roll <= attackPoolSuccessThreshold
+            : roll >= attackPoolSuccessThreshold;
+    }
+
     private void initializeDefaultAttackSourceRoute() {
         AttackSourceRoute defaultRoute = new AttackSourceRoute(
             "Attack Method",
@@ -760,6 +889,16 @@ public class AttackResolution extends GameElement {
             : ROLL_DIRECTION_OVER;
     }
 
+    private static String normalizeAttackPoolResolutionMethod(String value) {
+        String safeValue = normalizeKey(value);
+        return switch (safeValue) {
+            case POOL_RESOLUTION_HIGHEST_DIE,
+                 POOL_RESOLUTION_LOWEST_DIE,
+                 POOL_RESOLUTION_SUM -> safeValue;
+            default -> POOL_RESOLUTION_SUCCESS_COUNT;
+        };
+    }
+
     private static String normalizeOutcomeMetric(String value) {
         String safeValue = normalizeKey(value);
         return switch (safeValue) {
@@ -794,8 +933,6 @@ public class AttackResolution extends GameElement {
 
     private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
         stream.defaultReadObject();
-        runtimeAttackMethod = Optional.empty();
-        runtimeDefenseMethod = Optional.empty();
         boolean attackSourceRoutesWereAbsent = Objects.isNull(attackSourceRoutes);
         boolean initialResolutionSelectionWasAbsent = !initialResolutionSelectionConfigured;
         boolean equalityHandlingWasAbsent = !equalityHandlingConfigured;
@@ -815,6 +952,8 @@ public class AttackResolution extends GameElement {
             setAttackRollDirection(attackRollDirection);
         }
         initialResolutionSelectionConfigured = true;
+        setAttackPoolResolutionMethod(attackPoolResolutionMethod);
+        setAttackPoolSuccessThreshold(attackPoolSuccessThreshold);
         setOutcomeMetric(outcomeMetric);
         setAutomaticOutcomeKey(automaticOutcomeKey);
         setAttackSourceRoutes(attackSourceRoutes);

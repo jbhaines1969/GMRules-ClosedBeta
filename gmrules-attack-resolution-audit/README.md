@@ -13,7 +13,8 @@ their runtime values, and sends those values back through core-owned
 The tests cover every current `AttackResolution` mode, initial roll direction,
 target source, comparison method, equality setting, outcome metric, and
 attack-source kind. They also exercise the raw dice shapes configured by
-`AttackMethod` and the value-producing defense families.
+`AttackMethod`; success-count, highest-die, lowest-die, and summed attack-pool reduction
+against passive Defense; and the value-producing defense families.
 
 ## Core-Owned Generation Contract
 
@@ -24,12 +25,15 @@ the current configuration cannot yet produce one scalar. The ordinary random
 roller is built in; an injectable `DiceRoller` exists for deterministic tests
 and language interpreters.
 
-For the currently complete scalar path, consumer orchestration is only:
+For the currently complete scalar path, consumer orchestration remains small but
+keeps generation observable before resolution:
 
 ```java
-AttackResolution.AttackResult result = game
-    .getAttackResolution()
-    .getAttackResult();
+GeneratedValue attack = game.getAttackMethod().generateAttackValue();
+// The consumer may present the attack or gather reaction choices here.
+GeneratedValue defense = game.getDefenseMethod().generateDefenseValue();
+AttackResolution.AttackResult result = game.getAttackResolution()
+    .getAttackResult(attack, defense);
 ```
 
 Externally generated card, Attribute, Skill, or gear values enter through
@@ -64,12 +68,22 @@ finding when the core contract does not yet select one answer.
 ## Core-Owned Resolution Contract
 
 Ordinary consumers do not implement generation or comparison formulas and do not
-select a resolution section. They call `AttackResolution.getAttackResult()` and
-receive a core `AttackResult` containing both complete `GeneratedValue` objects and
-the `ResolutionResult`. The lower-level `ResolutionInput`/`resolve(...)` API remains
-available for integrations supplying external runtime values.
+select a resolution section. They obtain both values from the core generators,
+pass the complete `GeneratedValue` objects to `AttackResolution.getAttackResult(...)`,
+and receive a core `AttackResult` containing those values plus the `ResolutionResult`.
+This staging lets a consumer present or react to an attack before Defense and final
+resolution. The lower-level `ResolutionInput`/`resolve(...)` API remains available
+for integrations supplying external runtime values.
 
-Core defines margin as `attack value - defense value`. It also owns the
+Core defines margin as `attack value - defense value`. Attack pools can derive
+that value by counting dice meeting an inclusive over/under threshold, keeping
+the highest die, keeping the lowest die, or summing every die. Passive Defense is
+the required success count for the first method and the comparison target for the
+three scalar reducers. Core preserves the raw pool. Success-count direction
+chooses `>= threshold` or `<= threshold`; more successes remain better, and their
+comparison with the Defense requirement uses the shared equality setting. Highest,
+lowest, and sum apply both the shared direction and `attackerWinsTies`, which
+defaults on for new rulesets. Core also owns the
 defender-versus-threat inversion and reusable equality behavior. For direct
 attack-versus-Defense comparisons, roll direction plus `attackerWinsTies` selects
 `>`, `>=`, `<`, or `<=` inside `AttackResolution`; the consumer does not recreate
@@ -82,8 +96,12 @@ configured ranges.
   `attackRollDirection` selects over/under, while `targetValueIsDefenseValue`
   selects direct Defense comparison or the retained attack chart. Core now owns
   and returns the direct comparison result.
-- Attack Resolution still needs sections defining how to use an attack dice pool
-  and how to use multiple complete attack rolls.
+- The second implemented section covers one attack dice pool against final
+  passive Defense. It can count every die meeting an inclusive over/under
+  threshold, keep the highest die, keep the lowest die, or sum all dice. Every
+  method exposes roll direction and the shared equality setting.
+- Attack Resolution intentionally resolves one attack. Combat, Skill, or other
+  systems decide how many attacks occur and invoke this flow for each attack.
 - Attack Resolution still needs to define the comparison-facing representation of
   roll-under defense and success-count defense modifiers.
 - `outcome_bands` can select an outcome key, but an `OutcomeBand` does not say

@@ -28,8 +28,11 @@ public final class CombatRulesSupport {
         if (!attack.isDiceRolled()) {
             return "This revision requires the shared dice-based Attack Method.";
         }
-        if (attack.getNumberOfRolls() != 1 || attack.getNumberOfDiceRolled() != 1) {
-            return "This revision supports exactly one attack die rolled once.";
+        if (attack.getNumberOfRolls() != 1) {
+            return "This revision supports exactly one complete attack roll.";
+        }
+        if (attack.getNumberOfDiceRolled() <= 0) {
+            return "The Attack Method must roll at least one die.";
         }
         if (attack.getDieSides() <= 0) {
             return "The Attack Method must select a die.";
@@ -42,6 +45,14 @@ public final class CombatRulesSupport {
         }
         if (!resolution.isTargetValueDefenseValue()) {
             return "This revision compares the attack directly with the Defense value.";
+        }
+        if (attack.getNumberOfDiceRolled() > 1
+            && AttackResolution.POOL_RESOLUTION_SUCCESS_COUNT.equals(
+                resolution.getAttackPoolResolutionMethod()
+            )
+            && (resolution.getAttackPoolSuccessThreshold() <= 0
+                || resolution.getAttackPoolSuccessThreshold() > attack.getDieSides())) {
+            return "Attack Resolution must set a successful-roll threshold within the selected die's range.";
         }
         if (!resolution.hasCompleteAttackSourceRouting()) {
             return "Attack Resolution must have a default attack-source route.";

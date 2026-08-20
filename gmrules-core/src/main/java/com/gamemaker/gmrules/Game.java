@@ -1340,7 +1340,6 @@ public class Game extends GameElement {
             attackMethod,
             () -> new AttackMethod("Attack Method")
         );
-        bindAttackResolutionRuntime();
         updateLastModified();
     }
 
@@ -1350,25 +1349,16 @@ public class Game extends GameElement {
             defenseMethod,
             () -> new DefenseMethod("Defense Method")
         );
-        bindAttackResolutionRuntime();
         updateLastModified();
     }
 
-    public AttackResolution getAttackResolution() {
-        bindAttackResolutionRuntime();
-        return attackResolution;
-    }
+    public AttackResolution getAttackResolution() { return attackResolution; }
     public void setAttackResolution(AttackResolution attackResolution) {
         this.attackResolution = Objects.requireNonNullElseGet(
             attackResolution,
             () -> new AttackResolution("Attack Resolution")
         );
-        bindAttackResolutionRuntime();
         updateLastModified();
-    }
-
-    private void bindAttackResolutionRuntime() {
-        attackResolution.bindRuntimeGenerators(attackMethod, defenseMethod);
     }
 
     public CombatMethod getCombatMethod() { return combatMethod; }
@@ -1486,7 +1476,6 @@ public class Game extends GameElement {
             attackResolution,
             () -> new AttackResolution("Attack Resolution")
         );
-        bindAttackResolutionRuntime();
         combatMethod = Objects.requireNonNullElseGet(combatMethod, () -> new CombatMethod("Combat"));
         levelingMethod = Objects.requireNonNullElseGet(levelingMethod, () -> new LevelingMethod("Leveling"));
     }

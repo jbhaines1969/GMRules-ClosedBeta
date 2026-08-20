@@ -8,6 +8,7 @@ import com.gamemaker.gmrules.GameIO;
 import com.gamemaker.gmrules.GameMechanics.AttackMethod;
 import com.gamemaker.gmrules.GameMechanics.AttackResolution;
 import com.gamemaker.gmrules.GameMechanics.DefenseMethod;
+import com.gamemaker.gmrules.GameMechanics.GeneratedValue;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -52,13 +53,15 @@ class SingleRoundCombatConsumerTest {
     }
 
     @Test
-    void coreEntryPointOwnsGenerationAndResolutionSectionSelection() {
+    void consumerPassesCoreGeneratedValuesAndResolutionSelectsItsSection() {
         Game game = supportedGame(2, 8, false);
         game.getAttackMethod().setDieSides(20);
+        GeneratedValue attack = game.getAttackMethod().generateAttackValue(dieSides -> 7);
+        GeneratedValue defense = game.getDefenseMethod().generateDefenseValue(dieSides -> 1);
 
         AttackResolution.AttackResult result = game.getAttackResolution().getAttackResult(
-            dieSides -> 7,
-            dieSides -> 1
+            attack,
+            defense
         );
 
         assertEquals(java.util.List.of(java.util.List.of(7)), result.attack().rolls());
@@ -68,14 +71,44 @@ class SingleRoundCombatConsumerTest {
     }
 
     @Test
-    void supportBoundaryRejectsAttackPoolsUntilTheirResolutionSectionExists() {
+    void supportBoundaryAcceptsConfiguredAttackPoolsAgainstPassiveDefense() {
         Game game = supportedGame(0, 2, false);
+        game.getAttackMethod().setDieSides(10);
+        game.getAttackMethod().setNumberOfDiceRolled(3);
+        game.getAttackResolution().setAttackPoolSuccessThreshold(7);
+
+        String reason = CombatRulesSupport.unsupportedReason(game);
+
+        assertEquals("", reason);
+    }
+
+    @Test
+    void consumerRunsConfiguredAttackPoolThroughCore() {
+        Game game = supportedGame(0, 3, true);
+        game.getAttackMethod().setNumberOfDiceRolled(3);
+        game.getAttackResolution().setAttackPoolSuccessThreshold(1);
+
+        AttackResolution.AttackResult result = new SingleRoundCombatConsumer().run(game);
+
+        assertEquals(java.util.List.of(java.util.List.of(1, 1, 1)), result.attack().rolls());
+        assertEquals(3, result.attack().requireValue());
+        assertEquals(3, result.defense().requireValue());
+        assertEquals(AttackResolution.AttackSuccess.SUCCEEDED, result.attackSuccess());
+    }
+
+    @Test
+    void supportBoundaryRequiresAValidAttackPoolThreshold() {
+        Game game = supportedGame(0, 2, false);
+        game.getAttackMethod().setDieSides(10);
         game.getAttackMethod().setNumberOfDiceRolled(3);
 
         String reason = CombatRulesSupport.unsupportedReason(game);
 
         assertFalse(reason.isBlank());
-        assertEquals("This revision supports exactly one attack die rolled once.", reason);
+        assertEquals(
+            "Attack Resolution must set a successful-roll threshold within the selected die's range.",
+            reason
+        );
     }
 
     private static Game supportedGame(

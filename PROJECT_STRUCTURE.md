@@ -1,6 +1,6 @@
 # GMRules Closed Beta Deploy Structure
 
-Updated: 2026-08-15
+Updated: 2026-08-19
 
 This file is the deploy-release filesystem map for `GMRules-ClosedBeta`.
 Update it whenever tracked files or deploy-relevant directories are added, removed, or moved. Its purpose is to let agents find known paths from this document before falling back to repository searches.
@@ -75,8 +75,9 @@ gmrules-attack-resolution-audit/
 
 This module depends only on `gmrules-core` and behaves like an independent
 downstream application. Its tracked tests cover every current Attack Resolution
-mode, comparison, tie policy, outcome metric, and source kind. Indeterminate
-results are intentional audit findings when the stored configuration cannot
+mode, comparison, tie policy, outcome metric, and source kind, plus success-count,
+highest-die, lowest-die, and summed attack-pool paths in both directions against passive Defense. Indeterminate
+results remain intentional audit findings when the stored configuration cannot
 select a unique attack value, defense value, or success result. Resolution
 calculations delegate to the core-owned `AttackResolution` runtime contract; the
 audit consumer does not maintain a separate rules implementation.
@@ -102,9 +103,10 @@ gmrules-combat-poc/
 This intentionally small standalone Swing application depends only on
 `gmrules-core`. It loads an exported `.gmrf`, shows the three relevant mechanics,
 and runs the currently supported one-roll/passive-defense combat path. The
-mechanics-facing `SingleRoundCombatConsumer` now makes one no-argument
-`AttackResolution.getAttackResult()` call so future core expansion can be
-compared against consumer-code growth.
+mechanics-facing `SingleRoundCombatConsumer` obtains complete values from the core
+Attack and Defense generators, then passes them to `AttackResolution`. This keeps
+intermediate values available for presentation or reactions without moving any
+generation or comparison formulas into the consumer.
 
 ## Root Deploy Files
 
