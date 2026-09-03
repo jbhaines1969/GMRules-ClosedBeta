@@ -1252,6 +1252,52 @@ public class Game extends GameElement {
         return attributeIds;
     }
 
+    /** Returns every Race with core-owned eligibility and application data. */
+    public List<RaceSelection.Result> getRaceSelectionOptions(Map<String, Integer> attributeScores) {
+        return RaceSelection.evaluate(
+            getElementRegistry(ElementRegistryKey.RACES).getAllReadOnly(),
+            attributeScores
+        );
+    }
+
+    /** Resolves one stable Race id through the same core-owned eligibility gate. */
+    public RaceSelection.Result selectRace(
+        String raceId,
+        Map<String, Integer> attributeScores
+    ) {
+        return RaceSelection.select(
+            getElementRegistry(ElementRegistryKey.RACES).getAllReadOnly(),
+            attributeScores,
+            raceId
+        );
+    }
+
+    /** Returns only Backgrounds legal for the current Race and Attribute state. */
+    public List<BackgroundSelection.Result> getBackgroundSelectionOptions(
+        String raceId,
+        Map<String, Integer> attributeScores
+    ) {
+        return BackgroundSelection.eligibleOptions(
+            getElementRegistry(ElementRegistryKey.BACKGROUNDS).getAllReadOnly(),
+            raceId,
+            attributeScores
+        );
+    }
+
+    /** Resolves one stable Background id through the same core-owned eligibility gate. */
+    public BackgroundSelection.Result selectBackground(
+        String backgroundId,
+        String raceId,
+        Map<String, Integer> attributeScores
+    ) {
+        return BackgroundSelection.select(
+            getElementRegistry(ElementRegistryKey.BACKGROUNDS).getAllReadOnly(),
+            raceId,
+            attributeScores,
+            backgroundId
+        );
+    }
+
     public void setAttributeAssignmentOrder(Collection<String> attributeIds) {
         Collection<String> safeIds = Objects.requireNonNullElseGet(attributeIds, List::of);
         LinkedHashMap<String, Attribute> currentAttributes = new LinkedHashMap<>();

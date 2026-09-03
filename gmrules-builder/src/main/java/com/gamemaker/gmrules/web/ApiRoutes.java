@@ -26,13 +26,17 @@ import com.gamemaker.gmrules.CharacterElements.Race;
 import com.gamemaker.gmrules.ElementRegistry;
 import com.gamemaker.gmrules.ElementRegistryKey;
 import com.gamemaker.gmrules.Game;
+import com.gamemaker.gmrules.GameElement;
 import com.gamemaker.gmrules.GameMechanics.ArmorClassMethod;
 import com.gamemaker.gmrules.GameMechanics.AttackMethod;
 import com.gamemaker.gmrules.GameMechanics.AttackResolution;
 import com.gamemaker.gmrules.GameMechanics.AttributeGenerationMethod;
+import com.gamemaker.gmrules.GameMechanics.BackgroundSelection;
 import com.gamemaker.gmrules.GameMechanics.DefenseMethod;
 import com.gamemaker.gmrules.GameMechanics.HPMethod;
 import com.gamemaker.gmrules.GameMechanics.LevelingMethod;
+import com.gamemaker.gmrules.GameMechanics.RaceSelection;
+import com.gamemaker.gmrules.GameMechanics.RollAdjustmentMethod;
 import com.gamemaker.gmrules.GameSaveIO;
 import com.gamemaker.gmrules.GameElements.Armor;
 import com.gamemaker.gmrules.GameElements.Currency;
@@ -63,6 +67,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
@@ -234,6 +239,12 @@ public final class ApiRoutes {
         router.add("GET", "/api/drafts/{id}/attribute-generation", ApiRoutes::getAttributeGeneration);
         router.add("POST", "/api/drafts/{id}/attribute-generation", ApiRoutes::updateAttributeGeneration);
         router.add("GET", "/api/drafts/{id}/chargen/attribute-generation", ApiRoutes::getCharGenAttributeGeneration);
+        router.add("POST", "/api/drafts/{id}/chargen/attribute-generation/roll", ApiRoutes::rollCharGenAttributes);
+        router.add("POST", "/api/drafts/{id}/chargen/attribute-generation/substitute", ApiRoutes::substituteCharGenAttributeRoll);
+        router.add("POST", "/api/drafts/{id}/chargen/attribute-generation/adjust", ApiRoutes::adjustCharGenAttributeRolls);
+        router.add("POST", "/api/drafts/{id}/chargen/attribute-generation/resolve", ApiRoutes::resolveCharGenAttributes);
+        router.add("POST", "/api/drafts/{id}/chargen/race-selection", ApiRoutes::resolveCharGenRaceSelection);
+        router.add("POST", "/api/drafts/{id}/chargen/background-selection", ApiRoutes::resolveCharGenBackgroundSelection);
 
         router.add("GET", "/api/drafts/{id}/standard-array", ApiRoutes::getStandardArrays);
         router.add("POST", "/api/drafts/{id}/standard-array/standard", ApiRoutes::addStandardArray);
@@ -248,6 +259,7 @@ public final class ApiRoutes {
         router.add("POST", "/api/drafts/{id}/dice-rolling/assignment", ApiRoutes::updateDiceAssignment);
         router.add("POST", "/api/drafts/{id}/dice-rolling/attribute-order", ApiRoutes::updateDiceAttributeOrder);
         router.add("POST", "/api/drafts/{id}/dice-rolling/substitution", ApiRoutes::updateDiceSubstitution);
+        router.add("POST", "/api/drafts/{id}/dice-rolling/adjustments", ApiRoutes::updateDiceRollAdjustments);
         router.add("POST", "/api/drafts/{id}/dice-rolling/term", ApiRoutes::addDiceTerm);
         router.add("POST", "/api/drafts/{id}/dice-rolling/term/update", ApiRoutes::updateDiceTerm);
         router.add("DELETE", "/api/drafts/{id}/dice-rolling/term", ApiRoutes::removeDiceTerm);
@@ -2633,6 +2645,7 @@ public final class ApiRoutes {
             response.put("categoryAssignmentMode", method.getCategoryAssignmentMode());
             response.put("categoryPointRules", serializeCategoryPointRules(game));
             response.put("categoryPointSlots", serializeCategoryPointSlots(game));
+            response.put("attributeCategories", serializeAttributeCategories(game));
             response.put(
                 "categoryPointConfigurationComplete",
                 method.isCategoryPointConfigurationComplete(attributeCategoryCount(game))
@@ -2674,12 +2687,387 @@ public final class ApiRoutes {
                 entry.put("attributeCategoryKey", Objects.toString(attribute.getType(), ""));
                 entry.put("minValue", attribute.getMinValue());
                 entry.put("maxValue", attribute.getMaxValue());
+                entry.put("resolvedMinValue", method.getAttributeMinimumScore(attribute));
+                entry.put("resolvedMaxValue", method.getAttributeMaximumScore(attribute));
+                entry.put("resolvedBaseValue", method.getAttributeBaseScore(attribute));
                 attributes.add(entry);
             }
             response.put("attributes", attributes);
             return response;
         });
         ctx.json(200, payload);
+    }
+
+    private static void rollCharGenAttributes(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        try {
+            Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+                AttributeGenerationMethod method = game.getAttributeGenerationMethod();
+                List<List<RollAdjustmentMethod.RollValue>> rollSets =
+                    method.generateAttributeRollValueSets(game.getAttributesInAssignmentOrder());
+                Map<String, Object> response = new LinkedHashMap<>();
+                response.put("sets", serializeRollValuesAsIntegers(rollSets));
+                response.put("rollSets", serializeRollValueSets(rollSets));
+                return response;
+            });
+            ctx.json(200, payload);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            ctx.json(400, Map.of("error", Objects.toString(e.getMessage(), "Unable to roll Attributes.")));
+        }
+    }
+
+    private static void resolveCharGenAttributes(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        AttributeGenerationMethod.AttributeGenerationRequest request =
+            new AttributeGenerationMethod.AttributeGenerationRequest();
+        request.setOptionId(getString(body, "optionId"));
+        request.setArrayType(getString(body, "arrayType"));
+        request.setArrayAssignments(getIntegerMap(body, "arrayAssignments"));
+        request.setRolledValues(getIntegerList(body, "rolledValues"));
+        request.setRollAssignments(getIntegerMap(body, "rollAssignments"));
+        request.setPointBuyScores(getIntegerMap(body, "pointBuyScores"));
+        request.setCategoryPointSlotAssignments(
+            getStringMap(body, "categoryPointSlotAssignments")
+        );
+        request.setChosenStepIndex(getInt(body, "chosenStepIndex", -1));
+
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(
+            draftId,
+            game -> serializeAttributeGenerationResult(
+                game.getAttributeGenerationMethod().getAttributeScores(
+                    game.getAttributeGenerationOptions(),
+                    game.getAttributesInAssignmentOrder(),
+                    attributeCategoryKeys(game),
+                    request
+                )
+            )
+        );
+        ctx.json(200, payload);
+    }
+
+    private static void substituteCharGenAttributeRoll(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        List<Integer> rolledValues = getIntegerList(body, "rolledValues");
+        int rollIndex = getInt(body, "rollIndex", -1);
+        int substitutionsUsed = getInt(body, "substitutionsUsed", 0);
+        try {
+            Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> Map.of(
+                "rolledValues",
+                game.getAttributeGenerationMethod().applyAttributeRollSubstitution(
+                    game.getAttributesInAssignmentOrder(),
+                    rolledValues,
+                    rollIndex,
+                    substitutionsUsed
+                ),
+                "substitutionsUsed",
+                substitutionsUsed + 1
+            ));
+            ctx.json(200, payload);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            ctx.json(400, Map.of("error", Objects.toString(e.getMessage(), "Unable to substitute Attribute roll.")));
+        }
+    }
+
+    private static void adjustCharGenAttributeRolls(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        RollAdjustmentMethod.Request request = new RollAdjustmentMethod.Request();
+        request.setMethodId(getString(body, "methodId"));
+        request.setTargetValueId(getString(body, "targetValueId"));
+        request.setSourceValueId(getString(body, "sourceValueId"));
+        request.setAmount(getInt(body, "amount", 1));
+        request.setUsesByMethod(getIntegerMap(body, "usesByMethod"));
+        request.setResourceSpentByKey(getIntegerMap(body, "resourceSpentByKey"));
+        request.setValues(parseRollValues(getMapList(body, "values")));
+        try {
+            Map<String, Object> payload = ctx.getDraftStore().readDraft(
+                draftId,
+                game -> serializeRollAdjustmentResult(
+                    game.getAttributeGenerationMethod().adjustAttributeRolls(
+                        game.getAttributesInAssignmentOrder(),
+                        request
+                    )
+                )
+            );
+            ctx.json(200, payload);
+        } catch (ArithmeticException | IllegalArgumentException | IllegalStateException error) {
+            ctx.json(400, Map.of(
+                "error",
+                Objects.toString(error.getMessage(), "Unable to adjust Attribute rolls.")
+            ));
+        }
+    }
+
+    private static List<RollAdjustmentMethod.RollValue> parseRollValues(
+        List<Map<String, Object>> entries
+    ) {
+        List<RollAdjustmentMethod.RollValue> values = new ArrayList<>();
+        for (Map<String, Object> entry : entries) {
+            values.add(new RollAdjustmentMethod.RollValue(
+                getString(entry, "id"),
+                getInt(entry, "value", 0)
+            ));
+        }
+        return values;
+    }
+
+    private static List<List<Integer>> serializeRollValuesAsIntegers(
+        List<List<RollAdjustmentMethod.RollValue>> sets
+    ) {
+        List<List<Integer>> serialized = new ArrayList<>();
+        for (List<RollAdjustmentMethod.RollValue> set : sets) {
+            List<Integer> values = new ArrayList<>();
+            for (RollAdjustmentMethod.RollValue value : set) {
+                values.add(value.getValue());
+            }
+            serialized.add(values);
+        }
+        return serialized;
+    }
+
+    private static List<List<Map<String, Object>>> serializeRollValueSets(
+        List<List<RollAdjustmentMethod.RollValue>> sets
+    ) {
+        List<List<Map<String, Object>>> serialized = new ArrayList<>();
+        for (List<RollAdjustmentMethod.RollValue> set : sets) {
+            List<Map<String, Object>> values = new ArrayList<>();
+            for (RollAdjustmentMethod.RollValue value : set) {
+                values.add(Map.of("id", value.getId(), "value", value.getValue()));
+            }
+            serialized.add(values);
+        }
+        return serialized;
+    }
+
+    private static Map<String, Object> serializeRollAdjustmentResult(
+        RollAdjustmentMethod.Result result
+    ) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        List<Map<String, Object>> values = new ArrayList<>();
+        for (RollAdjustmentMethod.RollValue value : result.getValues()) {
+            values.add(Map.of("id", value.getId(), "value", value.getValue()));
+        }
+        List<Map<String, Object>> options = new ArrayList<>();
+        for (RollAdjustmentMethod.Option option : result.getOptions()) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("methodId", option.getMethodId());
+            entry.put("name", option.getName());
+            entry.put("description", option.getDescription());
+            entry.put("type", option.getType());
+            entry.put("available", option.isAvailable());
+            entry.put("reason", option.getReason());
+            entry.put("usesRemaining", option.getUsesRemaining());
+            entry.put("targetRequired", option.isTargetRequired());
+            entry.put("sourceRequired", option.isSourceRequired());
+            entry.put("amountRequired", option.isAmountRequired());
+            entry.put("legalTargetValueIds", option.getLegalTargetValueIds());
+            entry.put("legalSourceValueIds", option.getLegalSourceValueIds());
+            entry.put("minimumAmount", option.getMinimumAmount());
+            entry.put("maximumAmount", option.getMaximumAmount());
+            entry.put("resourceKey", option.getResourceKey());
+            entry.put("resourceName", option.getResourceName());
+            entry.put("resourceRemaining", option.getResourceRemaining());
+            options.add(entry);
+        }
+        response.put("applied", result.isApplied());
+        response.put("values", values);
+        response.put("options", options);
+        response.put("usesByMethod", result.getUsesByMethod());
+        response.put("resourceSpentByKey", result.getResourceSpentByKey());
+        response.put("valueDeltas", result.getValueDeltas());
+        response.put("resourceCosts", result.getResourceCosts());
+        response.put("reason", result.getReason());
+        return response;
+    }
+
+    private static void resolveCharGenRaceSelection(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        Map<String, Integer> attributeScores = getIntegerMap(body, "attributeScores");
+        String raceId = getString(body, "raceId").trim();
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> options = new ArrayList<>();
+            for (RaceSelection.Result result : game.getRaceSelectionOptions(attributeScores)) {
+                options.add(serializeRaceSelectionResult(game, result));
+            }
+            response.put("options", options);
+            if (!raceId.isEmpty()) {
+                response.put(
+                    "selection",
+                    serializeRaceSelectionResult(game, game.selectRace(raceId, attributeScores))
+                );
+            }
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static Map<String, Object> serializeRaceSelectionResult(
+        Game game,
+        RaceSelection.Result result
+    ) {
+        Map<String, Object> entry = new LinkedHashMap<>();
+        entry.put("id", result.getRaceId());
+        entry.put("name", result.getName());
+        entry.put("description", result.getDescription());
+        entry.put("eligible", result.isEligible());
+        entry.put("reason", result.getReason());
+        entry.put("attributeId", result.getAttributeId());
+        entry.put(
+            "attributeName",
+            game.resolveElementName(ElementRegistryKey.ATTRIBUTES, result.getAttributeId())
+        );
+        entry.put("requiredScore", result.getRequiredScore());
+        entry.put("actualScore", result.getActualScore());
+        entry.put("attributeModifiers", result.getAttributeModifiers());
+        entry.put("racialSkillIds", result.getRacialSkillIds());
+        entry.put(
+            "racialSkillNames",
+            resolveElementNames(game, ElementRegistryKey.SKILLS, result.getRacialSkillIds())
+        );
+        entry.put("racialTraitIds", result.getRacialTraitIds());
+        return entry;
+    }
+
+    private static void resolveCharGenBackgroundSelection(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        Map<String, Object> body = ctx.readJsonMap();
+        Map<String, Integer> attributeScores = getIntegerMap(body, "attributeScores");
+        String raceId = getString(body, "raceId").trim();
+        String backgroundId = getString(body, "backgroundId").trim();
+        Map<String, Object> payload = ctx.getDraftStore().readDraft(draftId, game -> {
+            Map<String, Object> response = new LinkedHashMap<>();
+            List<Map<String, Object>> options = new ArrayList<>();
+            for (BackgroundSelection.Result result
+                : game.getBackgroundSelectionOptions(raceId, attributeScores)) {
+                options.add(serializeBackgroundSelectionResult(game, result));
+            }
+            response.put("options", options);
+            if (!backgroundId.isEmpty()) {
+                response.put(
+                    "selection",
+                    serializeBackgroundSelectionResult(
+                        game,
+                        game.selectBackground(backgroundId, raceId, attributeScores)
+                    )
+                );
+            }
+            return response;
+        });
+        ctx.json(200, payload);
+    }
+
+    private static Map<String, Object> serializeBackgroundSelectionResult(
+        Game game,
+        BackgroundSelection.Result result
+    ) {
+        Map<String, Object> entry = new LinkedHashMap<>();
+        entry.put("id", result.getBackgroundId());
+        entry.put("name", result.getName());
+        entry.put("description", result.getDescription());
+        entry.put("eligible", result.isEligible());
+        entry.put("reason", result.getReason());
+        entry.put("attributeId", result.getAttributeId());
+        entry.put(
+            "attributeName",
+            game.resolveElementName(ElementRegistryKey.ATTRIBUTES, result.getAttributeId())
+        );
+        entry.put("requiredScore", result.getRequiredScore());
+        entry.put("actualScore", result.getActualScore());
+        entry.put("startingSkillPoints", result.getStartingSkillPoints());
+        entry.put("startingMoney", result.getStartingMoney());
+        entry.put("backgroundSkillIds", result.getBackgroundSkillIds());
+        entry.put(
+            "backgroundSkillNames",
+            resolveElementNames(game, ElementRegistryKey.SKILLS, result.getBackgroundSkillIds())
+        );
+        return entry;
+    }
+
+    private static <T extends GameElement> List<String> resolveElementNames(
+        Game game,
+        ElementRegistryKey<T> key,
+        Collection<String> ids
+    ) {
+        Collection<String> safeIds = Objects.requireNonNullElse(ids, List.of());
+        ArrayList<String> names = new ArrayList<>();
+        for (String id : safeIds) {
+            String safeId = Objects.toString(id, "").trim();
+            if (!safeId.isEmpty()) {
+                names.add(game.resolveElementName(key, safeId));
+            }
+        }
+        return names;
+    }
+
+    private static <T extends GameElement> List<String> existingElementIds(
+        Game game,
+        ElementRegistryKey<T> key,
+        Collection<String> ids
+    ) {
+        Collection<String> safeIds = Objects.requireNonNullElse(ids, List.of());
+        LinkedHashSet<String> existingIds = new LinkedHashSet<>();
+        ElementRegistry<T> registry = game.getElementRegistry(key);
+        for (String id : safeIds) {
+            String safeId = Objects.toString(id, "").trim();
+            if (!safeId.isEmpty() && registry.getById(safeId) != null) {
+                existingIds.add(safeId);
+            }
+        }
+        return List.copyOf(existingIds);
+    }
+
+    private static Map<String, Object> serializeAttributeGenerationResult(
+        AttributeGenerationMethod.AttributeGenerationResult result
+    ) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("complete", result.isComplete());
+        response.put("scores", result.getScores());
+        response.put("stepResults", result.getStepResults());
+        response.put("pointsSpent", result.getPointsSpent());
+        response.put("pointsRemaining", result.getPointsRemaining());
+        List<Map<String, Object>> categoryBudgets = new ArrayList<>();
+        for (AttributeGenerationMethod.CategoryPointBudgetResult budget
+            : result.getCategoryPointBudgets().values()) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("attributeCategoryKey", budget.getAttributeCategoryKey());
+            entry.put("sourceId", budget.getSourceId());
+            entry.put("sourceName", budget.getSourceName());
+            entry.put("budget", budget.getBudget());
+            entry.put("spent", budget.getSpent());
+            entry.put("remaining", budget.getRemaining());
+            categoryBudgets.add(entry);
+        }
+        response.put("categoryPointBudgets", categoryBudgets);
+        response.put("reason", result.getReason());
+        return response;
     }
 
     private static void getStandardArrays(RequestContext ctx) throws IOException {
@@ -3044,6 +3432,7 @@ public final class ApiRoutes {
             response.put("allowDiceSubstitution", method.isAllowDiceSubstitution());
             response.put("diceSubstitutionValue", method.getDiceSubstitutionValue());
             response.put("maxDiceSubstitutions", method.getMaxDiceSubstitutions());
+            response.put("rollAdjustments", serializeRollAdjustmentMethods(method));
             response.put("defaultAttributeMinScore", game.getDefaultAttributeMinScore());
             response.put("defaultAttributeMaxScore", game.getDefaultAttributeMaxScore());
             response.put("diceUsed", new ArrayList<>(game.getDiceUsed()));
@@ -3061,6 +3450,98 @@ public final class ApiRoutes {
             return response;
         });
         ctx.json(200, payload);
+    }
+
+    private static List<Map<String, Object>> serializeRollAdjustmentMethods(
+        AttributeGenerationMethod method
+    ) {
+        List<Map<String, Object>> values = new ArrayList<>();
+        for (RollAdjustmentMethod adjustment : method.getRollAdjustmentMethods()) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("id", adjustment.getId());
+            entry.put("name", adjustment.getName());
+            entry.put("description", adjustment.getDescription());
+            entry.put("type", adjustment.getType());
+            entry.put("value", adjustment.getValue());
+            entry.put("maximumUses", adjustment.getMaximumUses());
+            entry.put("sourceCostPerUnit", adjustment.getSourceCostPerUnit());
+            entry.put("targetGainPerUnit", adjustment.getTargetGainPerUnit());
+            entry.put("sourceMinimum", adjustment.getSourceMinimum());
+            entry.put("targetMaximum", adjustment.getTargetMaximum());
+            entry.put("resourceKey", adjustment.getResourceKey());
+            entry.put("resourceName", adjustment.getResourceName());
+            entry.put("resourceBudget", adjustment.getResourceBudget());
+            entry.put("resourceCostPerPoint", adjustment.getResourceCostPerPoint());
+            values.add(entry);
+        }
+        return values;
+    }
+
+    private static void updateDiceRollAdjustments(RequestContext ctx) throws IOException {
+        SessionStore.Session session = requireSession(ctx);
+        if (session == null) {
+            return;
+        }
+        String draftId = ctx.pathParam("id");
+        if (!ensureDiceRollingEnabled(ctx, draftId)) {
+            return;
+        }
+        Map<String, Object> body = ctx.readJsonMap();
+        if (!(body.get("rollAdjustments") instanceof List<?>)) {
+            ctx.json(400, Map.of("error", "Roll adjustments must be a list."));
+            return;
+        }
+        List<RollAdjustmentMethod> adjustments = new ArrayList<>();
+        Set<String> ids = new HashSet<>();
+        for (Map<String, Object> entry : getMapList(body, "rollAdjustments")) {
+            String name = getString(entry, "name");
+            String type = getString(entry, "type").toLowerCase(Locale.ROOT);
+            if (name.isEmpty()) {
+                ctx.json(400, Map.of("error", "Every roll adjustment needs a name."));
+                return;
+            }
+            if (!List.of(
+                RollAdjustmentMethod.TYPE_FIXED_VALUE,
+                RollAdjustmentMethod.TYPE_RAISE_HIGHEST,
+                RollAdjustmentMethod.TYPE_TRANSFER,
+                RollAdjustmentMethod.TYPE_SPEND_RESOURCE
+            ).contains(type)) {
+                ctx.json(400, Map.of("error", "Choose a supported roll adjustment type."));
+                return;
+            }
+            RollAdjustmentMethod adjustment = new RollAdjustmentMethod(getString(entry, "id"), name, type);
+            if (!ids.add(adjustment.getId())) {
+                ctx.json(400, Map.of("error", "Every roll adjustment needs a unique identity."));
+                return;
+            }
+            adjustment.setDescription(getString(entry, "description"));
+            adjustment.setValue(getInt(entry, "value", 0));
+            adjustment.setMaximumUses(getInt(entry, "maximumUses", 1));
+            adjustment.setSourceCostPerUnit(getInt(entry, "sourceCostPerUnit", 1));
+            adjustment.setTargetGainPerUnit(getInt(entry, "targetGainPerUnit", 1));
+            adjustment.setSourceMinimum(getInt(entry, "sourceMinimum", 0));
+            adjustment.setTargetMaximum(getInt(entry, "targetMaximum", 0));
+            adjustment.setResourceKey(getString(entry, "resourceKey"));
+            adjustment.setResourceName(getString(entry, "resourceName"));
+            adjustment.setResourceBudget(getInt(entry, "resourceBudget", 0));
+            adjustment.setResourceCostPerPoint(getInt(entry, "resourceCostPerPoint", 1));
+            if (type.equals(RollAdjustmentMethod.TYPE_SPEND_RESOURCE)
+                && (adjustment.getResourceKey().isEmpty()
+                    || adjustment.getResourceName().isEmpty()
+                    || adjustment.getResourceBudget() == 0)) {
+                ctx.json(400, Map.of(
+                    "error",
+                    "Resource-funded adjustments need a resource key, name, and positive budget."
+                ));
+                return;
+            }
+            adjustments.add(adjustment);
+        }
+        ctx.getDraftStore().updateDraft(
+            draftId,
+            game -> game.getAttributeGenerationMethod().setRollAdjustmentMethods(adjustments)
+        );
+        ctx.json(200, Map.of("ok", true));
     }
 
     private static void updateDiceSets(RequestContext ctx) throws IOException {
@@ -3496,6 +3977,17 @@ public final class ApiRoutes {
 
     private static int attributeCategoryCount(Game game) {
         return game.getRegistry(RegistryKey.ATTRIBUTE_TYPES).getAll().size();
+    }
+
+    private static List<String> attributeCategoryKeys(Game game) {
+        List<String> keys = new ArrayList<>();
+        for (AttributeType category : game.getRegistry(RegistryKey.ATTRIBUTE_TYPES).getAll()) {
+            String key = Objects.toString(category.getKey(), "").trim().toLowerCase(Locale.ROOT);
+            if (!key.isEmpty()) {
+                keys.add(key);
+            }
+        }
+        return keys;
     }
 
     private static void getHitPoints(RequestContext ctx) throws IOException {
@@ -4895,20 +5387,21 @@ public final class ApiRoutes {
         int startingSkillPoints,
         int startingMoney,
         List<String> backgroundSkillIds,
+        List<String> limitedToRaceIds,
         List<Map<String, Object>> requiredScores
     ) {
         Background safeBackground = Objects.requireNonNullElse(background, new Background(""));
         safeBackground.setStartingSkillPoints(startingSkillPoints);
         safeBackground.setStartingMoney(startingMoney);
 
-        List<String> validSkillIds = new ArrayList<>();
-        for (String skillId : safeList(backgroundSkillIds)) {
-            String id = Objects.toString(skillId, "").trim();
-            if (!id.isEmpty() && game.getElement("skills", id) != null) {
-                validSkillIds.add(id);
-            }
-        }
-        safeBackground.setBackgroundSkillIds(validSkillIds);
+        safeBackground.replaceArray(
+            "backgroundSkills",
+            existingElementIds(game, ElementRegistryKey.SKILLS, backgroundSkillIds)
+        );
+        safeBackground.replaceArray(
+            "limitedToRaces",
+            existingElementIds(game, ElementRegistryKey.RACES, limitedToRaceIds)
+        );
 
         Map<String, Integer> requiredAttributeScores = new LinkedHashMap<>();
         for (Map<String, Object> entry : requiredScores) {
@@ -4928,8 +5421,11 @@ public final class ApiRoutes {
         Set<String> validSkillIds = getSkills(game).stream()
             .map(skill -> Objects.toString(skill.getId(), ""))
             .collect(java.util.stream.Collectors.toSet());
+        Set<String> validRaceIds = getRaces(game).stream()
+            .map(race -> Objects.toString(race.getId(), ""))
+            .collect(java.util.stream.Collectors.toSet());
         for (Background background : getBackgrounds(game)) {
-            background.cleanupOrphanedReferences(validAttributeIds, validSkillIds);
+            background.cleanupOrphanedReferences(validAttributeIds, validSkillIds, validRaceIds);
         }
     }
 
@@ -4958,6 +5454,7 @@ public final class ApiRoutes {
                 entry.put("startingMoney", background.getStartingMoney());
                 List<String> backgroundSkillIds = background.getBackgroundSkillIds();
                 entry.put("backgroundSkillIds", backgroundSkillIds);
+                entry.put("limitedToRaceIds", background.<String>getArray("limitedToRaces"));
                 List<String> backgroundSkillNames = new ArrayList<>();
                 for (String skillId : backgroundSkillIds) {
                     String safeId = Objects.toString(skillId, "").trim();
@@ -5009,6 +5506,7 @@ public final class ApiRoutes {
                 getInt(body, "startingSkillPoints", 0),
                 getInt(body, "startingMoney", 0),
                 getStringList(body, "backgroundSkillIds"),
+                getStringList(body, "limitedToRaceIds"),
                 getMapList(body, "requiredAttributeScores")
             );
             added[0] = registry.add(background);
@@ -5079,6 +5577,7 @@ public final class ApiRoutes {
                 getInt(body, "startingSkillPoints", 0),
                 getInt(body, "startingMoney", 0),
                 getStringList(body, "backgroundSkillIds"),
+                getStringList(body, "limitedToRaceIds"),
                 getMapList(body, "requiredAttributeScores")
             );
             updated[0] = true;
@@ -6415,6 +6914,7 @@ public final class ApiRoutes {
             if (race != null) {
                 game.setRaceStartingMoneyModifier(Objects.toString(race.getId(), ""), 0);
                 registry.remove(race);
+                cleanupBackgroundReferences(game);
             }
         });
         ctx.json(200, Map.of("ok", true));
@@ -6947,6 +7447,16 @@ public final class ApiRoutes {
         lines.add("characterName=" + Objects.toString(safeCharacterFile.getCharacterName(), "").trim());
         lines.add("gameName=" + Objects.toString(safeCharacterFile.getSourceGameName(), "").trim());
         lines.add("diceSubstitutionsUsed=" + safeCharacterFile.getDiceSubstitutionsUsed());
+        safeCharacterFile.getRollAdjustmentUses().entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(entry -> lines.add(
+                "rollAdjustmentUse." + entry.getKey() + "=" + entry.getValue()
+            ));
+        safeCharacterFile.getRollAdjustmentResourceSpent().entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(entry -> lines.add(
+                "rollAdjustmentResourceSpent." + entry.getKey() + "=" + entry.getValue()
+            ));
         safeCharacterFile.getRuleModeSelections().entrySet().stream()
             .sorted(Map.Entry.comparingByKey())
             .forEach(entry -> lines.add(
@@ -7614,6 +8124,72 @@ public final class ApiRoutes {
             String item = Objects.toString(entry, "").trim();
             if (!item.isEmpty()) {
                 result.add(item);
+            }
+        }
+        return result;
+    }
+
+    private static List<Integer> getIntegerList(Map<String, Object> body, String key) {
+        Object value = body.get(key);
+        if (!(value instanceof List<?>)) {
+            return List.of();
+        }
+        List<Integer> result = new ArrayList<>();
+        for (Object entry : (List<?>) value) {
+            if (entry instanceof Number) {
+                result.add(((Number) entry).intValue());
+                continue;
+            }
+            if (entry instanceof String) {
+                try {
+                    result.add(Integer.parseInt(((String) entry).trim()));
+                } catch (NumberFormatException ignored) {
+                    // Invalid values remain absent so core reports an incomplete request.
+                }
+            }
+        }
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Integer> getIntegerMap(Map<String, Object> body, String key) {
+        Object value = body.get(key);
+        if (!(value instanceof Map<?, ?>)) {
+            return Map.of();
+        }
+        Map<String, Integer> result = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+            String entryKey = Objects.toString(entry.getKey(), "").trim();
+            if (entryKey.isEmpty()) {
+                continue;
+            }
+            Object entryValue = entry.getValue();
+            if (entryValue instanceof Number) {
+                result.put(entryKey, ((Number) entryValue).intValue());
+                continue;
+            }
+            if (entryValue instanceof String) {
+                try {
+                    result.put(entryKey, Integer.parseInt(((String) entryValue).trim()));
+                } catch (NumberFormatException ignored) {
+                    // Invalid values remain absent so core reports an incomplete request.
+                }
+            }
+        }
+        return result;
+    }
+
+    private static Map<String, String> getStringMap(Map<String, Object> body, String key) {
+        Object value = body.get(key);
+        if (!(value instanceof Map<?, ?>)) {
+            return Map.of();
+        }
+        Map<String, String> result = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+            String entryKey = Objects.toString(entry.getKey(), "").trim();
+            String entryValue = Objects.toString(entry.getValue(), "").trim();
+            if (!entryKey.isEmpty() && !entryValue.isEmpty()) {
+                result.put(entryKey, entryValue);
             }
         }
         return result;

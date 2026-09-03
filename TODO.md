@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-08-19
+Updated: 2026-09-02
 
 ## Beta Launch Blockers
 
@@ -16,34 +16,148 @@ Updated: 2026-08-19
 - [x] Smoke-test account verification, password creation, login, new draft creation, draft deletion, and `.gmrf` export/download.
 - [x] Smoke-test `.gmrf` upload/import and verify the uploaded draft opens with expected content and counts toward the account saved-draft limit.
 
-## Current Development Priority: Attack/Defense And Damage
+## Current Funding/Partner Milestone: Contract-Driven Character-to-Combat PoC
 
-1. [x] Add the initial `AttackMethod` core element with the shared dice-roll configuration fields and a non-null `Game.attackMethod` member.
-2. [x] Define explicit attack-source guidance for hybrid systems in `AttackResolution`. Each attack selects a stable `AttackSourceRoute` id; an explicitly configured default is the only fallback, so descendant applications do not infer a source from absent values or empty collections.
-3. [ ] Complete the Attack/Defense and Damage backend, including persistence and verification.
-   - [x] Implement and persist `DefenseMethod` generation modes and source-neutral `AttackResolution` configuration.
-   - [x] Add a standalone downstream-consumer audit module covering every current resolution mode, comparison, equality state, outcome metric, and source kind; preserve indeterminate findings rather than filling missing rules with hidden assumptions.
-   - [x] Move currently determinate resolution behavior into core `AttackResolution`: section dispatch, direct over/under comparison, reusable equality, opposed/defender-only comparison, automatic contact, margin, routes, and core-owned runtime input/result contracts. Ordinary consumers obtain complete values from the core Attack/Defense generators and pass them to `getAttackResult(...)`, preserving a presentation/reaction point before final resolution; lower-level APIs remain available for external runtime values.
-   - [x] Move current Attack/Defense runtime generation into core. `AttackMethod` and `DefenseMethod` now return immutable `GeneratedValue` results, use a built-in random `DiceRoller`, accept an injected roller for deterministic consumers, and preserve indeterminate results where Resolution still lacks a reducer.
-   - [x] Add a standalone combat-automator PoC that loads an exported `.gmrf`, reads the three core combat sections, and runs the supported one-roll/passive-defense path through a deliberately small consumer class.
-   - [x] Add and run a non-overwriting example generator for the current PoC matrix: two differently valued `.gmrf` files for each over/under and attacker/defender-wins-ties combination, all carrying d4/d6/d8/d10/d20/d100 selections.
-- [x] Add the next focused Attack Resolution section: for one attack pool against passive Defense, count dice that meet an inclusive persisted threshold in the configured over/under direction, then compare the success count with the passive Defense requirement using the shared equality setting. More counted successes remain better in either die direction.
-- [x] Add highest- and lowest-die pool resolution against passive Defense, preserving the raw pool and applying the shared over/under direction plus attacker-wins-ties setting.
-- [x] Add summed pool resolution against passive Defense, preserving the raw pool and applying the shared over/under direction plus attacker-wins-ties setting. The one-die modifier remains intentionally limited to one die rolled once.
-- [x] Keep multiple complete attacks outside Attack Resolution: core defines how one attack value is generated and resolved; combat, Skill, or other systems decide how many attacks occur and call the one-attack flow repeatedly.
-- [ ] Research mixed-die generation with independently named outputs before designing or coding it. Use [Hammerheads (Cortex Prime)](https://www.cortexrpg.com/compendium/hammerheads-spotlight/spotlight) as the initial study case: a roll assembles differently sized trait dice, two selected results form the action total, and another unused die becomes the effect die; only the effect die's size matters after selection. Determine how GMRules should represent named outputs, mixed die types, selection rules, and consumers without hard-coding the names `attack` and `effect`.
-   - [ ] Expand the preliminary core `GeneratedValue` contract and initial resolution result as needed so downstream damage and effects retain every generated and computed value.
-   - [ ] Settle and implement Damage Calculation, Damage Mitigation, and Harm Resolution without folding soak, armor reduction, parry costs, or later result modifiers into initial attack/defense generation.
-4. [x] Integrate the attack/defense mechanics into the Rules Builder UI in staged review passes.
-   - [x] Replace the Rules Builder Armor Class stage with Attack Method, exposing and autosaving the five existing `AttackMethod` fields. Keep the legacy Armor Class API temporarily for Character Generator calculations.
-   - [x] Allow Dice per Roll to start at zero for an Adjustable base pool while retaining a minimum of one for a Fixed dice count; enforce the same branch in core normalization, deserialization, and the Builder UI.
-   - [x] Add the first narrow attack modifier: one persisted signed `singleRollModifier`, applied directly to the derived value only when one attack die is rolled once. Temporarily expose it in Attack Method so exported PoC rulesets can demonstrate positive and negative modifiers.
-   - [x] Add Defense immediately after Attack Method with passive-value, active-roll, attack-adjustment, and no-accuracy-defense families. John has not yet launcher-smoked this screen.
-   - [x] Add Attack Resolution immediately after Defense with comparison, equality, automatic-outcome, attack-source-route, and outcome-band configuration. John has not yet launcher-smoked this screen.
-   - [x] Add the first input-aware Attack Resolution section for one attack die rolled once against passive Defense: roll over/under, reusable `Attacker wins ties`, a persisted `Target value is Defense value` checkbox, and a retained Attack Chart editor when the Defense target is unchecked. This focused view still needs John's launcher smoke; other input combinations intentionally retain the previous full screen until their sections are designed.
-   - [x] Add the focused one-roll attack-pool/passive-Defense section with a persisted inclusive Minimum Successful Roll and fixed success-count-versus-passive-Defense resolution. This focused view still needs John's launcher smoke.
-- [x] Extend the focused pool/passive-Defense section with Count successful dice, Use the highest die, Use the lowest die, and Sum all dice choices. Every method exposes roll over/under and the shared Attacker wins ties setting, defaulted on for new rulesets. Success-count direction controls the inclusive per-die threshold while the final count still treats more successes as better. This focused view still needs John's launcher smoke.
-   - [ ] Perform the deferred combat-screen UI cleanup after the mechanics workflow has been exercised with real rules data.
+The governing product goal extends across every rules domain. A consumer should
+need only the published contract and a loaded `.gmrf` `Game`, whether it accesses
+core in-process, in a background JVM, as a service, or through a language bridge.
+The contract must expose capability discovery, legal operations and decisions,
+authoritative results, state changes, and events. A VTT that implements a
+compatible contract should run any compatible GMRules Game without
+game-specific formulas or inspection-driven fallbacks in the VTT. Unsupported
+contract versions or capabilities must fail explicitly.
+
+The near-term product proof is one complete vertical slice, not separate UI
+feature tracks. A fully loaded `.gmrf` `Game` must generate two combat-ready
+characters and run their combat to a rules-defined conclusion. Core is the only
+executable authority. A consumer supplies player/runtime decisions, calls public
+contracts, and presents or automates the returned decisions and events without
+reimplementing formulas.
+
+The PoC is complete only when the same external contract supports at least three
+materially different combat systems. Each system must produce two legal
+characters from its Game file and complete combat in fully automated mode and in
+player-input mode. Human, automated, and mixed control must differ only in who
+answers the same core decision requests.
+
+Character Generation and complete Combat are the first vertical validation of
+this boundary, not the final contract scope. Movement, spellcasting, and every
+other mechanic must follow the same ownership rule as those domains are added;
+they are outside this milestone unless a selected PoC system requires them.
+
+### 1. Freeze the Demonstration Boundary
+
+- [ ] Define the versioned, transport-neutral Game consumer contract: capability
+  discovery, compatible-version rules, operation and decision requests,
+  authoritative results/events/state, and explicit incompatibility responses.
+- [ ] Establish the contract rule for every mechanics domain: consumers may
+  provide context and choices and react to results, but may not infer behavior
+  from `.gmrf` configuration or implement a local rules fallback.
+- [ ] Select the three PoC combat systems and record a support matrix that makes
+  them mechanically distinct rather than three cosmetic variants of one roll-over
+  system. Include different generation, resolution, damage/mitigation, health or
+  harm, and decision requirements where practical.
+- [ ] Define the smallest complete combat-ready character contract shared by all
+  three systems: creation inputs, authoritative character result, equipment and
+  combat statistics, validation, and immutable/stable identities.
+- [ ] Define the full-combat terminal boundary: initiative or opening order,
+  turns, legal actions and targets, attack, defense, damage, mitigation, harm,
+  statuses/resources needed by the selected systems, and defeat/end conditions.
+- [ ] Audit the current web Character Generator, external `gmrules-character`,
+  Attack audit, and one-round combat PoC as provisional consumers. Do not preserve
+  consumer structure when rebuilding a thin contract consumer is safer.
+
+### 2. Complete Combat-Ready Character Generation in Core
+
+- [x] Add the first `AttributeGenerationMethod` execution contract. It owns roll
+  generation, Standard Array assignment, Point Buy pricing,
+  Add/Spend/Choose combination, bounds, validation, and authoritative score maps.
+- [x] Execute creator-fixed and player-assigned category-budget Point Buy through
+  the same method gate. It validates against the loaded Attribute Category
+  registry, enforces every pool independently, retains the global minimum-spend
+  rule, and returns per-category accounting. Slot choices persist with characters.
+- [x] Replace fixed Dice Substitution as the only post-roll exception with generic,
+  creator-authored roll adjustments. Core describes and executes fixed replacement,
+  raise-highest, roll transfer, and resource-funded increase operations against
+  stable roll identities, returning legal decisions, deltas, use counts, resource
+  costs, and remaining options. The Rules Builder authors a collection and the
+  Character Generator applies it before assignment without reproducing formulas.
+- [x] Route Race options and selection through core. Core now owns playable and
+  Attribute-bound eligibility, returns stable Race Skill/trait applications, and
+  the web consumer persists that result without reproducing the rules.
+- [x] Route Background options and selection through core. Background Race limits
+  and minimum Attribute requirements are evaluated in core; the returned
+  one-time Skill-point, money, and Skill package is the consumer's only rules
+  result. The Rules Builder can author stable Race limits, with an empty list
+  meaning every Race.
+- [ ] Reopen Race/Class eligibility after the independent roll-adjustment layer:
+  let the creator decide whether an otherwise non-viable choice may invoke one or
+  more configured adjustment methods, and have core return the warning and legal
+  repair decisions. Keep strict rejection available and do not put repair formulas
+  in the consumer.
+- [ ] Add a tracked downstream Attribute Generation consumer audit that depends
+  only on `gmrules-core`; current focused coverage is intentionally local/ignored.
+- [ ] Audit Class, Skill, equipment, weapon, armor, derived
+  health, starting resources, Defense, and every other combat-relevant character
+  calculation. Move formulas, eligibility, application, and final validation into
+  owning core mechanics or a core Character Generation coordinator.
+- [ ] Return a complete combat-ready character result from core, including every
+  stable choice, derived value, available action/source relationship, resource,
+  and explanation needed by combat without consulting a consumer's formulas.
+- [ ] Generate two distinct PoC characters from each selected Game using only
+  public core contracts and player-choice inputs.
+
+### 3. Complete Full Combat and Damage in Core
+
+- [x] Persist initial `AttackMethod`, `DefenseMethod`, and `AttackResolution`
+  configuration and execute the currently determinate one-attack paths in core.
+- [x] Maintain a tracked Attack Resolution downstream audit and a one-round
+  contract consumer. These are foundation/scaffolding, not the final combat PoC.
+- [ ] Close the current Attack/Defense gaps required by the three-system matrix,
+  including active-defense reducers, modifiers, outcome classification, routes,
+  and preservation of every raw and derived output needed by later stages.
+- [ ] Research and model mixed-die generation with independently named outputs if
+  required by the selected systems. Hammerheads/Cortex Prime is the initial study
+  case; do not hard-code output names such as `attack` or `effect`.
+- [ ] Define and implement a consumer-facing Damage Resolution contract whose
+  core-owned stages preserve damage generation/calculation, damage-type changes,
+  armor/resistance/vulnerability or soak, final harm application, and defeat.
+  Keep these stages observable without moving their formulas into consumers.
+- [ ] Define and implement a core combat-session contract that owns combat state,
+  legal sequencing, action economy, targeting, resource/status changes, and the
+  rules-defined end condition while delegating each mechanic to its owning object.
+- [ ] Add a shared decision protocol that returns `DecisionRequired` with legal
+  options or authoritative combat events/completion. Human UI, automated policy,
+  and mixed control must answer this same protocol.
+- [ ] Support injected randomness plus a structured event log sufficient for
+  deterministic tests, replay, explanation, animation, and external bridges.
+
+### 4. Prove Consumer Independence
+
+- [ ] Rework or replace `gmrules-combat-poc` so it loads a Game plus two characters
+  generated from that Game and runs combat from start to finish. Its current
+  single-round implementation is only a contract probe.
+- [ ] Provide fully automated and player-input controllers that share the same
+  combat-session contract and contain policy/presentation only.
+- [ ] Run and retain verified complete combats for all three selected systems,
+  with two core-generated characters per system and deterministic replay cases.
+- [ ] Add dependency/coverage guards proving the demonstration consumers depend
+  only on public core contracts and do not contain duplicated mechanics.
+- [ ] Package a concise partner/funding demonstration showing that changing the
+  Game changes the rules while the consumer contract and interface stay stable.
+
+### Known Consumer Corrections Before Reuse
+
+- [ ] Repair the current web Point Buy screen's category-budget scope error:
+  category setup values are declared in `renderCharGenAttributes()` but referenced
+  from the separate `renderCharGenPointsBuy()` function. Then re-run shared,
+  creator-fixed, and player-assigned Point Buy smoke tests.
+- [ ] Re-audit the entire web Character Generator before treating any stage as a
+  reference implementation. Existing accepted UX may be reused, but its formulas
+  and stage structure are not architectural constraints.
+- [ ] If the external `gmrules-character` project is integrated, remove its
+  independent `AttributeGeneratorStage` mechanics and route it through the same
+  loaded-Game contracts; do not maintain a second implementation.
 
 ## High Priority After First Invites
 
@@ -106,12 +220,16 @@ Updated: 2026-08-19
 - [ ] Review all user-facing copy for beta tone and consistency.
 - [x] Verify French strings are either complete enough for beta or intentionally hidden.
 
-## Character Generation
+## Existing Web Character Generator Work (Secondary)
 
-- [ ] Choose beta scope: defer full character generation or integrate `gmrules-character`.
+- [x] Set the current scope: complete combat-ready Character Generation contracts
+  in core for the three-system character-to-combat PoC. Existing web and external
+  Character Generators are provisional consumers, not the source of mechanics.
 - [x] Add account-backed lightweight web `.gmcf` character draft saves with closed-beta caps: four per account and two per saved ruleset.
 - [x] Add a way to start character creation from saved server-side rulesets without uploading a `.gmrf` file.
-- [ ] If integrating, add `gmrules-character` as a Maven module in this reactor.
+- [ ] Decide whether the external `gmrules-character` project is useful as a thin
+  demonstration consumer after the core Character Generation boundary is settled;
+  integration is not required merely to preserve its current implementation.
 - [x] Bridge the browser-side `.gmcf` text draft format to `CharacterFileIO` for downloadable final character files.
 - [x] Add upload/resume bridge for object-backed `.gmcf` files produced by server export.
 - [x] Require a character name before server character draft creation and name exported files `<Game name>-<Character name>.gmcf`.
@@ -136,13 +254,20 @@ Updated: 2026-08-19
 - [x] Replace Rules Builder Auto Assigned array entry with complete-array editing: Standard and Elite each persist an independent shared-score option and value, while non-normalized Set Scores modals list every Attribute with an editable score.
 - [x] Correct and launcher-smoke Character Generator hybrid Point Buy accounting so first-step Standard Array/Dice scores do not consume the Point Buy budget: Add prices only the purchased increase, Spend prices only the change from the first-step baseline, and saved first-step results restore that baseline after resume.
 - [x] Accept the current Point Buy/hybrid recipe contract for the proof of concept; it handles the practical majority of actual systems, and unsupported edge combinations are not Character Generator blockers.
-- [x] Complete and launcher-smoke the proof-of-concept Attribute Generation workflow—Builder configuration, initial generation, assignment, Point Buy, hybrid results, and save/resume—with edge-case expansion deferred beyond the PoC.
+- [x] Complete and launcher-smoke the original proof-of-concept Attribute
+  Generation workflow—Builder configuration, initial generation, assignment,
+  Point Buy, hybrid results, and save/resume—before the mechanic-owned execution
+  refactor. Re-audit and re-smoke the current consumer before relying on it.
 - [ ] Post-PoC cleanup: remove the legacy `baseAttributeValue` field and its API/Character Generator fallback while keeping older `.gmrf` files loadable.
 - [ ] Post-PoC polish: rename the second-step Spend application mode to clearer player- and creator-facing wording.
 - [ ] Post-PoC expansion: add Rules Builder creation/editing for progressively priced Point Buy score-cost tables and enforce their completeness where used.
-- [ ] Post-PoC expansion: add Character Generator assignment and spending behavior for Point Buy category budgets, including persistence.
+- [ ] Replace the stale category-budget expansion task with the consumer correction
+  tracked under the current milestone: core execution and persistence exist; the
+  web Point Buy scope bug and complete launcher smoke remain open.
 - [ ] Consider hiding character Race, Class, and Spell screens entirely when the ruleset has no entries, instead of showing an informational screen.
-- [ ] Character file AC cleanup: ensure final character data keeps resolved AC, armor replacement AC values, and armor/shield AC modifiers distinct so games where armor changes the base AC do not collapse into modifier-only math.
+- [ ] As part of the combat-ready core character contract, keep resolved Defense,
+  armor replacement values, armor/shield modifiers, and other mitigation inputs
+  distinct so consumers do not collapse them into one local calculation.
 - [ ] Manually enter the Cities Without Number ruleset from the included CL-Open SRD and note builder workflow weaknesses found during entry.
 - [ ] Hosted-smoke the completed character flow from class selection through skills, spells, equipment, weapons, armor, and final `.gmcf` export.
 - [x] Confirm the current pre-combat-design refactor batch can open and migrate an older ruleset file; launcher smoke passed on 2026-08-07.

@@ -93,6 +93,8 @@ public class CharacterFileBuilder {
         ));
         character.setResolvedArmorClass(safeDraft.getResolvedArmorClass());
         character.setDiceSubstitutionsUsed(safeDraft.getDiceSubstitutionsUsed());
+        character.setRollAdjustmentUses(safeDraft.getRollAdjustmentUses());
+        character.setRollAdjustmentResourceSpent(safeDraft.getRollAdjustmentResourceSpent());
         return character;
     }
 

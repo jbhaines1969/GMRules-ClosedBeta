@@ -1,6 +1,6 @@
 # GMRules Product Design Context
 
-Updated: 2026-08-19
+Updated: 2026-09-02
 
 ## Purpose
 
@@ -8,7 +8,10 @@ This is the concise product context for collaborators reviewing GMRules workflow
 
 ## Product Vision
 
-GMRules helps tabletop RPG creators turn a custom game system into structured, portable rules data that can power a suite of tools. The product promise is: **“You make the rules, we make the tools.”**
+GMRules helps tabletop RPG creators turn a custom game system into a structured,
+portable, executable rules contract that can power a suite of tools. The durable
+product is the Game, not any one interface. The product promise is: **“You make
+the rules, we make the tools.”**
 
 The long-term product is an ecosystem rather than a single builder:
 
@@ -16,9 +19,16 @@ The long-term product is an ecosystem rather than a single builder:
 - The **Character Generator** reads those definitions and guides a player through valid choices and calculations.
 - A future **Campaign Manager** can use the same definitions for characters, encounters, time, equipment, effects, and campaign records.
 - Shared structured data creates opportunities for rules automation: calculated values, eligibility checks, linked effects, damage handling, starting resources, and other system-specific behavior without hard-coding one RPG.
+- Combat and other automators use the same Game-owned operations as interactive
+  tools. Automated, human, and mixed control differ in who supplies decisions,
+  not in which software calculates the rules.
 - Publishing and reference output can present the creator’s descriptions and rules in readable forms while preserving the same source data used by interactive tools.
 
-The web UI is the canonical interface in this repository. The legacy Swing implementation has been removed; any future standalone application should be designed anew from the finalized web workflows and visual language.
+The web UI is the canonical closed-beta product interface in this repository. The
+legacy general Swing implementation has been removed. Purpose-limited contract
+demonstrations may use new thin consumers; a future general standalone product
+interface should be designed anew from accepted workflows after the core
+contracts are settled.
 
 Some descendant applications are future direction, not current closed-beta functionality.
 
@@ -32,7 +42,15 @@ The product must serve creators who understand their own rules but may not think
 
 ## `.gmrf`: the Product’s Source of Truth
 
-A `.gmrf` file is a portable, system-agnostic rules definition. It represents a **ruleset**, not a campaign or an individual character. The core `Game` model can carry identity and authorship, creator-written descriptions, custom system names, measurements and dice, configuration choices, reusable mechanics, and registries of game elements such as Attributes, Skills, Effects, Equipment, Weapons, Spells, Races, Backgrounds, Classes, Currencies, Damage Types, Pantheons, and Deities.
+A `.gmrf` file is a portable, system-agnostic rules definition. It represents a
+**ruleset**, not a campaign or an individual character. When loaded by a
+compatible core implementation, its configured mechanic objects select and
+execute authoritative operations; it is not merely passive data for one UI to
+interpret. The core `Game` model can carry identity and authorship,
+creator-written descriptions, custom system names, measurements and dice,
+configuration choices, reusable mechanics, and registries of game elements such
+as Attributes, Skills, Effects, Equipment, Weapons, Spells, Races, Backgrounds,
+Classes, Currencies, Damage Types, Pantheons, and Deities.
 
 Relationships use stable element identities so descendant applications can resolve choices and references. For example, a Skill can reference Effects, character options can reference Attributes, and equipment or spells can reference a Damage Type.
 
@@ -65,16 +83,60 @@ parallel mechanics engines. Databases, exports, reports, and derived spreadsheet
 are projections or extrapolations of core data rather than competing sources of
 rules truth.
 
-For example, a combat UI or video-game engine obtains complete values from the core
-Attack and Defense generators and passes them to
-`game.getAttackResolution().getAttackResult(attack, defense)`. This gives the
-descendant a point to present the attack or gather reactions before Defense and
-final resolution. Core still selects and executes the configured Resolution method
-and returns the mechanical outcome. The descendant can display “Attack succeeded,” play a hit
-animation, or begin its own success workflow without computing why the attack
-succeeded. The same boundary applies to future mechanics: core answers the rules
-question; descendants specialize the interface or automate what happens with the
-answer.
+For example, a combat UI or video-game engine obtains complete values from core
+Attack and Defense generation and passes them through core Attack Resolution,
+Damage Resolution, and combat-session operations. Core returns decision requests
+and structured events at points where a player, automated controller, animation,
+reaction, or remote bridge may act. The descendant can display “Attack
+succeeded,” play a hit animation, ask the player to spend a resource, or transmit
+the event without computing why the attack succeeded or how much harm occurred.
+The same boundary applies to Character Generation and future mechanics: core
+answers the rules question; descendants specialize the interface or the policy
+used to choose among legal options.
+
+This is a universal and transport-neutral contract. A descendant may call the
+loaded `Game` as an in-process codebase, a background JVM, a service, or through
+a language bridge, but those deployment choices must not change who owns the
+rules. The published contract must let a consumer discover the Game's contract
+version and capabilities, request legal operations or decisions, submit runtime
+context and choices, and receive authoritative results, state changes, and
+structured events. If the runtime cannot support a declared version or
+capability, it reports that incompatibility explicitly; the consumer does not
+infer the mechanic from `.gmrf` fields or substitute a local formula.
+
+The durable interoperability promise is that a VTT implements a compatible Game
+contract once and can then run any compatible GMRules Game. Character Generation
+and complete Combat are the first strategic proof of that claim, not a special
+boundary around those systems. Movement, spellcasting, and every other rules
+domain must expose the same kind of core-owned operations as they enter scope.
+
+## Current Strategic Proof: Character to Complete Combat
+
+The near-term partner/funding milestone is an end-to-end contract demonstration,
+not isolated completion of the current Character Generator or combat screens.
+It validates the first vertical slice of the universal Game contract without
+making unrelated future domains part of the immediate implementation scope.
+Given one `.gmrf` Game and player/runtime choices, core must:
+
+1. generate two legal, combat-ready characters;
+2. open and maintain a combat session;
+3. request every human or automated decision through one shared protocol;
+4. resolve Attack, Defense, Damage Calculation, Damage Mitigation, Harm, relevant
+   resources/statuses, and defeat; and
+5. return a structured event history through a rules-defined terminal state.
+
+At least three materially different combat systems must complete this proof. Two
+characters are generated from each Game, and the same combat contract supports
+fully automated, player-input, and mixed control. Injected randomness and event
+records must support deterministic tests and replay. The demonstration succeeds
+when changing the Game changes the mechanics while the consumer contract remains
+stable and consumers contain no copied formulas.
+
+The existing web Character Generator and one-round Swing combat PoC are
+provisional consumers. Their accepted interaction ideas may be reused, but their
+current calculations, stage structure, and implementation are not architectural
+constraints. Rebuilding a thin consumer is preferable to preserving a local
+mechanics engine.
 
 ## Modeling and UX Principles
 
@@ -92,7 +154,12 @@ answer.
 
 9. **Collections remain the primary content.** A collection editor should show its heading, modest spacing, a left-aligned Add action, and the existing items. Collection rows show the element name plus concise category/type metadata where useful; long-form descriptions remain in editors or dedicated detail views because prose makes working lists impractical. Blank creation fields should not remain visible while the creator is only reviewing the collection. Add and existing Edit actions should share a focused modal when their fields are the same; page-level mechanic settings remain inline.
 10. **Save at the natural commitment point.** Short, single-value page settings save when changed and do not need Apply/Save buttons. Longer creator-authored mechanic descriptions save when their disclosure closes or the creator continues, avoiding per-keystroke monitoring while preserving the draft before navigation.
-11. **Core computes; descendants present or react.** UI, automation, bridge, database, and spreadsheet work should consume core data and outcomes instead of duplicating rules formulas.
+11. **Core computes; descendants choose, present, or react.** UI, automation,
+    bridge, database, and spreadsheet work should consume core decisions, events,
+    data, and outcomes instead of duplicating formulas or state transitions.
+12. **Prove contracts vertically.** A mechanic is not demonstrated merely because
+    its builder screen saves. At least one independent consumer must complete the
+    intended workflow using only the loaded Game's public contract.
 
 ## Main User Journeys
 
@@ -116,7 +183,7 @@ Game Setup; Measurements; Dice Options; Attribute Categories; Attributes; Attrib
 
 The order establishes reusable concepts before content that references them. Attribute-generation detail screens follow Attributes because they may depend on the completed list. Damage Types precede Effects and gear so later entries can reference them. After reusable Effects, Skills comes before Advantages and Flaws because those character options may grant or limit Skills; Spells and Races continue the character-creation-first flow, followed by one-time Background packages and then advancing Classes. Equipment and Weapons finish the builder.
 
-Attack Method occupies the former Rules Builder Armor Class position, followed directly by Defense and Attack Resolution before Currency. Attack Method was launcher-smoked and accepted on 2026-08-11; its UI cleanup is intentionally deferred. Defense and Attack Resolution are implemented and awaiting visual review. For one attack die rolled once against passive Defense, Resolution presents roll over/under, an independent `Attacker wins ties` checkbox, and a `Target value is Defense value` checkbox. Unchecking the Defense target hides equality and reveals the Attack Chart creator; switching back preserves both equality and chart draft data. For one attack dice pool rolled once against passive Defense, Resolution asks how the pool becomes one attack value: count dice meeting an inclusive over/under threshold, keep the highest die, keep the lowest die, or sum all dice. Every method exposes the shared direction and equality settings. For success count, direction applies to the per-die threshold while more counted successes remain better; equality controls the count-versus-Defense tie. For the three scalar reducers, direction and equality apply directly against passive Defense. A descendant obtains complete values from core `AttackMethod` and `DefenseMethod`, may present or react to them, and passes them to `AttackResolution`; core selects the section, performs the configured pool reduction, and resolves the comparison. Attack Resolution intentionally answers one attack; combat, Skill, or other systems decide how many attacks occur. Other input combinations retain the existing full Resolution screen until their focused sections are designed. The legacy Armor Class API remains available only because the current Character Generator still uses it for its final defensive calculation.
+Attack Method occupies the former Rules Builder Armor Class position, followed directly by Defense and Attack Resolution before Currency. Attack Method was launcher-smoked and accepted on 2026-08-11; its UI cleanup is intentionally deferred. Defense and Attack Resolution are implemented and awaiting visual review. For one attack die rolled once against passive Defense, Resolution presents roll over/under, an independent `Attacker wins ties` checkbox, and a `Target value is Defense value` checkbox. Unchecking the Defense target hides equality and reveals the Attack Chart creator; switching back preserves both equality and chart draft data. For one attack dice pool rolled once against passive Defense, Resolution asks how the pool becomes one attack value: count dice meeting an inclusive over/under threshold, keep the highest die, keep the lowest die, or sum all dice. Every method exposes the shared direction and equality settings. For success count, direction applies to the per-die threshold while more counted successes remain better; equality controls the count-versus-Defense tie. For the three scalar reducers, direction and equality apply directly against passive Defense. A descendant obtains complete values from core `AttackMethod` and `DefenseMethod`, may present or react to them, and passes them to `AttackResolution`; core selects the section, performs the configured pool reduction, and resolves the comparison. Attack Resolution intentionally answers one attack; a future core combat-session contract or another owning core mechanic decides how many attacks occur. Other input combinations retain the existing full Resolution screen until their focused sections are designed. Damage Calculation, Damage Mitigation, Harm Resolution, and full-combat configuration still need authoring workflows driven by the three-system support matrix. The legacy Armor Class API remains available only because the current Character Generator still uses its own final defensive path.
 
 Affected Systems is the user-facing term for reusable labels that identify the parts of the game, or recurring rule interactions, that actions, events, Effects, and Statuses may change or invoke. Its existing defaults remain examples rather than a closed taxonomy. The implementation and saved-data contract continue to use the internal `EffectType` name.
 
@@ -124,9 +191,41 @@ Drafts save online, can be downloaded as `.gmrf`, and can be reopened and revise
 
 ### Character Generator
 
-A player chooses a saved ruleset or imports a compatible ruleset/character file, confirms the game, and names the character. The flow then applies the ruleset through Attribute Generation, optional Point Buy, Race, Class, Skills, Spells, Equipment, Weapons, and Armor before final `.gmcf` export.
+A player chooses a saved ruleset or imports a compatible ruleset/character file,
+confirms the Game, and names the character. The current web flow then presents
+Attribute Generation, optional Point Buy, Race, Background, Class, Skills,
+Spells, Equipment, Weapons, and Armor before `.gmcf` export. This existing flow is
+a provisional consumer. Core—not the screen sequence—must own generation,
+eligibility, application, derived combat statistics, and final character
+validity.
 
-The generator must reflect the creator’s actual options and terminology. Background selection occurs after Race and before Class; it applies a one-time starting package without Class advancement. Empty systems currently show explicit messages on Race, Background, Class, and Spell screens; skipping empty screens is under consideration.
+The generator must reflect the creator’s actual options and terminology.
+Background selection occurs after Race and before Class; it applies a one-time
+starting package without Class advancement. Empty systems currently show explicit
+messages on Race, Background, Class, and Spell screens; skipping empty screens is
+under consideration. The consumer may gather choices and present core results,
+but it must not calculate score changes, health, resources, Defense, armor,
+equipment consequences, or combat readiness.
+
+Generated rolls may pass through an optional creator-authored adjustment layer
+before Attribute assignment. The Rules Builder offers fixed replacement,
+raise-highest, value transfer, and resource-funded increase methods. The player UI
+renders only the legal targets, sources, amounts, remaining uses, and resource
+balances returned by core; it does not interpret the adjustment type or calculate
+the result. Adjustment accounting remains part of the character draft.
+
+Race is the first post-Attribute stage routed through a core runtime gate. The
+loaded `Game` exposes Race options with authoritative playable and Attribute-bound
+eligibility and returns stable Skill, trait, and fixed Attribute-modifier
+application data. The web screen presents that result and persists its returned
+Skill/trait applications. Background is the second routed stage: the loaded
+`Game` returns only options legal for the optional selected Race and current
+Attribute scores, revalidates the chosen ID, and returns its one-time starting
+Skill-point, money, and Skill package. The consumer does not inspect Background
+requirements or Race limits.
+Race eligibility is still binary. A later creator policy must decide whether a
+non-viable Race/Class choice is rejected or may invoke configured roll adjustments
+to repair its requirements; that policy remains open.
 
 ## Important Terminology
 
@@ -139,6 +238,12 @@ The generator must reflect the creator’s actual options and terminology. Backg
 - **Effect:** reusable rules behavior; a **Status** is a reusable condition.
 - **Player Option:** an offered Attribute Generation recipe, possibly containing ordered Standard Array, Dice, or Point Buy steps.
 - **Descendant application:** a purpose-specific UI, automator, bridge, reference, publishing experience, or derived data projection that calls or extrapolates core and does not independently implement rules mechanics.
+- **Decision provider:** a human UI, automated policy, or remote controller that
+  answers legal choices requested by a core workflow without resolving their
+  mechanical consequences.
+- **Combat event:** an authoritative, structured core result describing a roll,
+  derived value, resolution, damage, mitigation, harm, resource/status change, or
+  terminal outcome that consumers may present or react to.
 - **System name:** creator-defined terminology that replaces a default collection label in supported contexts.
 
 ## Navigation and Interaction Conventions
@@ -180,6 +285,9 @@ The generator must reflect the creator’s actual options and terminology. Backg
 - Creator-facing “Describe This Section” needs earlier explanation and a review of which screens truly need it.
 - Descriptions are plain text; future formatted text must remain safe and backward-compatible.
 - Character generation needs complete hosted workflow and migration testing, especially after a source ruleset changes.
+- Existing Character Generator and combat consumers require a formula-ownership
+  audit and may need substantial replacement before they demonstrate the public
+  contracts.
 - Some empty character screens may be better skipped than explained.
 - Armor Class data eventually needs clearer separation between resolved AC, armor replacement values, and modifiers.
 
@@ -199,7 +307,25 @@ When the selected recipe begins with Standard Array/Base Scores, the assignment 
 
 The Rules Builder Dice Rolling screen presents the corresponding Roll Assignment choice beside Number of Sets. Creators choose Player assigns rolls or Assign in Attribute order; the setting saves immediately and drives the Character Generator behavior above. In-order mode reveals Set Attribute Order, which opens a focused dropdown popup initialized from the current Attribute order. The creator may temporarily leave positions blank or reuse an Attribute while editing, but Save refuses the edit unless every Attribute is represented exactly once and presents a simple acknowledgement warning. A valid save makes this canonical order drive the web Attributes list, Attribute association selectors, and Character Generator roll mapping while stable IDs preserve existing references. These builder controls were launcher-smoked and accepted on 2026-08-05.
 
-The current proof-of-concept Attribute Generation workflow is launcher-smoked and accepted. Its Standard Array, Dice, assignment, Choose, and shared-budget hybrid Point Buy behavior covers the practical majority of actual systems. Edge-case recipe combinations, category-budget spending, progressively priced score-cost tables, `baseAttributeValue` removal, and Spend terminology refinement are deferred beyond the PoC. Later Character Generator stages may resume. Do not reopen the accepted Home hierarchy, first collection-editor batch, or Attribute Generation workflow unless new evidence reveals a problem.
+The original proof-of-concept Attribute Generation workflow through Standard
+Array, Dice, assignment, Choose, and shared-budget hybrid Point Buy was
+launcher-smoked and accepted before the mechanic-owned execution refactor. Core
+now also executes category-budget spending, but the current Point Buy consumer has
+a JavaScript scope fault between `renderCharGenAttributes()` and
+`renderCharGenPointsBuy()` and is not accepted. Preserve accepted interaction
+evidence where useful, but re-audit all Character Generator mechanics ownership
+and rebuild consumer stages when necessary. Do not reopen the accepted Home
+hierarchy or unrelated collection-editor work without new evidence.
+
+As of 2026-08-30, the accepted Attribute Generation interaction is backed by the
+loaded Game's `AttributeGenerationMethod` runtime contract. The browser supplies
+player choices and presents roll sets, Point Buy totals, candidate results, and
+final scores returned by that mechanic; it must not recreate dice, cost, bounds,
+hybrid, category-budget, or final-score formulas. Player-assigned category slots
+are interaction state persisted with the character; the method validates them
+against the loaded Game's Attribute Category registry and returns independent
+per-category accounting. This changes mechanics ownership, not the accepted
+shared-flow layout.
 
 The revised Hit Points screen distinguishes Independent Hit Points from Attribute Derived health. Independent mode visually separates Starting Hit Points and Hit Point Gain, offers Rolled or Fixed advancement, and retains No Hit Point Gain for a static pool. Rolled gain can use a shared `Rolls`d`Die` plus one total `Modifier` expression; variable dice remain open to future character-defining systems instead of being modeled as Class-only. Attribute Derived replaces both starting HP and advancement through mutually exclusive Direct Attribute, Single-Attribute Formula, and Multi-Attribute Formula calculations built from stable Attribute references, multipliers, a base value, an optional divisor, and rounding. Average and direct HP Attribute Modifier bonus controls are retired. John launcher-smoked and accepted this presentation and formula workflow on 2026-08-07.
 
@@ -207,4 +333,4 @@ Attack Method was launcher-smoked and accepted on 2026-08-11. It represents the 
 
 Skills now follows Effects, and Advantages and Flaws follow Skills immediately before Spells so creators define the capabilities before describing character options that grant or limit them. Their focused collection editors use only Name, Description, and reusable Effect selection because these options generally represent permanent rules or triggered calculations rather than Attribute-derived mechanics. This current contract does not itself store stable Skill references; whether those relationships belong directly on Advantages/Flaws or as typed Effect targets remains open. Legacy extra core fields remain serialized for compatibility but are not presented in this workflow. Equipment and Weapons close the builder, with Weapons offering the final ruleset download. John launcher-smoked and accepted the editors, final order, and registry-driven navigation on 2026-08-12.
 
-Backgrounds sit between Races and Classes in both authoring and character creation. They use the same single-choice package concept as Classes but expose only creation-time data: starting Skill points, starting money, stable Background Skill links, and minimum Attribute requirements. They deliberately omit a primary Attribute, hit dice, per-level Skill points, level tables, and other advancement mechanisms. The shared Class/package editor is configured by mode so this common UI and validation behavior stays aligned without changing the legacy serialized Class contract. John launcher-smoked and accepted this flow on 2026-08-12.
+Backgrounds sit between Races and Classes in both authoring and character creation. They use the same single-choice package concept as Classes but expose only creation-time data: starting Skill points, starting money, stable Background Skill links, minimum Attribute requirements, and optional stable Race limits. An empty Race-limit list permits every Race. They deliberately omit a primary Attribute, hit dice, per-level Skill points, level tables, and other advancement mechanisms. The shared Class/package editor is configured by mode so this common UI and validation behavior stays aligned without changing the legacy serialized Class contract. John launcher-smoked and accepted the original flow on 2026-08-12; the new Race-limit field and filtered list await launcher smoke.

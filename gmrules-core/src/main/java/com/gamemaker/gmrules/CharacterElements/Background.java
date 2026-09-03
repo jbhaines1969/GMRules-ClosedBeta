@@ -49,6 +49,41 @@ public class Background extends GameElement implements Serializable {
         if (!arrayHandler.getArrayNames().contains("backgroundSkills")) {
             arrayHandler.putArray("backgroundSkills", new ArrayList<String>());
         }
+        if (!arrayHandler.getArrayNames().contains("limitedToRaces")) {
+            arrayHandler.putArray("limitedToRaces", new ArrayList<String>());
+        }
+    }
+
+    public <T> ArrayList<T> getArray(String arrayName) {
+        return arrayHandler.getArray(arrayName);
+    }
+
+    public <T> ArrayList<T> getObjectArray(String arrayName) {
+        return arrayHandler.getObjectArray(arrayName);
+    }
+
+    public <T> void addToArray(String arrayName, T value) {
+        arrayHandler.addElement(arrayName, value);
+    }
+
+    public <T> boolean removeFromArray(String arrayName, T value) {
+        return arrayHandler.removeElement(arrayName, value);
+    }
+
+    public <T> void replaceArray(String arrayName, Collection<T> values) {
+        clearArray(arrayName);
+        Collection<T> safeValues = Objects.requireNonNullElseGet(values, java.util.List::of);
+        for (T value : safeValues) {
+            addToArray(arrayName, value);
+        }
+    }
+
+    public void clearArray(String arrayName) {
+        arrayHandler.clearArray(arrayName);
+    }
+
+    public Set<String> getArrayNames() {
+        return arrayHandler.getArrayNames();
     }
 
     public int getStartingSkillPoints() {
@@ -85,22 +120,19 @@ public class Background extends GameElement implements Serializable {
     }
 
     public ArrayList<String> getBackgroundSkillIds() {
-        return new ArrayList<>(arrayHandler.<String>getObjectArray("backgroundSkills"));
+        return new ArrayList<>(this.<String>getObjectArray("backgroundSkills"));
     }
 
     public void setBackgroundSkillIds(Collection<String> backgroundSkillIds) {
-        arrayHandler.clearArray("backgroundSkills");
-        for (String value : Objects.requireNonNullElse(backgroundSkillIds, java.util.List.<String>of())) {
-            String skillId = Objects.toString(value, "").trim();
-            if (!skillId.isEmpty() && !arrayHandler.<String>getObjectArray("backgroundSkills").contains(skillId)) {
-                arrayHandler.addElement("backgroundSkills", skillId);
-            }
-        }
+        replaceArray("backgroundSkills", normalizeIds(backgroundSkillIds));
     }
 
-    public int cleanupOrphanedReferences(Set<String> validAttributeIds, Set<String> validSkillIds) {
+    public int cleanupOrphanedReferences(
+        Set<String> validAttributeIds,
+        Set<String> validSkillIds,
+        Set<String> validRaceIds
+    ) {
         Set<String> safeAttributeIds = Objects.requireNonNullElse(validAttributeIds, Set.of());
-        Set<String> safeSkillIds = Objects.requireNonNullElse(validSkillIds, Set.of());
         int removedCount = 0;
         Iterator<String> requiredIterator = requiredAttributeScores.keySet().iterator();
         while (requiredIterator.hasNext()) {
@@ -109,15 +141,34 @@ public class Background extends GameElement implements Serializable {
                 removedCount++;
             }
         }
-        ArrayList<String> skillIds = arrayHandler.getObjectArray("backgroundSkills");
-        Iterator<String> skillIterator = skillIds.iterator();
-        while (skillIterator.hasNext()) {
-            if (!safeSkillIds.contains(skillIterator.next())) {
-                skillIterator.remove();
+        removedCount += cleanupArrayReferences("backgroundSkills", validSkillIds);
+        removedCount += cleanupArrayReferences("limitedToRaces", validRaceIds);
+        return removedCount;
+    }
+
+    private int cleanupArrayReferences(String arrayName, Set<String> validIds) {
+        Set<String> safeIds = Objects.requireNonNullElse(validIds, Set.of());
+        int removedCount = 0;
+        Iterator<String> iterator = this.<String>getObjectArray(arrayName).iterator();
+        while (iterator.hasNext()) {
+            if (!safeIds.contains(iterator.next())) {
+                iterator.remove();
                 removedCount++;
             }
         }
         return removedCount;
+    }
+
+    private static ArrayList<String> normalizeIds(Collection<String> values) {
+        Collection<String> safeValues = Objects.requireNonNullElse(values, java.util.List.of());
+        ArrayList<String> ids = new ArrayList<>();
+        for (String value : safeValues) {
+            String id = Objects.toString(value, "").trim();
+            if (!id.isEmpty() && !ids.contains(id)) {
+                ids.add(id);
+            }
+        }
+        return ids;
     }
 
     private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {

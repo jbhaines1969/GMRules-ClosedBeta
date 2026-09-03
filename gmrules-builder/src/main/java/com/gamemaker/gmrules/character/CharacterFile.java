@@ -61,6 +61,8 @@ public class CharacterFile implements Serializable {
     private Currency startingMoneyCurrency = new Currency("");
     private int resolvedArmorClass = 0;
     private int diceSubstitutionsUsed = 0;
+    private Map<String, Integer> rollAdjustmentUses = new LinkedHashMap<>();
+    private Map<String, Integer> rollAdjustmentResourceSpent = new LinkedHashMap<>();
 
 // *** CONSTRUCTORS ***
     public CharacterFile() {
@@ -280,9 +282,27 @@ public class CharacterFile implements Serializable {
         this.diceSubstitutionsUsed = Math.max(0, diceSubstitutionsUsed);
     }
 
+    public Map<String, Integer> getRollAdjustmentUses() {
+        return copyNonNegativeMap(rollAdjustmentUses);
+    }
+
+    public void setRollAdjustmentUses(Map<String, Integer> rollAdjustmentUses) {
+        this.rollAdjustmentUses = copyNonNegativeMap(rollAdjustmentUses);
+    }
+
+    public Map<String, Integer> getRollAdjustmentResourceSpent() {
+        return copyNonNegativeMap(rollAdjustmentResourceSpent);
+    }
+
+    public void setRollAdjustmentResourceSpent(Map<String, Integer> rollAdjustmentResourceSpent) {
+        this.rollAdjustmentResourceSpent = copyNonNegativeMap(rollAdjustmentResourceSpent);
+    }
+
     private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
         stream.defaultReadObject();
         ruleModeSelections = new LinkedHashMap<>(Objects.requireNonNullElse(ruleModeSelections, Map.of()));
+        rollAdjustmentUses = copyNonNegativeMap(rollAdjustmentUses);
+        rollAdjustmentResourceSpent = copyNonNegativeMap(rollAdjustmentResourceSpent);
         setCategoryPointSlotAssignments(categoryPointSlotAssignments);
         background = Objects.requireNonNullElseGet(background, () -> new Background(""));
         backgroundSkills = new LinkedHashMap<>(Objects.requireNonNullElse(backgroundSkills, Map.of()));
@@ -303,6 +323,18 @@ public class CharacterFile implements Serializable {
         LinkedHashMap<Attribute, Integer> copy = new LinkedHashMap<>();
         for (Map.Entry<Attribute, Integer> entry : safeValues.entrySet()) {
             copy.put(copyOf(entry.getKey()), Objects.requireNonNullElse(entry.getValue(), 0));
+        }
+        return copy;
+    }
+
+    private static LinkedHashMap<String, Integer> copyNonNegativeMap(Map<String, Integer> source) {
+        Map<String, Integer> safeSource = Objects.requireNonNullElse(source, Map.of());
+        LinkedHashMap<String, Integer> copy = new LinkedHashMap<>();
+        for (Map.Entry<String, Integer> entry : safeSource.entrySet()) {
+            String key = Objects.toString(entry.getKey(), "").trim();
+            if (!key.isEmpty()) {
+                copy.put(key, Math.max(0, Objects.requireNonNullElse(entry.getValue(), 0)));
+            }
         }
         return copy;
     }

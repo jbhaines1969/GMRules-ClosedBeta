@@ -1,6 +1,6 @@
 # GMRules Closed Beta Agent Handoff
 
-Updated: 2026-08-19
+Updated: 2026-09-02
 Repo root: `C:\Users\John\IdeaProjects\GMRules-ClosedBeta`
 
 This is the primary recovery document for the next session. Read `AGENTS.md`, `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `PRODUCT_DESIGN_CONTEXT.md`, and local `USER.md` before editing. Inspect `git status --short`; the current feature batch is intentionally uncommitted and must not be reverted.
@@ -12,7 +12,116 @@ react to core outputs, but must not reproduce core calculations. A video-game
 consumer, for example, receives `AttackSuccess.SUCCEEDED` and plays its hit behavior;
 it does not calculate the Attack, Defense, comparison, or equality rule itself.
 
-The repository is now web-only at the UI layer. John explicitly removed the legacy Swing `UI` package and its `App.java`/`Main.java` launchers on 2026-08-05. Do not restore or maintain those components. If a standalone application is requested later, build it from scratch using the finalized web UI as the product template.
+This rule applies to the whole platform, not only Character Generation and
+Combat. Everything needed to operate a `.gmrf` must be reachable through a
+published, versioned Game contract: capability discovery, legal operations and
+decisions, authoritative outcomes and state changes, structured events, and
+explicit incompatibility responses. The boundary is transport-neutral. A
+consumer may call the loaded `Game` in the same process, a background JVM, a
+service, or a language bridge, but it may not inspect configuration to infer a
+formula or maintain a game-specific fallback. The product promise is that a VTT
+implements a compatible contract once and can run any compatible GMRules Game.
+Movement, spellcasting, and every later rules domain inherit this ownership rule.
+
+## Resume Here: Contract-Driven Character-to-Combat PoC
+
+John clarified the near-term partner/funding goal on 2026-09-02. The target is
+not independent completion of the existing Character Generator and Attack
+Resolution screens. It is one vertical architecture proof: load a `.gmrf` Game,
+generate two legal combat-ready characters from that Game, and run their combat
+from start to a rules-defined conclusion using public core contracts only.
+
+The completed proof must support at least three materially different combat
+systems. Each system must generate two characters and complete combat in fully
+automated and player-input modes. Human, automated, and mixed control should
+differ only in who answers the same core decision requests. The contract must
+cover Attack, Defense, Damage Calculation, Damage Mitigation, Harm Resolution,
+the resources/statuses required by the selected systems, and defeat/end
+conditions. Preserve structured intermediate events so consumers can explain,
+animate, pause for reactions, transmit, or replay combat without calculating it.
+This character-to-combat slice is the first proof of the universal contract, not
+the architectural boundary. Do not expand the immediate PoC to movement or
+spellcasting unless one of the selected systems requires them, but do not design
+the PoC contract in a way that makes those domains require consumer mechanics.
+
+Treat all existing consumers as provisional. The web Character Generator,
+external `C:/Users/John/IdeaProjects/untitled/gmrules-character`, tracked Attack
+audit, and current one-round combat PoC are evidence and scaffolding, not
+architectural constraints. Rebuild a consumer from near scratch when that is
+safer than extracting locally owned calculations. The governing test is: can a
+new application load the Game, submit only decisions/runtime inputs, and obtain
+complete character and combat outcomes without reading another consumer?
+
+### Current Attribute Generation Foundation
+
+`AttributeGenerationMethod.generateAttributeRollValueSets(...)`,
+`AttributeGenerationMethod.adjustAttributeRolls(...)`, and
+`AttributeGenerationMethod.getAttributeScores(...)` form the current core
+runtime boundary. Package-private `AttributeGenerationResolver` contains the
+stateless implementation. Requests contain player decisions; results return
+authoritative scores, candidate step results, Point Buy totals, category
+accounting, completion, and explicit failure reasons. `Game` supplies the method,
+ordered Attributes, generation options, and Attribute Category registry.
+
+Category-budget Point Buy is implemented in core. Creator mode maps every loaded
+Attribute Category to a fixed pool. Player mode requires every named slot and
+every loaded category exactly once. Each Attribute spends only from its category,
+an individual negative remainder blocks completion, aggregate totals are
+returned, and `minimumPointsToSpend` remains one global minimum. Slot assignments
+persist through lightweight and object-backed character files.
+
+Pre-assignment roll adjustment is now creator-authored rather than a fixed
+Substitution special case. `RollAdjustmentMethod` supports fixed replacement,
+raise-highest-to-floor, ratio-based transfer, and resource-funded increase.
+Core-generated roll identities survive each operation; the result describes legal
+target/source/amount decisions and returns authoritative values, deltas, per-method
+uses, resource costs/spending, and next options. The Rules Builder edits the
+collection through one list endpoint, and the Character Generator renders the
+core-described choices before assignment. Old fixed-substitution rules migrate to
+`legacy-dice-substitution`; generic accounting persists in both character-file forms.
+
+The web backend routes roll, generic adjustment, legacy substitution, and resolve
+requests through that gate.
+The current web Point Buy consumer is nevertheless broken: category setup values
+such as `usesCategoryBudgets`, `categoryPointSlots`, and
+`categoryAssignmentMarkup` are declared inside `renderCharGenAttributes()` but
+referenced from the separate `renderCharGenPointsBuy()` function. Maven does not
+detect this JavaScript scope error, and direct JavaScript syntax verification is
+unavailable because Node/Deno/Bun are absent. Repair and re-smoke this only as
+part of the consumer audit; do not mistake consumer repair for core completion.
+
+Ignored `AttributeGenerationGameLocalTest` and `RollAdjustmentLocalTest` cover the current generation gate,
+including creator-fixed and player-assigned category pools. Builder local tests
+cover category configuration and both character-file persistence forms. Full
+`mvn test` passed 115 tests on 2026-09-02: 28 core local, 61 tracked Attack audit,
+eight combat PoC, and 18 builder local tests. The Attribute Generation tests are
+still ignored local verification; add a tracked downstream audit that depends
+only on `gmrules-core`.
+
+Race is the first post-Attribute step currently routed through core. Public `Game` operations
+return Race options evaluated by core for playable status and minimum/maximum
+Attribute bounds, plus stable Race Skill, trait, and fixed Attribute-modifier
+application data. The web Race stage calls that gate and persists returned
+Skill/trait applications; its JavaScript eligibility formula was removed.
+This remains incomplete for the revised goal: creator policy must still decide
+whether a non-viable Race/Class choice is rejected or may invoke configured roll
+adjustments, and core must return the warning and legal repair decisions.
+
+Background is now the second completed post-Attribute step. Public `Game`
+operations return only Backgrounds legal for the supplied optional Race ID and
+Attribute scores, revalidate a stable selection ID, and return the one-time
+starting Skill-point, money, and Skill package. Background stores stable Race
+limits in its generic array handler; empty means unrestricted, and the limit is
+inactive when no Race is selected. The web stage calls this gate and no longer
+evaluates Attribute requirements. The Rules Builder can author the Race limits.
+
+After the deferred Race/Class repair-policy pass, audit Class, Skill, equipment, weapon, armor, health,
+starting-resource, Defense, and final-validity calculations. Move every formula,
+eligibility rule, application rule, and state transition required for a
+combat-ready character behind core contracts. Do not expand a descendant to fill
+a missing core contract.
+
+The repository is web-first at the product UI layer. John explicitly removed the legacy Swing `UI` package and its `App.java`/`Main.java` launchers on 2026-08-05; do not restore or maintain them. Purpose-limited contract demonstrations may use new thin consumers and need not inherit the current web calculations or stage structure. If a future general standalone product UI is requested, design it anew from the accepted product workflows after the core contracts are settled.
 
 The Rules Builder now presents the internal `EffectType` registry as **Affected Systems**. The revised guidance defines entries as rules areas or recurring interactions that actions, events, Effects, and Statuses can change or invoke. Navigation, collection and inline editors, Effect/Status fields, confirmations, toasts, and visible API errors use the new term. Java names, API routes, serialized keys, and the existing defaults remain unchanged. John launcher-smoked and accepted this terminology pass on 2026-08-07.
 
@@ -26,9 +135,9 @@ After every CSV, immediately update `PROJECT_STRUCTURE.md`, `PROJECT_NOTES.md`, 
 
 The Type CSVs retain all stored type/configuration fields; `EffectType` currently adds none beyond inherited fields. `Attribute.csv` includes score bounds, type/category, `modifierMap`, and `scoreBonuses`. Re-audited `Game.csv` includes stored Attribute-modifier/default-bound data, custom dice ranges, Attribute Generation configuration/options, and logical dice/weight-unit collections; it still excludes completed-stage UI state, registries/helpers, and the resolution-method objects.
 
-CSV progress: complete. All 33 planned object CSVs are present through `Status.csv`. Final static review verified the complete inventory, one unique nonblank header row per file, 994 represented columns, model-field coverage for all 32 non-Game objects, and the documented selected-field coverage for `Game.csv`. No build or application tests were run because this package contains schema headers only. Unless John requests revisions to the CSV boundary or naming, resume normal feature work at the Attack/Defense routing section below.
+CSV progress: complete. All 33 planned object CSVs are present through `Status.csv`. Final static review verified the complete inventory, one unique nonblank header row per file, 999 represented columns, model-field coverage for all 32 non-Game objects, and the documented selected-field coverage for `Game.csv`. No build or application tests were run because this package contains schema headers only. Unless John requests revisions to the CSV boundary or naming, resume normal feature work at the Attack/Defense routing section below.
 
-## Resume Here: Attack Resolution Consumer Audit Findings
+## Existing Attack Resolution Consumer Audit Findings
 
 Attack/Defense backend work began with `GameMechanics.AttackMethod`, a `GameElement` carrying the shared dice configuration plus a signed `singleRollModifier`. Negative rolls and die sides normalize to zero. Dice per Roll normalizes by count mode: a fixed/standard count is at least one, while an adjustable base pool may be zero so Attributes, Skills, gear, or other systems can build the actual pool. The modifier is unrestricted, defaults to zero for older rulesets, and is added only when exactly one attack die is rolled once. Deserialization reapplies the dice invariants. `Game.attackMethod` is eagerly initialized as `new AttackMethod("Attack Method")`; its setter normalizes null to a fresh default, and `Game.readObject(...)` repairs the absent member when older `.gmrf` files are loaded.
 
@@ -54,13 +163,13 @@ Focused ignored verification `AttackDefenseResolutionLocalTest` covers all four 
 
 John requested an executable sufficiency audit rather than further speculative design. The tracked Maven module `gmrules-attack-resolution-audit` depends only on `gmrules-core` and acts as a downstream consumer. `AttackSequenceConsumer` delegates both value generation/derivation and resolution to core. `AttackSequenceConsumerTest` covers all four modes, five comparison methods, both equality settings, three outcome metrics, six source kinds, default routing, raw attack dice, signed single-roll modifier behavior and serialization, the mode-dependent fixed/pool Dice per Roll minimum, all four attack-pool reducers against passive Defense, value-producing defense cases, a direct core-only generate-then-resolve flow, the initial roll-direction/target-source choices, a four-comparator matrix, legacy migration, and chart-owned equality. Pool coverage explicitly exercises strict and inclusive over/under resolution for highest, lowest, and sum plus inclusive over/under per-die thresholds and final equality for success counts. A reflection-based coverage guard includes the pool-method registry and fails when a new Attack Resolution constant is added without updating the scenario inventory.
 
-The audit result is mixed and concrete. Core owns raw dice generation, currently determinate Attack/Defense scalar derivation, selection of the configured Resolution section, automatic contact, ordinary scalar comparisons, margin as attack minus defense, defender-versus-threat inversion, equality, route selection, and returned success state. For one attack pool against passive Defense, `AttackResolution` persists a pool method and reduces the raw pool by inclusive success count, highest die, lowest die, or sum. All four preserve raw rolls in the returned available `GeneratedValue`. Success-count direction selects `>= threshold` or `<= threshold`, more counted successes remain better, and final equality against the Defense requirement follows `attackerWinsTies`. Highest, lowest, and sum use the shared over/under direction and equality directly against passive Defense, selecting `>`, `>=`, `<`, or `<=`. The one-die modifier remains excluded from pools. Attack Resolution intentionally answers one attack; combat, Skill, or other systems decide how many attacks occur and invoke this flow for each. The remaining contract does not define the resolution-facing value of roll-under active Defense, does not define how a nonzero active-defense Base Roll Modifier affects success counts, and does not classify Outcome Bands as attack success/failure. Outcome charts own equality through their inclusive ranges.
+The audit result is mixed and concrete. Core owns raw dice generation, currently determinate Attack/Defense scalar derivation, selection of the configured Resolution section, automatic contact, ordinary scalar comparisons, margin as attack minus defense, defender-versus-threat inversion, equality, route selection, and returned success state. For one attack pool against passive Defense, `AttackResolution` persists a pool method and reduces the raw pool by inclusive success count, highest die, lowest die, or sum. All four preserve raw rolls in the returned available `GeneratedValue`. Success-count direction selects `>= threshold` or `<= threshold`, more counted successes remain better, and final equality against the Defense requirement follows `attackerWinsTies`. Highest, lowest, and sum use the shared over/under direction and equality directly against passive Defense, selecting `>`, `>=`, `<`, or `<=`. The one-die modifier remains excluded from pools. Attack Resolution intentionally answers one attack; the future core combat-session contract or another owning core mechanic decides how many attacks occur and invokes this flow for each. A UI consumer must not own that rules decision. The remaining contract does not define the resolution-facing value of roll-under active Defense, does not define how a nonzero active-defense Base Roll Modifier affects success counts, and does not classify Outcome Bands as attack success/failure. Outcome charts own equality through their inclusive ranges.
 
-The `gmrules-combat-poc` module is the concrete demonstration rather than another mechanics editor. It depends only on core, loads an exported `.gmrf` through `GameIO`, and enables one combat round for either the one-die direct-comparison path or any of the four one-pool reducers against final passive Defense. `SingleRoundCombatConsumer` is intentionally isolated: it obtains the core-generated Attack and Defense values, then passes both to `AttackResolution`. This makes intermediate presentation or reaction timing possible without moving formulas into the consumer. The Swing shell only handles file selection, compatibility feedback, and presentation; it shows the active pool method, direction, equality rule, and labels the derived result as successes or an attack value. `CombatPocRulesetGenerator` still creates eight non-overwriting one-die examples: two distinct value sets for each over/under and attacker/defender-wins-ties combination, all with d4/d6/d8/d10/d20/d100 selected. The generated `.gmrf` files are intentionally ignored and currently live in `games/combat-poc-examples`; rerun generation with `generate-combat-poc-rulesets.ps1` only into a new/empty destination. `target/gmrules-combat-poc.jar` is the packaged standalone artifact.
+The `gmrules-combat-poc` module is a useful one-round contract probe. It depends only on core, loads an exported `.gmrf` through `GameIO`, and enables one combat round for either the one-die direct-comparison path or any of the four one-pool reducers against final passive Defense. `SingleRoundCombatConsumer` is intentionally isolated: it obtains the core-generated Attack and Defense values, then passes both to `AttackResolution`. This makes intermediate presentation or reaction timing possible without moving formulas into the consumer. It does not generate two combat-ready characters, resolve damage, maintain combat state, request actions, or reach a defeat condition, so it must be reworked or replaced for the funding PoC. The generated `.gmrf` files are intentionally ignored and currently live in `games/combat-poc-examples`; rerun generation with `generate-combat-poc-rulesets.ps1` only into a new/empty destination. `target/gmrules-combat-poc.jar` is the packaged standalone artifact.
 
 John chose to divide Attack Resolution into input-aware UI sections. The first focused section detects exactly one attack die rolled once against passive Defense. It shows an input summary, only `Roll over target value`/`Roll under target value`, a separate persisted `Attacker wins ties` checkbox, and a persisted `Target value is Defense value` checkbox. When the Defense target is unchecked, it hides equality and reveals an Add/Edit/Remove Attack Chart editor backed by the existing outcome bands. Checking the Defense target again restores the equality control without erasing either setting or any chart entries; the save payload always carries all retained data. New persisted fields record roll direction, target source, and equality. Deserialization infers equivalent defaults from older comparison/tie settings; legacy attacker maps true, while defender and the incomplete custom-outcome value map false. All other Attack/Defense combinations deliberately retain the existing full Resolution screen until their focused sections are designed, but their former three-way Tie Resolution selector is also replaced by the same independent equality checkbox.
 
-Full `mvn test` and `mvn package` passed 99 tests across the five-project reactor on 2026-08-19: 13 core local tests, 61 tracked audit tests, eight PoC tests, and 17 builder local tests. The audit contains the new lowest-die and complete pool direction/equality matrix; packaging refreshed `target/gmrules-combat-poc.jar` and `target/gmrules-app.jar`. The first sandboxed Maven attempts could not read their own compiled class output; the approved unsandboxed runs compiled and passed normally. Direct JavaScript syntax verification remains unavailable because `node` is not on the sandbox command path. Recommended next step: have John launcher-smoke all four pool/passive-Defense choices and run exported pool rulesets in the standalone PoC. The next mechanics-design target is research, not implementation: study Hammerheads/Cortex Prime's mixed trait dice, selected two-die total, and separately selected effect die, then define a system-neutral named-output contract before coding.
+Full `mvn test` passed 107 tests across the five-project reactor on 2026-09-02: 21 core local tests, 61 tracked Attack audit tests, eight combat PoC tests, and 17 builder local tests. The Attack audit remains valid foundation coverage, but its current matrix is not the final support matrix. Select the three end-to-end demonstration systems before expanding the combat contracts; use those systems to drive named outputs, active Defense, damage, mitigation, harm, decisions, and combat-session design rather than extending one-roll variants speculatively.
 
 ## Advantages And Flaws Rules Builder State
 
@@ -72,19 +181,19 @@ The creator-facing item contract is intentionally limited to Name, Description, 
 
 Authenticated GET/POST/DELETE/update routes exist at `/api/drafts/{id}/advantages` and `/api/drafts/{id}/flaws`. The editors present existing Effects as a checkbox list; they do not create Effects inline because the Effects stage precedes them. English and French copy is present. The 2026-08-12 `mvn test` and `mvn package` runs passed all 29 local tests and rebuilt `target/gmrules-app.jar`; focused `AdvantageFlawEffectsLocalTest` covers effect normalization and complete `Game` serialization. Static checks verified the exact late-stage order and Continue/download wiring, route wiring, unique DOM ids, and unique localization keys. John launcher-smoked and accepted the Advantage/Flaw editors, final `Effects -> Skills -> Advantages -> Flaws -> Spells` sequence, and shared registry navigation on 2026-08-12.
 
-Current completeness boundary: the Rules Builder is broad enough to author a complete descriptive proof-of-concept ruleset, and Backgrounds are now fully wired through authoring and character creation. The data contract is still not fully executable. Advantages and Flaws currently store only description and Effect IDs, so a rule that grants or limits one specific Skill is human-readable but not represented by a stable Skill relationship; decide whether that belongs directly on the option or in typed Effect targeting. Runtime attack/defense/resolution results and the later Damage Calculation, Damage Mitigation, and Harm Resolution contracts also remain unfinished.
+Current completeness boundary: the Rules Builder is broad enough to author a complete descriptive proof-of-concept ruleset, and Backgrounds are wired through authoring and the current Character Generator. The data contract is not yet sufficient to generate combat-ready characters and complete combat without consumer calculations. Advantages and Flaws currently store only description and Effect IDs, so a rule that grants or limits one specific Skill is human-readable but not represented by a stable Skill relationship. Full Character Generation ownership, remaining Attack/Defense results, Damage Calculation, Damage Mitigation, Harm Resolution, combat decisions/state, and defeat remain unfinished.
 
-## Accepted Attribute Generation Context
+## Existing Attribute Generation UI Context
 
-John divided the substantial Character Generator Attribute work into workflow, UI design, and testing. The current proof-of-concept Attribute Generation flow, including Dice assignment, canonical Attribute order, Standard Array/Base Scores, Choose, and shared-budget hybrid Point Buy, is implemented and launcher-smoked.
+John divided the substantial Character Generator Attribute work into workflow, UI design, and testing. Dice assignment, canonical Attribute order, Standard Array/Base Scores, Choose, and shared-budget hybrid Point Buy were implemented and launcher-smoked before the mechanic-owned execution refactor. Preserve useful UX evidence, but re-audit the current consumer before treating it as working or authoritative.
 
 Standard Array has now been renamed Standard Array/Base Scores and restricted to the first recipe step. The old destructive second-step Replace mode is now Choose: both step results are retained and the Character Generator presents them side by side after generation so the player selects the final score set. The builder and Character Generator controls are launcher-smoked and accepted for the PoC.
 
 Rules Builder Auto Assigned arrays now configure a whole array at once. Standard and Elite each persist an independent shared-score boolean and integer. When shared score is selected, the Character Generator API resolves that score across the current Attribute list, including Attributes added later; the previously stored explicit mapping remains available if normalization is turned off. When normalization is off, Set Scores opens a wide modal containing every Attribute and saves the exact complete mapping atomically. Player Assigned arrays retain the one-value collection workflow. These builder controls are launcher-smoked and accepted for the PoC.
 
-John decided that `AttributeGenerationMethod.baseAttributeValue` is obsolete: do not add a Builder control for it. Its removal, valid edge-case method/application pairings, Spend renaming, point-cost-table tooling, and category-aware spending are deferred post-PoC items. Keep older serialized rulesets loadable when that work resumes. Hybrid Point Buy uses the completed first step as its baseline.
+John decided that `AttributeGenerationMethod.baseAttributeValue` is obsolete: do not add a Builder control for it. Its removal, valid edge-case method/application pairings, Spend renaming, and point-cost-table tooling remain follow-up items unless required by one of the selected three demonstration systems. Keep older serialized rulesets loadable when that work resumes. Hybrid Point Buy uses the completed first step as its baseline.
 
-The Character Generator shared-budget Point Buy calculation now distinguishes second-step modes correctly. Add charges only the independently purchased increase above the first-step Standard Array/Dice result; Spend charges only the point-cost difference from that result; standalone and Choose Point Buy still price a complete result. The screen recovers its baseline from persisted first-step results after resume instead of relying only on transient in-memory state. John launcher-smoked and accepted the current proof-of-concept workflow on 2026-08-05. It covers the practical majority of actual systems; edge-case recipe combinations, category budgets, progressive score-cost-table tooling, `baseAttributeValue` removal, and Spend wording are deferred beyond the PoC and no longer block later Character Generator work.
+The original Character Generator shared-budget Point Buy calculation distinguished second-step modes correctly, and John launcher-smoked that workflow on 2026-08-05. The current `AttributeGenerationMethod` contract now owns Add, Spend, standalone, Choose, shared-budget, and category-budget pricing. Consumers must submit baseline/player choices and present the returned accounting; do not restore the former formulas to a screen. Progressive score-cost-table tooling, `baseAttributeValue` removal, and Spend wording remain separate follow-up work unless selected-system coverage requires them.
 
 The assignment screen now resolves Standard Array before revealing later recipe actions. Auto Assigned arrays populate read-only Attribute fields. Player Assigned arrays use a one-to-one available pool plus per-Attribute dropdowns, with duplicate values tracked by array position; incomplete arrays cannot continue or expose Dice. Assignment-screen numeric fields are read-only, leaving direct score editing to Point Buy. Lightweight drafts persist `attributeArrayType` and `attributeArrayAssignment.<attribute-id>` entries. This sequencing is launcher-smoked and accepted for the PoC.
 
@@ -116,11 +225,11 @@ Browser/server lightweight character drafts persist the chosen ordered roll set 
 
 Choose recipes additionally persist both completed score maps as `attributeStepResult.<step-index>.<attribute-id>=<score>` and the player's final selection as `attributeResultChoice=<step-index>`. The comparison screen copies only the chosen map into final `attributeScores`. `Game.AttributeGenerationOption` migrates a legacy later-step `set` to `choose`, removes Standard Array from later positions during legacy normalization, and the API rejects new invalid later-step Standard Array or set requests. The ignored migration test covers both rules.
 
-The current Character Generator Point Buy screen, `renderCharGenPointsBuy()` in `gmrules-builder/src/main/resources/web/app.js`, understands only one global `basePoints` budget. Its shared-budget Add/Spend baseline accounting is corrected, but it must still be extended to honor the backend-supported category modes described below while preserving the existing generation-option recipes, score-cost calculation, local/server character autosave, Back behavior, and Continue into Race.
+The current Character Generator Point Buy screen is not ready for acceptance. It calls the core resolution route, but the category setup block was placed in `renderCharGenAttributes()` while `renderCharGenPointsBuy()` references those function-local values. Repair that scope fault, then verify shared/category modes, generation-option recipes, local/server autosave, Back behavior, Continue, and character-file round trips.
 
 Backgrounds are an independent one-time character-creation package, not an alias or replacement for Classes. Authenticated CRUD, Rules Builder authoring, Character Generator selection, draft persistence, and `.gmcf` snapshots are now implemented as described in the Background state below.
 
-## Point Buy Backend Contract Already Available
+## Point Buy Core Contract Already Available
 
 Source of truth: `gmrules-core/src/main/java/com/gamemaker/gmrules/GameMechanics/AttributeGenerationMethod.java`.
 
@@ -131,7 +240,7 @@ The model persists:
 - `CategoryPointRule`: creator-fixed pair of stable Attribute Category key and available points.
 - `CategoryPointSlot`: stable slot id, creator-defined slot name, and available points. Slots remain unattached to categories until character generation.
 - Player-mode configuration is complete only when slot count equals Attribute Category count.
-- `validateCategoryPointSlotAssignments(...)` requires every configured slot and every Attribute Category exactly once.
+- `areCategoryPointSlotAssignmentsComplete(...)` requires every configured slot and every Attribute Category exactly once.
 
 `GET /api/drafts/{id}/chargen/attribute-generation` already returns:
 
@@ -159,7 +268,7 @@ categoryPointSlots[]:
 
 The Rules Builder already prevents Continue when the active category configuration is incomplete. Character generation should still defend against incomplete or stale ruleset data and explain the problem rather than silently falling back to a shared pool.
 
-## Character Point Buy UI Work Deferred Beyond PoC
+## Character Point Buy Consumer Acceptance Criteria
 
 Keep the existing shared-budget screen when `assignByCategory=false`.
 
@@ -167,7 +276,7 @@ When `assignByCategory=true` and mode is `creator`:
 
 - Show each fixed category budget clearly.
 - Group or label Attributes by `attributeCategoryKey`.
-- Charge each Attribute only against its category's budget.
+- Present the core result that charges each Attribute only against its category's budget.
 - Show spent and remaining totals per category.
 - Prevent Continue if any category overspends.
 
@@ -175,25 +284,16 @@ When mode is `player`:
 
 - First let the player attach each named point slot to one Attribute Category.
 - Enforce one-to-one assignment: every slot once and every category once.
-- Then spend each slot's budget only on Attributes in its assigned category.
+- Then present core-owned spending of each slot's budget only on Attributes in its assigned category.
 - Make the assignment readable during spending, not just during the initial choice.
 - Preserve assignments when navigating away, resuming a server draft, importing/exporting `.gmcf`, or revisiting the screen.
 
 The current global `minimumPointsToSpend` still exists; there is no per-category minimum in the backend. Preserve it as the total minimum-spend rule unless John chooses a different interpretation.
 
-Do not break additive Point Buy recipes. `shouldAddCharGenPointBuyToBaseScores(method)` currently identifies `spend` after Standard Array or Dice, and the screen charges the difference from captured baseline scores. That calculation must become category-aware without discarding the baseline.
-
-Useful frontend functions and areas:
-
-- `renderCharGenAttributes()` near the current attribute-generation flow
-- `renderCharGenPointsBuy()`
-- `isCharGenPointBuySelected()`
-- `shouldAddCharGenPointBuyToBaseScores()`
-- `buildCharGenPointCostMap()` / `resolveCharGenPointCost()`
-- `buildCharGenDraftPayload()`
-- `serializeCharGenDraft()` / `parseCharGenDraft()`
-- `applyCharGenDraftToState()` / Character Generator state reset
-- `saveCharGenDraftLocal()` and queued server save behavior
+Do not break additive Point Buy recipes. The consumer submits the completed
+first-step baseline and current player choices to `AttributeGenerationMethod`;
+core applies Add/Spend pricing and returns the authoritative result. The screen
+may preserve and display baseline state but must not calculate its cost.
 
 ## Character Assignment Persistence Already Available
 
@@ -211,39 +311,35 @@ Relevant implementation:
 - `CharacterFileIO` reads/writes lightweight lines with prefix `pointBuyCategorySlot.`
 - Example: `pointBuyCategorySlot.<slot-id>=physical`
 
-Important gap: browser-side `app.js` does not yet carry this mapping in Character Generator state or its lightweight draft serializer/parser. Add it consistently to:
-
-- initial state
-- reset state
-- draft payload construction
-- text serialization using the existing `pointBuyCategorySlot.` prefix
-- text parsing
-- restored-state application
-- Point Buy assignment/spending UI updates
-
-Keep old character drafts compatible: absence of these lines means an empty assignment map.
+Browser-side `app.js` now carries this mapping through initial/reset state, draft
+payloads, text serialization/parsing, restored-state application, and Point Buy
+requests. The current function-scope fault prevents complete UI acceptance, but
+the persistence path exists. Keep old character drafts compatible: absence of
+these lines means an empty assignment map.
 
 ## Background Creation-Package State
 
-New tracked file:
+Core files:
 
 - `gmrules-core/src/main/java/com/gamemaker/gmrules/CharacterElements/Background.java`
+- `gmrules-core/src/main/java/com/gamemaker/gmrules/GameMechanics/BackgroundSelection.java`
 
 Current behavior:
 
 - Extends `GameElement` and implements `Serializable`.
-- Has standard `(String name)` and `(String name, String description)` constructors plus creation-time starting Skill points, starting money, stable Background Skill IDs, and minimum Attribute requirements. Backgrounds deliberately have no primary Attribute.
+- Has standard `(String name)` and `(String name, String description)` constructors plus creation-time starting Skill points, starting money, stable Background Skill IDs, minimum Attribute requirements, and stable Race limits. Backgrounds deliberately have no primary Attribute.
+- Uses generic array operations for `backgroundSkills` and `limitedToRaces`; an empty Race list permits every Race, and older files receive an empty list during deserialization.
 - `ElementRegistryKey.BACKGROUNDS` uses stable key `backgrounds`.
 - `Game` initializes a typed registry and legacy-compatible named array for Backgrounds.
 - `usesBackgrounds` is independent of `usesClasses`.
 - `Game.readObject` gives older `.gmrf` files an empty Background registry.
 - Game summaries report Background counts.
 - Classes and Backgrounds can coexist. Backgrounds have no hit die, level table, per-level Skill points, or other advancement mechanisms.
-- Authenticated `/api/drafts/{id}/backgrounds` GET/POST/DELETE/update routes validate stable Attribute and Skill references. Live Attribute or Skill deletion and `.gmrf` load cleanup remove stale references.
+- Authenticated `/api/drafts/{id}/backgrounds` GET/POST/DELETE/update routes validate stable Attribute, Skill, and Race references. Live Attribute, Skill, or Race deletion and `.gmrf` load cleanup remove stale references.
 - The Rules Builder registry places Backgrounds immediately after Races and before Classes. The shared creation-package modal switches labels and hides primary Attribute, hit-die, and per-level controls in Background mode, preserving the legacy Class serialization contract.
-- The Character Generator follows Race -> Background -> Class. Background requirements are checked before continuing; Background Skills receive distinct badges; Background starting Skill points appear in the Skill summary; and Background starting money adds to the base/Class starting amount.
+- The Character Generator follows Race -> Background -> Class. Its Background screen requests legal options from `/chargen/background-selection`, submits the chosen stable ID for revalidation, and stores the returned Skill package without evaluating Race or Attribute rules. Background Skills receive distinct badges; Background starting Skill points appear in the Skill summary; and Background starting money adds to the base/Class starting amount.
 - Lightweight `.gmcf` drafts persist `backgroundId` and `backgroundSkill.*` ranks. Object-backed character files snapshot both the selected `Background` and resolved Background Skill objects.
-- `spreadsheet-schema/Background.csv` reflects the complete stored field contract.
+- `spreadsheet-schema/Background.csv` reflects the complete stored field contract, including `limitedToRaces`.
 
 ## Accepted Work in the Current Uncommitted Batch
 
@@ -264,7 +360,31 @@ John has visually accepted all implemented refactors and UI adjustments precedin
 
 ## Verification State
 
-Latest verification on 2026-08-12:
+Latest verification on 2026-09-02:
+
+- Full `mvn test` after the generic roll-adjustment contract passed 115 tests:
+  28 core local, 61 tracked Attack audit, eight combat PoC, and 18 builder local
+  tests. Focused ignored local coverage verifies fixed replacement,
+  raise-highest, roll transfer, resource spending, core-described legal choices,
+  invalid-operation rejection, legacy substitution migration, and both character
+  persistence forms. Static duplicate-ID/localization/reference checks and
+  `git diff --check` passed. Full `mvn package` passed and rebuilt the deployable
+  jars. Direct JavaScript syntax verification remains unavailable because
+  Node/Deno/Bun are absent. John's launcher smoke remains outstanding.
+- Full `mvn test` after the Background selection gate passed 111 tests: 25 core
+  local, 61 tracked Attack audit, eight combat PoC, and 17 builder local tests.
+  Focused ignored local Background coverage verifies optional Race filtering,
+  Attribute minimums, missing IDs, returned package data, and serialization.
+  Static duplicate-ID/localization checks and `git diff --check` passed.
+  Full `mvn package` passed and rebuilt the deployable jars.
+  JavaScript syntax verification remains unavailable because Node/Deno/Bun are
+  absent. John's launcher smoke of the new Background Race-limit authoring field
+  and filtered Character Generator list remains outstanding.
+
+- Full `mvn test` passed 107 tests across the five-module reactor: 21 core local,
+  61 tracked Attack audit, eight combat PoC, and 17 builder local tests. Static
+  review found the web Point Buy category values declared in the wrong function
+  scope; no visual/browser verification was performed.
 
 - Background `mvn test` and `mvn package`: passed all 30 ignored local tests across the reactor and rebuilt `target/gmrules-app.jar`. `BackgroundRegistryLocalTest` now covers the complete one-time package through `Game` serialization and the selected Background/Skill-rank character snapshot.
 - Static Background checks verified the exact late Builder order `... Races -> Backgrounds -> Classes -> Equipment -> Weapons`, all four authenticated routes, no duplicate JavaScript function declarations, no duplicate static DOM ids, and no duplicate English/French localization keys. `git diff --check` passed with only Windows line-ending warnings; port 8080 was free. Direct JavaScript syntax checking remains unavailable because `node` is not on the sandbox command path.
@@ -299,6 +419,13 @@ Ignored local verification tests currently compiled by Maven:
 The current worktree contains the entire accepted-but-uncommitted feature batch. Expected modified areas include:
 
 - core Point Buy model, cleanup, and serialization recovery
+- the untracked package-private
+  `GameMechanics/AttributeGenerationResolver.java`; it is required by the current
+  core build and must not be omitted when this batch is eventually committed
+- the untracked public `GameMechanics/RaceSelection.java`; it is the core Race
+  eligibility/application gate and is required by the current build
+- the untracked public `GameMechanics/RollAdjustmentMethod.java`; it defines the
+  creator configuration and public roll-value/request/option/result contracts
 - character draft/file Point Buy assignment persistence
 - Point Buy and Hit Point web API/frontend/resources
 - shared Rename-button frontend styling/wiring
@@ -320,6 +447,7 @@ Core ruleset and persistence:
 - `gmrules-core/src/main/java/com/gamemaker/gmrules/GameIO.java`
 - `gmrules-core/src/main/java/com/gamemaker/gmrules/ElementRegistryKey.java`
 - `gmrules-core/src/main/java/com/gamemaker/gmrules/GameMechanics/AttributeGenerationMethod.java`
+- `gmrules-core/src/main/java/com/gamemaker/gmrules/GameMechanics/RollAdjustmentMethod.java`
 - `gmrules-core/src/main/java/com/gamemaker/gmrules/GameMechanics/AttackMethod.java`
 
 Character persistence:
@@ -344,13 +472,31 @@ The richer external `gmrules-character` project remains reference-only unless Jo
 
 ## Current Priority Order
 
-The remaining unsettled options in `OpenQuestions.md` stay nonbinding. The generation/resolution separation, explicit hybrid routing, and later-damage boundary under **Resume Here** are settled backend direction. Continue in this order:
+The remaining unsettled options in `OpenQuestions.md` stay nonbinding. Continue in
+this order:
 
-1. Have John launcher-smoke Defense and the focused one-roll/passive-defense Attack Resolution view; address functional issues while keeping cosmetic cleanup deferred unless it blocks use. Advantages, Flaws, and their final navigation order are accepted.
-2. Launcher-smoke Count successful dice, Use the highest die, and Sum all dice against passive Defense. Multiple attacks are intentionally caller-owned: combat, Skill, or other systems invoke the one-attack core flow as many times as their rules require.
-3. Expand the preliminary runtime results as needed to retain every raw roll, total, margin, success count, and resolved outcome required by damage/effects.
-4. Settle and implement Damage Calculation, Damage Mitigation, and Harm Resolution without folding soak or other post-generation modifiers back into Attack Resolution.
-5. Resume later Character Generator stages and hosted migration/smoke work tracked in `TODO.md`.
+1. Select at least three materially different demonstration combat systems and
+   record the complete character/combat support matrix for each.
+2. Audit current Character Generator and combat consumers against the loaded-Game
+   boundary. Record every formula, validation rule, eligibility decision, and
+   state transition that still lives outside core; do not patch consumer formulas.
+3. Define and verify the combat-ready Character Generation contract, beginning
+   with a tracked downstream Attribute Generation audit, then the deferred
+   creator-owned Race/Class requirement-repair policy, followed by Class, Skill,
+   equipment, weapon, armor, health, resources, and
+   Defense consequences required by the selected systems.
+4. Complete the Attack and Damage contracts required by the matrix, preserving
+   distinct calculation, mitigation, harm, and defeat stages plus every raw and
+   derived output consumers may need.
+5. Add the core combat-session decision/event protocol for human, automated, and
+   mixed control, injected randomness, deterministic replay, and a rules-defined
+   terminal state.
+6. Rework or replace the present consumers. Demonstrate two core-generated
+   characters completing combat under each of the three Games without duplicated
+   mechanics.
+7. Package that vertical slice as the partner/funding proof. UI polish, broad
+   hosted smoke, and unrelated beta hardening remain secondary unless they block
+   the demonstration or controlled beta.
 
 Build from the repo root:
 
@@ -359,4 +505,6 @@ mvn test
 mvn package
 ```
 
-Always update this handoff again when the Character Generator status, data contract, blockers, or recommended resume point changes.
+Always update this handoff again when the Character Generation, Attack, Damage,
+combat-session, demonstration-system, blocker, or recommended resume state
+changes.

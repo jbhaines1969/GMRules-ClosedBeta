@@ -30,6 +30,7 @@ public class AttributeGenerationMethod extends GameElement {
     private static final long serialVersionUID = 7606235203030250610L;
     public static final String CATEGORY_ASSIGNMENT_CREATOR = "creator";
     public static final String CATEGORY_ASSIGNMENT_PLAYER = "player";
+    public static final String LEGACY_DICE_SUBSTITUTION_ID = "legacy-dice-substitution";
 
     // === GENERATION TYPE CONTROL ===
     private String generationType = "dice";
@@ -48,6 +49,7 @@ public class AttributeGenerationMethod extends GameElement {
     private boolean allowDiceSubstitution = false;
     private int diceSubstitutionValue = 14;
     private int maxDiceSubstitutions = 1;
+    private ArrayList<RollAdjustmentMethod> rollAdjustmentMethods = new ArrayList<>();
 
     // === POINT BUY SYSTEM ===
     private int basePoints = 0;
@@ -223,16 +225,58 @@ public class AttributeGenerationMethod extends GameElement {
     public boolean isAllowDiceSubstitution() { return allowDiceSubstitution; }
     public void setAllowDiceSubstitution(boolean allowDiceSubstitution) {
         this.allowDiceSubstitution = allowDiceSubstitution;
+        if (!allowDiceSubstitution && rollAdjustmentMethods != null) {
+            rollAdjustmentMethods.removeIf(
+                method -> method.getId().equals(LEGACY_DICE_SUBSTITUTION_ID)
+            );
+        } else if (allowDiceSubstitution) {
+            ensureLegacyRollAdjustment();
+        }
     }
 
     public int getDiceSubstitutionValue() { return diceSubstitutionValue; }
     public void setDiceSubstitutionValue(int diceSubstitutionValue) {
         this.diceSubstitutionValue = diceSubstitutionValue;
+        syncLegacyRollAdjustment();
     }
 
     public int getMaxDiceSubstitutions() { return maxDiceSubstitutions; }
     public void setMaxDiceSubstitutions(int maxDiceSubstitutions) {
         this.maxDiceSubstitutions = Math.max(0, maxDiceSubstitutions);
+        if (this.maxDiceSubstitutions == 0) {
+            allowDiceSubstitution = false;
+            rollAdjustmentMethods.removeIf(
+                method -> method.getId().equals(LEGACY_DICE_SUBSTITUTION_ID)
+            );
+        } else {
+            syncLegacyRollAdjustment();
+        }
+    }
+
+    public ArrayList<RollAdjustmentMethod> getRollAdjustmentMethods() {
+        ensureLegacyRollAdjustment();
+        return copyRollAdjustmentMethods(rollAdjustmentMethods);
+    }
+
+    public void setRollAdjustmentMethods(Collection<RollAdjustmentMethod> methods) {
+        rollAdjustmentMethods = copyRollAdjustmentMethods(methods);
+        syncLegacyFields();
+    }
+
+    public void addRollAdjustmentMethod(RollAdjustmentMethod method) {
+        RollAdjustmentMethod copy = new RollAdjustmentMethod(
+            Objects.requireNonNull(method, "rollAdjustmentMethod")
+        );
+        removeRollAdjustmentMethod(copy.getId());
+        rollAdjustmentMethods.add(copy);
+        syncLegacyFields();
+    }
+
+    public boolean removeRollAdjustmentMethod(String methodId) {
+        String safeId = Objects.toString(methodId, "").trim();
+        boolean removed = rollAdjustmentMethods.removeIf(method -> method.getId().equals(safeId));
+        syncLegacyFields();
+        return removed;
     }
 
     // === POINT BUY METHODS ===
@@ -549,8 +593,130 @@ public class AttributeGenerationMethod extends GameElement {
         this.usesRacialIntegration = usesRacialIntegration;
     }
 
+    /**
+     * Generates complete Attribute roll sets through this configured rule object.
+     * The package-private resolver is deliberately inaccessible to consumers.
+     */
+    public List<List<Integer>> generateAttributeRollSets(Collection<Attribute> attributes) {
+        return AttributeGenerationResolver.generateRollSets(this, attributes, DiceRoller.random());
+    }
+
+    /** Deterministic-friendly variant of the configured Attribute roll generator. */
+    public List<List<Integer>> generateAttributeRollSets(
+        Collection<Attribute> attributeSource,
+        DiceRoller diceRoller
+    ) {
+        return AttributeGenerationResolver.generateRollSets(this, attributeSource, diceRoller);
+    }
+
+    /** Generates roll sets with identities that survive pre-assignment adjustments. */
+    public List<List<RollAdjustmentMethod.RollValue>> generateAttributeRollValueSets(
+        Collection<Attribute> attributeSource
+    ) {
+        List<List<Integer>> generatedSets = generateAttributeRollSets(attributeSource);
+        ArrayList<List<RollAdjustmentMethod.RollValue>> identifiedSets = new ArrayList<>();
+        for (int setIndex = 0; setIndex < generatedSets.size(); setIndex++) {
+            ArrayList<RollAdjustmentMethod.RollValue> values = new ArrayList<>();
+            for (int valueIndex = 0; valueIndex < generatedSets.get(setIndex).size(); valueIndex++) {
+                values.add(new RollAdjustmentMethod.RollValue(
+                    "set-" + (setIndex + 1) + "-roll-" + (valueIndex + 1),
+                    generatedSets.get(setIndex).get(valueIndex)
+                ));
+            }
+            identifiedSets.add(List.copyOf(values));
+        }
+        return List.copyOf(identifiedSets);
+    }
+
+    /** Describes or applies one creator-authorized pre-assignment roll adjustment. */
+    public RollAdjustmentMethod.Result adjustAttributeRolls(
+        Collection<Attribute> attributeSource,
+        RollAdjustmentMethod.Request request
+    ) {
+        return AttributeGenerationResolver.adjustRolls(this, attributeSource, request);
+    }
+
+    /** Applies one configured dice substitution without exposing its rule to a consumer. */
+    public List<Integer> applyAttributeRollSubstitution(
+        Collection<Attribute> attributeSource,
+        Collection<Integer> rolledValues,
+        int rollIndex,
+        int substitutionsAlreadyUsed
+    ) {
+        return AttributeGenerationResolver.applyRollSubstitution(
+            this,
+            attributeSource,
+            rolledValues,
+            rollIndex,
+            substitutionsAlreadyUsed
+        );
+    }
+
+    /**
+     * Resolves the authoritative starting Attribute scores for player choices.
+     * The caller supplies the fully loaded Game's options and ordered Attributes;
+     * this mechanic owns their generation, combination, pricing, and validation.
+     */
+    public AttributeGenerationResult getAttributeScores(
+        Collection<Game.AttributeGenerationOption> optionSource,
+        Collection<Attribute> attributeSource,
+        AttributeGenerationRequest request
+    ) {
+        LinkedHashSet<String> categoryKeys = new LinkedHashSet<>();
+        Collection<Attribute> safeAttributes = Objects.requireNonNullElse(
+            attributeSource,
+            List.of()
+        );
+        for (Attribute attribute : safeAttributes) {
+            String categoryKey = normalizeAttributeCategoryKey(
+                Objects.requireNonNull(attribute, "attribute").getType()
+            );
+            if (!categoryKey.isEmpty()) {
+                categoryKeys.add(categoryKey);
+            }
+        }
+        return getAttributeScores(optionSource, attributeSource, categoryKeys, request);
+    }
+
+    /**
+     * Full resolution boundary used by a loaded Game. Category keys must come from
+     * that Game's Attribute Category registry so category-slot assignments cannot
+     * substitute invented categories.
+     */
+    public AttributeGenerationResult getAttributeScores(
+        Collection<Game.AttributeGenerationOption> optionSource,
+        Collection<Attribute> attributeSource,
+        Collection<String> attributeCategoryKeys,
+        AttributeGenerationRequest request
+    ) {
+        return AttributeGenerationResolver.resolve(
+            this,
+            optionSource,
+            attributeSource,
+            attributeCategoryKeys,
+            request
+        );
+    }
+
+    public int getAttributeMinimumScore(Attribute attribute) {
+        return AttributeGenerationResolver.attributeMinimum(this, attribute);
+    }
+
+    public int getAttributeMaximumScore(Attribute attribute) {
+        return AttributeGenerationResolver.attributeMaximum(this, attribute);
+    }
+
+    public int getAttributeBaseScore(Attribute attribute) {
+        return AttributeGenerationResolver.attributeBase(this, attribute);
+    }
+
+    public int getAttributePointCost(int score) {
+        return AttributeGenerationResolver.attributePointCost(this, score);
+    }
+
     private void readObject(java.io.ObjectInputStream stream) throws java.io.IOException, ClassNotFoundException {
         stream.defaultReadObject();
+        boolean migrateLegacySubstitution = allowDiceSubstitution;
         if (arrayHandler == null) {
             arrayHandler = new ArrayHandler();
             initializeArrayRegistry();
@@ -562,6 +728,13 @@ public class AttributeGenerationMethod extends GameElement {
         setCategoryPointRules(categoryPointRules);
         setCategoryPointSlots(categoryPointSlots);
         setStandardArrayAssignmentMode(standardArrayAssignmentMode);
+        rollAdjustmentMethods = copyRollAdjustmentMethods(rollAdjustmentMethods);
+        allowDiceSubstitution = migrateLegacySubstitution;
+        if (migrateLegacySubstitution && maxDiceSubstitutions > 0) {
+            ensureLegacyRollAdjustment();
+        } else {
+            syncLegacyFields();
+        }
     }
 
     private void normalizePlayerAssignedArrays() {
@@ -587,6 +760,63 @@ public class AttributeGenerationMethod extends GameElement {
             copy.add(new DiceTerm(Objects.requireNonNull(term, "diceTerm")));
         }
         return copy;
+    }
+
+    private ArrayList<RollAdjustmentMethod> copyRollAdjustmentMethods(
+        Collection<RollAdjustmentMethod> source
+    ) {
+        Collection<RollAdjustmentMethod> safeSource = Objects.requireNonNullElse(source, List.of());
+        LinkedHashMap<String, RollAdjustmentMethod> methodsById = new LinkedHashMap<>();
+        for (RollAdjustmentMethod method : safeSource) {
+            RollAdjustmentMethod copy = new RollAdjustmentMethod(
+                Objects.requireNonNull(method, "rollAdjustmentMethod")
+            );
+            if (!copy.getName().isEmpty()) {
+                methodsById.put(copy.getId(), copy);
+            }
+        }
+        return new ArrayList<>(methodsById.values());
+    }
+
+    private void ensureLegacyRollAdjustment() {
+        if (rollAdjustmentMethods == null) {
+            rollAdjustmentMethods = new ArrayList<>();
+        }
+        if (allowDiceSubstitution && rollAdjustmentMethods.stream().noneMatch(
+            method -> method.getId().equals(LEGACY_DICE_SUBSTITUTION_ID)
+        )) {
+            RollAdjustmentMethod legacy = new RollAdjustmentMethod(
+                LEGACY_DICE_SUBSTITUTION_ID,
+                "Dice substitution",
+                RollAdjustmentMethod.TYPE_FIXED_VALUE
+            );
+            legacy.setValue(diceSubstitutionValue);
+            legacy.setMaximumUses(Math.max(1, maxDiceSubstitutions));
+            rollAdjustmentMethods.add(legacy);
+        }
+    }
+
+    private void syncLegacyRollAdjustment() {
+        ensureLegacyRollAdjustment();
+        for (RollAdjustmentMethod method : rollAdjustmentMethods) {
+            if (method.getId().equals(LEGACY_DICE_SUBSTITUTION_ID)) {
+                method.setValue(diceSubstitutionValue);
+                method.setMaximumUses(Math.max(1, maxDiceSubstitutions));
+            }
+        }
+    }
+
+    private void syncLegacyFields() {
+        for (RollAdjustmentMethod method : rollAdjustmentMethods) {
+            if (method.getId().equals(LEGACY_DICE_SUBSTITUTION_ID)
+                && method.getType().equals(RollAdjustmentMethod.TYPE_FIXED_VALUE)) {
+                allowDiceSubstitution = true;
+                diceSubstitutionValue = method.getValue();
+                maxDiceSubstitutions = method.getMaximumUses();
+                return;
+            }
+        }
+        allowDiceSubstitution = false;
     }
 
     private ArrayList<CategoryPointRule> copyCategoryPointRules(Collection<CategoryPointRule> source) {
@@ -724,6 +954,257 @@ public class AttributeGenerationMethod extends GameElement {
         }
 
         return removedCount;
+    }
+    public static final class AttributeGenerationRequest {
+        private String optionId = "";
+        private String arrayType = "";
+        private Map<String, Integer> arrayAssignments = new LinkedHashMap<>();
+        private List<Integer> rolledValues = new ArrayList<>();
+        private Map<String, Integer> rollAssignments = new LinkedHashMap<>();
+        private Map<String, Integer> pointBuyScores = new LinkedHashMap<>();
+        private Map<String, String> categoryPointSlotAssignments = new LinkedHashMap<>();
+        private int chosenStepIndex = -1;
+
+        public AttributeGenerationRequest() {
+        }
+
+        public AttributeGenerationRequest(AttributeGenerationRequest source) {
+            AttributeGenerationRequest safeSource = Objects.requireNonNullElseGet(
+                source,
+                AttributeGenerationRequest::new
+            );
+            setOptionId(safeSource.optionId);
+            setArrayType(safeSource.arrayType);
+            setArrayAssignments(safeSource.arrayAssignments);
+            setRolledValues(safeSource.rolledValues);
+            setRollAssignments(safeSource.rollAssignments);
+            setPointBuyScores(safeSource.pointBuyScores);
+            setCategoryPointSlotAssignments(safeSource.categoryPointSlotAssignments);
+            setChosenStepIndex(safeSource.chosenStepIndex);
+        }
+
+        public String getOptionId() { return optionId; }
+        public void setOptionId(String optionId) {
+            this.optionId = Objects.toString(optionId, "").trim();
+        }
+
+        public String getArrayType() { return arrayType; }
+        public void setArrayType(String arrayType) {
+            this.arrayType = Objects.toString(arrayType, "").trim();
+        }
+
+        public Map<String, Integer> getArrayAssignments() {
+            return new LinkedHashMap<>(arrayAssignments);
+        }
+        public void setArrayAssignments(Map<String, Integer> arrayAssignments) {
+            this.arrayAssignments = copyIntegerMap(arrayAssignments);
+        }
+
+        public List<Integer> getRolledValues() { return List.copyOf(rolledValues); }
+        public void setRolledValues(Collection<Integer> rolledValues) {
+            this.rolledValues = copyIntegerList(rolledValues);
+        }
+
+        public Map<String, Integer> getRollAssignments() {
+            return new LinkedHashMap<>(rollAssignments);
+        }
+        public void setRollAssignments(Map<String, Integer> rollAssignments) {
+            this.rollAssignments = copyIntegerMap(rollAssignments);
+        }
+
+        public Map<String, Integer> getPointBuyScores() {
+            return new LinkedHashMap<>(pointBuyScores);
+        }
+        public void setPointBuyScores(Map<String, Integer> pointBuyScores) {
+            this.pointBuyScores = copyIntegerMap(pointBuyScores);
+        }
+
+        public Map<String, String> getCategoryPointSlotAssignments() {
+            return new LinkedHashMap<>(categoryPointSlotAssignments);
+        }
+        public void setCategoryPointSlotAssignments(
+            Map<String, String> categoryPointSlotAssignments
+        ) {
+            Map<String, String> safeAssignments = Objects.requireNonNullElse(
+                categoryPointSlotAssignments,
+                Map.of()
+            );
+            LinkedHashMap<String, String> copy = new LinkedHashMap<>();
+            for (Map.Entry<String, String> entry : safeAssignments.entrySet()) {
+                String slotId = Objects.toString(entry.getKey(), "").trim();
+                String categoryKey = normalizeAttributeCategoryKey(entry.getValue());
+                if (!slotId.isEmpty() && !categoryKey.isEmpty()) {
+                    copy.put(slotId, categoryKey);
+                }
+            }
+            this.categoryPointSlotAssignments = copy;
+        }
+
+        public int getChosenStepIndex() { return chosenStepIndex; }
+        public void setChosenStepIndex(int chosenStepIndex) {
+            this.chosenStepIndex = chosenStepIndex;
+        }
+
+        private static LinkedHashMap<String, Integer> copyIntegerMap(
+            Map<String, Integer> source
+        ) {
+            Map<String, Integer> safeSource = Objects.requireNonNullElse(source, Map.of());
+            LinkedHashMap<String, Integer> copy = new LinkedHashMap<>();
+            for (Map.Entry<String, Integer> entry : safeSource.entrySet()) {
+                String key = Objects.toString(entry.getKey(), "").trim();
+                if (!key.isEmpty()) {
+                    copy.put(key, Objects.requireNonNull(entry.getValue(), "integer value"));
+                }
+            }
+            return copy;
+        }
+
+        private static ArrayList<Integer> copyIntegerList(Collection<Integer> source) {
+            Collection<Integer> safeSource = Objects.requireNonNullElse(source, List.of());
+            ArrayList<Integer> copy = new ArrayList<>();
+            for (Integer value : safeSource) {
+                copy.add(Objects.requireNonNull(value, "integer value"));
+            }
+            return copy;
+        }
+    }
+
+    /** Immutable-by-copy result returned through this rule object's public gate. */
+    public static final class AttributeGenerationResult {
+        private final boolean complete;
+        private final Map<String, Integer> scores;
+        private final Map<Integer, Map<String, Integer>> stepResults;
+        private final int pointsSpent;
+        private final int pointsRemaining;
+        private final Map<String, CategoryPointBudgetResult> categoryPointBudgets;
+        private final String reason;
+
+        AttributeGenerationResult(
+            boolean complete,
+            Map<String, Integer> scores,
+            Map<Integer, Map<String, Integer>> stepResults,
+            int pointsSpent,
+            int pointsRemaining,
+            Map<String, CategoryPointBudgetResult> categoryPointBudgets,
+            String reason
+        ) {
+            this.complete = complete;
+            this.scores = copyScores(scores);
+            this.stepResults = copyStepResults(stepResults);
+            this.pointsSpent = pointsSpent;
+            this.pointsRemaining = pointsRemaining;
+            this.categoryPointBudgets = copyCategoryPointBudgets(categoryPointBudgets);
+            this.reason = Objects.toString(reason, "");
+        }
+
+        static AttributeGenerationResult incomplete(String reason) {
+            return new AttributeGenerationResult(
+                false,
+                Map.of(),
+                Map.of(),
+                0,
+                0,
+                Map.of(),
+                reason
+            );
+        }
+
+        public boolean isComplete() { return complete; }
+        public Map<String, Integer> getScores() { return copyScores(scores); }
+        public Map<Integer, Map<String, Integer>> getStepResults() {
+            return copyStepResults(stepResults);
+        }
+        public int getPointsSpent() { return pointsSpent; }
+        public int getPointsRemaining() { return pointsRemaining; }
+        public Map<String, CategoryPointBudgetResult> getCategoryPointBudgets() {
+            return copyCategoryPointBudgets(categoryPointBudgets);
+        }
+        public String getReason() { return reason; }
+
+        private static LinkedHashMap<String, Integer> copyScores(
+            Map<String, Integer> source
+        ) {
+            return new LinkedHashMap<>(Objects.requireNonNullElse(source, Map.of()));
+        }
+
+        private static LinkedHashMap<Integer, Map<String, Integer>> copyStepResults(
+            Map<Integer, Map<String, Integer>> source
+        ) {
+            Map<Integer, Map<String, Integer>> safeSource = Objects.requireNonNullElse(
+                source,
+                Map.of()
+            );
+            LinkedHashMap<Integer, Map<String, Integer>> copy = new LinkedHashMap<>();
+            for (Map.Entry<Integer, Map<String, Integer>> entry : safeSource.entrySet()) {
+                Integer key = Objects.requireNonNull(entry.getKey(), "step index");
+                copy.put(key, copyScores(entry.getValue()));
+            }
+            return copy;
+        }
+
+        private static LinkedHashMap<String, CategoryPointBudgetResult> copyCategoryPointBudgets(
+            Map<String, CategoryPointBudgetResult> source
+        ) {
+            Map<String, CategoryPointBudgetResult> safeSource = Objects.requireNonNullElse(
+                source,
+                Map.of()
+            );
+            LinkedHashMap<String, CategoryPointBudgetResult> copy = new LinkedHashMap<>();
+            for (Map.Entry<String, CategoryPointBudgetResult> entry : safeSource.entrySet()) {
+                String categoryKey = normalizeAttributeCategoryKey(entry.getKey());
+                if (!categoryKey.isEmpty()) {
+                    copy.put(
+                        categoryKey,
+                        new CategoryPointBudgetResult(
+                            Objects.requireNonNull(entry.getValue(), "categoryPointBudget")
+                        )
+                    );
+                }
+            }
+            return copy;
+        }
+    }
+
+    /** Authoritative accounting for one category pool in a resolved Point Buy step. */
+    public static final class CategoryPointBudgetResult {
+        private final String attributeCategoryKey;
+        private final String sourceId;
+        private final String sourceName;
+        private final int budget;
+        private final int spent;
+        private final int remaining;
+
+        CategoryPointBudgetResult(
+            String attributeCategoryKey,
+            String sourceId,
+            String sourceName,
+            int budget,
+            int spent
+        ) {
+            this.attributeCategoryKey = normalizeAttributeCategoryKey(attributeCategoryKey);
+            this.sourceId = Objects.toString(sourceId, "").trim();
+            this.sourceName = Objects.toString(sourceName, "").trim();
+            this.budget = Math.max(0, budget);
+            this.spent = spent;
+            this.remaining = this.budget - spent;
+        }
+
+        private CategoryPointBudgetResult(CategoryPointBudgetResult source) {
+            this(
+                source.attributeCategoryKey,
+                source.sourceId,
+                source.sourceName,
+                source.budget,
+                source.spent
+            );
+        }
+
+        public String getAttributeCategoryKey() { return attributeCategoryKey; }
+        public String getSourceId() { return sourceId; }
+        public String getSourceName() { return sourceName; }
+        public int getBudget() { return budget; }
+        public int getSpent() { return spent; }
+        public int getRemaining() { return remaining; }
     }
 
     // === POINT BUY CATEGORY RULE STRUCTURE ===

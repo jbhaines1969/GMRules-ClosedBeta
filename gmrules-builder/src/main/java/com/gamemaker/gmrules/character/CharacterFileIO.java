@@ -59,6 +59,8 @@ public class CharacterFileIO {
     private static final String STARTING_MONEY_AMOUNT = "startingMoneyAmount";
     private static final String STARTING_MONEY_CURRENCY_ID = "startingMoneyCurrencyId";
     private static final String DICE_SUBSTITUTIONS_USED = "diceSubstitutionsUsed";
+    private static final String ROLL_ADJUSTMENT_USE_PREFIX = "rollAdjustmentUse.";
+    private static final String ROLL_ADJUSTMENT_RESOURCE_SPENT_PREFIX = "rollAdjustmentResourceSpent.";
     private static final String RESOLVED_ARMOR_CLASS = "resolvedArmorClass";
     private static final String RULE_MODE_PREFIX = "ruleMode.";
     private static final String SELECTED_SPELL_PREFIX = "selectedSpell.";
@@ -88,6 +90,8 @@ public class CharacterFileIO {
         List<String> selectedArmorIds = new ArrayList<>();
         List<String> selectedEquipmentIds = new ArrayList<>();
         Map<String, String> ruleModeSelections = new java.util.LinkedHashMap<>();
+        Map<String, Integer> rollAdjustmentUses = new java.util.LinkedHashMap<>();
+        Map<String, Integer> rollAdjustmentResourceSpent = new java.util.LinkedHashMap<>();
         Map<String, String> categoryPointSlotAssignments = new java.util.LinkedHashMap<>();
         Map<Integer, Integer> classSkillPointsByLevel = new java.util.LinkedHashMap<>();
         Map<Integer, Integer> globalSkillPointsByLevel = new java.util.LinkedHashMap<>();
@@ -175,6 +179,18 @@ public class CharacterFileIO {
                 } catch (NumberFormatException ignored) {
                     // Skip invalid substitution usage value.
                 }
+            } else if (key.startsWith(ROLL_ADJUSTMENT_USE_PREFIX)) {
+                putNonNegativeInteger(
+                    rollAdjustmentUses,
+                    key.substring(ROLL_ADJUSTMENT_USE_PREFIX.length()),
+                    value
+                );
+            } else if (key.startsWith(ROLL_ADJUSTMENT_RESOURCE_SPENT_PREFIX)) {
+                putNonNegativeInteger(
+                    rollAdjustmentResourceSpent,
+                    key.substring(ROLL_ADJUSTMENT_RESOURCE_SPENT_PREFIX.length()),
+                    value
+                );
             } else if (key.equals(RESOLVED_ARMOR_CLASS)) {
                 try {
                     draft.setResolvedArmorClass(Integer.parseInt(value));
@@ -286,6 +302,8 @@ public class CharacterFileIO {
         draft.setSelectedArmorIds(selectedArmorIds);
         draft.setSelectedEquipmentIds(selectedEquipmentIds);
         draft.setRuleModeSelections(ruleModeSelections);
+        draft.setRollAdjustmentUses(rollAdjustmentUses);
+        draft.setRollAdjustmentResourceSpent(rollAdjustmentResourceSpent);
         draft.setCategoryPointSlotAssignments(categoryPointSlotAssignments);
         draft.setClassSkillPointsByLevel(classSkillPointsByLevel);
         draft.setGlobalSkillPointsByLevel(globalSkillPointsByLevel);
@@ -385,6 +403,12 @@ public class CharacterFileIO {
         lines.add(STARTING_MONEY_CURRENCY_ID + "=" + safeDraft.getStartingMoneyCurrencyId());
         lines.add(RESOLVED_ARMOR_CLASS + "=" + safeDraft.getResolvedArmorClass());
         lines.add(DICE_SUBSTITUTIONS_USED + "=" + safeDraft.getDiceSubstitutionsUsed());
+        appendIntegerMap(lines, ROLL_ADJUSTMENT_USE_PREFIX, safeDraft.getRollAdjustmentUses());
+        appendIntegerMap(
+            lines,
+            ROLL_ADJUSTMENT_RESOURCE_SPENT_PREFIX,
+            safeDraft.getRollAdjustmentResourceSpent()
+        );
         List<Map.Entry<Integer, Integer>> resolvedSkillPointsByLevel =
             new ArrayList<>(safeDraft.getResolvedSkillPointsByLevel().entrySet());
         resolvedSkillPointsByLevel.sort(Map.Entry.comparingByKey());
@@ -466,6 +490,30 @@ public class CharacterFileIO {
         if (!skillId.isEmpty() && !ranks.containsKey(skillId)) {
             ranks.put(skillId, rank);
         }
+    }
+
+    private void putNonNegativeInteger(Map<String, Integer> values, String key, String rawValue) {
+        String safeKey = Objects.toString(key, "").trim();
+        if (safeKey.isEmpty()) {
+            return;
+        }
+        try {
+            values.put(safeKey, Math.max(0, Integer.parseInt(Objects.toString(rawValue, "0").trim())));
+        } catch (NumberFormatException ignored) {
+            // Skip malformed adjustment accounting.
+        }
+    }
+
+    private void appendIntegerMap(
+        List<String> lines,
+        String prefix,
+        Map<String, Integer> values
+    ) {
+        values.entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(entry -> lines.add(
+                prefix + entry.getKey() + "=" + Math.max(0, Objects.requireNonNullElse(entry.getValue(), 0))
+            ));
     }
 
     private String formatSkillRank(Map.Entry<String, Integer> entry) {

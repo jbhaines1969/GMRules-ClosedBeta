@@ -22,6 +22,8 @@ const state = {
   chargenAttributeResultChoice: "",
   chargenPointBuyBaselineScores: {},
   chargenRaceId: "",
+  chargenRacialSkillRanks: {},
+  chargenRacialTraitNames: [],
   chargenBackgroundId: "",
   chargenClassId: "",
   chargenBackgroundSkillRanks: {},
@@ -44,8 +46,11 @@ const state = {
   chargenDiceRollAssignments: {},
   chargenSelectedArrayType: "",
   chargenArrayAssignments: {},
+  chargenCategoryPointSlotAssignments: {},
   chargenRuleModeSelections: {},
   chargenDiceSubstitutionsUsed: 0,
+  chargenRollAdjustmentUses: {},
+  chargenRollAdjustmentResourceSpent: {},
   chargenDraftText: "",
   chargenCharacterDraftId: "",
   chargenServerSaveInFlight: false,
@@ -1332,6 +1337,27 @@ const diceTermModalDropLowestLabel = document.getElementById("diceTermModalDropL
 const diceTermModalDropLowest = document.getElementById("diceTermModalDropLowest");
 const diceTermModalCancel = document.getElementById("diceTermModalCancel");
 const diceTermModalSave = document.getElementById("diceTermModalSave");
+const rollAdjustmentModal = document.getElementById("rollAdjustmentModal");
+const rollAdjustmentModalTitle = document.getElementById("rollAdjustmentModalTitle");
+const rollAdjustmentName = document.getElementById("rollAdjustmentName");
+const rollAdjustmentDescription = document.getElementById("rollAdjustmentDescription");
+const rollAdjustmentType = document.getElementById("rollAdjustmentType");
+const rollAdjustmentMaximumUses = document.getElementById("rollAdjustmentMaximumUses");
+const rollAdjustmentValueField = document.getElementById("rollAdjustmentValueField");
+const rollAdjustmentValue = document.getElementById("rollAdjustmentValue");
+const rollAdjustmentTransferFields = document.getElementById("rollAdjustmentTransferFields");
+const rollAdjustmentSourceCost = document.getElementById("rollAdjustmentSourceCost");
+const rollAdjustmentTargetGain = document.getElementById("rollAdjustmentTargetGain");
+const rollAdjustmentSourceMinimum = document.getElementById("rollAdjustmentSourceMinimum");
+const rollAdjustmentTargetMaximum = document.getElementById("rollAdjustmentTargetMaximum");
+const rollAdjustmentResourceFields = document.getElementById("rollAdjustmentResourceFields");
+const rollAdjustmentResourceKey = document.getElementById("rollAdjustmentResourceKey");
+const rollAdjustmentResourceName = document.getElementById("rollAdjustmentResourceName");
+const rollAdjustmentResourceBudget = document.getElementById("rollAdjustmentResourceBudget");
+const rollAdjustmentResourceCost = document.getElementById("rollAdjustmentResourceCost");
+const rollAdjustmentResourceTargetMaximum = document.getElementById("rollAdjustmentResourceTargetMaximum");
+const rollAdjustmentModalCancel = document.getElementById("rollAdjustmentModalCancel");
+const rollAdjustmentModalSave = document.getElementById("rollAdjustmentModalSave");
 
 const attributeOrderModal = document.getElementById("attributeOrderModal");
 const attributeOrderModalTitle = document.getElementById("attributeOrderModalTitle");
@@ -1468,6 +1494,10 @@ const editClassRequiredScoreLabel = document.getElementById("editClassRequiredSc
 const editClassRequiredScore = document.getElementById("editClassRequiredScore");
 const editClassRequiredAdd = document.getElementById("editClassRequiredAdd");
 const editClassRequiredList = document.getElementById("editClassRequiredList");
+const editBackgroundRaceField = document.getElementById("editBackgroundRaceField");
+const editBackgroundRaceLabel = document.getElementById("editBackgroundRaceLabel");
+const editBackgroundRaceSelect = document.getElementById("editBackgroundRaceSelect");
+const editBackgroundRaceHint = document.getElementById("editBackgroundRaceHint");
 const editTypeField = document.getElementById("editTypeField");
 const editTypeLabel = document.getElementById("editTypeLabel");
 const editType = document.getElementById("editType");
@@ -1605,6 +1635,7 @@ let raceAttributeOptions = [];
 let classSkillOptions = [];
 let classAttributeOptions = [];
 let classHitDieOptions = [];
+let backgroundRaceOptions = [];
 let editClassSkillPointsByLevel = [];
 let editWeaponEffectIds = [];
 let editRaceSkillIds = [];
@@ -3540,6 +3571,9 @@ function resetClassEditSection() {
   if (editClassRequiredList) {
     editClassRequiredList.innerHTML = "";
   }
+  if (editBackgroundRaceSelect) {
+    editBackgroundRaceSelect.innerHTML = "";
+  }
 }
 
 function isBackgroundEditor() {
@@ -3566,6 +3600,18 @@ function configureCreationPackageEditor(backgroundMode) {
     editClassSkillsTitle.textContent = backgroundMode
       ? t("backgrounds.skills", "Background Skills")
       : t("classes.skills", "Class Skills");
+  }
+  if (editBackgroundRaceField) {
+    editBackgroundRaceField.classList.toggle("hidden", !backgroundMode);
+  }
+  if (editBackgroundRaceLabel) {
+    editBackgroundRaceLabel.textContent = t("backgrounds.race_limits", "Limit to Races");
+  }
+  if (editBackgroundRaceHint) {
+    editBackgroundRaceHint.textContent = t(
+      "backgrounds.race_limits.hint",
+      "Leave empty to allow every Race."
+    );
   }
   const primaryAttributeField = editClassPrimary ? editClassPrimary.closest(".field") : null;
   const hitDieField = editClassHitDieSelect ? editClassHitDieSelect.closest(".field") : null;
@@ -4113,6 +4159,23 @@ function getSelectValues(select) {
   return Array.from(select.selectedOptions || [])
     .map((option) => String(option.value || "").trim())
     .filter(Boolean);
+}
+
+function applyReferenceOptions(select, entries, selectedIds, labelResolver) {
+  if (!select) {
+    return;
+  }
+  const selected = new Set(normalizeCharGenIdList(selectedIds));
+  const safeEntries = Array.isArray(entries) ? entries : [];
+  select.innerHTML = safeEntries
+    .map((entry) => {
+      const id = String(entry && entry.id ? entry.id : "").trim();
+      const label = labelResolver(entry || {});
+      return id
+        ? `<option value="${escapeHtml(id)}" ${selected.has(id) ? "selected" : ""}>${escapeHtml(label)}</option>`
+        : "";
+    })
+    .join("");
 }
 
 function normalizeModifierEntries(entries) {
@@ -4749,6 +4812,12 @@ function openBackgroundEditor(background) {
     : [];
   populateClassSkillSelect();
   populateClassRequiredSelect();
+  applyReferenceOptions(
+    editBackgroundRaceSelect,
+    backgroundRaceOptions,
+    background.limitedToRaceIds,
+    (race) => race.displayName || race.name || t("races.untitled", "Untitled")
+  );
   editClassSkillPoints.value = Number(background.startingSkillPoints || 0);
   editClassStartingMoney.value = Number(background.startingMoney || 0);
   renderClassSkillList();
@@ -4772,6 +4841,12 @@ function openBackgroundCreate() {
   editClassSection.classList.remove("hidden");
   populateClassSkillSelect();
   populateClassRequiredSelect();
+  applyReferenceOptions(
+    editBackgroundRaceSelect,
+    backgroundRaceOptions,
+    [],
+    (race) => race.displayName || race.name || t("races.untitled", "Untitled")
+  );
   editClassSkillPoints.value = "0";
   editClassStartingMoney.value = "0";
   renderClassSkillList();
@@ -6796,6 +6871,7 @@ editOk.addEventListener("click", async () => {
         startingSkillPoints: Number(editClassSkillPoints.value || 0),
         startingMoney: Number(editClassStartingMoney.value || 0),
         backgroundSkillIds: editClassSkillIds.slice(),
+        limitedToRaceIds: getSelectValues(editBackgroundRaceSelect),
         requiredAttributeScores: editClassRequiredScores.slice(),
       });
       markSaved(t("web.toast.background_added", "Background added"));
@@ -6914,6 +6990,7 @@ editOk.addEventListener("click", async () => {
         startingSkillPoints: Number(editClassSkillPoints.value || 0),
         startingMoney: Number(editClassStartingMoney.value || 0),
         backgroundSkillIds: editClassSkillIds.slice(),
+        limitedToRaceIds: getSelectValues(editBackgroundRaceSelect),
         requiredAttributeScores: editClassRequiredScores.slice(),
       });
       markSaved(t("web.toast.background_updated", "Background updated"));
@@ -9331,6 +9408,78 @@ async function renderCharGenAttributes() {
     const data = await api("GET", `/api/drafts/${state.draftId}/chargen/attribute-generation`);
     const attributes = Array.isArray(data.attributes) ? data.attributes : [];
     const method = data || {};
+    const usesCategoryBudgets = Boolean(method.assignByCategory);
+    const playerAssignsCategories = usesCategoryBudgets
+      && String(method.categoryAssignmentMode || "").toLowerCase() === "player";
+    const attributeCategories = Array.isArray(method.attributeCategories)
+      ? method.attributeCategories
+      : [];
+    const categoryPointRules = Array.isArray(method.categoryPointRules)
+      ? method.categoryPointRules
+      : [];
+    const categoryPointSlots = Array.isArray(method.categoryPointSlots)
+      ? method.categoryPointSlots
+      : [];
+    const categoryNames = {};
+    attributeCategories.forEach((category) => {
+      const key = String(category.key || "").trim().toLowerCase();
+      if (key) {
+        categoryNames[key] = category.displayName || category.name || key;
+      }
+    });
+    categoryPointRules.forEach((rule) => {
+      const key = String(rule.attributeCategoryKey || "").trim().toLowerCase();
+      if (key && !categoryNames[key]) {
+        categoryNames[key] = rule.attributeCategoryName || key;
+      }
+    });
+    const validCategoryKeys = new Set(Object.keys(categoryNames));
+    const validSlotIds = new Set(categoryPointSlots.map((slot) => String(slot.id || "").trim()));
+    const savedCategoryAssignments = normalizeCharGenCategoryPointSlotAssignments(
+      state.chargenCategoryPointSlotAssignments
+    );
+    state.chargenCategoryPointSlotAssignments = {};
+    Object.keys(savedCategoryAssignments).forEach((slotId) => {
+      const categoryKey = savedCategoryAssignments[slotId];
+      if (validSlotIds.has(slotId) && validCategoryKeys.has(categoryKey)) {
+        state.chargenCategoryPointSlotAssignments[slotId] = categoryKey;
+      }
+    });
+
+    const categoryAssignmentMarkup = playerAssignsCategories
+      ? `
+        <div class="field">
+          <label>${t("attrgen.point.category_assignment", "Assign Point Pools")}</label>
+          <p class="field-hint">${t(
+            "attrgen.point.category_assignment_help",
+            "Assign each named point pool to a different Attribute Category."
+          )}</p>
+          <div class="list" id="chargenCategoryPointAssignments">
+            ${categoryPointSlots.map((slot, index) => {
+              const slotId = String(slot.id || "").trim();
+              const selectedKey = state.chargenCategoryPointSlotAssignments[slotId] || "";
+              const options = attributeCategories.map((category) => {
+                const categoryKey = String(category.key || "").trim().toLowerCase();
+                const categoryLabel = category.displayName || category.name || categoryKey;
+                return `<option value="${escapeHtml(categoryKey)}"${selectedKey === categoryKey ? " selected" : ""}>${escapeHtml(categoryLabel)}</option>`;
+              }).join("");
+              return `
+                <div class="list-item row split">
+                  <div class="stack">
+                    <strong>${escapeHtml(slot.name || `Point Pool ${index + 1}`)}</strong>
+                    <span class="badge">${Number(slot.availablePoints || 0)} ${t("attrgen.point.points", "points")}</span>
+                  </div>
+                  <select data-category-point-slot="${escapeHtml(slotId)}">
+                    <option value="">${t("attrgen.point.category_select", "Choose category")}</option>
+                    ${options}
+                  </select>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </div>
+      `
+      : "";
     const generationChoices = getCharGenGenerationChoices(method);
     const previousChoice = normalizeCharGenGenerationChoice(state.chargenAttributeGenerationChoice);
     if (generationChoices.length === 1) {
@@ -9338,7 +9487,7 @@ async function renderCharGenAttributes() {
       if (previousChoice && previousChoice !== generationChoices[0].key) {
         state.chargenRolledAttributeValues = [];
         state.chargenDiceRollAssignments = {};
-        state.chargenDiceSubstitutionsUsed = 0;
+        resetCharGenRollAdjustments();
         clearCharGenAttributeStepResults();
         state.chargenSelectedArrayType = "";
         state.chargenArrayAssignments = {};
@@ -9393,20 +9542,10 @@ async function renderCharGenAttributes() {
           <div class="list" id="chargenRollList"></div>
           <p id="chargenRollEmpty">${t("attrgen.rolls.empty", "No rolls yet.")}</p>
           <p class="field-hint" id="chargenRollStatus" aria-live="polite"></p>
-          <div class="grid two" id="chargenSubstitutionSection">
-            <div class="field">
-              <label for="chargenSubstitutionIndex">${t("attrgen.dice.substitution.replace", "Replace Roll")}</label>
-              <select id="chargenSubstitutionIndex"></select>
-            </div>
-            <div class="field">
-              <label>&nbsp;</label>
-              <button class="btn ghost" id="chargenSubstituteBtn" type="button">${t(
-                "attrgen.dice.substitution.use",
-                "Use Substitution"
-              )}</button>
-            </div>
+          <div id="chargenAdjustmentSection" class="hidden">
+            <h2>${t("attrgen.adjustment.available", "Available Roll Adjustments")}</h2>
+            <div class="list" id="chargenAdjustmentList"></div>
           </div>
-          <p class="field-hint" id="chargenSubstitutionHint"></p>
         </div>
         <div class="actions-row">
           <div class="left">
@@ -9427,23 +9566,16 @@ async function renderCharGenAttributes() {
     const rollStatus = document.getElementById("chargenRollStatus");
     const rollBtn = document.getElementById("chargenRollBtn");
     const chooseRollBtn = document.getElementById("chargenChooseRollBtn");
-    const substitutionSection = document.getElementById("chargenSubstitutionSection");
-    const substitutionSelect = document.getElementById("chargenSubstitutionIndex");
-    const substituteBtn = document.getElementById("chargenSubstituteBtn");
-    const substitutionHint = document.getElementById("chargenSubstitutionHint");
+    const adjustmentSection = document.getElementById("chargenAdjustmentSection");
+    const adjustmentList = document.getElementById("chargenAdjustmentList");
     const savedRoll = normalizeCharGenAttributeValues(state.chargenRolledAttributeValues);
-    const rolls = savedRoll.length ? [savedRoll.slice()] : [];
+    const rolls = savedRoll.length ? [savedRoll.map((value, index) => ({ id: `roll-${index + 1}`, value }))] : [];
     let selectedIndex = savedRoll.length ? 0 : -1;
     let chosenIndex = savedRoll.length ? 0 : -1;
-    const substitutionValue = Math.trunc(Number(method.diceSubstitutionValue || 0));
-    const maxSubstitutions = Math.max(0, Math.trunc(Number(method.maxDiceSubstitutions || 0)));
+    let adjustmentOptions = [];
 
     const renderRolls = () => {
       const diceActive = isCharGenGenerationChoiceActive(method, activeGenerationChoice, "dice");
-      const substitutionEnabled = diceActive && isCharGenDiceSubstitutionEnabled(method);
-      const selectedRoll = selectedIndex >= 0 && selectedIndex < rolls.length ? rolls[selectedIndex] : [];
-      const usedSubstitutions = Math.max(0, Math.trunc(Number(state.chargenDiceSubstitutionsUsed || 0)));
-      const remainingSubstitutions = Math.max(0, maxSubstitutions - usedSubstitutions);
       diceSection.classList.toggle("hidden", !diceActive);
       rollList.innerHTML = rolls
         .map((values, index) => {
@@ -9452,7 +9584,7 @@ async function renderCharGenAttributes() {
             <div class="list-item">
               <label>
                 <input type="radio" name="chargenRollSelect" value="${index}" ${checked}>
-                ${escapeHtml(formatRollSet(index, values))}
+                ${escapeHtml(formatRollSet(index, values.map((entry) => entry.value)))}
               </label>
             </div>
           `;
@@ -9460,30 +9592,84 @@ async function renderCharGenAttributes() {
         .join("");
       rollEmpty.style.display = rolls.length ? "none" : "";
       rollBtn.disabled = !diceActive || !isCharGenDiceEnabled(method, attributes);
-      chooseRollBtn.disabled = !diceActive || selectedIndex < 0;
+      chooseRollBtn.disabled = !diceActive || selectedIndex < 0
+        || Object.values(normalizeCharGenRankMap(state.chargenRollAdjustmentUses)).some((uses) => uses > 0);
       rollStatus.textContent = chosenIndex >= 0
         ? t("attrgen.roll.chosen", "Set {index} chosen for assignment.").replace("{index}", String(chosenIndex + 1))
         : "";
-      substitutionSection.style.display = substitutionEnabled ? "" : "none";
-      substitutionHint.style.display = substitutionEnabled ? "" : "none";
-      if (substitutionEnabled) {
-        substitutionSelect.innerHTML = selectedRoll
-          .map((value, index) => {
-            const label = t("attrgen.dice.substitution.option", "Roll {number}: {value}")
-              .replace("{number}", String(index + 1))
-              .replace("{value}", String(value));
-            return `<option value="${index}">${escapeHtml(label)}</option>`;
-          })
-          .join("");
-        substituteBtn.disabled = selectedIndex < 0 || !selectedRoll.length || remainingSubstitutions <= 0;
-        substitutionHint.textContent = t(
-          "attrgen.dice.substitution.remaining",
-          "Substitution value: {value}. Remaining: {remaining} of {max}."
-        )
-          .replace("{value}", String(substitutionValue))
-          .replace("{remaining}", String(remainingSubstitutions))
-          .replace("{max}", String(maxSubstitutions));
+      const chosenValues = chosenIndex >= 0 && chosenIndex < rolls.length ? rolls[chosenIndex] : [];
+      const valueById = new Map(chosenValues.map((entry, index) => [String(entry.id), { ...entry, index }]));
+      adjustmentSection.classList.toggle("hidden", !diceActive || chosenIndex < 0 || !adjustmentOptions.length);
+      adjustmentList.innerHTML = adjustmentOptions.map((option, optionIndex) => {
+        const valueOptions = (ids, placeholder) => [
+          `<option value="">${escapeHtml(placeholder)}</option>`,
+          ...(Array.isArray(ids) ? ids : []).map((id) => {
+            const entry = valueById.get(String(id));
+            const label = entry
+              ? t("attrgen.adjustment.roll_option", "Roll {number}: {value}")
+                .replace("{number}", String(entry.index + 1))
+                .replace("{value}", String(entry.value))
+              : String(id);
+            return `<option value="${escapeHtml(String(id))}">${escapeHtml(label)}</option>`;
+          }),
+        ].join("");
+        const resourceStatus = option.resourceName
+          ? `<span class="badge">${escapeHtml(t("attrgen.adjustment.resource_remaining", "{resource} remaining: {amount}")
+            .replace("{resource}", String(option.resourceName))
+            .replace("{amount}", String(Number(option.resourceRemaining || 0))))}</span>`
+          : "";
+        return `
+          <div class="list-item stack" data-adjustment-option="${optionIndex}">
+            <strong>${escapeHtml(option.name || t("attrgen.adjustment.default_name", "Roll Adjustment"))}</strong>
+            ${option.description ? `<span>${escapeHtml(option.description)}</span>` : ""}
+            <span class="badge">${escapeHtml(t("attrgen.adjustment.uses_remaining", "Uses remaining: {count}").replace("{count}", String(Number(option.usesRemaining || 0))))}</span>
+            ${resourceStatus}
+            ${option.sourceRequired ? `<div class="field"><label>${t("attrgen.adjustment.source_roll", "Source Roll")}</label><select data-adjustment-source>${valueOptions(option.legalSourceValueIds, t("attrgen.adjustment.choose_source", "Choose source"))}</select></div>` : ""}
+            ${option.targetRequired ? `<div class="field"><label>${t("attrgen.adjustment.target_roll", "Target Roll")}</label><select data-adjustment-target>${valueOptions(option.legalTargetValueIds, t("attrgen.adjustment.choose_target", "Choose target"))}</select></div>` : ""}
+            ${option.amountRequired ? `<div class="field"><label>${t("attrgen.adjustment.amount", "Amount")}</label><input type="number" data-adjustment-amount min="${Math.max(1, Number(option.minimumAmount || 1))}" max="${Math.max(1, Number(option.maximumAmount || 1))}" step="1" value="1"></div>` : ""}
+            ${option.reason ? `<p class="field-hint">${escapeHtml(option.reason)}</p>` : ""}
+            <button class="btn ghost" data-apply-adjustment="${escapeHtml(String(option.methodId || ""))}" type="button" ${option.available ? "" : "disabled"}>${t("attrgen.adjustment.apply", "Apply Adjustment")}</button>
+          </div>
+        `;
+      }).join("");
+      adjustmentList.querySelectorAll("[data-adjustment-option]").forEach((card) => {
+        const button = card.querySelector("button[data-apply-adjustment]");
+        const updateReadyState = () => {
+          const selectsComplete = [...card.querySelectorAll("select")].every((select) => Boolean(select.value));
+          const source = card.querySelector("[data-adjustment-source]")?.value || "";
+          const target = card.querySelector("[data-adjustment-target]")?.value || "";
+          const distinctValues = !source || !target || source !== target;
+          button.disabled = button.hasAttribute("data-unavailable") || !selectsComplete || !distinctValues;
+        };
+        if (button.disabled) {
+          button.dataset.unavailable = "true";
+        }
+        card.querySelectorAll("select, input").forEach((control) => {
+          control.addEventListener("change", updateReadyState);
+          control.addEventListener("input", updateReadyState);
+        });
+        updateReadyState();
+      });
+    };
+
+    const refreshRollAdjustments = async () => {
+      if (chosenIndex < 0 || chosenIndex >= rolls.length) {
+        adjustmentOptions = [];
+        renderRolls();
+        return;
       }
+      try {
+        const result = await api("POST", `/api/drafts/${state.draftId}/chargen/attribute-generation/adjust`, {
+          values: rolls[chosenIndex],
+          usesByMethod: normalizeCharGenRankMap(state.chargenRollAdjustmentUses),
+          resourceSpentByKey: normalizeCharGenRankMap(state.chargenRollAdjustmentResourceSpent),
+        });
+        adjustmentOptions = Array.isArray(result.options) ? result.options : [];
+      } catch (error) {
+        adjustmentOptions = [];
+        showToast(error.message || t("attrgen.adjustment.load_failed", "Unable to load roll adjustments."));
+      }
+      renderRolls();
     };
 
     document.getElementById("chargenDescriptionClose").addEventListener("click", () => {
@@ -9500,7 +9686,7 @@ async function renderCharGenAttributes() {
         clearCharGenAttributeStepResults();
         state.chargenSelectedArrayType = "";
         state.chargenArrayAssignments = {};
-        state.chargenDiceSubstitutionsUsed = 0;
+        resetCharGenRollAdjustments();
         rolls.length = 0;
         selectedIndex = -1;
         chosenIndex = -1;
@@ -9508,14 +9694,32 @@ async function renderCharGenAttributes() {
         saveCharGenDraftLocal();
       });
     }
-    rollBtn.addEventListener("click", () => {
+    rollBtn.addEventListener("click", async () => {
       if (!isCharGenGenerationChoiceActive(method, activeGenerationChoice, "dice") || !isCharGenDiceEnabled(method, attributes)) {
         return;
       }
-      const setCount = Math.max(1, Math.trunc(Number(method.numberOfSets || 0)));
-      rolls.length = 0;
-      for (let index = 0; index < setCount; index += 1) {
-        rolls.push(rollCharGenSet(attributes, method));
+      rollBtn.disabled = true;
+      try {
+        const generated = await api(
+          "POST",
+          `/api/drafts/${state.draftId}/chargen/attribute-generation/roll`,
+          {}
+        );
+        const generatedSets = Array.isArray(generated.rollSets) ? generated.rollSets : [];
+        rolls.length = 0;
+        generatedSets.forEach((values, setIndex) => {
+          const normalized = (Array.isArray(values) ? values : []).map((entry, valueIndex) => ({
+            id: String(entry?.id || `set-${setIndex + 1}-roll-${valueIndex + 1}`),
+            value: Math.trunc(Number(entry?.value || 0)),
+          }));
+          if (normalized.length === attributes.length && normalized.every((entry) => entry.id)) {
+            rolls.push(normalized);
+          }
+        });
+      } catch (error) {
+        showToast(error.message || t("attrgen.roll.failed", "Unable to roll Attribute values."));
+        renderRolls();
+        return;
       }
       selectedIndex = rolls.length === 1 ? 0 : -1;
       chosenIndex = -1;
@@ -9524,7 +9728,7 @@ async function renderCharGenAttributes() {
       state.chargenAttributeScores = {};
       state.chargenPointBuyBaselineScores = {};
       clearCharGenAttributeStepResults();
-      state.chargenDiceSubstitutionsUsed = 0;
+      resetCharGenRollAdjustments();
       saveCharGenDraftLocal();
       renderRolls();
     });
@@ -9541,33 +9745,54 @@ async function renderCharGenAttributes() {
         return;
       }
       chosenIndex = selectedIndex;
-      state.chargenRolledAttributeValues = normalizeCharGenAttributeValues(rolls[selectedIndex]);
+      resetCharGenRollAdjustments();
+      state.chargenRolledAttributeValues = normalizeCharGenAttributeValues(
+        rolls[selectedIndex].map((entry) => entry.value)
+      );
       state.chargenDiceRollAssignments = {};
       state.chargenAttributeScores = {};
       state.chargenPointBuyBaselineScores = {};
       clearCharGenAttributeStepResults();
       saveCharGenDraftLocal();
       renderRolls();
+      refreshRollAdjustments();
     });
-    substituteBtn.addEventListener("click", () => {
-      if (selectedIndex < 0 || selectedIndex >= rolls.length) {
+    adjustmentList.addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-apply-adjustment]");
+      if (!button || chosenIndex < 0 || chosenIndex >= rolls.length) {
         return;
       }
-      const usedSubstitutions = Math.max(0, Math.trunc(Number(state.chargenDiceSubstitutionsUsed || 0)));
-      if (usedSubstitutions >= maxSubstitutions) {
-        showToast(t("attrgen.dice.substitution.none_remaining", "No substitutions remain."));
+      const card = button.closest("[data-adjustment-option]");
+      const target = card?.querySelector("[data-adjustment-target]")?.value || "";
+      const source = card?.querySelector("[data-adjustment-source]")?.value || "";
+      const amount = Math.max(1, Math.trunc(Number(card?.querySelector("[data-adjustment-amount]")?.value || 1)));
+      button.disabled = true;
+      try {
+        const result = await api("POST", `/api/drafts/${state.draftId}/chargen/attribute-generation/adjust`, {
+          methodId: String(button.dataset.applyAdjustment || ""),
+          targetValueId: target,
+          sourceValueId: source,
+          amount,
+          values: rolls[chosenIndex],
+          usesByMethod: normalizeCharGenRankMap(state.chargenRollAdjustmentUses),
+          resourceSpentByKey: normalizeCharGenRankMap(state.chargenRollAdjustmentResourceSpent),
+        });
+        rolls[chosenIndex] = (Array.isArray(result.values) ? result.values : []).map((entry) => ({
+          id: String(entry.id || ""),
+          value: Math.trunc(Number(entry.value || 0)),
+        }));
+        state.chargenRollAdjustmentUses = normalizeCharGenRankMap(result.usesByMethod);
+        state.chargenRollAdjustmentResourceSpent = normalizeCharGenRankMap(result.resourceSpentByKey);
+        state.chargenDiceSubstitutionsUsed = Object.values(state.chargenRollAdjustmentUses)
+          .reduce((total, value) => total + Math.max(0, Number(value || 0)), 0);
+        state.chargenRolledAttributeValues = rolls[chosenIndex].map((entry) => entry.value);
+        adjustmentOptions = Array.isArray(result.options) ? result.options : [];
+      } catch (error) {
+        showToast(error.message || t("attrgen.adjustment.failed", "Unable to apply this roll adjustment."));
+        button.disabled = false;
         return;
       }
-      const values = rolls[selectedIndex];
-      const replacementIndex = Number(substitutionSelect.value);
-      if (!Number.isInteger(replacementIndex) || replacementIndex < 0 || replacementIndex >= values.length) {
-        return;
-      }
-      values[replacementIndex] = substitutionValue;
-      state.chargenDiceSubstitutionsUsed = usedSubstitutions + 1;
-      state.chargenRolledAttributeValues = [];
       state.chargenDiceRollAssignments = {};
-      chosenIndex = -1;
       saveCharGenDraftLocal();
       renderRolls();
     });
@@ -9592,6 +9817,9 @@ async function renderCharGenAttributes() {
     });
 
     renderRolls();
+    if (chosenIndex >= 0) {
+      refreshRollAdjustments();
+    }
     saveCharGenDraftLocal();
   } catch (error) {
     renderCharGenLoadError(error, renderCharGenAttributes);
@@ -9876,7 +10104,7 @@ async function renderCharGenAttributeAssignment() {
         clearCharGenAttributeStepResults();
         state.chargenSelectedArrayType = "";
         state.chargenArrayAssignments = {};
-        state.chargenDiceSubstitutionsUsed = 0;
+        resetCharGenRollAdjustments();
         rolls.length = 0;
         selectedIndex = -1;
         resetCharGenAttributeInputs(attributeInputs, method);
@@ -9886,22 +10114,30 @@ async function renderCharGenAttributeAssignment() {
       });
     }
 
-    rollBtn.addEventListener("click", () => {
+    rollBtn.addEventListener("click", async () => {
       if (!isCharGenGenerationChoiceActive(method, activeGenerationChoice, "dice") || !isCharGenDiceEnabled(method, attributes)) {
         return;
       }
-      const maxSets = Number(method.numberOfSets || 0);
-      if (maxSets > 0 && rolls.length >= maxSets) {
+      rollBtn.disabled = true;
+      try {
+        const generated = await api(
+          "POST",
+          `/api/drafts/${state.draftId}/chargen/attribute-generation/roll`,
+          {}
+        );
+        const generatedSets = Array.isArray(generated.sets) ? generated.sets : [];
         rolls.length = 0;
-        selectedIndex = -1;
+        generatedSets.forEach((values) => {
+          const normalized = normalizeCharGenAttributeValues(values);
+          if (normalized.length === attributes.length) {
+            rolls.push(normalized);
+          }
+        });
+        selectedIndex = rolls.length === 1 ? 0 : -1;
         rollBaselineValues = captureCharGenAttributeValues(attributeInputs);
+      } catch (error) {
+        showToast(error.message || t("attrgen.roll.failed", "Unable to roll Attribute values."));
       }
-      if (!rolls.length) {
-        rollBaselineValues = captureCharGenAttributeValues(attributeInputs);
-      }
-      const values = rollCharGenSet(attributes, method);
-      rolls.push(values);
-      selectedIndex = rolls.length - 1;
       renderRolls();
     });
 
@@ -9923,7 +10159,7 @@ async function renderCharGenAttributeAssignment() {
       applyCharGenValues(attributeInputs, values, addToBase ? rollBaselineValues : null);
     });
 
-    substituteBtn.addEventListener("click", () => {
+    substituteBtn.addEventListener("click", async () => {
       if (!isCharGenDiceSubstitutionEnabled(method) || selectedIndex < 0 || selectedIndex >= rolls.length) {
         return;
       }
@@ -9937,8 +10173,18 @@ async function renderCharGenAttributeAssignment() {
       if (!Array.isArray(values) || !Number.isInteger(replacementIndex) || replacementIndex < 0 || replacementIndex >= values.length) {
         return;
       }
-      values[replacementIndex] = substitutionValue;
-      state.chargenDiceSubstitutionsUsed = usedSubstitutions + 1;
+      try {
+        const substituted = await api(
+          "POST",
+          `/api/drafts/${state.draftId}/chargen/attribute-generation/substitute`,
+          { rolledValues: values, rollIndex: replacementIndex, substitutionsUsed: usedSubstitutions }
+        );
+        rolls[selectedIndex] = normalizeCharGenAttributeValues(substituted.rolledValues);
+        state.chargenDiceSubstitutionsUsed = Number(substituted.substitutionsUsed || 0);
+      } catch (error) {
+        showToast(error.message || t("attrgen.dice.substitution.failed", "Unable to substitute this roll."));
+        return;
+      }
       state.chargenAttributeScores = collectCharGenAttributeScores(attributeInputs);
       state.chargenAttributes = attributes.slice();
       saveCharGenDraftLocal();
@@ -9958,7 +10204,7 @@ async function renderCharGenAttributeAssignment() {
       saveCharGenDraftLocal();
       renderCharGenAttributes();
     });
-    continueBtn.addEventListener("click", () => {
+    continueBtn.addEventListener("click", async () => {
       if (arrayController && !arrayController.isComplete()) {
         showToast(t("attrgen.array.assignment.required", "Assign every array value before continuing."));
         return;
@@ -9967,13 +10213,17 @@ async function renderCharGenAttributeAssignment() {
         showToast(t("attrgen.roll.assignment.required", "Assign every roll before continuing."));
         return;
       }
-      const scores = collectCharGenAttributeScores(attributeInputs);
-      const activeChoice = resolveCharGenGenerationChoice(method);
-      const diceActive = isCharGenGenerationChoiceActive(method, activeChoice, "dice");
-      if (diceActive) {
-        recordCharGenStepResult(method, "dice", scores);
+      continueBtn.disabled = true;
+      let result;
+      try {
+        result = await requestCharGenAttributeScores(method, { pointBuyScores: {} });
+      } catch (error) {
+        showToast(error.message || t("attrgen.resolve.failed", "Unable to resolve Attribute scores."));
+        updateStageVisibility();
+        return;
       }
-      state.chargenAttributeScores = scores;
+      const scores = result.scores && typeof result.scores === "object" ? result.scores : {};
+      state.chargenAttributeScores = { ...scores };
       state.chargenAttributes = attributes.slice();
       state.chargenPointBuyBaselineScores = { ...scores };
       saveCharGenDraftLocal();
@@ -9983,6 +10233,11 @@ async function renderCharGenAttributeAssignment() {
       }
       if (getCharGenChooseStep(method)) {
         renderCharGenAttributeResultChoice();
+        return;
+      }
+      if (!result.complete) {
+        showToast(result.reason || t("attrgen.resolve.incomplete", "Complete Attribute Generation before continuing."));
+        updateStageVisibility();
         return;
       }
       renderCharGenRaces();
@@ -10029,15 +10284,20 @@ async function renderCharGenPointsBuy() {
           "Set the starting points and bounds for point-buy attribute generation."
         )}</p>
         <div class="grid two">
-          <div class="field">
+          ${usesCategoryBudgets ? "" : `<div class="field">
             <label>${t("attrgen.point.base_points", "Base Points")}</label>
             <input type="number" id="chargenPointBudget" value="${Number(method.basePoints || 0)}" readonly>
-          </div>
+          </div>`}
           <div class="field">
             <label>${t("attrgen.point.base_value", "Base Attribute Value")}</label>
             <input type="number" id="chargenPointBaseValue" value="${Number(method.baseAttributeValue || 0)}" readonly>
           </div>
         </div>
+        ${usesCategoryBudgets ? `<p class="field-hint">${t(
+          "attrgen.point.category_independent",
+          "Each Attribute spends only from its category's point pool."
+        )}</p>` : ""}
+        ${categoryAssignmentMarkup}
         <div class="field">
           <label>${t("attrgen.point.summary", "Point Buy")}</label>
           <div class="list" id="chargenPointSummary"></div>
@@ -10077,17 +10337,20 @@ async function renderCharGenPointsBuy() {
         const resetId = `chargenPointReset${index}`;
         const min = resolveCharGenMin(attribute, method);
         const max = resolveCharGenMax(attribute, method);
-        const base = resolveCharGenBase(method);
+        const base = resolveCharGenBase(method, attribute);
+        const categoryKey = String(attribute.attributeCategoryKey || "").trim().toLowerCase();
+        const categoryLabel = categoryNames[categoryKey] || categoryKey;
         const current = clampCharGen(Number(scores[attributeId] ?? base), min, max);
         initialPointScores[attributeId] = current;
         const baselineValue = clampCharGen(Number(baseline[attributeId] ?? base), min, max);
-        rows.push({ attributeId, inputId: id, minusId, plusId, resetId, min, max, baselineValue });
+        rows.push({ attributeId, inputId: id, minusId, plusId, resetId, min, max, baseValue: base, baselineValue, categoryKey });
         const baselineBadge = usesBaseline ? `<span class="badge">${t("attrgen.point.baseline", "Baseline")}: ${baselineValue}</span>` : "";
         return `
           <div class="list-item">
             <div class="row split">
               <div class="stack">
                 <strong>${escapeHtml(label)}</strong>
+                ${usesCategoryBudgets && categoryLabel ? `<span class="badge">${escapeHtml(categoryLabel)}</span>` : ""}
                 ${baselineBadge}
               </div>
               <div class="row">
@@ -10103,42 +10366,101 @@ async function renderCharGenPointsBuy() {
       .join("");
     state.chargenAttributeScores = { ...initialPointScores };
 
-    const pointCostMap = buildCharGenPointCostMap(method.pointCosts);
-    const budget = Math.max(0, Number(method.basePoints || 0));
+    const budget = usesCategoryBudgets
+      ? (playerAssignsCategories ? categoryPointSlots : categoryPointRules)
+          .reduce((total, entry) => total + Math.max(0, Number(entry.availablePoints || 0)), 0)
+      : Math.max(0, Number(method.basePoints || 0));
     const minSpend = Math.max(0, Number(method.minimumPointsToSpend || 0));
 
-    const resolveCost = (value) => resolveCharGenPointCost(value, method, pointCostMap);
+    const categoryAssignmentsComplete = () => {
+      if (!playerAssignsCategories) {
+        return !usesCategoryBudgets || Boolean(method.categoryPointConfigurationComplete);
+      }
+      const assignments = normalizeCharGenCategoryPointSlotAssignments(
+        state.chargenCategoryPointSlotAssignments
+      );
+      const assignedKeys = categoryPointSlots
+        .map((slot) => assignments[String(slot.id || "").trim()] || "")
+        .filter(Boolean);
+      return Boolean(method.categoryPointConfigurationComplete)
+        && categoryPointSlots.length === attributeCategories.length
+        && assignedKeys.length === categoryPointSlots.length
+        && new Set(assignedKeys).size === attributeCategories.length
+        && assignedKeys.every((key) => validCategoryKeys.has(key));
+    };
 
-    const computeSpent = () => {
-      let spent = 0;
+    const collectPointScores = () => {
+      const pointScores = {};
       rows.forEach((row) => {
         const input = document.getElementById(row.inputId);
         const value = clampCharGen(Number(input.value || 0), row.min, row.max);
-        if (applicationMode === "add") {
-          const addedValue = value - row.baselineValue;
-          spent += resolveCost(addedValue) - resolveCost(0);
-        } else if (applicationMode === "spend") {
-          spent += resolveCost(value) - resolveCost(row.baselineValue);
-        } else {
-          spent += resolveCost(value);
-        }
+        pointScores[row.attributeId] = value;
       });
-      return spent;
+      return pointScores;
     };
 
-    const renderSummary = () => {
-      const spent = computeSpent();
-      const remaining = budget - spent;
+    const renderSummary = async () => {
+      const pointScores = collectPointScores();
+      let result;
+      try {
+        result = await requestCharGenAttributeScores(method, { pointBuyScores: pointScores });
+      } catch (error) {
+        continueBtn.disabled = true;
+        summary.innerHTML = `<div class="list-item">${escapeHtml(error.message || t(
+          "attrgen.resolve.failed",
+          "Unable to resolve Attribute scores."
+        ))}</div>`;
+        return null;
+      }
+      state.chargenAttributeScores = { ...pointScores };
+      const spent = Number(result.pointsSpent || 0);
+      const remaining = Number(result.pointsRemaining ?? (budget - spent));
       const meetsMinimum = spent >= minSpend;
-      const allowed = remaining >= 0 && meetsMinimum;
+      const categoryBudgets = Array.isArray(result.categoryPointBudgets)
+        ? result.categoryPointBudgets
+        : [];
+      const categoryAccountingComplete = !usesCategoryBudgets
+        || categoryBudgets.length === attributeCategories.length;
+      const categoryBudgetsAllowed = !usesCategoryBudgets
+        || (categoryAccountingComplete
+          && categoryBudgets.every((entry) => Number(entry.remaining || 0) >= 0));
+      const allowed = remaining >= 0
+        && meetsMinimum
+        && categoryAssignmentsComplete()
+        && categoryBudgetsAllowed;
+      const categoryRows = usesCategoryBudgets
+        ? categoryBudgets.map((entry) => {
+            const categoryKey = String(entry.attributeCategoryKey || "").trim().toLowerCase();
+            const categoryLabel = categoryNames[categoryKey] || categoryKey;
+            const sourceLabel = String(entry.sourceName || "").trim();
+            return `
+              <div class="list-item row split">
+                <div class="stack">
+                  <strong>${escapeHtml(categoryLabel)}</strong>
+                  ${sourceLabel ? `<span class="badge">${escapeHtml(sourceLabel)}</span>` : ""}
+                </div>
+                <span>
+                  ${t("attrgen.point.budget", "Budget")}: <strong>${Number(entry.budget || 0)}</strong>,
+                  ${t("attrgen.point.spent", "Spent")}: <strong>${Number(entry.spent || 0)}</strong>,
+                  ${t("attrgen.point.remaining", "Remaining")}: <strong>${Number(entry.remaining || 0)}</strong>
+                </span>
+              </div>
+            `;
+          }).join("")
+        : "";
       summary.innerHTML = `
+        ${categoryRows || (usesCategoryBudgets && result.reason
+          ? `<div class="list-item">${escapeHtml(result.reason)}</div>`
+          : "")}
         <div class="list-item">
-          ${t("attrgen.point.spent", "Spent")}: <strong>${spent}</strong>
-          , ${t("attrgen.point.remaining", "Remaining")}: <strong>${remaining}</strong>
+          ${usesCategoryBudgets ? t("attrgen.point.total_spent", "Total spent") : t("attrgen.point.spent", "Spent")}: <strong>${spent}</strong>
+          , ${usesCategoryBudgets ? t("attrgen.point.total_remaining", "Total remaining") : t("attrgen.point.remaining", "Remaining")}: <strong>${remaining}</strong>
           , ${t("attrgen.point.minimum", "Minimum Spend")}: <strong>${minSpend}</strong>
         </div>
       `;
       continueBtn.disabled = !allowed;
+      result.pointBuyAllowed = allowed;
+      return result;
     };
 
     const updateScore = (attributeId, value) => {
@@ -10148,9 +10470,6 @@ async function renderCharGenPointsBuy() {
       }
       state.chargenAttributeScores = state.chargenAttributeScores || {};
       state.chargenAttributeScores[safeId] = Number(value || 0);
-      if (choosingBetweenResults) {
-        recordCharGenStepResult(method, "point_buy", state.chargenAttributeScores);
-      }
       saveCharGenDraftLocal();
     };
 
@@ -10164,7 +10483,7 @@ async function renderCharGenPointsBuy() {
         const next = clampCharGen(Number(input.value || 0), row.min, row.max);
         input.value = String(next);
         updateScore(row.attributeId, next);
-        renderSummary();
+        void renderSummary();
       };
 
       input.addEventListener("change", clampInput);
@@ -10177,27 +10496,61 @@ async function renderCharGenPointsBuy() {
         clampInput();
       });
       reset.addEventListener("click", () => {
-        const next = usesBaseline ? row.baselineValue : resolveCharGenBase(method);
+        const next = usesBaseline ? row.baselineValue : row.baseValue;
         input.value = String(clampCharGen(Number(next || 0), row.min, row.max));
         clampInput();
       });
     });
 
-    renderSummary();
+    document.querySelectorAll("[data-category-point-slot]").forEach((select) => {
+      select.addEventListener("change", () => {
+        const slotId = String(select.dataset.categoryPointSlot || "").trim();
+        const categoryKey = String(select.value || "").trim().toLowerCase();
+        const assignments = normalizeCharGenCategoryPointSlotAssignments(
+          state.chargenCategoryPointSlotAssignments
+        );
+        if (slotId && categoryKey) {
+          assignments[slotId] = categoryKey;
+        } else if (slotId) {
+          delete assignments[slotId];
+        }
+        state.chargenCategoryPointSlotAssignments = assignments;
+        saveCharGenDraftLocal();
+        void renderSummary();
+      });
+    });
+
+    void renderSummary();
 
     document.getElementById("chargenPointBack").addEventListener("click", () => {
       saveCharGenDraftLocal();
       renderCharGenAttributeAssignment();
     });
-    continueBtn.addEventListener("click", () => {
-      if (choosingBetweenResults) {
-        recordCharGenStepResult(method, "point_buy", state.chargenAttributeScores);
+    continueBtn.addEventListener("click", async () => {
+      continueBtn.disabled = true;
+      const result = await renderSummary();
+      if (!result) {
+        return;
+      }
+      if (!result.pointBuyAllowed) {
+        showToast(result.reason || t(
+          "attrgen.resolve.incomplete",
+          "Complete Attribute Generation before continuing."
+        ));
+        return;
       }
       saveCharGenDraftLocal();
       if (choosingBetweenResults) {
         renderCharGenAttributeResultChoice();
         return;
       }
+      if (!result.complete) {
+        showToast(result.reason || t("attrgen.resolve.incomplete", "Complete Attribute Generation before continuing."));
+        continueBtn.disabled = false;
+        return;
+      }
+      state.chargenAttributeScores = { ...(result.scores || {}) };
+      saveCharGenDraftLocal();
       renderCharGenRaces();
     });
   } catch (error) {
@@ -10222,7 +10575,8 @@ async function renderCharGenAttributeResultChoice() {
       renderCharGenRaces();
       return;
     }
-    const stepResults = normalizeCharGenAttributeStepResults(state.chargenAttributeStepResults);
+    const unresolved = await requestCharGenAttributeScores(method, { chosenStepIndex: -1 });
+    const stepResults = normalizeCharGenAttributeStepResults(unresolved.stepResults || {});
     const requiredAttributeIds = attributes
       .map((attribute) => String(attribute.id || "").trim())
       .filter(Boolean);
@@ -10296,14 +10650,24 @@ async function renderCharGenAttributeResultChoice() {
         renderCharGenAttributeAssignment();
       }
     });
-    document.getElementById("chargenResultChoiceContinue").addEventListener("click", () => {
+    document.getElementById("chargenResultChoiceContinue").addEventListener("click", async () => {
       const choice = String(state.chargenAttributeResultChoice || "");
-      const scores = stepResults[choice];
-      if (!scores) {
+      if (!stepResults[choice]) {
         showToast(t("attrgen.result_choice.required", "Choose one result before continuing."));
         return;
       }
-      state.chargenAttributeScores = { ...scores };
+      let result;
+      try {
+        result = await requestCharGenAttributeScores(method, { chosenStepIndex: choice });
+      } catch (error) {
+        showToast(error.message || t("attrgen.resolve.failed", "Unable to resolve Attribute scores."));
+        return;
+      }
+      if (!result.complete) {
+        showToast(result.reason || t("attrgen.resolve.incomplete", "Complete Attribute Generation before continuing."));
+        return;
+      }
+      state.chargenAttributeScores = { ...(result.scores || {}) };
       saveCharGenDraftLocal();
       renderCharGenRaces();
     });
@@ -10321,8 +10685,10 @@ async function renderCharGenRaces() {
   setStep("chargen-races");
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
-    const data = await api("GET", `/api/drafts/${state.draftId}/races`);
-    const races = Array.isArray(data.races) ? data.races : [];
+    const data = await api("POST", `/api/drafts/${state.draftId}/chargen/race-selection`, {
+      attributeScores: state.chargenAttributeScores || {},
+    });
+    const races = Array.isArray(data.options) ? data.options : [];
     const hasRaces = races.length > 0;
     const emptyNotice = t(
       "web.chargen.races.empty_system",
@@ -10364,7 +10730,7 @@ async function renderCharGenRaces() {
         races.map((race) => {
           const value = escapeHtml(race.id || "");
           const label = escapeHtml(race.name || t("races.untitled", "Untitled"));
-          return `<option value="${value}">${label}</option>`;
+          return `<option value="${value}" ${race.eligible ? "" : "disabled"}>${label}</option>`;
         })
       )
       .join("");
@@ -10387,27 +10753,40 @@ async function renderCharGenRaces() {
     select.addEventListener("change", updateDescription);
 
     document.getElementById("chargenBackToAttributes").addEventListener("click", () => {
-      state.chargenRaceId = String(select.value || "");
-      saveCharGenDraftLocal();
       if (String(state.chargenAttributeResultChoice || "")) {
         renderCharGenAttributeResultChoice();
         return;
       }
       renderCharGenAttributeAssignment();
     });
-    document.getElementById("chargenRaceContinue").addEventListener("click", () => {
+    document.getElementById("chargenRaceContinue").addEventListener("click", async () => {
       const id = String(select.value || "");
-      const selected = races.find((race) => String(race.id || "") === id);
-      if (selected) {
-        const message = buildCharGenRaceRequirementMessage(selected);
-        if (message) {
-          alert(message);
+      if (!id) {
+        state.chargenRaceId = "";
+        state.chargenRacialSkillRanks = {};
+        state.chargenRacialTraitNames = [];
+        saveCharGenDraftLocal();
+        renderCharGenBackgrounds();
+        return;
+      }
+      try {
+        const result = await api("POST", `/api/drafts/${state.draftId}/chargen/race-selection`, {
+          raceId: id,
+          attributeScores: state.chargenAttributeScores || {},
+        });
+        const selected = result.selection || {};
+        if (!selected.eligible) {
+          alert(formatCharGenRaceSelectionReason(selected));
           return;
         }
+        state.chargenRaceId = String(selected.id || "");
+        state.chargenRacialSkillRanks = buildCharGenGrantedSkillRanks(selected.racialSkillIds);
+        state.chargenRacialTraitNames = normalizeCharGenIdList(selected.racialTraitIds);
+        saveCharGenDraftLocal();
+        renderCharGenBackgrounds();
+      } catch (error) {
+        alert(error.message);
       }
-      state.chargenRaceId = id;
-      saveCharGenDraftLocal();
-      renderCharGenBackgrounds();
     });
   } catch (error) {
     renderCharGenLoadError(error, renderCharGenRaces);
@@ -10423,13 +10802,16 @@ async function renderCharGenBackgrounds() {
   setStep("chargen-backgrounds");
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
-    const data = await api("GET", `/api/drafts/${state.draftId}/backgrounds`);
-    const backgrounds = Array.isArray(data.backgrounds) ? data.backgrounds : [];
+    const data = await api("POST", `/api/drafts/${state.draftId}/chargen/background-selection`, {
+      raceId: state.chargenRaceId || "",
+      attributeScores: state.chargenAttributeScores || {},
+    });
+    const backgrounds = Array.isArray(data.options) ? data.options : [];
     const hasBackgrounds = backgrounds.length > 0;
     view.innerHTML = `
       <section class="panel">
         <h1>${t("backgrounds.title", "Backgrounds")}</h1>
-        ${hasBackgrounds ? "" : `<p class="field-hint">${t("web.chargen.backgrounds.empty_system", "This game system does not use backgrounds; proceed to the next screen.")}</p>`}
+        ${hasBackgrounds ? "" : `<p class="field-hint">${t("web.chargen.backgrounds.empty_system", "No Backgrounds are available for this character; proceed to the next screen.")}</p>`}
         <div class="field">
           <label for="chargenBackgroundSelect">${t("backgrounds.select", "Select Background")}</label>
           <select id="chargenBackgroundSelect" ${hasBackgrounds ? "" : "disabled"}></select>
@@ -10470,17 +10852,34 @@ async function renderCharGenBackgrounds() {
       saveCharGenDraftLocal();
       renderCharGenRaces();
     });
-    document.getElementById("chargenBackgroundContinue").addEventListener("click", () => {
-      state.chargenBackgroundId = String(select.value || "");
-      const background = backgrounds.find((entry) => String(entry.id || "") === state.chargenBackgroundId);
-      const message = buildCharGenBackgroundRequirementMessage(background);
-      if (message) {
-        alert(message);
+    document.getElementById("chargenBackgroundContinue").addEventListener("click", async () => {
+      const id = String(select.value || "");
+      if (!id) {
+        state.chargenBackgroundId = "";
+        state.chargenBackgroundSkillRanks = {};
+        saveCharGenDraftLocal();
+        renderCharGenClasses();
         return;
       }
-      state.chargenBackgroundSkillRanks = buildCharGenBackgroundSkillRanks(background);
-      saveCharGenDraftLocal();
-      renderCharGenClasses();
+      try {
+        const result = await api("POST", `/api/drafts/${state.draftId}/chargen/background-selection`, {
+          backgroundId: id,
+          raceId: state.chargenRaceId || "",
+          attributeScores: state.chargenAttributeScores || {},
+        });
+        const selected = result.selection || {};
+        if (!selected.eligible) {
+          alert(t("backgrounds.requirement.unavailable", "That Background is not available for this character."));
+          renderCharGenBackgrounds();
+          return;
+        }
+        state.chargenBackgroundId = String(selected.id || "");
+        state.chargenBackgroundSkillRanks = buildCharGenGrantedSkillRanks(selected.backgroundSkillIds);
+        saveCharGenDraftLocal();
+        renderCharGenClasses();
+      } catch (error) {
+        alert(error.message);
+      }
     });
   } catch (error) {
     renderCharGenLoadError(error, renderCharGenBackgrounds);
@@ -10569,7 +10968,9 @@ async function renderCharGenClasses() {
     document.getElementById("chargenClassContinue").addEventListener("click", () => {
       state.chargenClassId = String(select.value || "");
       const characterClass = classes.find((entry) => String(entry.id || "") === state.chargenClassId);
-      state.chargenClassSkillRanks = buildCharGenClassSkillRanks(characterClass);
+      state.chargenClassSkillRanks = buildCharGenGrantedSkillRanks(
+        characterClass && Array.isArray(characterClass.classSkillIds) ? characterClass.classSkillIds : []
+      );
       saveCharGenDraftLocal();
       renderCharGenSkills();
     });
@@ -10598,10 +10999,14 @@ async function renderCharGenSkills() {
     const background = backgrounds.find((entry) => String(entry.id || "") === String(state.chargenBackgroundId || ""));
     const characterClass = classes.find((entry) => String(entry.id || "") === String(state.chargenClassId || ""));
     if (!Object.keys(state.chargenBackgroundSkillRanks || {}).length) {
-      state.chargenBackgroundSkillRanks = buildCharGenBackgroundSkillRanks(background);
+      state.chargenBackgroundSkillRanks = buildCharGenGrantedSkillRanks(
+        background && Array.isArray(background.backgroundSkillIds) ? background.backgroundSkillIds : []
+      );
     }
     if (!Object.keys(state.chargenClassSkillRanks || {}).length) {
-      state.chargenClassSkillRanks = buildCharGenClassSkillRanks(characterClass);
+      state.chargenClassSkillRanks = buildCharGenGrantedSkillRanks(
+        characterClass && Array.isArray(characterClass.classSkillIds) ? characterClass.classSkillIds : []
+      );
     }
     const classSkillRanks = state.chargenClassSkillRanks || {};
     const backgroundSkillRanks = state.chargenBackgroundSkillRanks || {};
@@ -11070,6 +11475,35 @@ function normalizeCharGenAttributeValues(values) {
     .map((value) => Math.trunc(value));
 }
 
+async function requestCharGenAttributeScores(method, overrides = {}) {
+  const safeOverrides = overrides || {};
+  const chosenText = Object.prototype.hasOwnProperty.call(safeOverrides, "chosenStepIndex")
+    ? String(safeOverrides.chosenStepIndex)
+    : String(state.chargenAttributeResultChoice || "");
+  const chosenStepIndex = /^\d+$/.test(chosenText) ? Number(chosenText) : -1;
+  const payload = {
+    optionId: resolveCharGenGenerationChoice(method),
+    arrayType: state.chargenSelectedArrayType || "",
+    arrayAssignments: state.chargenArrayAssignments || {},
+    rolledValues: state.chargenRolledAttributeValues || [],
+    rollAssignments: state.chargenDiceRollAssignments || {},
+    pointBuyScores: Object.prototype.hasOwnProperty.call(safeOverrides, "pointBuyScores")
+      ? safeOverrides.pointBuyScores || {}
+      : state.chargenAttributeScores || {},
+    categoryPointSlotAssignments: normalizeCharGenCategoryPointSlotAssignments(
+      state.chargenCategoryPointSlotAssignments
+    ),
+    chosenStepIndex,
+  };
+  const result = await api(
+    "POST",
+    `/api/drafts/${state.draftId}/chargen/attribute-generation/resolve`,
+    payload
+  );
+  state.chargenAttributeStepResults = normalizeCharGenAttributeStepResults(result.stepResults || {});
+  return result || {};
+}
+
 function normalizeCharGenRollAssignments(assignments) {
   const normalized = {};
   const safeAssignments = assignments && typeof assignments === "object" ? assignments : {};
@@ -11090,6 +11524,19 @@ function normalizeCharGenArrayType(value) {
 
 function normalizeCharGenArrayAssignments(assignments) {
   return normalizeCharGenRollAssignments(assignments);
+}
+
+function normalizeCharGenCategoryPointSlotAssignments(assignments) {
+  const normalized = {};
+  const safeAssignments = assignments && typeof assignments === "object" ? assignments : {};
+  Object.keys(safeAssignments).forEach((slotId) => {
+    const safeSlotId = String(slotId || "").trim();
+    const categoryKey = String(safeAssignments[slotId] || "").trim().toLowerCase();
+    if (safeSlotId && categoryKey) {
+      normalized[safeSlotId] = categoryKey;
+    }
+  });
+  return normalized;
 }
 
 function normalizeCharGenAttributeStepResults(results) {
@@ -11259,7 +11706,7 @@ function buildCharGenAttributes(attributes, method, container) {
   attributes.forEach((attribute, index) => {
     const min = resolveCharGenMin(attribute, method);
     const max = resolveCharGenMax(attribute, method);
-    const base = resolveCharGenBase(method);
+    const base = resolveCharGenBase(method, attribute);
     const value = clampCharGen(base, min, max);
     const id = `chargenAttr${index}`;
     const label = attribute.displayName || attribute.name || `Attribute ${index + 1}`;
@@ -11274,15 +11721,14 @@ function buildCharGenAttributes(attributes, method, container) {
       `
     );
     const input = document.getElementById(id);
-    inputs.push({ input, min, max, attributeId });
+    inputs.push({ input, min, max, base, attributeId });
   });
   return inputs;
 }
 
 function resetCharGenAttributeInputs(inputs, method) {
-  const base = resolveCharGenBase(method);
   inputs.forEach((entry) => {
-    entry.input.value = String(clampCharGen(base, entry.min, entry.max));
+    entry.input.value = String(clampCharGen(entry.base, entry.min, entry.max));
   });
 }
 
@@ -11330,53 +11776,28 @@ function applyCharGenSavedScores(inputs) {
   });
 }
 
-function buildCharGenRaceRequirementMessage(race) {
-  if (!race) {
-    return "";
+function formatCharGenRaceSelectionReason(selection) {
+  const result = selection || {};
+  const raceName = String(result.name || t("races.untitled", "Untitled"));
+  const attributeName = String(result.attributeName || resolveCharGenAttributeName(result.attributeId));
+  const requiredScore = String(Number(result.requiredScore || 0));
+  if (result.reason === "notPlayable") {
+    return t("races.requirement.not_playable", "{race} is not available for player characters.")
+      .replace("{race}", raceName);
   }
-  const limits = Array.isArray(race.attributeScoreLimits) ? race.attributeScoreLimits : [];
-  const scores = state.chargenAttributeScores || {};
-  for (const limit of limits) {
-    const attributeId = String(limit.attributeId || "").trim();
-    if (!attributeId) {
-      continue;
-    }
-    const min = Number(limit.min || 0);
-    if (min <= 0) {
-      continue;
-    }
-    const score = Number(scores[attributeId] || 0);
-    if (score < min) {
-      const raceName = String(race.name || "");
-      const attributeName = resolveCharGenAttributeName(attributeId);
-      return t("races.requirement.blocked", "You cannot select {race} because {attribute} must be at least {value}")
-        .replace("{race}", raceName)
-        .replace("{attribute}", attributeName)
-        .replace("{value}", String(min));
-    }
+  if (result.reason === "attributeMaximum") {
+    return t("races.requirement.maximum", "You cannot select {race} because {attribute} must be at most {value}")
+      .replace("{race}", raceName)
+      .replace("{attribute}", attributeName)
+      .replace("{value}", requiredScore);
   }
-  return "";
-}
-
-function buildCharGenBackgroundRequirementMessage(background) {
-  if (!background) {
-    return "";
+  if (result.reason === "attributeMinimum") {
+    return t("races.requirement.blocked", "You cannot select {race} because {attribute} must be at least {value}")
+      .replace("{race}", raceName)
+      .replace("{attribute}", attributeName)
+      .replace("{value}", requiredScore);
   }
-  const requirements = Array.isArray(background.requiredAttributeScores)
-    ? background.requiredAttributeScores
-    : [];
-  const scores = state.chargenAttributeScores || {};
-  for (const requirement of requirements) {
-    const attributeId = String(requirement.attributeId || "").trim();
-    const requiredScore = Number(requirement.score || 0);
-    if (attributeId && requiredScore > 0 && Number(scores[attributeId] || 0) < requiredScore) {
-      return t("backgrounds.requirement.blocked", "You cannot select {background} because {attribute} must be at least {value}")
-        .replace("{background}", String(background.name || ""))
-        .replace("{attribute}", resolveCharGenAttributeName(attributeId))
-        .replace("{value}", String(requiredScore));
-    }
-  }
-  return "";
+  return t("races.requirement.unavailable", "That Race is not available for this character.");
 }
 
 function resolveCharGenAttributeName(attributeId) {
@@ -11391,21 +11812,9 @@ function resolveCharGenAttributeName(attributeId) {
   return safeId;
 }
 
-function buildCharGenClassSkillRanks(characterClass) {
+function buildCharGenGrantedSkillRanks(skillIds) {
   const ranks = {};
-  const ids = characterClass && Array.isArray(characterClass.classSkillIds) ? characterClass.classSkillIds : [];
-  ids.forEach((id) => {
-    const safeId = String(id || "").trim();
-    if (safeId) {
-      ranks[safeId] = 0;
-    }
-  });
-  return ranks;
-}
-
-function buildCharGenBackgroundSkillRanks(background) {
-  const ranks = {};
-  const ids = background && Array.isArray(background.backgroundSkillIds) ? background.backgroundSkillIds : [];
+  const ids = Array.isArray(skillIds) ? skillIds : [];
   ids.forEach((id) => {
     const safeId = String(id || "").trim();
     if (safeId) {
@@ -11523,6 +11932,12 @@ function applyCharGenStartingMoneyDefaults(startingMoney, background, characterC
     : Math.max(0, Number(startingMoney.baseAmount || 0));
   const backgroundAmount = background ? Math.max(0, Number(background.startingMoney || 0)) : 0;
   state.chargenStartingMoneyAmount = baseAmount + backgroundAmount;
+}
+
+function resetCharGenRollAdjustments() {
+  state.chargenDiceSubstitutionsUsed = 0;
+  state.chargenRollAdjustmentUses = {};
+  state.chargenRollAdjustmentResourceSpent = {};
 }
 
 function calculateCharGenArmorClass(armorClassData, armor, selectedIds) {
@@ -11697,11 +12112,18 @@ function buildCharGenDraft() {
     diceRollAssignments: normalizeCharGenRollAssignments(state.chargenDiceRollAssignments),
     selectedArrayType: normalizeCharGenArrayType(state.chargenSelectedArrayType),
     arrayAssignments: normalizeCharGenArrayAssignments(state.chargenArrayAssignments),
+    categoryPointSlotAssignments: normalizeCharGenCategoryPointSlotAssignments(
+      state.chargenCategoryPointSlotAssignments
+    ),
     attributeStepResults: normalizeCharGenAttributeStepResults(state.chargenAttributeStepResults),
     attributeResultChoice: String(state.chargenAttributeResultChoice || ""),
     ruleModeSelections: state.chargenRuleModeSelections || {},
     diceSubstitutionsUsed: Number(state.chargenDiceSubstitutionsUsed || 0),
+    rollAdjustmentUses: normalizeCharGenRankMap(state.chargenRollAdjustmentUses),
+    rollAdjustmentResourceSpent: normalizeCharGenRankMap(state.chargenRollAdjustmentResourceSpent),
     raceId: String(state.chargenRaceId || ""),
+    racialSkillRanks: normalizeCharGenRankMap(state.chargenRacialSkillRanks),
+    racialTraitNames: normalizeCharGenIdList(state.chargenRacialTraitNames),
     backgroundId: String(state.chargenBackgroundId || ""),
     classId: String(state.chargenClassId || ""),
     backgroundSkillRanks: normalizeCharGenRankMap(state.chargenBackgroundSkillRanks),
@@ -11762,6 +12184,12 @@ function serializeCharGenDraft(draft) {
     lines.push(`attributeResultChoice=${String(safeDraft.attributeResultChoice)}`);
   }
   lines.push(`diceSubstitutionsUsed=${Math.max(0, Number(safeDraft.diceSubstitutionsUsed || 0))}`);
+  Object.entries(normalizeCharGenRankMap(safeDraft.rollAdjustmentUses)).sort().forEach(([methodId, uses]) => {
+    lines.push(`rollAdjustmentUse.${methodId}=${uses}`);
+  });
+  Object.entries(normalizeCharGenRankMap(safeDraft.rollAdjustmentResourceSpent)).sort().forEach(([resourceKey, spent]) => {
+    lines.push(`rollAdjustmentResourceSpent.${resourceKey}=${spent}`);
+  });
   const ruleModes = safeDraft.ruleModeSelections || {};
   Object.keys(ruleModes)
     .sort()
@@ -11771,9 +12199,28 @@ function serializeCharGenDraft(draft) {
         lines.push(`ruleMode.${safeKey}=${String(ruleModes[key] || "").trim()}`);
       }
     });
+  const categoryPointSlotAssignments = normalizeCharGenCategoryPointSlotAssignments(
+    safeDraft.categoryPointSlotAssignments
+  );
+  Object.keys(categoryPointSlotAssignments)
+    .sort()
+    .forEach((slotId) => {
+      lines.push(`pointBuyCategorySlot.${slotId}=${categoryPointSlotAssignments[slotId]}`);
+    });
   if (safeDraft.raceId) {
     lines.push(`raceId=${safeDraft.raceId}`);
   }
+  const racialSkillRanks = normalizeCharGenRankMap(safeDraft.racialSkillRanks);
+  Object.keys(racialSkillRanks)
+    .sort()
+    .forEach((key, index) => {
+      lines.push(`racialSkill.${index}=${key}|${racialSkillRanks[key]}`);
+    });
+  normalizeCharGenIdList(safeDraft.racialTraitNames)
+    .sort()
+    .forEach((id, index) => {
+      lines.push(`racialTrait.${index}=${id}`);
+    });
   if (safeDraft.backgroundId) {
     lines.push(`backgroundId=${safeDraft.backgroundId}`);
   }
@@ -11852,9 +12299,14 @@ function parseCharGenDraft(text) {
     arrayAssignments: {},
     attributeStepResults: {},
     attributeResultChoice: "",
+    categoryPointSlotAssignments: {},
     ruleModeSelections: {},
     diceSubstitutionsUsed: 0,
+    rollAdjustmentUses: {},
+    rollAdjustmentResourceSpent: {},
     raceId: "",
+    racialSkillRanks: {},
+    racialTraitNames: [],
     backgroundId: "",
     classId: "",
     backgroundSkillRanks: {},
@@ -11928,6 +12380,24 @@ function parseCharGenDraft(text) {
     } else if (key === "diceSubstitutionsUsed") {
       const used = Number(value);
       draft.diceSubstitutionsUsed = Number.isFinite(used) ? Math.max(0, Math.trunc(used)) : 0;
+    } else if (key.startsWith("rollAdjustmentUse.")) {
+      const methodId = key.slice("rollAdjustmentUse.".length).trim();
+      const uses = Math.max(0, Math.trunc(Number(value || 0)));
+      if (methodId) {
+        draft.rollAdjustmentUses[methodId] = uses;
+      }
+    } else if (key.startsWith("rollAdjustmentResourceSpent.")) {
+      const resourceKey = key.slice("rollAdjustmentResourceSpent.".length).trim();
+      const spent = Math.max(0, Math.trunc(Number(value || 0)));
+      if (resourceKey) {
+        draft.rollAdjustmentResourceSpent[resourceKey] = spent;
+      }
+    } else if (key.startsWith("pointBuyCategorySlot.")) {
+      const slotId = key.slice("pointBuyCategorySlot.".length).trim();
+      const categoryKey = String(value || "").trim().toLowerCase();
+      if (slotId && categoryKey) {
+        draft.categoryPointSlotAssignments[slotId] = categoryKey;
+      }
     } else if (key.startsWith("ruleMode.")) {
       const modeKey = key.slice("ruleMode.".length).trim();
       if (modeKey) {
@@ -11935,6 +12405,10 @@ function parseCharGenDraft(text) {
       }
     } else if (key === "raceId") {
       draft.raceId = value;
+    } else if (key.startsWith("racialSkill.")) {
+      putCharGenRank(draft.racialSkillRanks, value);
+    } else if (key.startsWith("racialTrait.")) {
+      pushCharGenId(draft.racialTraitNames, value);
     } else if (key === "backgroundId") {
       draft.backgroundId = value;
     } else if (key === "classId") {
@@ -11993,9 +12467,19 @@ function applyCharGenDraft(draft) {
   state.chargenArrayAssignments = normalizeCharGenArrayAssignments(safeDraft.arrayAssignments);
   state.chargenAttributeStepResults = normalizeCharGenAttributeStepResults(safeDraft.attributeStepResults);
   state.chargenAttributeResultChoice = String(safeDraft.attributeResultChoice || "");
+  state.chargenCategoryPointSlotAssignments = normalizeCharGenCategoryPointSlotAssignments(
+    safeDraft.categoryPointSlotAssignments
+  );
   state.chargenRuleModeSelections = safeDraft.ruleModeSelections || {};
   state.chargenDiceSubstitutionsUsed = Math.max(0, Number(safeDraft.diceSubstitutionsUsed || 0));
+  state.chargenRollAdjustmentUses = normalizeCharGenRankMap(safeDraft.rollAdjustmentUses);
+  if (!Object.keys(state.chargenRollAdjustmentUses).length && state.chargenDiceSubstitutionsUsed > 0) {
+    state.chargenRollAdjustmentUses["legacy-dice-substitution"] = state.chargenDiceSubstitutionsUsed;
+  }
+  state.chargenRollAdjustmentResourceSpent = normalizeCharGenRankMap(safeDraft.rollAdjustmentResourceSpent);
   state.chargenRaceId = String(safeDraft.raceId || "");
+  state.chargenRacialSkillRanks = normalizeCharGenRankMap(safeDraft.racialSkillRanks);
+  state.chargenRacialTraitNames = normalizeCharGenIdList(safeDraft.racialTraitNames);
   state.chargenBackgroundId = String(safeDraft.backgroundId || "");
   state.chargenClassId = String(safeDraft.classId || "");
   state.chargenBackgroundSkillRanks = normalizeCharGenRankMap(safeDraft.backgroundSkillRanks);
@@ -12020,7 +12504,10 @@ function resetCharGenState() {
   state.chargenPointBuyBaselineScores = {};
   state.chargenSelectedArrayType = "";
   state.chargenArrayAssignments = {};
+  state.chargenCategoryPointSlotAssignments = {};
   state.chargenRaceId = "";
+  state.chargenRacialSkillRanks = {};
+  state.chargenRacialTraitNames = [];
   state.chargenBackgroundId = "";
   state.chargenClassId = "";
   state.chargenBackgroundSkillRanks = {};
@@ -12042,7 +12529,7 @@ function resetCharGenState() {
   state.chargenRolledAttributeValues = [];
   state.chargenDiceRollAssignments = {};
   state.chargenRuleModeSelections = {};
-  state.chargenDiceSubstitutionsUsed = 0;
+  resetCharGenRollAdjustments();
   state.chargenDraftText = "";
   state.chargenCharacterDraftId = "";
   state.chargenServerSaveInFlight = false;
@@ -12228,68 +12715,6 @@ function collectCharGenAttributeScores(inputs) {
   return scores;
 }
 
-function rollCharGenSet(attributes, method) {
-  const terms = Array.isArray(method.diceTerms) ? method.diceTerms : [];
-  return attributes.map(() => {
-    let total = 0;
-    terms.forEach((term) => {
-      total += rollCharGenTerm(term);
-    });
-    return total;
-  });
-}
-
-function rollCharGenTerm(term) {
-  const count = Math.max(0, Number(term.count || 0));
-  const sides = Math.max(0, Number(term.sides || 0));
-  if (count <= 0 || sides <= 0) {
-    return 0;
-  }
-  const rolls = [];
-  for (let i = 0; i < count; i += 1) {
-    rolls.push(rollCharGenDie(term, sides));
-  }
-  rolls.sort((a, b) => a - b);
-  const dropLowest = Math.min(Number(term.dropLowest || 0), rolls.length);
-  const dropHighest = Math.min(Number(term.dropHighest || 0), rolls.length - dropLowest);
-  let total = 0;
-  for (let i = dropLowest; i < rolls.length - dropHighest; i += 1) {
-    total += rolls[i];
-  }
-  total += Number(term.flatModifier || 0);
-  return total;
-}
-
-function rollCharGenDie(term, sides) {
-  const threshold = Number(term.explodeThreshold || 0) > 0 ? Number(term.explodeThreshold) : sides;
-  let total = rollCharGenFace(term, sides);
-  if (!term.exploding) {
-    return total;
-  }
-  let current = total;
-  while (current >= threshold && threshold > 0) {
-    const extra = rollCharGenFace(term, sides);
-    if (extra === 0) {
-      break;
-    }
-    total += extra;
-    current = extra;
-  }
-  return total;
-}
-
-function rollCharGenFace(term, sides) {
-  const ignored = Array.isArray(term.ignoredFaces) ? term.ignoredFaces : [];
-  const maxAttempts = sides * 2;
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const value = Math.floor(Math.random() * sides) + 1;
-    if (!ignored.includes(value)) {
-      return value;
-    }
-  }
-  return 0;
-}
-
 function formatRollSet(index, values) {
   const label = Array.isArray(values) ? values.join(", ") : "";
   return t("attrgen.roll.set", "Set {index}: {values}")
@@ -12324,26 +12749,18 @@ function formatCharGenDiceTerm(term) {
 }
 
 function resolveCharGenMin(attribute, method) {
-  const attrMin = Number(attribute.minValue || 0);
-  if (attrMin > 0) {
-    return attrMin;
-  }
-  const methodMin = Number(method.minAttributeValue || 0);
-  return methodMin > 0 ? methodMin : 0;
+  const resolved = Number((attribute || {}).resolvedMinValue);
+  return Number.isFinite(resolved) ? resolved : 0;
 }
 
 function resolveCharGenMax(attribute, method) {
-  const attrMax = Number(attribute.maxValue || 0);
-  if (attrMax > 0) {
-    return attrMax;
-  }
-  const methodMax = Number(method.maxAttributeValue || 0);
-  return methodMax > 0 ? methodMax : 100;
+  const resolved = Number((attribute || {}).resolvedMaxValue);
+  return Number.isFinite(resolved) ? resolved : 100;
 }
 
-function resolveCharGenBase(method) {
-  const base = Number(method.baseAttributeValue || 0);
-  return base > 0 ? base : 0;
+function resolveCharGenBase(method, attribute = null) {
+  const resolved = Number((attribute || {}).resolvedBaseValue);
+  return Number.isFinite(resolved) ? resolved : 0;
 }
 
 function clampCharGen(value, min, max) {
@@ -12403,39 +12820,6 @@ function resolveCharGenPointBuyApplicationMode(method) {
 
 function shouldAddCharGenPointBuyToBaseScores(method) {
   return ["add", "spend"].includes(resolveCharGenPointBuyApplicationMode(method));
-}
-
-function buildCharGenPointCostMap(entries) {
-  const map = {};
-  if (!Array.isArray(entries)) {
-    return map;
-  }
-  entries.forEach((entry) => {
-    if (!entry) {
-      return;
-    }
-    const value = Number(entry.value);
-    const cost = Number(entry.cost);
-    if (Number.isFinite(value) && Number.isFinite(cost)) {
-      map[value] = cost;
-    }
-  });
-  return map;
-}
-
-function resolveCharGenPointCost(value, method, pointCostMap) {
-  const safeMethod = method || {};
-  const costs = pointCostMap || {};
-  const score = Number(value || 0);
-  if (Object.prototype.hasOwnProperty.call(costs, score)) {
-    return Math.max(0, Number(costs[score] || 0));
-  }
-  const baseValue = Number(safeMethod.baseAttributeValue || 0);
-  const delta = score - baseValue;
-  if (delta < 0 && !safeMethod.allowNegativeAttributes) {
-    return 0;
-  }
-  return delta;
 }
 
 function buildCharGenArrayMap(entries) {
@@ -14766,20 +15150,6 @@ async function renderDiceRolling() {
       return;
     }
     const data = await api("GET", `/api/drafts/${state.draftId}/dice-rolling`);
-    const minimumAttributeScore = Math.trunc(Number(data.defaultAttributeMinScore || 0));
-    const maximumAttributeScore = Math.trunc(Number(data.defaultAttributeMaxScore || 0));
-    const hasDefaultAttributeScoreRange = minimumAttributeScore !== 0 || maximumAttributeScore !== 0;
-    const substitutionRangeMessage = hasDefaultAttributeScoreRange
-      ? t(
-          "attrgen.dice.substitution.range",
-          "Must be between {min} and {max}, matching the Attribute Score Limits."
-        )
-          .replace("{min}", String(minimumAttributeScore))
-          .replace("{max}", String(maximumAttributeScore))
-      : "";
-    const substitutionRangeAttributes = hasDefaultAttributeScoreRange
-      ? ` min="${minimumAttributeScore}" max="${maximumAttributeScore}"`
-      : "";
     const diceUsed = (data.diceUsed || [])
       .map((value) => Number(value || 0))
       .filter((value) => value > 0)
@@ -14794,6 +15164,36 @@ async function renderDiceRolling() {
       )
       .join("");
     const diceTerms = Array.isArray(data.terms) ? data.terms : [];
+    const rollAdjustments = Array.isArray(data.rollAdjustments) ? data.rollAdjustments : [];
+    const adjustmentTypeLabels = {
+      fixed_value: t("attrgen.adjustment.type.fixed", "Replace a chosen roll"),
+      raise_highest: t("attrgen.adjustment.type.raise", "Raise the highest roll"),
+      transfer: t("attrgen.adjustment.type.transfer", "Transfer between rolls"),
+      spend_resource: t("attrgen.adjustment.type.resource", "Spend a resource"),
+    };
+    const adjustmentSummary = (adjustment) => {
+      const type = String(adjustment.type || "fixed_value");
+      if (type === "fixed_value") {
+        return t("attrgen.adjustment.summary.fixed", "Set one roll to {value}")
+          .replace("{value}", String(Number(adjustment.value || 0)));
+      }
+      if (type === "raise_highest") {
+        return t("attrgen.adjustment.summary.raise", "Raise the highest roll to {value}")
+          .replace("{value}", String(Number(adjustment.value || 0)));
+      }
+      if (type === "transfer") {
+        return t("attrgen.adjustment.summary.transfer", "Spend {cost} from one roll to add {gain} to another")
+          .replace("{cost}", String(Math.max(1, Number(adjustment.sourceCostPerUnit || 1))))
+          .replace("{gain}", String(Math.max(1, Number(adjustment.targetGainPerUnit || 1))));
+      }
+      return t("attrgen.adjustment.summary.resource", "Spend {cost} {resource} per point")
+        .replace("{cost}", String(Math.max(1, Number(adjustment.resourceCostPerPoint || 1))))
+        .replace("{resource}", String(adjustment.resourceName || adjustment.resourceKey || "resource"));
+    };
+    const adjustmentRows = rollAdjustments.map((adjustment, index) => renderCollectionRow(
+      `<div class="stack"><strong>${escapeHtml(adjustment.name || adjustmentTypeLabels[adjustment.type] || "Roll Adjustment")}</strong><span>${escapeHtml(adjustmentSummary(adjustment))}</span><span class="badge">${escapeHtml(t("attrgen.adjustment.uses", "Up to {count} uses").replace("{count}", String(Math.max(1, Number(adjustment.maximumUses || 1)))))}</span></div>`,
+      [collectionEditAction("edit-adjustment", index), collectionRemoveAction("remove-adjustment", index)]
+    )).join("");
     const terms = diceTerms
       .map(
         (term, index) => renderCollectionRow(
@@ -14846,26 +15246,10 @@ async function renderDiceRolling() {
           </div>
         </div>
 
-        <h2>${t("attrgen.dice.substitution.section", "Dice Substitution")}</h2>
-        <div class="grid two">
-          <div class="field">
-            <label for="allowDiceSubstitution">${t("attrgen.dice.substitution.enable", "Allow substitution")}</label>
-            <input type="checkbox" id="allowDiceSubstitution" ${data.allowDiceSubstitution ? "checked" : ""}>
-          </div>
-          <div class="field">
-            <label for="diceSubstitutionValue">${t("attrgen.dice.substitution.value", "Substitution value")}</label>
-            <input type="number" id="diceSubstitutionValue"${substitutionRangeAttributes} step="1" value="${escapeHtml(
-              String(Math.trunc(Number(data.diceSubstitutionValue ?? 14)))
-            )}">
-            ${hasDefaultAttributeScoreRange ? `<p class="field-hint">${escapeHtml(substitutionRangeMessage)}</p>` : ""}
-          </div>
-          <div class="field">
-            <label for="maxDiceSubstitutions">${t("attrgen.dice.substitution.count", "Max substitutions")}</label>
-            <input type="number" id="maxDiceSubstitutions" min="0" step="1" value="${escapeHtml(
-              String(Math.max(0, Number(data.maxDiceSubstitutions ?? 1)))
-            )}">
-          </div>
-        </div>
+        <h2 class="collection-editor-heading">${t("attrgen.adjustment.section", "Roll Adjustments")}</h2>
+        <p class="field-hint">${t("attrgen.adjustment.help", "Optional creator-approved ways a player may change a generated roll set before assigning it to Attributes.")}</p>
+        <button class="btn collection-add-button" id="addRollAdjustment" type="button">${t("attrgen.adjustment.add", "Add Roll Adjustment")}</button>
+        <div class="list" id="rollAdjustmentList">${adjustmentRows || `<div class="list-item">${t("attrgen.adjustment.none", "No roll adjustments configured.")}</div>`}</div>
 
         <h2 class="collection-editor-heading">${t("attrgen.dice.section", "Dice Terms")}</h2>
         <button class="btn collection-add-button" id="addTerm" type="button">${t("attrgen.dice.add", "Add Dice Term")}</button>
@@ -15013,40 +15397,146 @@ async function renderDiceRolling() {
       });
     }
 
-    let diceSubstitutionSavePromise = Promise.resolve();
-    const queueDiceSubstitutionSave = () => {
-      const allowDiceSubstitution = document.getElementById("allowDiceSubstitution").checked;
-      const diceSubstitutionValueInput = document.getElementById("diceSubstitutionValue");
-      const maxDiceSubstitutionsInput = document.getElementById("maxDiceSubstitutions");
-      const diceSubstitutionValue = Math.trunc(Number(diceSubstitutionValueInput.value || 0));
-      const maxDiceSubstitutions = Math.max(0, Math.trunc(Number(maxDiceSubstitutionsInput.value || 0)));
-      diceSubstitutionValueInput.value = String(diceSubstitutionValue);
-      maxDiceSubstitutionsInput.value = String(maxDiceSubstitutions);
-      if (hasDefaultAttributeScoreRange
-          && (diceSubstitutionValue < minimumAttributeScore || diceSubstitutionValue > maximumAttributeScore)) {
-        diceSubstitutionValueInput.setCustomValidity(substitutionRangeMessage);
-        diceSubstitutionValueInput.reportValidity();
-        showToast(substitutionRangeMessage);
-        return;
-      }
-      diceSubstitutionValueInput.setCustomValidity("");
-      diceSubstitutionSavePromise = diceSubstitutionSavePromise
-        .catch(() => {})
-        .then(async () => {
+    const saveRollAdjustments = async (adjustments) => {
+      await api("POST", `/api/drafts/${state.draftId}/dice-rolling/adjustments`, {
+        rollAdjustments: adjustments,
+      });
+      markSaved(t("web.toast.roll_adjustments_updated", "Roll adjustments updated"));
+      renderDiceRolling();
+    };
+
+    const openRollAdjustmentEditor = (index = -1) => {
+      const editing = Number.isInteger(index) && index >= 0 && index < rollAdjustments.length;
+      const adjustment = editing ? rollAdjustments[index] : {
+        id: "",
+        name: "",
+        description: "",
+        type: "fixed_value",
+        value: 0,
+        maximumUses: 1,
+        sourceCostPerUnit: 1,
+        targetGainPerUnit: 1,
+        sourceMinimum: 0,
+        targetMaximum: 0,
+        resourceKey: "",
+        resourceName: "",
+        resourceBudget: 1,
+        resourceCostPerPoint: 1,
+      };
+      rollAdjustmentModalTitle.textContent = editing
+        ? t("attrgen.adjustment.edit", "Edit Roll Adjustment")
+        : t("attrgen.adjustment.add", "Add Roll Adjustment");
+      document.getElementById("rollAdjustmentNameLabel").textContent = t("common.name", "Name");
+      document.getElementById("rollAdjustmentDescriptionLabel").textContent = t("common.description", "Description");
+      document.getElementById("rollAdjustmentTypeLabel").textContent = t("attrgen.adjustment.method", "Method");
+      document.getElementById("rollAdjustmentMaximumUsesLabel").textContent = t("attrgen.adjustment.maximum_uses", "Maximum Uses");
+      document.getElementById("rollAdjustmentSourceCostLabel").textContent = t("attrgen.adjustment.source_cost", "Points Removed From Source");
+      document.getElementById("rollAdjustmentTargetGainLabel").textContent = t("attrgen.adjustment.target_gain", "Points Added To Target");
+      document.getElementById("rollAdjustmentSourceMinimumLabel").textContent = t("attrgen.adjustment.source_minimum", "Source Minimum");
+      document.getElementById("rollAdjustmentTargetMaximumLabel").textContent = t("attrgen.adjustment.target_maximum", "Target Maximum (0 = none)");
+      document.getElementById("rollAdjustmentResourceKeyLabel").textContent = t("attrgen.adjustment.resource_key", "Resource Key");
+      document.getElementById("rollAdjustmentResourceNameLabel").textContent = t("attrgen.adjustment.resource_name", "Resource Name");
+      document.getElementById("rollAdjustmentResourceBudgetLabel").textContent = t("attrgen.adjustment.resource_budget", "Available Resource");
+      document.getElementById("rollAdjustmentResourceCostLabel").textContent = t("attrgen.adjustment.resource_cost", "Resource Cost Per Point");
+      document.getElementById("rollAdjustmentResourceTargetMaximumLabel").textContent = t("attrgen.adjustment.target_maximum", "Target Maximum (0 = none)");
+      rollAdjustmentType.innerHTML = Object.entries(adjustmentTypeLabels)
+        .map(([value, label]) => `<option value="${value}">${escapeHtml(label)}</option>`)
+        .join("");
+      rollAdjustmentName.value = String(adjustment.name || "");
+      rollAdjustmentDescription.value = String(adjustment.description || "");
+      rollAdjustmentType.value = String(adjustment.type || "fixed_value");
+      rollAdjustmentMaximumUses.value = String(Math.max(1, Number(adjustment.maximumUses || 1)));
+      rollAdjustmentValue.value = String(Number(adjustment.value || 0));
+      rollAdjustmentSourceCost.value = String(Math.max(1, Number(adjustment.sourceCostPerUnit || 1)));
+      rollAdjustmentTargetGain.value = String(Math.max(1, Number(adjustment.targetGainPerUnit || 1)));
+      rollAdjustmentSourceMinimum.value = String(Number(adjustment.sourceMinimum || 0));
+      rollAdjustmentTargetMaximum.value = String(Math.max(0, Number(adjustment.targetMaximum || 0)));
+      rollAdjustmentResourceKey.value = String(adjustment.resourceKey || "");
+      rollAdjustmentResourceName.value = String(adjustment.resourceName || "");
+      rollAdjustmentResourceBudget.value = String(Math.max(1, Number(adjustment.resourceBudget || 1)));
+      rollAdjustmentResourceCost.value = String(Math.max(1, Number(adjustment.resourceCostPerPoint || 1)));
+      rollAdjustmentResourceTargetMaximum.value = String(Math.max(0, Number(adjustment.targetMaximum || 0)));
+      rollAdjustmentModalCancel.textContent = t("common.cancel", "Cancel");
+      rollAdjustmentModalSave.textContent = editing ? t("common.save", "Save") : t("attrgen.adjustment.add", "Add Roll Adjustment");
+      const updateAdjustmentFields = () => {
+        const type = rollAdjustmentType.value;
+        rollAdjustmentValueField.classList.toggle("hidden", type !== "fixed_value" && type !== "raise_highest");
+        rollAdjustmentTransferFields.classList.toggle("hidden", type !== "transfer");
+        rollAdjustmentResourceFields.classList.toggle("hidden", type !== "spend_resource");
+        document.getElementById("rollAdjustmentValueLabel").textContent = type === "raise_highest"
+          ? t("attrgen.adjustment.floor", "Minimum Highest Roll")
+          : t("attrgen.adjustment.fixed_value", "Replacement Value");
+      };
+      rollAdjustmentType.onchange = updateAdjustmentFields;
+      updateAdjustmentFields();
+      rollAdjustmentModalSave.disabled = false;
+      rollAdjustmentModal.classList.remove("hidden");
+      window.requestAnimationFrame(() => rollAdjustmentName.focus());
+      rollAdjustmentModalCancel.onclick = () => rollAdjustmentModal.classList.add("hidden");
+      rollAdjustmentModalSave.onclick = async () => {
+        const name = rollAdjustmentName.value.trim();
+        const type = rollAdjustmentType.value;
+        if (!name) {
+          showToast(t("attrgen.adjustment.name_required", "Enter a name for this roll adjustment."));
+          return;
+        }
+        if (type === "spend_resource" && (!rollAdjustmentResourceKey.value.trim() || !rollAdjustmentResourceName.value.trim())) {
+          showToast(t("attrgen.adjustment.resource_required", "Enter the resource key and player-facing name."));
+          return;
+        }
+        const saved = {
+          ...adjustment,
+          name,
+          description: rollAdjustmentDescription.value.trim(),
+          type,
+          value: Math.trunc(Number(rollAdjustmentValue.value || 0)),
+          maximumUses: Math.max(1, Math.trunc(Number(rollAdjustmentMaximumUses.value || 1))),
+          sourceCostPerUnit: Math.max(1, Math.trunc(Number(rollAdjustmentSourceCost.value || 1))),
+          targetGainPerUnit: Math.max(1, Math.trunc(Number(rollAdjustmentTargetGain.value || 1))),
+          sourceMinimum: Math.trunc(Number(rollAdjustmentSourceMinimum.value || 0)),
+          targetMaximum: Math.max(0, Math.trunc(Number(type === "spend_resource" ? rollAdjustmentResourceTargetMaximum.value : rollAdjustmentTargetMaximum.value) || 0)),
+          resourceKey: rollAdjustmentResourceKey.value.trim(),
+          resourceName: rollAdjustmentResourceName.value.trim(),
+          resourceBudget: Math.max(0, Math.trunc(Number(rollAdjustmentResourceBudget.value || 0))),
+          resourceCostPerPoint: Math.max(1, Math.trunc(Number(rollAdjustmentResourceCost.value || 1))),
+        };
+        const next = rollAdjustments.slice();
+        if (editing) {
+          next[index] = saved;
+        } else {
+          next.push(saved);
+        }
+        rollAdjustmentModalSave.disabled = true;
+        try {
+          await saveRollAdjustments(next);
+          rollAdjustmentModal.classList.add("hidden");
+        } catch (error) {
+          showToast(error.message);
+          rollAdjustmentModalSave.disabled = false;
+        }
+      };
+    };
+
+    document.getElementById("addRollAdjustment").addEventListener("click", () => openRollAdjustmentEditor());
+    document.querySelectorAll("#rollAdjustmentList button").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const index = Number(button.dataset.editAdjustment ?? button.dataset.removeAdjustment);
+        if (button.hasAttribute("data-edit-adjustment")) {
+          openRollAdjustmentEditor(index);
+          return;
+        }
+        const confirmed = await showConfirm(
+          t("attrgen.adjustment.remove_confirm", "Remove this roll adjustment?"),
+          t("common.remove", "Remove")
+        );
+        if (confirmed) {
           try {
-            await api("POST", `/api/drafts/${state.draftId}/dice-rolling/substitution`, {
-              allowDiceSubstitution,
-              diceSubstitutionValue,
-              maxDiceSubstitutions,
-            });
-            markSaved(t("web.toast.dice_substitution_updated", "Dice substitution updated"));
+            await saveRollAdjustments(rollAdjustments.filter((_, adjustmentIndex) => adjustmentIndex !== index));
           } catch (error) {
             showToast(error.message);
           }
-        });
-    };
-    ["allowDiceSubstitution", "diceSubstitutionValue", "maxDiceSubstitutions"].forEach((id) => {
-      document.getElementById(id).addEventListener("change", queueDiceSubstitutionSave);
+        }
+      });
     });
 
     const updateRerollMax = () => {
@@ -18291,16 +18781,18 @@ async function renderBackgrounds(openId = "") {
   setStep("backgrounds");
   view.innerHTML = `<section class="panel"><p>${t("web.loading", "Loading...")}</p></section>`;
   try {
-    const [data, skillsData, attributesData] = await Promise.all([
+    const [data, skillsData, attributesData, racesData] = await Promise.all([
       api("GET", `/api/drafts/${state.draftId}/backgrounds`),
       api("GET", `/api/drafts/${state.draftId}/skills`),
       api("GET", `/api/drafts/${state.draftId}/attributes`),
+      api("GET", `/api/drafts/${state.draftId}/races`),
     ]);
     const systemName = String(data.systemName || "");
     const title = systemNameTitle(systemName, t("backgrounds.title", "Backgrounds"));
     const backgrounds = sortByLabel(data.backgrounds || [], (entry) => entry.name || "");
     classSkillOptions = sortByLabel(skillsData.skills || [], (skill) => skill.displayName || skill.name || "");
     classAttributeOptions = attributesData.attributes || [];
+    backgroundRaceOptions = sortByLabel(racesData.races || [], (race) => race.displayName || race.name || "");
     const backgroundList = backgrounds
       .map((background) => `
         <div class="list-item">

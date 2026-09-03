@@ -16,7 +16,24 @@ Treat `AGENT_HANDOFF.md` as the primary recovery file for any new Codex/ChatGPT 
 ## Current Product Focus
 
 - This repo is the closed-beta deploy release for the web-delivered GMRules proof of concept.
-- The web application is the only UI implementation in this repository. Legacy Swing sources and launchers were removed; do not recreate a standalone UI unless the user explicitly requests a new implementation based on the finalized web UI.
+- The current partner/funding milestone is the contract-driven
+  character-to-combat PoC in `TODO.md`: at least three materially different Game
+  files must each generate two combat-ready characters and complete combat through
+  core-owned Character Generation, Attack, Damage, Harm, decision, and combat-state
+  contracts. Existing consumers are provisional and may be rebuilt as thin
+  contract demonstrations.
+- That milestone is the first proof of a universal platform boundary, not its
+  limit. Every rules domain--eventually including movement, spellcasting, and
+  others--must be executable by asking the loaded `Game` through a published,
+  versioned contract. Whether core runs in-process, in a background JVM, behind a
+  service, or through a language bridge, consumers must not contain game-specific
+  formulas. A VTT that implements a compatible contract should run any compatible
+  GMRules Game.
+- The web application is the only general product UI implementation in this
+  repository. Legacy Swing product sources and launchers were removed; do not
+  restore them. Purpose-limited thin consumers are allowed for contract proofs.
+  Do not create a new general standalone product UI unless the user explicitly
+  requests it.
 - The hosted product runs from `gmrules-builder` through `com.gamemaker.gmrules.web.WebMain`.
 - The richer `gmrules-character` project is currently outside this repo and should be treated as a reference unless the user asks to integrate it.
 
@@ -48,9 +65,12 @@ mvn package
 
 Notes:
 
-- `mvn test` currently compiles the reactor, plus any ignored `*LocalTest.java` verification tests present in the local workspace; there are no tracked automated test sources.
+- `mvn test` compiles the reactor, the tracked Attack Resolution audit tests, and
+  any ignored `*LocalTest.java` verification tests present in the local workspace.
 - `mvn package` creates the deployable shaded jar and copies it to `target/gmrules-app.jar`.
-- `deploy.sh` currently runs `mvn -q -DskipTests compile`; confirm/update it before depending on packaged jar deployment.
+- `deploy.sh` currently runs `mvn -q -DskipTests clean install` for the hosted
+  Maven `exec:java` service flow; the shaded jar remains available for a future
+  package-based deployment.
 
 ## Web Runtime
 
@@ -89,10 +109,15 @@ Important configuration keys are read as Java system properties or environment v
 - Static web app: `gmrules-builder/src/main/resources/web/app.js`
 - Strings: `gmrules-builder/src/main/resources/i18n/strings.properties`
 
-## Beta Launch Priorities
+## Current Priority Order
 
 Follow `TODO.md` order unless the user redirects:
 
-1. Add minimum smoke tests for auth, drafts, and export.
-2. Fix remaining beta-facing UI polish.
-3. Launch to a small controlled cohort.
+1. Select the three demonstration systems and define their complete
+   character/combat support matrix.
+2. Audit current consumers and settle public core boundaries before expanding UI.
+3. Complete combat-ready Character Generation in core.
+4. Complete Attack, Damage, Harm, combat-session, decision, and event contracts in
+   core.
+5. Prove consumer independence with automated and player-input full combats for
+   two core-generated characters under each Game.

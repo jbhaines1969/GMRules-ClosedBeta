@@ -53,6 +53,8 @@ public class CharacterDraft {
     private int startingMoneyAmount = 0;
     private String startingMoneyCurrencyId = "";
     private int diceSubstitutionsUsed = 0;
+    private Map<String, Integer> rollAdjustmentUses = new LinkedHashMap<>();
+    private Map<String, Integer> rollAdjustmentResourceSpent = new LinkedHashMap<>();
     private List<String> selectedSpellIds = new ArrayList<>();
     private List<String> selectedWeaponIds = new ArrayList<>();
     private List<String> selectedArmorIds = new ArrayList<>();
@@ -451,6 +453,34 @@ public class CharacterDraft {
 
     public void setDiceSubstitutionsUsed(int diceSubstitutionsUsed) {
         this.diceSubstitutionsUsed = Math.max(0, diceSubstitutionsUsed);
+    }
+
+    public Map<String, Integer> getRollAdjustmentUses() {
+        return copyNonNegativeMap(rollAdjustmentUses);
+    }
+
+    public void setRollAdjustmentUses(Map<String, Integer> rollAdjustmentUses) {
+        this.rollAdjustmentUses = copyNonNegativeMap(rollAdjustmentUses);
+    }
+
+    public Map<String, Integer> getRollAdjustmentResourceSpent() {
+        return copyNonNegativeMap(rollAdjustmentResourceSpent);
+    }
+
+    public void setRollAdjustmentResourceSpent(Map<String, Integer> rollAdjustmentResourceSpent) {
+        this.rollAdjustmentResourceSpent = copyNonNegativeMap(rollAdjustmentResourceSpent);
+    }
+
+    private static LinkedHashMap<String, Integer> copyNonNegativeMap(Map<String, Integer> source) {
+        Map<String, Integer> safeSource = Objects.requireNonNullElse(source, Map.of());
+        LinkedHashMap<String, Integer> copy = new LinkedHashMap<>();
+        for (Map.Entry<String, Integer> entry : safeSource.entrySet()) {
+            String key = Objects.toString(entry.getKey(), "").trim();
+            if (!key.isEmpty()) {
+                copy.put(key, Math.max(0, Objects.requireNonNullElse(entry.getValue(), 0)));
+            }
+        }
+        return copy;
     }
 
     public List<String> getSelectedSpellIds() {

@@ -221,7 +221,7 @@
     </div>
   </div>
 
-  <div class="modal hidden" id="diceTermModal" role="dialog" aria-modal="true" aria-labelledby="diceTermModalTitle">
+    <div class="modal hidden" id="diceTermModal" role="dialog" aria-modal="true" aria-labelledby="diceTermModalTitle">
     <div class="modal-card">
       <h3 id="diceTermModalTitle">Add Dice Term</h3>
       <div class="grid two">
@@ -247,9 +247,81 @@
         <button class="btn" id="diceTermModalSave" type="button">Add Dice Term</button>
       </div>
     </div>
-  </div>
+    </div>
 
-  <div class="modal hidden" id="attributeOrderModal" role="dialog" aria-modal="true" aria-labelledby="attributeOrderModalTitle">
+    <div class="modal hidden" id="rollAdjustmentModal" role="dialog" aria-modal="true" aria-labelledby="rollAdjustmentModalTitle">
+      <div class="modal-card">
+        <h3 id="rollAdjustmentModalTitle">Add Roll Adjustment</h3>
+        <div class="field">
+          <label for="rollAdjustmentName" id="rollAdjustmentNameLabel">Name</label>
+          <input type="text" id="rollAdjustmentName" maxlength="120">
+        </div>
+        <div class="field">
+          <label for="rollAdjustmentDescription" id="rollAdjustmentDescriptionLabel">Description</label>
+          <textarea id="rollAdjustmentDescription" rows="3"></textarea>
+        </div>
+        <div class="field">
+          <label for="rollAdjustmentType" id="rollAdjustmentTypeLabel">Method</label>
+          <select id="rollAdjustmentType"></select>
+        </div>
+        <div class="grid two">
+          <div class="field">
+            <label for="rollAdjustmentMaximumUses" id="rollAdjustmentMaximumUsesLabel">Maximum Uses</label>
+            <input type="number" id="rollAdjustmentMaximumUses" min="1" step="1" value="1">
+          </div>
+          <div class="field" id="rollAdjustmentValueField">
+            <label for="rollAdjustmentValue" id="rollAdjustmentValueLabel">Value</label>
+            <input type="number" id="rollAdjustmentValue" step="1" value="0">
+          </div>
+        </div>
+        <div id="rollAdjustmentTransferFields" class="grid two hidden">
+          <div class="field">
+            <label for="rollAdjustmentSourceCost" id="rollAdjustmentSourceCostLabel">Source Cost</label>
+            <input type="number" id="rollAdjustmentSourceCost" min="1" step="1" value="1">
+          </div>
+          <div class="field">
+            <label for="rollAdjustmentTargetGain" id="rollAdjustmentTargetGainLabel">Target Gain</label>
+            <input type="number" id="rollAdjustmentTargetGain" min="1" step="1" value="1">
+          </div>
+          <div class="field">
+            <label for="rollAdjustmentSourceMinimum" id="rollAdjustmentSourceMinimumLabel">Source Minimum</label>
+            <input type="number" id="rollAdjustmentSourceMinimum" step="1" value="0">
+          </div>
+          <div class="field">
+            <label for="rollAdjustmentTargetMaximum" id="rollAdjustmentTargetMaximumLabel">Target Maximum</label>
+            <input type="number" id="rollAdjustmentTargetMaximum" min="0" step="1" value="0">
+          </div>
+        </div>
+        <div id="rollAdjustmentResourceFields" class="grid two hidden">
+          <div class="field">
+            <label for="rollAdjustmentResourceKey" id="rollAdjustmentResourceKeyLabel">Resource Key</label>
+            <input type="text" id="rollAdjustmentResourceKey" maxlength="120">
+          </div>
+          <div class="field">
+            <label for="rollAdjustmentResourceName" id="rollAdjustmentResourceNameLabel">Resource Name</label>
+            <input type="text" id="rollAdjustmentResourceName" maxlength="120">
+          </div>
+          <div class="field">
+            <label for="rollAdjustmentResourceBudget" id="rollAdjustmentResourceBudgetLabel">Available Resource</label>
+            <input type="number" id="rollAdjustmentResourceBudget" min="1" step="1" value="1">
+          </div>
+          <div class="field">
+            <label for="rollAdjustmentResourceCost" id="rollAdjustmentResourceCostLabel">Cost Per Point</label>
+            <input type="number" id="rollAdjustmentResourceCost" min="1" step="1" value="1">
+          </div>
+          <div class="field">
+            <label for="rollAdjustmentResourceTargetMaximum" id="rollAdjustmentResourceTargetMaximumLabel">Target Maximum</label>
+            <input type="number" id="rollAdjustmentResourceTargetMaximum" min="0" step="1" value="0">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn ghost" id="rollAdjustmentModalCancel" type="button">Cancel</button>
+          <button class="btn" id="rollAdjustmentModalSave" type="button">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="attributeOrderModal" role="dialog" aria-modal="true" aria-labelledby="attributeOrderModalTitle">
     <div class="modal-card">
       <h3 id="attributeOrderModalTitle">Attribute Assignment Order</h3>
       <p class="field-hint" id="attributeOrderModalDescription">Choose which Attribute receives each roll, from first to last.</p>
@@ -495,6 +567,11 @@
         <div class="field">
           <label for="editClassStartingMoney" id="editClassStartingMoneyLabel">Class Starting Money</label>
           <input type="number" id="editClassStartingMoney" min="0" step="1" value="0">
+        </div>
+        <div class="field hidden" id="editBackgroundRaceField">
+          <label for="editBackgroundRaceSelect" id="editBackgroundRaceLabel">Limit to Races</label>
+          <select id="editBackgroundRaceSelect" multiple size="5"></select>
+          <p class="field-hint" id="editBackgroundRaceHint">Leave empty to allow every Race.</p>
         </div>
         <div class="grid two">
           <div class="field">

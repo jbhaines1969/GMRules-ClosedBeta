@@ -1,6 +1,6 @@
 # GMRules Closed Beta Deploy Structure
 
-Updated: 2026-08-19
+Updated: 2026-09-02
 
 This file is the deploy-release filesystem map for `GMRules-ClosedBeta`.
 Update it whenever tracked files or deploy-relevant directories are added, removed, or moved. Its purpose is to let agents find known paths from this document before falling back to repository searches.
@@ -172,7 +172,7 @@ The completed package contains 33 CSVs. Each CSV is self-contained and uses cano
 
 `Game.csv` also names logical stored collections exposed through the root object's array handler, such as `diceUsed` and the weight-unit lists; it does not expose the internal registry/handler fields that implement those collections.
 
-Final static review verified all 33 filenames, unique single-row headers, 994 represented columns, model-field coverage for the 32 non-Game objects, and the documented selected-field coverage for `Game.csv`.
+Final static review verified all 33 filenames, unique single-row headers, 999 represented columns, model-field coverage for the 32 non-Game objects, and the documented selected-field coverage for `Game.csv`.
 
 ## Docs
 
@@ -286,6 +286,8 @@ GameMechanics/
 |-- AttackResolution.java
 |-- ArmorClassMethod.java
 |-- AttributeGenerationMethod.java
+|-- AttributeGenerationResolver.java
+|-- BackgroundSelection.java
 |-- CombatMethod.java
 |-- DefenseMethod.java
 |-- DiceRoller.java
@@ -293,6 +295,8 @@ GameMechanics/
 |-- GeneratedValue.java
 |-- HPMethod.java
 |-- LevelingMethod.java
+|-- RaceSelection.java
+|-- RollAdjustmentMethod.java
 `-- SaveMethod.java
 ```
 

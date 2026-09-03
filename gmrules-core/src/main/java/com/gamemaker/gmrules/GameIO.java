@@ -330,7 +330,7 @@ public class GameIO {
         // Clean up one-time background package references.
         java.util.ArrayList<Background> backgrounds = game.getObjectArray("backgrounds");
         for (Background background : backgrounds) {
-            background.cleanupOrphanedReferences(validAttributeIds, validSkillIds);
+            background.cleanupOrphanedReferences(validAttributeIds, validSkillIds, validRaceIds);
         }
 
         // Clean up all advantages
