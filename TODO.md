@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-09-02
+Updated: 2026-09-06
 
 ## Beta Launch Blockers
 
@@ -59,7 +59,16 @@ they are outside this milestone unless a selected PoC system requires them.
   harm, and decision requirements where practical.
 - [ ] Define the smallest complete combat-ready character contract shared by all
   three systems: creation inputs, authoritative character result, equipment and
-  combat statistics, validation, and immutable/stable identities.
+  combat statistics, validation, and immutable/stable identities. The authoritative
+  character must be a Java object with member arrays/collections of actual Java
+  objects linked through stable IDs. Define how Game operations receive characters
+  and resolve/traverse their Skill, gear, modifier, and other relationships entirely
+  in core, including applicability and modifier assembly. Consumers must not
+  interpret an ID bag or mechanical strings/booleans to complete an operation.
+- [ ] Define equivalent direct-reference and background-JVM access to the Game
+  contract. Bridges translate requests/results and object IDs/handles; Java core
+  resolves authoritative objects and owns all mechanics. Core must request legal
+  player decisions rather than requiring consumers to coordinate calculations.
 - [ ] Define the full-combat terminal boundary: initiative or opening order,
   turns, legal actions and targets, attack, defense, damage, mitigation, harm,
   statuses/resources needed by the selected systems, and defeat/end conditions.
@@ -68,6 +77,23 @@ they are outside this milestone unless a selected PoC system requires them.
   consumer structure when rebuilding a thin contract consumer is safer.
 
 ### 2. Complete Combat-Ready Character Generation in Core
+
+Follow `CharGenPlan.md` as the prompt-sized implementation sequence. Freeze the
+existing Character Generator UI as migration evidence; do not repair or expand it
+before core independently owns workflow, decisions, legality, application,
+derived values, persistence, validation, and completion.
+
+- [x] Establish core `GMRCharacter` ownership with stable character/source
+  identity, actual snapshotted core element objects, a core construction input,
+  explicit missing/wrong-type reference diagnostics, builder persistence-wrapper
+  compatibility for old serialized `CharacterFile` objects, and complete current
+  object/lightweight migration including racial Skills and traits.
+- [ ] Add core legality/completeness validation and generation coordination for
+  the provisional fields now carried by `GMRCharacter`; current draft-supplied
+  scores, money, and Defense are structurally preserved but not certified.
+- [ ] Define owned item-instance identity, specialization, multiclass, general
+  resource, and combat-state models only as selected systems require them;
+  catalog Weapon/Armor/Equipment IDs are not unique owned-instance IDs.
 
 - [x] Add the first `AttributeGenerationMethod` execution contract. It owns roll
   generation, Standard Array assignment, Point Buy pricing,
@@ -143,6 +169,10 @@ they are outside this milestone unless a selected PoC system requires them.
   with two core-generated characters per system and deterministic replay cases.
 - [ ] Add dependency/coverage guards proving the demonstration consumers depend
   only on public core contracts and do not contain duplicated mechanics.
+- [ ] Prove character-object traversal through the public Game contract: changing
+  a character's Skill, gear, or modifier relationships changes the authoritative
+  result without consumer-side applicability checks, modifier assembly, or flag
+  interpretation. Missing/incompatible references must yield explicit core results.
 - [ ] Package a concise partner/funding demonstration showing that changing the
   Game changes the rules while the consumer contract and interface stay stable.
 

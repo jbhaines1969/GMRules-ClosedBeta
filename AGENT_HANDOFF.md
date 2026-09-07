@@ -1,9 +1,9 @@
 # GMRules Closed Beta Agent Handoff
 
-Updated: 2026-09-02
+Updated: 2026-09-06
 Repo root: `C:\Users\John\IdeaProjects\GMRules-ClosedBeta`
 
-This is the primary recovery document for the next session. Read `AGENTS.md`, `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `PRODUCT_DESIGN_CONTEXT.md`, and local `USER.md` before editing. Inspect `git status --short`; the current feature batch is intentionally uncommitted and must not be reverted.
+This is the primary recovery document for the next session. Read `AGENTS.md`, `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `PRODUCT_DESIGN_CONTEXT.md`, and local `USER.md` before editing. Inspect `git status --short`. John confirmed on 2026-09-06 that he committed and pushed the prior feature batch through IDEA after the last session; the worktree was clean before this documentation update.
 
 Governing architecture rule: core is the only executable authority for rules and
 mechanics. Descendant applications are purpose-specific UIs, automators, bridges,
@@ -23,7 +23,97 @@ formula or maintain a game-specific fallback. The product promise is that a VTT
 implements a compatible contract once and can run any compatible GMRules Game.
 Movement, spellcasting, and every later rules domain inherit this ownership rule.
 
+## Explicit Object and Runtime Contract (2026-09-06)
+
+John's requirement is that all consumers remain mechanically dumb. Every game
+element's data and executable behavior belongs in Java core, including the
+interpretation of mechanical strings, flags, and booleans. The authoritative
+character is a Java object whose member arrays/collections contain actual Java
+objects for Skills, gear, modifiers, and other elements, identified and linked
+through stable IDs. Do not substitute a bag of IDs that consumers must interpret.
+
+An operation such as `resolveAttack(attacker, defender)` receives character
+objects. This is an illustrative operation, not a finalized method signature.
+Core traverses their internal collections and ID relationships, resolves the
+applicable Skill/Gear/Modifier objects, and invokes their behavior. Core owns
+applicability, modifier assembly, validation, mechanical sequencing, and state
+changes. Objects may delegate common operations to shared core implementations.
+Consumers submit choices/context and present results; core determines when a
+player decision or reaction is needed and returns the legal answers. Consumers
+must not translate rules strings into mechanics or coordinate repeated partial
+calculations to complete a rules operation.
+
+The loaded `.gmrf` Game may be accessed through direct Java references or hosted
+in a background JVM, whichever suits the consumer. Both paths must expose the
+same authoritative behavior. Transport handles/IDs and data projections may
+represent objects across a bridge, but core resolves them to the authoritative
+Java objects; the bridge only translates transport. Java serialization restores
+the object graph using compatible runtime classes; it does not embed method
+bytecode in the `.gmrf` stream.
+
+This is the required architecture, not a claim that the complete character or
+combat-session contract is already implemented. Preserve it while defining the
+three-system support matrix and completing the contracts below.
+
+### Core Character Ownership Established (2026-09-06)
+
+`gmrules-core` now owns `com.gamemaker.gmrules.GMRCharacter`. It has a stable
+character ID, source Game ID/name/version/hash metadata, and actual core objects
+for the currently supported Race, Background, Class, Attribute scores, distinct
+Race/Background/Class/selected Skill ranks, spells, weapons, armor, equipment,
+currency, provisional money/Defense values, and roll-adjustment accounting.
+Definitions are snapshotted once when entering the character, preserving their
+stable IDs while isolating characters from later mutable Game edits and one
+another. Collection reads are structurally read-only and do not serialize the
+object graph on ordinary access; consumers must treat the returned
+character-owned definition snapshots as read-only.
+
+`GMRCharacter.ConstructionInput` is the small core-owned boundary for current
+choices and values. `GMRCharacter.construct(Game, input)` performs registry
+resolution and assembly and returns explicit missing-reference or wrong-type
+diagnostics. Empty optional Race, Background, Class, and Currency IDs remain
+intentionally absent. Web `CharacterFileBuilder` now only translates
+`CharacterDraft` into that input.
+
+Builder `CharacterFile` remains at its original fully qualified name as a v1
+serialization compatibility shell and persistence wrapper around one
+`GMRCharacter`. Old object files migrate retained fields on read; files without a
+character ID receive one during migration, and later saves preserve it.
+Lightweight drafts now preserve character ID and Game name/version, while
+object-to-draft conversion includes the previously omitted racial Skills and
+traits.
+
+This is structural construction, not complete Character Generation validation.
+Scores, money, and Defense are still provisional. Item-instance identity,
+specializations, multiclass state, general resources, combat state, and core
+legality/combat-readiness validation remain open; a Weapon ID still identifies a
+catalog definition rather than one uniquely owned item.
+
+Verification on 2026-09-06: focused ignored core/builder tests cover core-only
+construction, stable character and definition IDs through serialization,
+explicit missing/wrong-type diagnostics, isolation, all supported object and
+lightweight fields, racial Skill/trait conversion, and a representative
+pre-change serialized fixture. Full `mvn test` passed 121 tests. Full
+`mvn package` passed the same 121 tests and rebuilt `target/gmrules-app.jar`.
+`git diff --check` passed after the final documentation update. The first attempt
+at each final Maven command encountered the sandbox's intermittent classpath/JAR
+access denial immediately after compilation; unchanged reruns passed.
+
+The local LoreKit comparison at `C:/Users/John/Desktop/LoreKit Example` supplied
+Cruncher plus a PF2e pack, not the complete LoreKit host/combat implementation or
+Hedron. Useful abstractions include dependency-ordered calculations, reusable
+build operations, parameterized definitions, and modifier provenance/stacking.
+Do not equate descriptive rule data with executable support: required behavior
+must be demonstrable through core contracts without consumer interpretation.
+
 ## Resume Here: Contract-Driven Character-to-Combat PoC
+
+John directed on 2026-09-06 that new Character Generator UI work stop until core
+is independently authoritative. `CharGenPlan.md` is the implementation sequence:
+short, single-prompt steps that move workflow, decisions, legality, application,
+derived values, persistence, and completion into core before any replacement UI
+is designed. Start with its inventory and three-system support-matrix steps, then
+follow it in order unless John redirects.
 
 John clarified the near-term partner/funding goal on 2026-09-02. The target is
 not independent completion of the existing Character Generator and Attack
@@ -341,7 +431,7 @@ Current behavior:
 - Lightweight `.gmcf` drafts persist `backgroundId` and `backgroundSkill.*` ranks. Object-backed character files snapshot both the selected `Background` and resolved Background Skill objects.
 - `spreadsheet-schema/Background.csv` reflects the complete stored field contract, including `limitedToRaces`.
 
-## Accepted Work in the Current Uncommitted Batch
+## Accepted Work in the Prior Feature Batch
 
 - Rules Builder collection rows now use shared content/action helpers and consistent Edit-then-Remove controls. All audited editable collections, including nested editor collections, expose both actions. Custom Dice Ranges, Player Options, Player Assigned Standard/Elite values, Dice Terms, Currencies, and Denominations reuse their Add modals for Edit and persist through focused update routes. John launcher-smoked and accepted this pass on 2026-08-07.
 - Urban Fantasy / Fantastique urbain was added to the English and French game-type resources.
@@ -416,24 +506,13 @@ Ignored local verification tests currently compiled by Maven:
 
 ## Working Tree and Safety
 
-The current worktree contains the entire accepted-but-uncommitted feature batch. Expected modified areas include:
-
-- core Point Buy model, cleanup, and serialization recovery
-- the untracked package-private
-  `GameMechanics/AttributeGenerationResolver.java`; it is required by the current
-  core build and must not be omitted when this batch is eventually committed
-- the untracked public `GameMechanics/RaceSelection.java`; it is the core Race
-  eligibility/application gate and is required by the current build
-- the untracked public `GameMechanics/RollAdjustmentMethod.java`; it defines the
-  creator configuration and public roll-value/request/option/result contracts
-- character draft/file Point Buy assignment persistence
-- Point Buy and Hit Point web API/frontend/resources
-- shared Rename-button frontend styling/wiring
-- deletion of the complete legacy Swing `UI` package plus `App.java` and `Main.java`
-- `gmrules-builder` metadata and repository guidance updated for a web-only UI
-- root handoff/notes/structure/TODO documents
-- new `CharacterElements/Background.java`
-- new `GameMechanics/AttackMethod.java` plus its non-null member, accessors, and deserialization recovery in `Game.java`
+John confirmed that the prior feature batch was committed and pushed through
+IDEA after the previous session. `git status --short` was clean on 2026-09-06
+before the architecture/handoff documentation edits. Earlier warnings that the
+batch and required core classes were uncommitted/untracked are superseded.
+Inspect the current worktree at each session rather than assuming this snapshot
+still describes it. No code changes or new build verification accompanied this
+documentation update; the verification results above remain dated evidence.
 
 Do not commit, push, reset, revert, or discard changes unless John explicitly asks. Preserve unrelated user/runtime data in `server-data/`, `drafts/`, `.env`, and `.gmrf` files.
 

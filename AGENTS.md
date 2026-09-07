@@ -29,6 +29,13 @@ Treat `AGENT_HANDOFF.md` as the primary recovery file for any new Codex/ChatGPT 
   service, or through a language bridge, consumers must not contain game-specific
   formulas. A VTT that implements a compatible contract should run any compatible
   GMRules Game.
+- Consumers must remain mechanically dumb. The authoritative character is a
+  Java object whose member arrays/collections contain Java objects linked by
+  stable IDs. Game operations receive characters, traverse their Skills, gear,
+  modifiers, and other relationships, and invoke the applicable core behavior.
+  Consumers must not interpret mechanical strings/booleans, assemble modifiers,
+  or choose the mechanics to run. Core requests any necessary player decisions.
+  See the explicit object/runtime contract in `AGENT_HANDOFF.md`.
 - The web application is the only general product UI implementation in this
   repository. Legacy Swing product sources and launchers were removed; do not
   restore them. Purpose-limited thin consumers are allowed for contract proofs.

@@ -7444,8 +7444,10 @@ public final class ApiRoutes {
         lines.add("gameDraftId=" + Objects.toString(gameDraftId, "").trim());
         lines.add("gameId=" + Objects.toString(safeCharacterFile.getSourceGameId(), "").trim());
         lines.add("gameHash=" + Objects.toString(safeCharacterFile.getSourceGameHash(), "").trim());
+        lines.add("characterId=" + Objects.toString(safeCharacterFile.getCharacterId(), "").trim());
         lines.add("characterName=" + Objects.toString(safeCharacterFile.getCharacterName(), "").trim());
         lines.add("gameName=" + Objects.toString(safeCharacterFile.getSourceGameName(), "").trim());
+        lines.add("gameVersion=" + Objects.toString(safeCharacterFile.getSourceGameVersion(), "").trim());
         lines.add("diceSubstitutionsUsed=" + safeCharacterFile.getDiceSubstitutionsUsed());
         safeCharacterFile.getRollAdjustmentUses().entrySet().stream()
             .sorted(Map.Entry.comparingByKey())
@@ -7493,6 +7495,18 @@ public final class ApiRoutes {
                     lines.add("attr." + attributeId + "=" + Objects.requireNonNullElse(entry.getValue(), 0));
                 }
             });
+        safeCharacterFile.getRacialSkills().entrySet().stream()
+            .sorted(Comparator.comparing(entry -> Objects.toString(entry.getKey().getId(), "")))
+            .forEach(entry -> {
+                String skillId = Objects.toString(entry.getKey().getId(), "").trim();
+                if (!skillId.isEmpty()) {
+                    lines.add("racialSkill." + skillId + "=" + skillId + "|"
+                        + Math.max(0, Objects.requireNonNullElse(entry.getValue(), 0)));
+                }
+            });
+        for (int index = 0; index < safeCharacterFile.getRacialTraitNames().size(); index++) {
+            lines.add("racialTrait." + index + "=" + safeCharacterFile.getRacialTraitNames().get(index));
+        }
         safeCharacterFile.getClassSkills().entrySet().stream()
             .sorted(Comparator.comparing(entry -> Objects.toString(entry.getKey().getId(), "")))
             .forEach(entry -> {

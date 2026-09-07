@@ -22,6 +22,9 @@ public class CharacterDraft {
 // *** MEMBERS ***
     private String gameId = "";
     private String gameHash = "";
+    private String gameName = "";
+    private String gameVersion = "";
+    private String characterId = "";
     private String characterName = "";
     private Map<String, String> ruleModeSelections = new LinkedHashMap<>();
     private String raceId = "";
@@ -85,6 +88,30 @@ public class CharacterDraft {
 
     public void setGameHash(String gameHash) {
         this.gameHash = Objects.toString(gameHash, "");
+    }
+
+    public String getGameName() {
+        return gameName;
+    }
+
+    public void setGameName(String gameName) {
+        this.gameName = Objects.toString(gameName, "").trim();
+    }
+
+    public String getGameVersion() {
+        return gameVersion;
+    }
+
+    public void setGameVersion(String gameVersion) {
+        this.gameVersion = Objects.toString(gameVersion, "").trim();
+    }
+
+    public String getCharacterId() {
+        return characterId;
+    }
+
+    public void setCharacterId(String characterId) {
+        this.characterId = Objects.toString(characterId, "").trim();
     }
 
     public String getCharacterName() {

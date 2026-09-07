@@ -25,6 +25,7 @@ GMRules-ClosedBeta/
 |-- .gitignore
 |-- AGENTS.md
 |-- AGENT_HANDOFF.md
+|-- CharGenPlan.md
 |-- OpenQuestions.md
 |-- PROJECT_NOTES.md
 |-- PRODUCT_DESIGN_CONTEXT.md
@@ -123,6 +124,7 @@ PRODUCT_DESIGN_CONTEXT.md # Concise product vision, journeys, terminology, UX in
 TODO.md             # Launch-ordered beta checklist.
 AGENTS.md           # Operating instructions for future agents.
 AGENT_HANDOFF.md    # Current handoff snapshot for recovery/continuation.
+CharGenPlan.md      # Prompt-sized core-first plan for a fully contract-driven Character Generation boundary.
 OpenQuestions.md    # Nonbinding design questions and unsettled options under active consideration.
 PROJECT_STRUCTURE.md
 docs/                  # Operational runbooks for deploy and server-side configuration.
@@ -197,6 +199,7 @@ gmrules-core/
     |-- GameElement.java
     |-- GameIO.java
     |-- GameSaveIO.java
+    |-- GMRCharacter.java
     |-- AtomicElements/
     |-- CharacterElements/
     |-- GameElements/
@@ -217,7 +220,14 @@ Game.java
 GameElement.java
 GameIO.java
 GameSaveIO.java
+GMRCharacter.java
 ```
+
+`GMRCharacter.java` is the core-owned authoritative character model. It stores
+stable character/source identity and character-owned snapshots of the currently
+supported character elements and provisional values. Its construction boundary
+resolves stable definition IDs against a supplied `Game` and returns explicit
+diagnostics.
 
 ### AtomicElements
 
@@ -338,6 +348,11 @@ character/
 |-- CharacterFileBuilder.java
 `-- CharacterFileIO.java
 ```
+
+`CharacterFile` is a serialization compatibility/persistence wrapper around core
+`GMRCharacter`; its old serialized fields remain only to migrate v1 object files.
+`CharacterDraft` remains the lightweight web workflow DTO, and
+`CharacterFileBuilder` only maps it into the core construction input.
 
 ### Web Backend Package
 

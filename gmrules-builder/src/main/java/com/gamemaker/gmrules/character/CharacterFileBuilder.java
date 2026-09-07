@@ -16,6 +16,7 @@ import com.gamemaker.gmrules.CharacterElements.Race;
 import com.gamemaker.gmrules.CharacterElements.Skill;
 import com.gamemaker.gmrules.ElementRegistryKey;
 import com.gamemaker.gmrules.Game;
+import com.gamemaker.gmrules.GMRCharacter;
 import com.gamemaker.gmrules.GameElement;
 import com.gamemaker.gmrules.GameElements.Currency;
 import com.gamemaker.gmrules.GameElements.Spell;
@@ -49,53 +50,45 @@ public class CharacterFileBuilder {
     public CharacterFile build(Game game, CharacterDraft draft) {
         Game safeGame = Objects.requireNonNullElseGet(game, () -> new Game(""));
         CharacterDraft safeDraft = Objects.requireNonNullElseGet(draft, CharacterDraft::new);
-        CharacterFile character = new CharacterFile();
-        character.setCharacterName(safeDraft.getCharacterName());
-        character.setSourceGameId(safeDraft.getGameId());
-        character.setSourceGameHash(safeDraft.getGameHash());
-        character.setSourceGameName(safeGame.getName());
         Map<String, String> draftRuleModes = safeDraft.getRuleModeSelections();
-        character.setRuleModeSelections(draftRuleModes.isEmpty() ? buildRuleModeSelections(safeGame) : draftRuleModes);
-        character.setCategoryPointSlotAssignments(safeDraft.getCategoryPointSlotAssignments());
-        character.setRace(resolveElement(safeGame, ElementRegistryKey.RACES, safeDraft.getRaceId(), new Race("")));
-        character.setBackground(resolveElement(
-            safeGame,
-            ElementRegistryKey.BACKGROUNDS,
-            safeDraft.getBackgroundId(),
-            new Background("")
-        ));
-        character.setCharacterClass(resolveElement(
-            safeGame,
-            ElementRegistryKey.CHARACTER_CLASSES,
-            safeDraft.getClassId(),
-            new CharacterClass("")
-        ));
-        character.setAttributeScores(resolveAttributeScores(safeGame, safeDraft));
-        character.setRacialSkills(resolveSkillRanks(safeGame, safeDraft.getRacialSkillRanks()));
-        character.setRacialTraitNames(safeDraft.getRacialTraitNames());
-        character.setBackgroundSkills(resolveSkillRanks(safeGame, safeDraft.getBackgroundSkillRanks()));
-        character.setClassSkills(resolveSkillRanks(safeGame, safeDraft.getClassSkillRanks()));
-        character.setSelectedSkills(resolveSkillRanks(safeGame, safeDraft.getSelectedSkillRanks()));
-        character.setSelectedSpells(resolveElements(safeGame, ElementRegistryKey.SPELLS, safeDraft.getSelectedSpellIds()));
-        character.setSelectedWeapons(resolveElements(safeGame, ElementRegistryKey.WEAPONS, safeDraft.getSelectedWeaponIds()));
-        character.setSelectedArmor(resolveElements(safeGame, ElementRegistryKey.ARMOR, safeDraft.getSelectedArmorIds()));
-        character.setSelectedEquipment(resolveElements(
-            safeGame,
-            ElementRegistryKey.EQUIPMENT,
-            safeDraft.getSelectedEquipmentIds()
-        ));
-        character.setStartingMoneyAmount(safeDraft.getStartingMoneyAmount());
-        character.setStartingMoneyCurrency(resolveElement(
-            safeGame,
-            ElementRegistryKey.CURRENCIES,
-            safeDraft.getStartingMoneyCurrencyId(),
-            new Currency("")
-        ));
-        character.setResolvedArmorClass(safeDraft.getResolvedArmorClass());
-        character.setDiceSubstitutionsUsed(safeDraft.getDiceSubstitutionsUsed());
-        character.setRollAdjustmentUses(safeDraft.getRollAdjustmentUses());
-        character.setRollAdjustmentResourceSpent(safeDraft.getRollAdjustmentResourceSpent());
-        return character;
+        GMRCharacter.ConstructionInput input = new GMRCharacter.ConstructionInput()
+            .setCharacterId(safeDraft.getCharacterId())
+            .setCharacterName(safeDraft.getCharacterName())
+            .setSourceGameId(safeDraft.getGameId())
+            .setSourceGameHash(safeDraft.getGameHash())
+            .setSourceGameName(safeDraft.getGameName())
+            .setSourceGameVersion(safeDraft.getGameVersion())
+            .setRuleModeSelections(draftRuleModes.isEmpty() ? buildRuleModeSelections(safeGame) : draftRuleModes)
+            .setCategoryPointSlotAssignments(safeDraft.getCategoryPointSlotAssignments())
+            .setRaceId(safeDraft.getRaceId())
+            .setBackgroundId(safeDraft.getBackgroundId())
+            .setCharacterClassId(safeDraft.getClassId())
+            .setAttributeScores(safeDraft.getAttributeScores())
+            .setRacialSkillRanks(safeDraft.getRacialSkillRanks())
+            .setRacialTraitNames(safeDraft.getRacialTraitNames())
+            .setBackgroundSkillRanks(safeDraft.getBackgroundSkillRanks())
+            .setClassSkillRanks(safeDraft.getClassSkillRanks())
+            .setSelectedSkillRanks(safeDraft.getSelectedSkillRanks())
+            .setSelectedSpellIds(safeDraft.getSelectedSpellIds())
+            .setSelectedWeaponIds(safeDraft.getSelectedWeaponIds())
+            .setSelectedArmorIds(safeDraft.getSelectedArmorIds())
+            .setSelectedEquipmentIds(safeDraft.getSelectedEquipmentIds())
+            .setStartingMoneyAmount(safeDraft.getStartingMoneyAmount())
+            .setStartingMoneyCurrencyId(safeDraft.getStartingMoneyCurrencyId())
+            .setResolvedArmorClass(safeDraft.getResolvedArmorClass())
+            .setDiceSubstitutionsUsed(safeDraft.getDiceSubstitutionsUsed())
+            .setRollAdjustmentUses(safeDraft.getRollAdjustmentUses())
+            .setRollAdjustmentResourceSpent(safeDraft.getRollAdjustmentResourceSpent());
+        GMRCharacter.ConstructionResult result = GMRCharacter.construct(safeGame, input);
+        if (!result.isSuccessful()) {
+            throw new IllegalArgumentException(formatDiagnostics(result.getDiagnostics()));
+        }
+        return new CharacterFile(result.getCharacter());
+    }
+
+    private String formatDiagnostics(List<GMRCharacter.Diagnostic> diagnostics) {
+        return diagnostics.stream().map(GMRCharacter.Diagnostic::getMessage).reduce((left, right) -> left + " " + right)
+            .orElse("Unable to construct character.");
     }
 
     public static Map<String, String> buildRuleModeSelections(Game game) {
@@ -215,75 +208,4 @@ public class CharacterFileBuilder {
         return String.join("|", values);
     }
 
-    private Map<Attribute, Integer> resolveAttributeScores(Game game, CharacterDraft draft) {
-        LinkedHashMap<Attribute, Integer> scores = new LinkedHashMap<>();
-        for (Map.Entry<String, Integer> entry : draft.getAttributeScores().entrySet()) {
-            Attribute attribute = game.getElementRegistry(ElementRegistryKey.ATTRIBUTES).getById(entry.getKey());
-            if (attribute instanceof Attribute) {
-                scores.put(attribute, Objects.requireNonNullElse(entry.getValue(), 0));
-            }
-        }
-        return scores;
-    }
-
-    private Map<Skill, Integer> resolveSkillRanks(Game game, Map<String, Integer> ranks) {
-        Map<String, Integer> safeRanks = Objects.requireNonNullElse(ranks, Map.of());
-        LinkedHashMap<Skill, Integer> results = new LinkedHashMap<>();
-        for (Map.Entry<String, Integer> entry : safeRanks.entrySet()) {
-            String safeId = Objects.toString(entry.getKey(), "").trim();
-            if (safeId.isEmpty()) {
-                continue;
-            }
-            Skill skill = game.getElementRegistry(ElementRegistryKey.SKILLS).getById(safeId);
-            if (skill instanceof Skill) {
-                results.put(copyOf(skill), Math.max(0, Objects.requireNonNullElse(entry.getValue(), 0)));
-            }
-        }
-        return results;
-    }
-
-    private <T extends GameElement & Serializable> T resolveElement(
-        Game game,
-        ElementRegistryKey<T> key,
-        String id,
-        T fallback
-    ) {
-        String safeId = Objects.toString(id, "").trim();
-        T element = safeId.isEmpty() ? fallback : game.getElementRegistry(key).getById(safeId);
-        return copyOf(Objects.requireNonNullElse(element, fallback));
-    }
-
-    private <T extends GameElement & Serializable> List<T> resolveElements(
-        Game game,
-        ElementRegistryKey<T> key,
-        List<String> ids
-    ) {
-        List<String> safeIds = Objects.requireNonNullElse(ids, List.of());
-        ArrayList<T> results = new ArrayList<>();
-        for (String id : safeIds) {
-            String safeId = Objects.toString(id, "").trim();
-            if (safeId.isEmpty()) {
-                continue;
-            }
-            T element = game.getElementRegistry(key).getById(safeId);
-            if (element != null) {
-                results.add(copyOf(element));
-            }
-        }
-        return results;
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T extends Serializable> T copyOf(T value) {
-        try {
-            ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-            ObjectOutputStream objectOutput = new ObjectOutputStream(byteOutput);
-            objectOutput.writeObject(value);
-            objectOutput.flush();
-            ObjectInputStream objectInput = new ObjectInputStream(new ByteArrayInputStream(byteOutput.toByteArray()));
-            return (T) objectInput.readObject();
-        } catch (IOException | ClassNotFoundException e) {
-            throw new IllegalStateException("Unable to snapshot character element.", e);
-        }
-    }
 }

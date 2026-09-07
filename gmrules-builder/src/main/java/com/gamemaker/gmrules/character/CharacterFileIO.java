@@ -111,6 +111,12 @@ public class CharacterFileIO {
                 draft.setGameId(value);
             } else if (key.equals("gameHash")) {
                 draft.setGameHash(value);
+            } else if (key.equals("gameName")) {
+                draft.setGameName(value);
+            } else if (key.equals("gameVersion")) {
+                draft.setGameVersion(value);
+            } else if (key.equals("characterId")) {
+                draft.setCharacterId(value);
             } else if (key.equals("characterName")) {
                 draft.setCharacterName(value);
             } else if (key.equals("raceId")) {
@@ -318,6 +324,9 @@ public class CharacterFileIO {
         lines.add(HEADER);
         lines.add("gameId=" + safeDraft.getGameId());
         lines.add("gameHash=" + safeDraft.getGameHash());
+        lines.add("gameName=" + safeDraft.getGameName());
+        lines.add("gameVersion=" + safeDraft.getGameVersion());
+        lines.add("characterId=" + safeDraft.getCharacterId());
         lines.add("characterName=" + safeDraft.getCharacterName());
         List<Map.Entry<String, String>> ruleModes = new ArrayList<>(safeDraft.getRuleModeSelections().entrySet());
         ruleModes.sort(Map.Entry.comparingByKey());

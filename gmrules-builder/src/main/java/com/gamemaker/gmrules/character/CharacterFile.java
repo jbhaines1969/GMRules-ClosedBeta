@@ -1,9 +1,7 @@
 /*
  FILE CONTRACT (Non-Null):
- - Do not introduce null fields or null checks in this file.
- - All instance fields are initialized (at declaration or in constructor) and remain non-null.
- - Represent "empty" with empty/sentinel objects (e.g., "", empty lists, EMPTY instances), not null.
- - If a value may be absent at an external boundary, normalize it immediately to a non-null value.
+ - Do not introduce null live fields or null checks outside serialization migration.
+ - Represent empty values with empty strings, collections, and sentinel elements.
 */
 // NONNULL_CONTRACT
 
@@ -14,351 +12,182 @@ import com.gamemaker.gmrules.CharacterElements.Background;
 import com.gamemaker.gmrules.CharacterElements.CharacterClass;
 import com.gamemaker.gmrules.CharacterElements.Race;
 import com.gamemaker.gmrules.CharacterElements.Skill;
+import com.gamemaker.gmrules.GMRCharacter;
 import com.gamemaker.gmrules.Game;
 import com.gamemaker.gmrules.GameElements.Armor;
 import com.gamemaker.gmrules.GameElements.Currency;
 import com.gamemaker.gmrules.GameElements.Equipment;
 import com.gamemaker.gmrules.GameElements.Spell;
 import com.gamemaker.gmrules.GameElements.Weapon;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
+/** Persistence wrapper for the core-owned {@link GMRCharacter}. */
 public class CharacterFile implements Serializable {
 
-// *** MEMBERS ***
     private static final long serialVersionUID = 1L;
 
-    private String characterName = "";
-    private String sourceGameId = "";
-    private String sourceGameHash = "";
-    private String sourceGameName = "";
-    private Map<String, String> ruleModeSelections = new LinkedHashMap<>();
-    private Map<String, String> categoryPointSlotAssignments = new LinkedHashMap<>();
-    private Race race = new Race("");
-    private Background background = new Background("");
-    private CharacterClass characterClass = new CharacterClass("");
-    private Map<Attribute, Integer> attributeScores = new LinkedHashMap<>();
-    private Map<Skill, Integer> racialSkills = new LinkedHashMap<>();
-    private List<String> racialTraitNames = new ArrayList<>();
-    private Map<Skill, Integer> backgroundSkills = new LinkedHashMap<>();
-    private Map<Skill, Integer> classSkills = new LinkedHashMap<>();
-    private Map<Skill, Integer> selectedSkills = new LinkedHashMap<>();
-    private List<Spell> selectedSpells = new ArrayList<>();
-    private List<Weapon> selectedWeapons = new ArrayList<>();
-    private List<Armor> selectedArmor = new ArrayList<>();
-    private List<Equipment> selectedEquipment = new ArrayList<>();
-    private int startingMoneyAmount = 0;
-    private Currency startingMoneyCurrency = new Currency("");
-    private int resolvedArmorClass = 0;
-    private int diceSubstitutionsUsed = 0;
-    private Map<String, Integer> rollAdjustmentUses = new LinkedHashMap<>();
-    private Map<String, Integer> rollAdjustmentResourceSpent = new LinkedHashMap<>();
+    private GMRCharacter character = new GMRCharacter();
 
-// *** CONSTRUCTORS ***
+    /* Legacy v1 serialized fields. They are read only when migrating old files. */
+    @Deprecated private String characterName = "";
+    @Deprecated private String sourceGameId = "";
+    @Deprecated private String sourceGameHash = "";
+    @Deprecated private String sourceGameName = "";
+    @Deprecated private Map<String, String> ruleModeSelections = new LinkedHashMap<>();
+    @Deprecated private Map<String, String> categoryPointSlotAssignments = new LinkedHashMap<>();
+    @Deprecated private Race race = new Race("");
+    @Deprecated private Background background = new Background("");
+    @Deprecated private CharacterClass characterClass = new CharacterClass("");
+    @Deprecated private Map<Attribute, Integer> attributeScores = new LinkedHashMap<>();
+    @Deprecated private Map<Skill, Integer> racialSkills = new LinkedHashMap<>();
+    @Deprecated private List<String> racialTraitNames = new ArrayList<>();
+    @Deprecated private Map<Skill, Integer> backgroundSkills = new LinkedHashMap<>();
+    @Deprecated private Map<Skill, Integer> classSkills = new LinkedHashMap<>();
+    @Deprecated private Map<Skill, Integer> selectedSkills = new LinkedHashMap<>();
+    @Deprecated private List<Spell> selectedSpells = new ArrayList<>();
+    @Deprecated private List<Weapon> selectedWeapons = new ArrayList<>();
+    @Deprecated private List<Armor> selectedArmor = new ArrayList<>();
+    @Deprecated private List<Equipment> selectedEquipment = new ArrayList<>();
+    @Deprecated private int startingMoneyAmount = 0;
+    @Deprecated private Currency startingMoneyCurrency = new Currency("");
+    @Deprecated private int resolvedArmorClass = 0;
+    @Deprecated private int diceSubstitutionsUsed = 0;
+    @Deprecated private Map<String, Integer> rollAdjustmentUses = new LinkedHashMap<>();
+    @Deprecated private Map<String, Integer> rollAdjustmentResourceSpent = new LinkedHashMap<>();
+
     public CharacterFile() {
     }
 
-// *** METHODS ***
+    public CharacterFile(GMRCharacter character) {
+        this.character = Objects.requireNonNullElseGet(character, GMRCharacter::new);
+    }
+
     public static CharacterFile fromDraft(Game game, CharacterDraft draft) {
         return new CharacterFileBuilder().build(game, draft);
     }
 
-    public String getCharacterName() {
-        return characterName;
-    }
-
-    public void setCharacterName(String characterName) {
-        this.characterName = Objects.toString(characterName, "").trim();
-    }
-
-    public String getSourceGameId() {
-        return sourceGameId;
-    }
-
-    public void setSourceGameId(String sourceGameId) {
-        this.sourceGameId = Objects.toString(sourceGameId, "").trim();
-    }
-
-    public String getSourceGameHash() {
-        return sourceGameHash;
-    }
-
-    public void setSourceGameHash(String sourceGameHash) {
-        this.sourceGameHash = Objects.toString(sourceGameHash, "").trim();
-    }
-
-    public String getSourceGameName() {
-        return sourceGameName;
-    }
-
-    public void setSourceGameName(String sourceGameName) {
-        this.sourceGameName = Objects.toString(sourceGameName, "").trim();
-    }
-
-    public Map<String, String> getRuleModeSelections() {
-        return new LinkedHashMap<>(Objects.requireNonNullElse(ruleModeSelections, Map.of()));
-    }
-
-    public void setRuleModeSelections(Map<String, String> ruleModeSelections) {
-        Map<String, String> safeValues = Objects.requireNonNullElse(ruleModeSelections, Map.of());
-        LinkedHashMap<String, String> copy = new LinkedHashMap<>();
-        for (Map.Entry<String, String> entry : safeValues.entrySet()) {
-            String key = Objects.toString(entry.getKey(), "").trim();
-            if (!key.isEmpty()) {
-                copy.put(key, Objects.toString(entry.getValue(), "").trim());
-            }
-        }
-        this.ruleModeSelections = copy;
-    }
-
-    public Map<String, String> getCategoryPointSlotAssignments() {
-        return new LinkedHashMap<>(Objects.requireNonNullElse(categoryPointSlotAssignments, Map.of()));
-    }
-
-    public void setCategoryPointSlotAssignments(Map<String, String> categoryPointSlotAssignments) {
-        Map<String, String> safeValues = Objects.requireNonNullElse(categoryPointSlotAssignments, Map.of());
-        LinkedHashMap<String, String> copy = new LinkedHashMap<>();
-        for (Map.Entry<String, String> entry : safeValues.entrySet()) {
-            String slotId = Objects.toString(entry.getKey(), "").trim();
-            String categoryKey = Objects.toString(entry.getValue(), "").trim().toLowerCase(Locale.ROOT);
-            if (!slotId.isEmpty() && !categoryKey.isEmpty() && !copy.containsValue(categoryKey)) {
-                copy.put(slotId, categoryKey);
-            }
-        }
-        this.categoryPointSlotAssignments = copy;
-    }
-
-    public Race getRace() {
-        return copyOf(race);
-    }
-
-    public void setRace(Race race) {
-        this.race = copyOf(Objects.requireNonNullElseGet(race, () -> new Race("")));
-    }
-
-    public Background getBackground() {
-        return copyOf(background);
-    }
-
-    public void setBackground(Background background) {
-        this.background = copyOf(Objects.requireNonNullElseGet(background, () -> new Background("")));
-    }
-
-    public CharacterClass getCharacterClass() {
-        return copyOf(characterClass);
-    }
-
-    public void setCharacterClass(CharacterClass characterClass) {
-        this.characterClass = copyOf(Objects.requireNonNullElseGet(characterClass, () -> new CharacterClass("")));
-    }
-
-    public Map<Attribute, Integer> getAttributeScores() {
-        return copyMap(attributeScores);
-    }
-
-    public void setAttributeScores(Map<Attribute, Integer> attributeScores) {
-        this.attributeScores = copyMap(Objects.requireNonNullElse(attributeScores, Map.of()));
-    }
-
-    public Map<Skill, Integer> getRacialSkills() {
-        return copySkillMap(racialSkills);
-    }
-
-    public void setRacialSkills(Map<Skill, Integer> racialSkills) {
-        this.racialSkills = copySkillMap(Objects.requireNonNullElse(racialSkills, Map.of()));
-    }
-
-    public List<String> getRacialTraitNames() {
-        return new ArrayList<>(racialTraitNames);
-    }
-
-    public void setRacialTraitNames(List<String> racialTraitNames) {
-        List<String> safeValues = Objects.requireNonNullElse(racialTraitNames, List.of());
-        ArrayList<String> copy = new ArrayList<>();
-        for (String value : safeValues) {
-            String safe = Objects.toString(value, "").trim();
-            if (!safe.isEmpty() && !copy.contains(safe)) {
-                copy.add(safe);
-            }
-        }
-        this.racialTraitNames = copy;
-    }
-
-    public Map<Skill, Integer> getBackgroundSkills() {
-        return copySkillMap(backgroundSkills);
-    }
-
-    public void setBackgroundSkills(Map<Skill, Integer> backgroundSkills) {
-        this.backgroundSkills = copySkillMap(Objects.requireNonNullElse(backgroundSkills, Map.of()));
-    }
-
-    public Map<Skill, Integer> getClassSkills() {
-        return copySkillMap(classSkills);
-    }
-
-    public void setClassSkills(Map<Skill, Integer> classSkills) {
-        this.classSkills = copySkillMap(Objects.requireNonNullElse(classSkills, Map.of()));
-    }
-
-    public Map<Skill, Integer> getSelectedSkills() {
-        return copySkillMap(selectedSkills);
-    }
-
-    public void setSelectedSkills(Map<Skill, Integer> selectedSkills) {
-        this.selectedSkills = copySkillMap(Objects.requireNonNullElse(selectedSkills, Map.of()));
-    }
-
-    public List<Spell> getSelectedSpells() {
-        return copyList(selectedSpells);
-    }
-
-    public void setSelectedSpells(List<Spell> selectedSpells) {
-        this.selectedSpells = copyList(Objects.requireNonNullElse(selectedSpells, List.of()));
-    }
-
-    public List<Weapon> getSelectedWeapons() {
-        return copyList(selectedWeapons);
-    }
-
-    public void setSelectedWeapons(List<Weapon> selectedWeapons) {
-        this.selectedWeapons = copyList(Objects.requireNonNullElse(selectedWeapons, List.of()));
-    }
-
-    public List<Armor> getSelectedArmor() {
-        return copyList(selectedArmor);
-    }
-
-    public void setSelectedArmor(List<Armor> selectedArmor) {
-        this.selectedArmor = copyList(Objects.requireNonNullElse(selectedArmor, List.of()));
-    }
-
-    public List<Equipment> getSelectedEquipment() {
-        return copyList(selectedEquipment);
-    }
-
-    public void setSelectedEquipment(List<Equipment> selectedEquipment) {
-        this.selectedEquipment = copyList(Objects.requireNonNullElse(selectedEquipment, List.of()));
-    }
-
-    public int getStartingMoneyAmount() {
-        return Math.max(0, startingMoneyAmount);
-    }
-
-    public void setStartingMoneyAmount(int startingMoneyAmount) {
-        this.startingMoneyAmount = Math.max(0, startingMoneyAmount);
-    }
-
-    public Currency getStartingMoneyCurrency() {
-        return copyOf(startingMoneyCurrency);
-    }
-
-    public void setStartingMoneyCurrency(Currency startingMoneyCurrency) {
-        this.startingMoneyCurrency = copyOf(Objects.requireNonNullElseGet(startingMoneyCurrency, () -> new Currency("")));
-    }
-
-    public int getResolvedArmorClass() {
-        return Math.max(0, resolvedArmorClass);
-    }
-
-    public void setResolvedArmorClass(int resolvedArmorClass) {
-        this.resolvedArmorClass = Math.max(0, resolvedArmorClass);
-    }
-
-    public int getDiceSubstitutionsUsed() {
-        return Math.max(0, diceSubstitutionsUsed);
-    }
-
-    public void setDiceSubstitutionsUsed(int diceSubstitutionsUsed) {
-        this.diceSubstitutionsUsed = Math.max(0, diceSubstitutionsUsed);
-    }
-
-    public Map<String, Integer> getRollAdjustmentUses() {
-        return copyNonNegativeMap(rollAdjustmentUses);
-    }
-
-    public void setRollAdjustmentUses(Map<String, Integer> rollAdjustmentUses) {
-        this.rollAdjustmentUses = copyNonNegativeMap(rollAdjustmentUses);
-    }
-
-    public Map<String, Integer> getRollAdjustmentResourceSpent() {
-        return copyNonNegativeMap(rollAdjustmentResourceSpent);
-    }
-
-    public void setRollAdjustmentResourceSpent(Map<String, Integer> rollAdjustmentResourceSpent) {
-        this.rollAdjustmentResourceSpent = copyNonNegativeMap(rollAdjustmentResourceSpent);
-    }
+    public GMRCharacter getCharacter() { return character; }
+    public String getCharacterId() { return character.getId(); }
+    public void setCharacterId(String value) { character.setId(value); }
+    public String getCharacterName() { return character.getName(); }
+    public void setCharacterName(String value) { character.setName(value); }
+    public String getSourceGameId() { return character.getSourceGameId(); }
+    public void setSourceGameId(String value) { character.setSourceGameId(value); }
+    public String getSourceGameHash() { return character.getSourceGameHash(); }
+    public void setSourceGameHash(String value) { character.setSourceGameHash(value); }
+    public String getSourceGameName() { return character.getSourceGameName(); }
+    public void setSourceGameName(String value) { character.setSourceGameName(value); }
+    public String getSourceGameVersion() { return character.getSourceGameVersion(); }
+    public void setSourceGameVersion(String value) { character.setSourceGameVersion(value); }
+    public Map<String, String> getRuleModeSelections() { return character.getRuleModeSelections(); }
+    public void setRuleModeSelections(Map<String, String> value) { character.setRuleModeSelections(value); }
+    public Map<String, String> getCategoryPointSlotAssignments() { return character.getCategoryPointSlotAssignments(); }
+    public void setCategoryPointSlotAssignments(Map<String, String> value) { character.setCategoryPointSlotAssignments(value); }
+    public Race getRace() { return character.getRace(); }
+    public void setRace(Race value) { character.setRace(value); }
+    public Background getBackground() { return character.getBackground(); }
+    public void setBackground(Background value) { character.setBackground(value); }
+    public CharacterClass getCharacterClass() { return character.getCharacterClass(); }
+    public void setCharacterClass(CharacterClass value) { character.setCharacterClass(value); }
+    public Map<Attribute, Integer> getAttributeScores() { return character.getAttributeScores(); }
+    public void setAttributeScores(Map<Attribute, Integer> value) { character.setAttributeScores(value); }
+    public Map<Skill, Integer> getRacialSkills() { return character.getRacialSkills(); }
+    public void setRacialSkills(Map<Skill, Integer> value) { character.setRacialSkills(value); }
+    public List<String> getRacialTraitNames() { return character.getRacialTraitNames(); }
+    public void setRacialTraitNames(List<String> value) { character.setRacialTraitNames(value); }
+    public Map<Skill, Integer> getBackgroundSkills() { return character.getBackgroundSkills(); }
+    public void setBackgroundSkills(Map<Skill, Integer> value) { character.setBackgroundSkills(value); }
+    public Map<Skill, Integer> getClassSkills() { return character.getClassSkills(); }
+    public void setClassSkills(Map<Skill, Integer> value) { character.setClassSkills(value); }
+    public Map<Skill, Integer> getSelectedSkills() { return character.getSelectedSkills(); }
+    public void setSelectedSkills(Map<Skill, Integer> value) { character.setSelectedSkills(value); }
+    public List<Spell> getSelectedSpells() { return character.getSelectedSpells(); }
+    public void setSelectedSpells(List<Spell> value) { character.setSelectedSpells(value); }
+    public List<Weapon> getSelectedWeapons() { return character.getSelectedWeapons(); }
+    public void setSelectedWeapons(List<Weapon> value) { character.setSelectedWeapons(value); }
+    public List<Armor> getSelectedArmor() { return character.getSelectedArmor(); }
+    public void setSelectedArmor(List<Armor> value) { character.setSelectedArmor(value); }
+    public List<Equipment> getSelectedEquipment() { return character.getSelectedEquipment(); }
+    public void setSelectedEquipment(List<Equipment> value) { character.setSelectedEquipment(value); }
+    public int getStartingMoneyAmount() { return character.getStartingMoneyAmount(); }
+    public void setStartingMoneyAmount(int value) { character.setStartingMoneyAmount(value); }
+    public Currency getStartingMoneyCurrency() { return character.getStartingMoneyCurrency(); }
+    public void setStartingMoneyCurrency(Currency value) { character.setStartingMoneyCurrency(value); }
+    public int getResolvedArmorClass() { return character.getResolvedArmorClass(); }
+    public void setResolvedArmorClass(int value) { character.setResolvedArmorClass(value); }
+    public int getDiceSubstitutionsUsed() { return character.getDiceSubstitutionsUsed(); }
+    public void setDiceSubstitutionsUsed(int value) { character.setDiceSubstitutionsUsed(value); }
+    public Map<String, Integer> getRollAdjustmentUses() { return character.getRollAdjustmentUses(); }
+    public void setRollAdjustmentUses(Map<String, Integer> value) { character.setRollAdjustmentUses(value); }
+    public Map<String, Integer> getRollAdjustmentResourceSpent() { return character.getRollAdjustmentResourceSpent(); }
+    public void setRollAdjustmentResourceSpent(Map<String, Integer> value) { character.setRollAdjustmentResourceSpent(value); }
 
     private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
         stream.defaultReadObject();
-        ruleModeSelections = new LinkedHashMap<>(Objects.requireNonNullElse(ruleModeSelections, Map.of()));
-        rollAdjustmentUses = copyNonNegativeMap(rollAdjustmentUses);
-        rollAdjustmentResourceSpent = copyNonNegativeMap(rollAdjustmentResourceSpent);
-        setCategoryPointSlotAssignments(categoryPointSlotAssignments);
-        background = Objects.requireNonNullElseGet(background, () -> new Background(""));
-        backgroundSkills = new LinkedHashMap<>(Objects.requireNonNullElse(backgroundSkills, Map.of()));
-        selectedSpells = new ArrayList<>(Objects.requireNonNullElse(selectedSpells, List.of()));
+        if (character == null) {
+            GMRCharacter migrated = new GMRCharacter();
+            migrated.setName(characterName);
+            migrated.setSourceGameId(sourceGameId);
+            migrated.setSourceGameHash(sourceGameHash);
+            migrated.setSourceGameName(sourceGameName);
+            migrated.setRuleModeSelections(ruleModeSelections);
+            migrated.setCategoryPointSlotAssignments(categoryPointSlotAssignments);
+            migrated.setRace(race);
+            migrated.setBackground(background);
+            migrated.setCharacterClass(characterClass);
+            migrated.setAttributeScores(attributeScores);
+            migrated.setRacialSkills(racialSkills);
+            migrated.setRacialTraitNames(racialTraitNames);
+            migrated.setBackgroundSkills(backgroundSkills);
+            migrated.setClassSkills(classSkills);
+            migrated.setSelectedSkills(selectedSkills);
+            migrated.setSelectedSpells(selectedSpells);
+            migrated.setSelectedWeapons(selectedWeapons);
+            migrated.setSelectedArmor(selectedArmor);
+            migrated.setSelectedEquipment(selectedEquipment);
+            migrated.setStartingMoneyAmount(startingMoneyAmount);
+            migrated.setStartingMoneyCurrency(startingMoneyCurrency);
+            migrated.setResolvedArmorClass(resolvedArmorClass);
+            migrated.setDiceSubstitutionsUsed(diceSubstitutionsUsed);
+            migrated.setRollAdjustmentUses(rollAdjustmentUses);
+            migrated.setRollAdjustmentResourceSpent(rollAdjustmentResourceSpent);
+            character = migrated;
+        }
+        clearLegacyState();
     }
 
-    private static <T extends Serializable> List<T> copyList(List<T> values) {
-        List<T> safeValues = Objects.requireNonNullElse(values, List.of());
-        ArrayList<T> copy = new ArrayList<>();
-        for (T value : safeValues) {
-            copy.add(copyOf(value));
-        }
-        return copy;
-    }
-
-    private static Map<Attribute, Integer> copyMap(Map<Attribute, Integer> values) {
-        Map<Attribute, Integer> safeValues = Objects.requireNonNullElse(values, Map.of());
-        LinkedHashMap<Attribute, Integer> copy = new LinkedHashMap<>();
-        for (Map.Entry<Attribute, Integer> entry : safeValues.entrySet()) {
-            copy.put(copyOf(entry.getKey()), Objects.requireNonNullElse(entry.getValue(), 0));
-        }
-        return copy;
-    }
-
-    private static LinkedHashMap<String, Integer> copyNonNegativeMap(Map<String, Integer> source) {
-        Map<String, Integer> safeSource = Objects.requireNonNullElse(source, Map.of());
-        LinkedHashMap<String, Integer> copy = new LinkedHashMap<>();
-        for (Map.Entry<String, Integer> entry : safeSource.entrySet()) {
-            String key = Objects.toString(entry.getKey(), "").trim();
-            if (!key.isEmpty()) {
-                copy.put(key, Math.max(0, Objects.requireNonNullElse(entry.getValue(), 0)));
-            }
-        }
-        return copy;
-    }
-
-    private static Map<Skill, Integer> copySkillMap(Map<Skill, Integer> values) {
-        Map<Skill, Integer> safeValues = Objects.requireNonNullElse(values, Map.of());
-        LinkedHashMap<Skill, Integer> copy = new LinkedHashMap<>();
-        for (Map.Entry<Skill, Integer> entry : safeValues.entrySet()) {
-            copy.put(copyOf(entry.getKey()), Math.max(0, Objects.requireNonNullElse(entry.getValue(), 0)));
-        }
-        return copy;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T extends Serializable> T copyOf(T value) {
-        try {
-            ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-            ObjectOutputStream objectOutput = new ObjectOutputStream(byteOutput);
-            objectOutput.writeObject(value);
-            objectOutput.flush();
-            ObjectInputStream objectInput = new ObjectInputStream(new ByteArrayInputStream(byteOutput.toByteArray()));
-            return (T) objectInput.readObject();
-        } catch (IOException | ClassNotFoundException e) {
-            throw new IllegalStateException("Unable to snapshot character element.", e);
-        }
+    private void clearLegacyState() {
+        characterName = "";
+        sourceGameId = "";
+        sourceGameHash = "";
+        sourceGameName = "";
+        ruleModeSelections = new LinkedHashMap<>();
+        categoryPointSlotAssignments = new LinkedHashMap<>();
+        race = new Race("");
+        background = new Background("");
+        characterClass = new CharacterClass("");
+        attributeScores = new LinkedHashMap<>();
+        racialSkills = new LinkedHashMap<>();
+        racialTraitNames = new ArrayList<>();
+        backgroundSkills = new LinkedHashMap<>();
+        classSkills = new LinkedHashMap<>();
+        selectedSkills = new LinkedHashMap<>();
+        selectedSpells = new ArrayList<>();
+        selectedWeapons = new ArrayList<>();
+        selectedArmor = new ArrayList<>();
+        selectedEquipment = new ArrayList<>();
+        startingMoneyAmount = 0;
+        startingMoneyCurrency = new Currency("");
+        resolvedArmorClass = 0;
+        diceSubstitutionsUsed = 0;
+        rollAdjustmentUses = new LinkedHashMap<>();
+        rollAdjustmentResourceSpent = new LinkedHashMap<>();
     }
 }
