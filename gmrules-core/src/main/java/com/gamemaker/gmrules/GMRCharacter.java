@@ -12,6 +12,7 @@ package com.gamemaker.gmrules;
 import com.gamemaker.gmrules.AtomicElements.Attribute;
 import com.gamemaker.gmrules.CharacterElements.Background;
 import com.gamemaker.gmrules.CharacterElements.CharacterClass;
+import com.gamemaker.gmrules.CharacterElements.Heritage;
 import com.gamemaker.gmrules.CharacterElements.Race;
 import com.gamemaker.gmrules.CharacterElements.Skill;
 import com.gamemaker.gmrules.GameElements.Armor;
@@ -66,6 +67,8 @@ public final class GMRCharacter implements Serializable {
     private Map<String, String> categoryPointSlotAssignments = new LinkedHashMap<>();
     private Race race = new Race("");
     private boolean raceSelected = false;
+    private Heritage heritage = new Heritage("");
+    private boolean heritageSelected = false;
     private Background background = new Background("");
     private boolean backgroundSelected = false;
     private CharacterClass characterClass = new CharacterClass("");
@@ -101,6 +104,13 @@ public final class GMRCharacter implements Serializable {
         ArrayList<Diagnostic> diagnostics = new ArrayList<>();
 
         Race resolvedRace = resolveOptional(safeGame, ElementRegistryKey.RACES, safeInput.raceId, "race", diagnostics);
+        Heritage resolvedHeritage = resolveOptional(
+            safeGame,
+            ElementRegistryKey.HERITAGES,
+            safeInput.heritageId,
+            "heritage",
+            diagnostics
+        );
         Background resolvedBackground = resolveOptional(
             safeGame,
             ElementRegistryKey.BACKGROUNDS,
@@ -122,6 +132,19 @@ public final class GMRCharacter implements Serializable {
             "startingMoneyCurrency",
             diagnostics
         );
+        if (!safeInput.heritageId.isEmpty() && !safeInput.raceId.isEmpty()
+            && resolvedHeritage != null && resolvedRace != null
+            && !resolvedHeritage.isUnrestrictedAncestry()
+            && !resolvedHeritage.getAncestryIds().contains(resolvedRace.getId())) {
+            diagnostics.add(new Diagnostic(
+                DiagnosticCode.INVALID_SELECTION,
+                "heritage",
+                safeInput.heritageId,
+                Heritage.class.getName(),
+                Heritage.class.getName(),
+                "Heritage is not available to the selected Race/Ancestry."
+            ));
+        }
         Map<Attribute, Integer> resolvedAttributes = resolveRanks(
             safeGame,
             ElementRegistryKey.ATTRIBUTES,
@@ -209,6 +232,7 @@ public final class GMRCharacter implements Serializable {
         character.setRuleModeSelections(safeInput.ruleModeSelections);
         character.setCategoryPointSlotAssignments(safeInput.categoryPointSlotAssignments);
         character.setRace(resolvedRace, !safeInput.raceId.isEmpty());
+        character.setHeritage(resolvedHeritage, !safeInput.heritageId.isEmpty());
         character.setBackground(resolvedBackground, !safeInput.backgroundId.isEmpty());
         character.setCharacterClass(resolvedClass, !safeInput.characterClassId.isEmpty());
         character.setAttributeScores(resolvedAttributes);
@@ -278,6 +302,14 @@ public final class GMRCharacter implements Serializable {
     public void setRace(Race value, boolean selected) {
         race = snapshot(Objects.requireNonNullElseGet(value, () -> new Race("")));
         raceSelected = selected;
+    }
+
+    public boolean hasHeritage() { return heritageSelected; }
+    public Heritage getHeritage() { return heritage; }
+    public void setHeritage(Heritage value) { setHeritage(value, hasMeaningfulElement(value)); }
+    public void setHeritage(Heritage value, boolean selected) {
+        heritage = snapshot(Objects.requireNonNullElseGet(value, () -> new Heritage("")));
+        heritageSelected = selected;
     }
 
     public boolean hasBackground() { return backgroundSelected; }
@@ -350,6 +382,8 @@ public final class GMRCharacter implements Serializable {
         categoryPointSlotAssignments = copy.categoryPointSlotAssignments;
         race = copy.race;
         raceSelected = copy.raceSelected;
+        heritage = copy.heritage;
+        heritageSelected = copy.heritageSelected;
         background = copy.background;
         backgroundSelected = copy.backgroundSelected;
         characterClass = copy.characterClass;
@@ -384,6 +418,7 @@ public final class GMRCharacter implements Serializable {
         setRuleModeSelections(ruleModeSelections);
         setCategoryPointSlotAssignments(categoryPointSlotAssignments);
         race = Objects.requireNonNullElseGet(race, () -> new Race(""));
+        heritage = Objects.requireNonNullElseGet(heritage, () -> new Heritage(""));
         background = Objects.requireNonNullElseGet(background, () -> new Background(""));
         characterClass = Objects.requireNonNullElseGet(characterClass, () -> new CharacterClass(""));
         attributeScores = new LinkedHashMap<>(Objects.requireNonNullElse(attributeScores, Map.of()));
@@ -577,7 +612,8 @@ public final class GMRCharacter implements Serializable {
 
     public enum DiagnosticCode {
         MISSING_REFERENCE,
-        WRONG_TYPE_REFERENCE
+        WRONG_TYPE_REFERENCE,
+        INVALID_SELECTION
     }
 
     public static final class Diagnostic implements Serializable {
@@ -637,6 +673,7 @@ public final class GMRCharacter implements Serializable {
         private Map<String, String> ruleModeSelections = new LinkedHashMap<>();
         private Map<String, String> categoryPointSlotAssignments = new LinkedHashMap<>();
         private String raceId = "";
+        private String heritageId = "";
         private String backgroundId = "";
         private String characterClassId = "";
         private Map<String, Integer> attributeScores = new LinkedHashMap<>();
@@ -665,6 +702,7 @@ public final class GMRCharacter implements Serializable {
         public ConstructionInput setRuleModeSelections(Map<String, String> value) { ruleModeSelections = copyStringMap(value, false); return this; }
         public ConstructionInput setCategoryPointSlotAssignments(Map<String, String> value) { categoryPointSlotAssignments = copyStringMap(value, true); return this; }
         public ConstructionInput setRaceId(String value) { raceId = text(value); return this; }
+        public ConstructionInput setHeritageId(String value) { heritageId = text(value); return this; }
         public ConstructionInput setBackgroundId(String value) { backgroundId = text(value); return this; }
         public ConstructionInput setCharacterClassId(String value) { characterClassId = text(value); return this; }
         public ConstructionInput setAttributeScores(Map<String, Integer> value) { attributeScores = copyIntegerMap(value, false); return this; }

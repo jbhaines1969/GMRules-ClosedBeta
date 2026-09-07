@@ -13,5 +13,8 @@ drafts/
 .local-dev/
 *.gmrf
 
+# Local ruleset source/reference trees may contain content not licensed for redistribution.
+/games/
+
 # Agent-created local verification tests use this suffix and are never published.
 **/src/test/**/*LocalTest.java

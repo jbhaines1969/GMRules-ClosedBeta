@@ -327,6 +327,11 @@ public class GameIO {
             report.recordRaceCleanup(race.getName(), removed);
         }
 
+        java.util.ArrayList<Heritage> heritages = game.getObjectArray("heritages");
+        for (Heritage heritage : heritages) {
+            heritage.cleanupOrphanedReferences(validRaceIds, validSkillIds);
+        }
+
         // Clean up one-time background package references.
         java.util.ArrayList<Background> backgrounds = game.getObjectArray("backgrounds");
         for (Background background : backgrounds) {

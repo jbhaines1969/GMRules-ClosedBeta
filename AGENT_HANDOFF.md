@@ -1,9 +1,9 @@
 # GMRules Closed Beta Agent Handoff
 
-Updated: 2026-09-06
+Updated: 2026-09-07
 Repo root: `C:\Users\John\IdeaProjects\GMRules-ClosedBeta`
 
-This is the primary recovery document for the next session. Read `AGENTS.md`, `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `PRODUCT_DESIGN_CONTEXT.md`, and local `USER.md` before editing. Inspect `git status --short`. John confirmed on 2026-09-06 that he committed and pushed the prior feature batch through IDEA after the last session; the worktree was clean before this documentation update.
+This is the primary recovery document for the next session. Read `AGENTS.md`, `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `PRODUCT_DESIGN_CONTEXT.md`, and local `USER.md` before editing. Inspect `git status --short`. John confirmed on 2026-09-06 that he committed and pushed the prior feature batch through IDEA; the worktree was clean before the current PF2e conversion batch began.
 
 Governing architecture rule: core is the only executable authority for rules and
 mechanics. Descendant applications are purpose-specific UIs, automators, bridges,
@@ -108,6 +108,89 @@ must be demonstrable through core contracts without consumer interpretation.
 
 ## Resume Here: Contract-Driven Character-to-Combat PoC
 
+### PF2e Level-One Provisional Conversion Verified (2026-09-07)
+
+John approved a first conversion batch limited to level-one Character Generation
+plus direct ORC dependencies, and approved a first-class core `Action` model rather
+than collapsing actions into `Skill`. The interrupted implementation has now been
+regenerated and verified. Do not restart the design audit or mark the two-ruleset
+prerequisite complete; resume with the second conversion/source decision.
+
+Current uncommitted implementation:
+
+- New core `CatalogMetadata`, `GameLicenseNotice`, and `GameDiagnostic` types retain
+  typed element provenance, structured distribution notices, and explicit
+  provisional/unsupported capability diagnostics without preserving or exposing
+  the Foundry rules DSL.
+- New core `Action extends GameElement` and `Heritage extends GameElement` types are
+  registered through new `ElementRegistryKey.ACTIONS` and `.HERITAGES` registries.
+  `Action` has a future-facing core mechanic-key association collection; no action
+  execution was invented in this batch.
+- `Game` now serializes the new registries, license notices, and catalog diagnostics,
+  and exposes `registerElement(...)` as the core registration boundary. Legacy Game
+  deserialization initializes all new state.
+- `GameElement` now serializes defensive `CatalogMetadata` and normalizes it when
+  older element streams are loaded.
+- `GMRCharacter.ConstructionInput` now accepts an optional Heritage ID. Core resolves
+  it, snapshots the actual `Heritage`, distinguishes absence from invalid identity,
+  and rejects a restricted Heritage paired with the wrong Race/Ancestry through an
+  explicit `INVALID_SELECTION` diagnostic.
+- New reactor module `gmrules-json-converter` contains the permanent offline
+  `FoundryPf2eLevelOneConverter`, report, and CLI. It reads ignored local
+  `games/pf2e`, accepts exact `system.publication.license == ORC`, excludes OGL and
+  unknown licenses, uses Foundry IDs only in a transient source-to-core join map,
+  creates new core identities, selects level-one seeds, traverses non-description
+  mechanical references, and writes only to ignored `target/generated-games/`.
+- Converter mappings currently produce Race, Heritage, Background, CharacterClass,
+  Skill categories/types, Action, Spell, Weapon, Armor, Equipment, Deity, Status,
+  six Attributes, and the standard PF2e Skills. Foundry rule-element keys are retained
+  only as unsupported-type diagnostics on element metadata; consumers must not run
+  them.
+- Focused ignored local tests were added at
+  `gmrules-core/src/test/java/com/gamemaker/gmrules/ActionHeritageLocalTest.java` and
+  `gmrules-json-converter/src/test/java/com/gamemaker/gmrules/converter/FoundryLevelOneConversionLocalTest.java`.
+
+Final verified checkpoint:
+
+- Full `mvn test` and `mvn package` passed 132 tests: 38 core local, one converter local, 61 Attack
+  audit, eight combat PoC, and 24 builder local tests.
+- The regenerated target artifact contains 31 Races, 198 Heritages, 232 Backgrounds,
+  28 Classes, 1,151 Skills, 482 Actions, 402 Spells, 237 Weapons, 50 Armor entries,
+  486 Equipment entries, 447 Deities, and six Attributes. The scan excluded 5,340
+  OGL records and found zero missing/unknown licenses.
+
+- Seven ORC Heritages (Dijiang, Gandharva, Kanchil, Leungli, Palace Echoes Kitsune,
+  Shimmertongue Nagaji, and Tsukumogami Poppet) reference OGL-only Ancestries. The
+  converter now omits them rather than leaving invalid relationships and emits
+  `OMITTED_HERITAGE_ANCESTRY` warnings. Expected Heritage count is 198.
+- Level-one class item grants now resolve to core Skill IDs through
+  `CharacterClass.automaticSkillsPerLevel`; Background trained Skills and granted
+  feats resolve through `Background.backgroundSkillIds`; Ancestry features resolve
+  through `Race.racialSkills`; and Heritage `GrantItem` rules resolve through
+  `Heritage.grantedSkillIds`.
+- Foundry UUID references may contain source IDs or display names. Registration now
+  creates transient lookup aliases for both forms. The duplicate class-feature
+  wrapper `Shield Block` aliases to the actual Feat Skill instead of creating a
+  second Skill. The local converter test now asserts Champion receives that actual
+  Skill ID and that the final Game has no ERROR diagnostics.
+- The generated Game reports ten warnings: the duplicate `Shield Block`, the seven
+  omitted Heritages, the provisional level-one scope, and unsupported Foundry rule
+  elements. It reports no ERROR diagnostics. `git diff --check` passes.
+
+Resume with the still-unchecked Pre-A2 prerequisite: confirm the second ruleset
+source with John, implement and verify that conversion, and leave the prerequisite
+unchecked until John explicitly confirms both conversions are finished. Then start
+A2.1, select the third demonstration Game, build the support matrix, and choose the
+first complete delivery boundary.
+
+The entire local `games/` tree is ignored and must never be added to Git. It contains
+conversion inputs and reference checkouts that may mix redistributable and licensed
+content. Generated conversion output remains under ignored `target/generated-games/`.
+
+No server was started. The Java process left by the interrupted Maven run was
+stopped before this checkpoint. The local Foundry directory remains ignored and
+must never be added to Git. Do not overwrite any user/runtime `.gmrf` or `.gmcf`.
+
 John's immediate priority is complete core-owned Character Generation and a usable
 character file, followed by the action-sequence consumer. Revised `CharGenPlan.md`
 defines four gates: resumable session foundation, first complete Game, three-system
@@ -130,10 +213,42 @@ core character/session persistence contract exists, object imports lack the
 `GameIO` deserialization filter, and object-to-lightweight conversion cannot restore
 draft-only Skill-point configuration or starting-money method. Its published A1
 findings are now the concise ownership map, 12 dependency/authority violations,
-compatibility map, and ordered core migration set. Resume at A2.1 by asking John to
-select or confirm the three materially different milestone Games; this is a
-meaningful product/architecture decision and must not be inferred. Then build the
-support matrix and choose the first complete delivery boundary in plan order.
+compatibility map, and ordered core migration set. Resume at the added single
+Pre-A2 data prerequisite in `TODO.md`: convert both JSON rulesets to `.gmrf`, and
+do not mark it complete until John explicitly confirms both conversions are
+finished. The full LoreKit 0.1.0 audit is preserved in
+`JSON_to_gmrf_OpenQuestions.md`. The standalone PF2e JSON is byte-identical to the
+PF2e system pack. Contrary to the initial hypothesis, the PF2e plugin has no hidden
+Python option definitions; generic Cruncher recalculates caller-supplied state and
+does not execute the class `features` or `choices` arrays as Character Generation.
+Fifteen level-1 class-choice families and most symbolic features lack definitions.
+The complete PF2ools checkout does not fill that gap: its generated datatype index
+has backgrounds and support records but no classes, ancestries, heritages, feats,
+spells, or equipment; only six records, all backgrounds, are from its sole
+ORC-identified source. Its scripts only index and bundle existing data. John has
+now supplied the complete Foundry PF2e packs under ignored `games/`; never add that
+local source tree to Git because it mixes redistributable and licensed content. Each
+object is expected to identify its license at `system.publication.license`. Analyze
+the packs by accepting only records explicitly marked `ORC` and ignoring records
+marked `OGL`; treat missing, blank, or unknown license values as excluded with an
+explicit diagnostic. Do not infer permission from a pack, source, directory, or
+related record. The completed first converter batch uses the scoped source plan in
+`FoundryCharGenFolderPlan.md`, follows ORC-only references, and excludes unrelated
+bestiaries, pregens, macros, and campaign content. The Foundry `class-features/`
+records supplied the fifteen choice families absent from LoreKit, including Hunter's
+Edge candidates and Patron.
+John designated ORC Foundry records as authoritative over conflicting LoreKit
+catalog/progression data. The scoped scan found 12,479 ORC definition records and
+1,561 ORC support records, with no missing license fields. Foundry resolves the
+background feats and Remaster class options. The converter uses Foundry's Champion
+progression rather than LoreKit's legacy `Divine Ally` requirement. John selected,
+and the implementation preserves, an explicitly provisional level-one catalog with
+resolved core object relationships, unsupported-capability diagnostics, and no
+claim of automated legal Character Generation. Higher-level-only content remains
+deferred, and no consumer may execute or interpret Foundry rule elements.
+After both conversions, resume A2.1, select the third materially different milestone Game,
+build the support matrix, and choose the first complete delivery boundary in plan
+order.
 Establish revision binding, contributions/dependencies, persistence, documentation,
 and consumer tests early. Sessions retain their original Game revision; migration
 requires explicit core revalidation. Defer new UI work until core proof, then

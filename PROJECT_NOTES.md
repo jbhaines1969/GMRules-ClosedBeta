@@ -1,6 +1,6 @@
 # GMRules Closed Beta Project Notes
 
-Updated: 2026-09-06
+Updated: 2026-09-07
 
 ## Current Status
 
@@ -77,8 +77,74 @@ remain unvalidated evidence rather than an exact revision binding. No production
 API or mechanics migration was implemented. The published A1 findings now
 provide the authoritative ownership map, 12 dependency/authority violations, the
 compatibility map, and the ordered core migration set through the three-Game proof
-and later presenter work. Resume at A2.1 by selecting the three materially
-different milestone Games with John; do not infer that product choice.
+and later presenter work. Before A2.1, one added data prerequisite tracks converting
+both of John's JSON rulesets into `.gmrf`. It remains one unchecked item until John
+explicitly confirms both conversions are finished; then resume A2.1 and select the
+third materially different milestone Game. The full LoreKit 0.1.0 repository audit
+is recorded in `JSON_to_gmrf_OpenQuestions.md`. The standalone PF2e JSON is identical
+to LoreKit's PF2e pack, but the PF2e plugin has no hidden Python option definitions:
+Cruncher generically recalculates caller-supplied state and does not consume class
+`features` or `choices` as an authoritative generation workflow. Fifteen level-1
+class-choice families and most symbolic class features lack supplied definitions.
+The complete PF2ools checkout was also audited. Its scripts only index and bundle
+existing data, and its current datatype index contains backgrounds and support
+records but no classes, ancestries, heritages, feats, spells, or equipment. Only
+six records, all backgrounds, belong to its sole ORC-identified source; most content
+is legacy OGL-era material under source-specific metadata and the repository's
+stated Community Use boundary. It does not fill any missing class-choice family.
+John supplied the complete Foundry PF2e packs locally under ignored `games/`.
+They are analysis input only and must remain excluded from Git because the packs
+mix redistributable and licensed content. Every pack object is expected to declare
+its license at metadata path `system.publication.license`. The conversion source
+filter may include only objects explicitly marked `ORC`; it must ignore objects
+marked `OGL`. Missing, blank, or unrecognized license values must fail closed with
+diagnostics rather than being inferred from a neighboring record, pack, or source.
+Use the Foundry data to resolve the incomplete LoreKit class-choice catalogs, but
+preserve only permitted object data in conversion outputs and manifests. LoreKit's
+materially different MM3e/OGL pack remains the likely second ruleset pending confirmation.
+`FoundryCharGenFolderPlan.md` records the initial ORC-only source scope. Required
+definition packs are ancestries, ancestry features, heritages, backgrounds,
+classes, class features, feats, equipment, spells, deities, familiar abilities,
+and actions. Conditions and effect packs are reference-driven only; bestiaries,
+pregens, macros, and campaign/scenario content are excluded from the initial pass.
+Folder indexes, filenames, and one schema sample per candidate pack confirm that
+`class-features/` contains the option families missing from LoreKit.
+John designated ORC Foundry records as authoritative over conflicting LoreKit
+catalog and progression data. The full scoped license scan found 12,479 ORC
+definition records and 1,561 ORC support records with no missing license fields.
+Foundry resolves the absent background feats and Remaster option families. In
+particular, use the Foundry Champion's level-3 `Blessing of the Devoted`; discard
+LoreKit's inconsistent legacy `Divine Ally` requirement. The source still uses 34
+Foundry rule-element operations that core cannot currently execute.
+John chose the provisional-catalog-first boundary. The initial `.gmrf` may support
+human-guided paper-and-dice Character Generation with permitted catalogs and
+resolved object relationships while core reports unsupported automation and
+incomplete legality explicitly. Consumers must not interpret Foundry rule elements;
+mechanics move behind core contracts in later Character Generation steps.
+The first conversion batch is limited to level-1 creation and direct ORC
+dependencies. Higher-level-only content is deferred so implementation and review
+remain in small, usage-conscious batches.
+
+The first PF2e conversion batch is now implemented in the permanent offline
+`gmrules-json-converter` module. Core adds typed catalog provenance, distribution
+notices, catalog diagnostics, first-class `Action` and `Heritage` elements, their
+registries, and optional Heritage construction/ancestry validation. The converter
+accepts only exact ORC records, creates fresh core identities, uses Foundry IDs and
+names only in transient joins, resolves level-one ancestry, heritage, background,
+and class grants to core objects, and writes generated `.gmrf` files only under
+ignored `target/generated-games/`. Foundry rule elements remain diagnostic metadata;
+neither core consumers nor the artifact execute the Foundry rules DSL.
+
+Verification on 2026-09-07 passed full `mvn test` and `mvn package` with 132 tests.
+The regenerated provisional artifact contains 31 Races, 198 Heritages, 232
+Backgrounds, 28 Classes, 1,151 Skills, 482 Actions, 402 Spells, 237 Weapons, 50
+Armor entries, 486 Equipment entries, 447 Deities, and six Attributes. It excludes
+5,340 OGL records, finds zero unknown-license records, has no ERROR diagnostics,
+omits seven ORC Heritages whose required Ancestries are OGL-only, and aliases the
+duplicate class-feature `Shield Block` wrapper to the actual Feat Skill used by
+Champion. `git diff --check` passes. The two-ruleset prerequisite remains unchecked
+because the second conversion and John's explicit completion confirmation remain
+outstanding.
 
 This is a universal, transport-neutral platform boundary, not a rule limited to
 Character Generation or Combat. A consumer may access the loaded `Game`

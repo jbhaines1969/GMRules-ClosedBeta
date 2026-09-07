@@ -1,6 +1,6 @@
 # GMRules Closed Beta Deploy Structure
 
-Updated: 2026-09-06
+Updated: 2026-09-07
 
 This file is the deploy-release filesystem map for `GMRules-ClosedBeta`.
 Update it whenever tracked files or deploy-relevant directories are added, removed, or moved. Its purpose is to let agents find known paths from this document before falling back to repository searches.
@@ -27,6 +27,8 @@ GMRules-ClosedBeta/
 |-- AGENT_HANDOFF.md
 |-- CharGenAudit.md
 |-- CharGenPlan.md
+|-- FoundryCharGenFolderPlan.md
+|-- JSON_to_gmrf_OpenQuestions.md
 |-- OpenQuestions.md
 |-- PROJECT_NOTES.md
 |-- PRODUCT_DESIGN_CONTEXT.md
@@ -34,6 +36,7 @@ GMRules-ClosedBeta/
 |-- TODO.md
 |-- deploy.sh
 |-- docs/
+|-- games/
 |-- generate-combat-poc-rulesets.ps1
 |-- spreadsheet-schema/
 |-- makebackup.sh
@@ -41,16 +44,40 @@ GMRules-ClosedBeta/
 |-- restore.sh
 |-- run-combat-poc.ps1
 |-- gmrules-core/
+|-- gmrules-json-converter/
 |-- gmrules-attack-resolution-audit/
 |-- gmrules-combat-poc/
 `-- gmrules-builder/
 ```
+
+## Imported Ruleset References
+
+The entire `games/` tree is local conversion/reference input and is ignored by Git.
+It appears here only so future agents can identify the expected local sources.
+
+```text
+games/
+|-- Pathfinder JSON/ # Standalone PF2e Remaster JSON set supplied for conversion analysis.
+|-- Pathfinder_Pf2ools/
+|   `-- pf2ools-data-master/ # Complete PF2ools data checkout; incomplete catalogs plus indexes, bundles, scripts, and license files.
+`-- lorekit-0.1.0/   # Full LoreKit 0.1.0 reference repository, including generic Cruncher and PF2e/MM3e system packs.
+```
+
+The standalone Pathfinder JSON files are byte-for-byte identical to LoreKit's
+`systems/pf2e/src/cruncher_pf2e/data/` content. LoreKit is conversion evidence,
+not a runtime dependency or an architecture to copy. Its root/Cruncher software
+is Apache-2.0, its PF2e pack carries separate ORC notices, and its MM3e pack
+carries separate OGL 1.0a terms. The PF2ools checkout is a separate, incomplete
+data source: its current index has backgrounds and support records but no classes,
+ancestries, heritages, feats, spells, or equipment; preserve its per-source
+license metadata if any records are later selected.
 
 ## Maven Modules
 
 ```text
 pom.xml
 |-- module: gmrules-core
+|-- module: gmrules-json-converter
 |-- module: gmrules-attack-resolution-audit
 |-- module: gmrules-combat-poc
 `-- module: gmrules-builder
@@ -61,6 +88,23 @@ pom.xml
 - Builder package target: `target/gmrules-app.jar` after `mvn package`
 - Web main class: `com.gamemaker.gmrules.web.WebMain`
 - Combat PoC package target: `target/gmrules-combat-poc.jar` after `mvn package`
+
+### JSON Converter
+
+```text
+gmrules-json-converter/
+|-- pom.xml
+`-- src/main/java/com/gamemaker/gmrules/converter/
+    |-- FoundryConversionMain.java
+    |-- FoundryConversionReport.java
+    `-- FoundryPf2eLevelOneConverter.java
+```
+
+This permanent offline module converts the ignored local Foundry PF2e source into
+an explicitly provisional level-one ORC-only `.gmrf` catalog under
+`target/generated-games/`. It fails closed on license metadata and records
+unsupported Foundry rule-element types as diagnostics rather than exposing a rules
+DSL to consumers.
 
 ### Attack Resolution Consumer Audit
 
@@ -127,6 +171,7 @@ AGENTS.md           # Operating instructions for future agents.
 AGENT_HANDOFF.md    # Current handoff snapshot for recovery/continuation.
 CharGenAudit.md     # Durable Phase A inventory and audit evidence for the core-owned Character Generation migration.
 CharGenPlan.md      # Prompt-sized core-first plan for a fully contract-driven Character Generation boundary.
+JSON_to_gmrf_OpenQuestions.md # Questions to resolve before planning core refactors and JSON-to-.gmrf translation rules.
 OpenQuestions.md    # Nonbinding design questions and unsettled options under active consideration.
 PROJECT_STRUCTURE.md
 docs/                  # Operational runbooks for deploy and server-side configuration.
@@ -193,13 +238,16 @@ gmrules-core/
 `-- src/main/java/com/gamemaker/gmrules/
     |-- ApplicationNotes.java
     |-- ArrayHandler.java
+    |-- CatalogMetadata.java
     |-- CleanupReport.java
     |-- DiceSpec.java
     |-- ElementRegistry.java
     |-- ElementRegistryKey.java
     |-- Game.java
+    |-- GameDiagnostic.java
     |-- GameElement.java
     |-- GameIO.java
+    |-- GameLicenseNotice.java
     |-- GameSaveIO.java
     |-- GMRCharacter.java
     |-- AtomicElements/
@@ -214,13 +262,16 @@ gmrules-core/
 ```text
 ApplicationNotes.java
 ArrayHandler.java
+CatalogMetadata.java
 CleanupReport.java
 DiceSpec.java
 ElementRegistry.java
 ElementRegistryKey.java
 Game.java
+GameDiagnostic.java
 GameElement.java
 GameIO.java
+GameLicenseNotice.java
 GameSaveIO.java
 GMRCharacter.java
 ```
@@ -267,6 +318,7 @@ CharacterElements/
 |-- Background.java
 |-- CharacterClass.java
 |-- Flaw.java
+|-- Heritage.java
 |-- Race.java
 `-- Skill.java
 ```
@@ -275,6 +327,7 @@ CharacterElements/
 
 ```text
 GameElements/
+|-- Action.java
 |-- Armor.java
 |-- Creature.java
 |-- Currency.java

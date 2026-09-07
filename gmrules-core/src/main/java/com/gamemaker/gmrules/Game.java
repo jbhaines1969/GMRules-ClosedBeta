@@ -59,6 +59,8 @@ public class Game extends GameElement {
     private Map<String, String> systemNames = new HashMap<>();
     private Map<String, String> mechanicDescriptions = new LinkedHashMap<>();
     private Map<String, Integer> timeUnits = new LinkedHashMap<>();
+    private ArrayList<GameLicenseNotice> licenseNotices = new ArrayList<>();
+    private ArrayList<GameDiagnostic> catalogDiagnostics = new ArrayList<>();
     private String startingMoneyMethod = "base";
     private int baseStartingMoney = 0;
     private String startingMoneyCurrencyId = "";
@@ -172,6 +174,8 @@ public class Game extends GameElement {
         arrayRegistry.put("characterClasses", getElementRegistry(ElementRegistryKey.CHARACTER_CLASSES).getMutableItems());
         arrayRegistry.put("backgrounds", getElementRegistry(ElementRegistryKey.BACKGROUNDS).getMutableItems());
         arrayRegistry.put("races", getElementRegistry(ElementRegistryKey.RACES).getMutableItems());
+        arrayRegistry.put("heritages", getElementRegistry(ElementRegistryKey.HERITAGES).getMutableItems());
+        arrayRegistry.put("actions", getElementRegistry(ElementRegistryKey.ACTIONS).getMutableItems());
         arrayRegistry.put("advantages", getElementRegistry(ElementRegistryKey.ADVANTAGES).getMutableItems());
         arrayRegistry.put("flaws", getElementRegistry(ElementRegistryKey.FLAWS).getMutableItems());
         arrayRegistry.put("creatures", getElementRegistry(ElementRegistryKey.CREATURES).getMutableItems());
@@ -226,6 +230,8 @@ public class Game extends GameElement {
         registerElementRegistry(ElementRegistryKey.CHARACTER_CLASSES, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.BACKGROUNDS, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.RACES, new ElementRegistry<>());
+        registerElementRegistry(ElementRegistryKey.HERITAGES, new ElementRegistry<>());
+        registerElementRegistry(ElementRegistryKey.ACTIONS, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.ADVANTAGES, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.FLAWS, new ElementRegistry<>());
         registerElementRegistry(ElementRegistryKey.CREATURES, new ElementRegistry<>());
@@ -310,6 +316,36 @@ public class Game extends GameElement {
     private void registerElementRegistry(ElementRegistryKey<?> key, ElementRegistry<? extends GameElement> registry) {
         elementRegistries.put(key, registry);
         elementRegistryByName.put(key.getName(), key);
+    }
+
+    public <T extends GameElement> boolean registerElement(ElementRegistryKey<T> key, T element) {
+        T safeElement = Objects.requireNonNull(element, "element");
+        if (!key.getType().isInstance(safeElement)) {
+            throw new IllegalArgumentException("Element is not a " + key.getType().getSimpleName());
+        }
+        boolean added = getElementRegistry(key).add(safeElement);
+        if (added) updateLastModified();
+        return added;
+    }
+
+    public List<GameLicenseNotice> getLicenseNotices() {
+        ArrayList<GameLicenseNotice> copies = new ArrayList<>();
+        for (GameLicenseNotice notice : licenseNotices) copies.add(new GameLicenseNotice(notice));
+        return List.copyOf(copies);
+    }
+
+    public void setLicenseNotices(Collection<GameLicenseNotice> values) {
+        licenseNotices = new ArrayList<>();
+        for (GameLicenseNotice value : Objects.requireNonNullElse(values, List.<GameLicenseNotice>of())) {
+            licenseNotices.add(new GameLicenseNotice(value));
+        }
+        updateLastModified();
+    }
+
+    public List<GameDiagnostic> getCatalogDiagnostics() { return List.copyOf(catalogDiagnostics); }
+    public void setCatalogDiagnostics(Collection<GameDiagnostic> values) {
+        catalogDiagnostics = new ArrayList<>(Objects.requireNonNullElse(values, List.of()));
+        updateLastModified();
     }
 
     private void ensureElementRegistry(ElementRegistryKey<?> key) {
@@ -1457,6 +1493,8 @@ public class Game extends GameElement {
         ensureElementRegistry(ElementRegistryKey.CHARACTER_CLASSES);
         ensureElementRegistry(ElementRegistryKey.BACKGROUNDS);
         ensureElementRegistry(ElementRegistryKey.RACES);
+        ensureElementRegistry(ElementRegistryKey.HERITAGES);
+        ensureElementRegistry(ElementRegistryKey.ACTIONS);
         ensureElementRegistry(ElementRegistryKey.ADVANTAGES);
         ensureElementRegistry(ElementRegistryKey.FLAWS);
         ensureElementRegistry(ElementRegistryKey.CREATURES);
@@ -1476,6 +1514,8 @@ public class Game extends GameElement {
         if (completedStages == null) {
             completedStages = new ArrayList<>();
         }
+        if (licenseNotices == null) licenseNotices = new ArrayList<>();
+        if (catalogDiagnostics == null) catalogDiagnostics = new ArrayList<>();
         if (classStartingMoney == null) {
             classStartingMoney = new LinkedHashMap<>();
         }

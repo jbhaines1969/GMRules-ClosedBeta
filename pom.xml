@@ -15,6 +15,7 @@
 
   <modules>
     <module>gmrules-core</module>
+    <module>gmrules-json-converter</module>
     <module>gmrules-attack-resolution-audit</module>
     <module>gmrules-combat-poc</module>
     <module>gmrules-builder</module>

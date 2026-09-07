@@ -1,6 +1,6 @@
 # Contract-Driven Character Generation Plan
 
-Updated: 2026-09-06
+Updated: 2026-09-07
 
 ## Outcome And Delivery Gates
 
@@ -619,7 +619,12 @@ usable Character Generation; action-sequence execution remains the next mileston
 
 ## Execution Discipline And Resume Point
 
-Start at Phase A step 1, then settle the matrix and first delivery boundary.
+Phase A step 1 is complete in `CharGenAudit.md`. Resume at the single Pre-A2 data
+prerequisite in `TODO.md`: finish both JSON-to-`.gmrf` conversions and obtain
+John's explicit confirmation before marking that prerequisite complete. The first
+PF2e level-one provisional catalog batch is implemented and verified; the second
+ruleset conversion remains unresolved. Then continue with Phase A step 2 to select
+the three Games, build the support matrix, and choose the first delivery boundary.
 Execute one numbered substep per implementation prompt unless a prompt explicitly
 groups them. Each prompt identifies inputs, scope, acceptance evidence,
 compatibility obligations, and unresolved decisions. These packages do not

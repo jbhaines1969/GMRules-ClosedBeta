@@ -1,6 +1,6 @@
 # GMRules Closed Beta TODO
 
-Updated: 2026-09-06
+Updated: 2026-09-07
 
 ## Beta Launch Blockers
 
@@ -97,6 +97,12 @@ is verified.
 - [x] A1.3 Audit object ownership and isolation.
 - [x] A1.4 Audit persistence and migration.
 - [x] A1.5 Publish the audit findings.
+- [ ] Pre-A2 data prerequisite: convert both JSON rulesets to `.gmrf`; leave this single item unchecked until John explicitly confirms both conversions are finished.
+  The first PF2e batch is implemented and verified as an explicitly provisional,
+  level-one ORC-only catalog with resolved core object relationships and typed
+  unsupported-capability diagnostics. It is not complete legal Character Generation.
+  The second ruleset conversion remains pending; LoreKit's MM3e/OGL pack is still
+  the candidate until John confirms the source and both conversions are finished.
 - [ ] A2.1 Select the demonstration Games.
 - [ ] A2.2 Build the support matrix.
 - [ ] A2.3 Choose the first complete Game.

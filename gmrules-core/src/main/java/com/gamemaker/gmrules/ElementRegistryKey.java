@@ -15,8 +15,10 @@ import com.gamemaker.gmrules.CharacterElements.Background;
 import com.gamemaker.gmrules.CharacterElements.CharacterClass;
 import com.gamemaker.gmrules.CharacterElements.Flaw;
 import com.gamemaker.gmrules.CharacterElements.Race;
+import com.gamemaker.gmrules.CharacterElements.Heritage;
 import com.gamemaker.gmrules.CharacterElements.Skill;
 import com.gamemaker.gmrules.GameElements.Armor;
+import com.gamemaker.gmrules.GameElements.Action;
 import com.gamemaker.gmrules.GameElements.Creature;
 import com.gamemaker.gmrules.GameElements.Currency;
 import com.gamemaker.gmrules.GameElements.DamageType;
@@ -62,6 +64,10 @@ public final class ElementRegistryKey<T extends GameElement> implements Serializ
         new ElementRegistryKey<>("backgrounds", Background.class, ElementRegistry::new);
     public static final ElementRegistryKey<Race> RACES =
         new ElementRegistryKey<>("races", Race.class, ElementRegistry::new);
+    public static final ElementRegistryKey<Heritage> HERITAGES =
+        new ElementRegistryKey<>("heritages", Heritage.class, ElementRegistry::new);
+    public static final ElementRegistryKey<Action> ACTIONS =
+        new ElementRegistryKey<>("actions", Action.class, ElementRegistry::new);
     public static final ElementRegistryKey<Advantage> ADVANTAGES =
         new ElementRegistryKey<>("advantages", Advantage.class, ElementRegistry::new);
     public static final ElementRegistryKey<Flaw> FLAWS =
@@ -125,6 +131,8 @@ public final class ElementRegistryKey<T extends GameElement> implements Serializ
         registerKey(keys, CHARACTER_CLASSES);
         registerKey(keys, BACKGROUNDS);
         registerKey(keys, RACES);
+        registerKey(keys, HERITAGES);
+        registerKey(keys, ACTIONS);
         registerKey(keys, ADVANTAGES);
         registerKey(keys, FLAWS);
         registerKey(keys, CREATURES);

@@ -10,6 +10,8 @@
 package com.gamemaker.gmrules;
 
 import java.io.Serializable;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -29,6 +31,7 @@ public abstract class GameElement implements Serializable {
     protected String name = "";
     protected String systemName = "";
     protected String description = "";
+    private CatalogMetadata catalogMetadata = new CatalogMetadata();
 
     // *** CONSTRUCTORS ***
     /**
@@ -82,6 +85,14 @@ public abstract class GameElement implements Serializable {
         this.description = Objects.toString(description, "");
     }
 
+    public CatalogMetadata getCatalogMetadata() {
+        return new CatalogMetadata(catalogMetadata);
+    }
+
+    public void setCatalogMetadata(CatalogMetadata value) {
+        catalogMetadata = new CatalogMetadata(value);
+    }
+
     /**
      * Returns the display name for dropdown selectors and UI components.
      * This method can be overridden by subclasses to provide custom display logic.
@@ -116,5 +127,14 @@ public abstract class GameElement implements Serializable {
     public String toString() {
         return String.format("%s{id='%s', name='%s'}",
             getClass().getSimpleName(), id, name);
+    }
+
+    private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
+        stream.defaultReadObject();
+        id = Objects.toString(id, "");
+        name = Objects.toString(name, "");
+        systemName = Objects.toString(systemName, "");
+        description = Objects.toString(description, "");
+        catalogMetadata = new CatalogMetadata(catalogMetadata);
     }
 }
