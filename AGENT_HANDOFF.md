@@ -108,12 +108,16 @@ must be demonstrable through core contracts without consumer interpretation.
 
 ## Resume Here: Contract-Driven Character-to-Combat PoC
 
-John directed on 2026-09-06 that new Character Generator UI work stop until core
-is independently authoritative. `CharGenPlan.md` is the implementation sequence:
-short, single-prompt steps that move workflow, decisions, legality, application,
-derived values, persistence, and completion into core before any replacement UI
-is designed. Start with its inventory and three-system support-matrix steps, then
-follow it in order unless John redirects.
+John's immediate priority is complete core-owned Character Generation and a usable
+character file, followed by the action-sequence consumer. Revised `CharGenPlan.md`
+defines four gates: resumable session foundation, first complete Game, three-system
+proof, and product presenter. Start at Phase A step 1 by auditing the existing
+`GMRCharacter` and consumer, then select three Games and the first delivery boundary.
+Establish revision binding, contributions/dependencies, persistence, documentation,
+and consumer tests early. Sessions retain their original Game revision; migration
+requires explicit core revalidation. Defer new UI work until core proof, then
+choose adaptation or replacement from the audit; replacement is not mandatory.
+The broader funding milestone below remains in place.
 
 John clarified the near-term partner/funding goal on 2026-09-02. The target is
 not independent completion of the existing Character Generator and Attack
@@ -552,18 +556,15 @@ The richer external `gmrules-character` project remains reference-only unless Jo
 ## Current Priority Order
 
 The remaining unsettled options in `OpenQuestions.md` stay nonbinding. Continue in
-this order:
+this order, using `CharGenPlan.md` for the immediate chargen delivery sequence:
 
-1. Select at least three materially different demonstration combat systems and
-   record the complete character/combat support matrix for each.
-2. Audit current Character Generator and combat consumers against the loaded-Game
-   boundary. Record every formula, validation rule, eligibility decision, and
-   state transition that still lives outside core; do not patch consumer formulas.
-3. Define and verify the combat-ready Character Generation contract, beginning
-   with a tracked downstream Attribute Generation audit, then the deferred
-   creator-owned Race/Class requirement-repair policy, followed by Class, Skill,
-   equipment, weapon, armor, health, resources, and
-   Defense consequences required by the selected systems.
+1. Audit existing core/consumer character state; select three demonstration Games
+   and the first complete delivery boundary.
+2. Prove the generation session foundation with revision binding, contribution
+   and dependency semantics, persistence, and an early core-only consumer audit.
+3. Complete and round-trip the first Game's legal character, expand to two per
+   Game across three systems, then deliver the presenter through adaptation or
+   replacement after core proof.
 4. Complete the Attack and Damage contracts required by the matrix, preserving
    distinct calculation, mitigation, harm, and defeat stages plus every raw and
    derived output consumers may need.

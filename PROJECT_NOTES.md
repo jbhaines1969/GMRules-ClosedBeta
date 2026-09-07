@@ -397,9 +397,14 @@ UX and copy:
 
 ## Current Development Priority
 
-The product priority is the **Contract-Driven Character-to-Combat PoC**. It is an
-end-to-end architecture demonstration for prospective partners and funding, not
-a request to finish the current consumer screens one by one.
+The immediate product priority is complete core-owned Character Generation and a
+usable character file, followed by the action-sequence consumer. `CharGenPlan.md`
+defines four gates: resumable session foundation, first complete Game, three-system
+proof, and product presenter. Revision binding, contributions/dependencies,
+persistence, documentation, and core-only consumer tests begin in the foundation.
+Sessions retain their original Game revision; migration/revalidation is explicit.
+UI adaptation or replacement follows core proof and is chosen from the audit.
+The **Contract-Driven Character-to-Combat PoC** remains the broader funding goal.
 
 The proof begins with a `.gmrf` Game and player/runtime choices. Core must produce
 two combat-ready characters and run their combat from start through a
@@ -427,18 +432,14 @@ UX and contract probes but may be rebuilt rather than preserved.
 
 ## Best Path Forward
 
-1. Select the three demonstration systems and write the mechanical support
-   matrix. This prevents core contracts from being designed around only one
-   familiar combat model.
+1. Follow Phase A of `CharGenPlan.md`: audit the existing core/consumer character
+   state, select three systems and the first delivery, and prove the foundation.
 
-2. Audit the present consumers and define the public contract boundaries before
-   expanding either UI. Treat every formula, eligibility rule, validation rule,
-   and state transition found in a consumer as a candidate core responsibility.
+2. Complete and round-trip the first Game's legal character through the core-only
+   controller, growing dependency, persistence, and rejection tests throughout.
 
-3. Complete combat-ready Character Generation in core. Preserve the working
-   Attribute Generation gate, add a tracked core-only downstream audit, and move
-   race/Background/Class/Skill/equipment/weapon/armor/health/resource/Defense
-   consequences behind public contracts.
+3. Expand to two characters per Game across three systems, then adapt or replace
+   the web presenter without consumer mechanics.
 
 4. Complete Attack and Damage Resolution in core. Close the support-matrix gaps,
    preserve all named/raw/derived outputs required downstream, and implement

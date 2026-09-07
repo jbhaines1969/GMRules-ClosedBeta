@@ -78,10 +78,13 @@ they are outside this milestone unless a selected PoC system requires them.
 
 ### 2. Complete Combat-Ready Character Generation in Core
 
-Follow `CharGenPlan.md` as the prompt-sized implementation sequence. Freeze the
-existing Character Generator UI as migration evidence; do not repair or expand it
-before core independently owns workflow, decisions, legality, application,
-derived values, persistence, validation, and completion.
+Follow `CharGenPlan.md`: prove a resumable core session with an early dumb consumer,
+complete one Game end to end, expand across three systems, then deliver the product
+presenter. Establish revision binding, contributions/dependencies, persistence,
+and tests early. Defer new chargen UI work until the relevant core contract is
+proven; adaptation or replacement is an audit-based choice, not a mandatory rewrite.
+The matrix is an early design input; the first complete character is the immediate
+delivery target.
 
 - [x] Establish core `GMRCharacter` ownership with stable character/source
   identity, actual snapshotted core element objects, a core construction input,
