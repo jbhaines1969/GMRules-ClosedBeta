@@ -111,12 +111,29 @@ must be demonstrable through core contracts without consumer interpretation.
 John's immediate priority is complete core-owned Character Generation and a usable
 character file, followed by the action-sequence consumer. Revised `CharGenPlan.md`
 defines four gates: resumable session foundation, first complete Game, three-system
-proof, and product presenter. Phase A step A1.1 is complete in `CharGenAudit.md`.
-It inventories current core operations, `GMRCharacter` construction, builder and
-web adapters, browser stages, persistence paths, and verification entry points.
-Resume at A1.2 by classifying the recorded responsibilities; do not begin migration
-implementation in that step. After the five audit substeps, select three Games and
-the first delivery boundary.
+proof, and product presenter. Phase A step A1 (A1.1 through A1.5) is complete in
+`CharGenAudit.md`. The file inventories current core operations, `GMRCharacter`
+construction, builder/web adapters, browser stages, persistence, and verification,
+then classifies every responsibility by current and required owner. It records 16
+explicit builder/browser mechanics that must eventually move behind core contracts;
+no migration was implemented. A1.3 confirms write-boundary snapshot isolation and
+stable definition IDs, while identifying live element/nested-collection getters,
+public character setters, result/file aliases, live Game registries/mechanics, and
+cached DraftStore Games as mutation paths outside core operations. The focused core
+ownership probes, focused builder alias probe, full reactor tests, and reactor
+package pass; the first builder attempts hit the intermittent Windows Maven
+classpath `Access is denied` failure, then passed unchanged after packaging rebuilt
+module outputs. A1.4 maps both `.gmcf` encodings and confirms current object/text
+round trips, racial Skill/trait conversion, and one-time legacy ID migration. It
+also records that source hash/version are not validated, no generation receipt or
+core character/session persistence contract exists, object imports lack the
+`GameIO` deserialization filter, and object-to-lightweight conversion cannot restore
+draft-only Skill-point configuration or starting-money method. Its published A1
+findings are now the concise ownership map, 12 dependency/authority violations,
+compatibility map, and ordered core migration set. Resume at A2.1 by asking John to
+select or confirm the three materially different milestone Games; this is a
+meaningful product/architecture decision and must not be inferred. Then build the
+support matrix and choose the first complete delivery boundary in plan order.
 Establish revision binding, contributions/dependencies, persistence, documentation,
 and consumer tests early. Sessions retain their original Game revision; migration
 requires explicit core revalidation. Defer new UI work until core proof, then

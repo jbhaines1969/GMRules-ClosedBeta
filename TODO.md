@@ -93,10 +93,10 @@ item is the resume point; mark an item complete only after its acceptance eviden
 is verified.
 
 - [x] A1.1 Inventory existing character paths.
-- [ ] A1.2 Classify current responsibilities.
-- [ ] A1.3 Audit object ownership and isolation.
-- [ ] A1.4 Audit persistence and migration.
-- [ ] A1.5 Publish the audit findings.
+- [x] A1.2 Classify current responsibilities.
+- [x] A1.3 Audit object ownership and isolation.
+- [x] A1.4 Audit persistence and migration.
+- [x] A1.5 Publish the audit findings.
 - [ ] A2.1 Select the demonstration Games.
 - [ ] A2.2 Build the support matrix.
 - [ ] A2.3 Choose the first complete Game.

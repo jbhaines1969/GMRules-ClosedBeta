@@ -62,13 +62,23 @@ Defense remain provisional, and item instances, specialization, multiclass,
 general-resource, combat-state, and complete Character Generation validation
 contracts remain open.
 
-Phase A Character Generation auditing is active. A1.1 is complete in
-`CharGenAudit.md`: it inventories the fragmented core Attribute/Race/Background
-operations, `GMRCharacter` construction, builder DTO/file adapters, HTTP routes,
-browser-led stage sequence, persistence flows, and existing verification surfaces.
-There is no core generation session/coordinator today; object-backed export is the
-only production path that assembles a `GMRCharacter`. The next bounded step is
-A1.2, classifying each recorded responsibility without implementing migrations.
+Phase A Character Generation step A1 is complete. A1.1 through A1.5 in
+`CharGenAudit.md` inventory current paths and responsibilities, and the
+object-ownership audit verifies that construction/setter snapshots isolate Game
+definitions and separate characters while preserving stable IDs. It also records
+that live element getters, nested mutable collections, public character setters,
+`ConstructionResult`, `CharacterFile`, live Game registries/mechanics, and cached
+DraftStore Games remain unrestricted mutation or alias paths. The persistence
+audit maps core serialization, both `.gmcf` encodings, the pre-change compatibility
+shell, source metadata, receipt absence, conversion loss, and durability/security
+limits. Legacy object migration, both current round trips, racial Skill/trait
+conversion, and one-time character ID assignment are verified. Source hash/version
+remain unvalidated evidence rather than an exact revision binding. No production
+API or mechanics migration was implemented. The published A1 findings now
+provide the authoritative ownership map, 12 dependency/authority violations, the
+compatibility map, and the ordered core migration set through the three-Game proof
+and later presenter work. Resume at A2.1 by selecting the three materially
+different milestone Games with John; do not infer that product choice.
 
 This is a universal, transport-neutral platform boundary, not a rule limited to
 Character Generation or Combat. A consumer may access the loaded `Game`
