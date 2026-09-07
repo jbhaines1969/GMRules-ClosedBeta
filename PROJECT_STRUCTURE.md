@@ -1,6 +1,6 @@
 # GMRules Closed Beta Deploy Structure
 
-Updated: 2026-09-02
+Updated: 2026-09-06
 
 This file is the deploy-release filesystem map for `GMRules-ClosedBeta`.
 Update it whenever tracked files or deploy-relevant directories are added, removed, or moved. Its purpose is to let agents find known paths from this document before falling back to repository searches.
@@ -25,6 +25,7 @@ GMRules-ClosedBeta/
 |-- .gitignore
 |-- AGENTS.md
 |-- AGENT_HANDOFF.md
+|-- CharGenAudit.md
 |-- CharGenPlan.md
 |-- OpenQuestions.md
 |-- PROJECT_NOTES.md
@@ -124,6 +125,7 @@ PRODUCT_DESIGN_CONTEXT.md # Concise product vision, journeys, terminology, UX in
 TODO.md             # Launch-ordered beta checklist.
 AGENTS.md           # Operating instructions for future agents.
 AGENT_HANDOFF.md    # Current handoff snapshot for recovery/continuation.
+CharGenAudit.md     # Durable Phase A inventory and audit evidence for the core-owned Character Generation migration.
 CharGenPlan.md      # Prompt-sized core-first plan for a fully contract-driven Character Generation boundary.
 OpenQuestions.md    # Nonbinding design questions and unsettled options under active consideration.
 PROJECT_STRUCTURE.md

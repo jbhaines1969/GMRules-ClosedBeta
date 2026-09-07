@@ -62,6 +62,14 @@ Defense remain provisional, and item instances, specialization, multiclass,
 general-resource, combat-state, and complete Character Generation validation
 contracts remain open.
 
+Phase A Character Generation auditing is active. A1.1 is complete in
+`CharGenAudit.md`: it inventories the fragmented core Attribute/Race/Background
+operations, `GMRCharacter` construction, builder DTO/file adapters, HTTP routes,
+browser-led stage sequence, persistence flows, and existing verification surfaces.
+There is no core generation session/coordinator today; object-backed export is the
+only production path that assembles a `GMRCharacter`. The next bounded step is
+A1.2, classifying each recorded responsibility without implementing migrations.
+
 This is a universal, transport-neutral platform boundary, not a rule limited to
 Character Generation or Combat. A consumer may access the loaded `Game`
 in-process, in a background JVM, through a service, or through a language bridge;

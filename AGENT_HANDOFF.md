@@ -111,8 +111,12 @@ must be demonstrable through core contracts without consumer interpretation.
 John's immediate priority is complete core-owned Character Generation and a usable
 character file, followed by the action-sequence consumer. Revised `CharGenPlan.md`
 defines four gates: resumable session foundation, first complete Game, three-system
-proof, and product presenter. Start at Phase A step 1 by auditing the existing
-`GMRCharacter` and consumer, then select three Games and the first delivery boundary.
+proof, and product presenter. Phase A step A1.1 is complete in `CharGenAudit.md`.
+It inventories current core operations, `GMRCharacter` construction, builder and
+web adapters, browser stages, persistence paths, and verification entry points.
+Resume at A1.2 by classifying the recorded responsibilities; do not begin migration
+implementation in that step. After the five audit substeps, select three Games and
+the first delivery boundary.
 Establish revision binding, contributions/dependencies, persistence, documentation,
 and consumer tests early. Sessions retain their original Game revision; migration
 requires explicit core revalidation. Defer new UI work until core proof, then

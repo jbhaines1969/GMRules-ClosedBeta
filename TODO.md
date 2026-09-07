@@ -86,6 +86,48 @@ proven; adaptation or replacement is an audit-based choice, not a mandatory rewr
 The matrix is an early design input; the first complete character is the immediate
 delivery target.
 
+#### Phase A Execution Checklist
+
+Follow the matching substeps in `CharGenPlan.md` in order. The first unchecked
+item is the resume point; mark an item complete only after its acceptance evidence
+is verified.
+
+- [x] A1.1 Inventory existing character paths.
+- [ ] A1.2 Classify current responsibilities.
+- [ ] A1.3 Audit object ownership and isolation.
+- [ ] A1.4 Audit persistence and migration.
+- [ ] A1.5 Publish the audit findings.
+- [ ] A2.1 Select the demonstration Games.
+- [ ] A2.2 Build the support matrix.
+- [ ] A2.3 Choose the first complete Game.
+- [ ] A3.1 Define capability discovery.
+- [ ] A3.2 Define the session lifecycle.
+- [ ] A3.3 Define decisions and answers.
+- [ ] A3.4 Define revision and finalization operations.
+- [ ] A3.5 Define partial-state inspection.
+- [ ] A3.6 Define diagnostics and events.
+- [ ] A3.7 Define invocation equivalence.
+- [ ] A3.8 Publish the initial contract.
+- [ ] A4.1 Define exact rules-revision retention.
+- [ ] A4.2 Define character-to-Game compatibility.
+- [ ] A4.3 Define contribution categories.
+- [ ] A4.4 Define choice revision and retraction.
+- [ ] A4.5 Define atomic and idempotent answers.
+- [ ] A4.6 Implement the minimal dependency model.
+- [ ] A4.7 Define safe recalculation.
+- [ ] A5.1 Define the session persistence format.
+- [ ] A5.2 Implement session save and resume.
+- [ ] A5.3 Inject and record randomness.
+- [ ] A5.4 Introduce the generation receipt.
+- [ ] A5.5 Migrate legacy generation evidence.
+- [ ] A6.1 Map required Attribute operations.
+- [ ] A6.2 Implement Attribute decisions.
+- [ ] A6.3 Implement Attribute random outcomes.
+- [ ] A6.4 Store authoritative Attribute state.
+- [ ] A6.5 Create the core-only controller.
+- [ ] A6.6 Exercise lifecycle and failure cases.
+- [ ] A6.7 Prove Gate A.
+
 - [x] Establish core `GMRCharacter` ownership with stable character/source
   identity, actual snapshotted core element objects, a core construction input,
   explicit missing/wrong-type reference diagnostics, builder persistence-wrapper
