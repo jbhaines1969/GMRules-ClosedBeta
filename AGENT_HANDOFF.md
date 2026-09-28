@@ -1,9 +1,9 @@
 # GMRules Closed Beta Agent Handoff
 
-Updated: 2026-09-07
+Updated: 2026-09-26
 Repo root: `C:\Users\John\IdeaProjects\GMRules-ClosedBeta`
 
-This is the primary recovery document for the next session. Read `AGENTS.md`, `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `PRODUCT_DESIGN_CONTEXT.md`, and local `USER.md` before editing. Inspect `git status --short`. John confirmed on 2026-09-06 that he committed and pushed the prior feature batch through IDEA; the worktree was clean before the current PF2e conversion batch began.
+This is the primary recovery document for the next session. Read `AGENTS.md`, `PROJECT_NOTES.md`, `TODO.md`, `PROJECT_STRUCTURE.md`, `PRODUCT_DESIGN_CONTEXT.md`, and local `USER.md` before editing. Inspect `git status --short`. John committed and pushed the verified PF2e conversion batch on 2026-09-07 as `1cfe9a9`; `main` and `origin/main` matched and the worktree was clean immediately afterward.
 
 Governing architecture rule: core is the only executable authority for rules and
 mechanics. Descendant applications are purpose-specific UIs, automators, bridges,
@@ -114,9 +114,11 @@ John approved a first conversion batch limited to level-one Character Generation
 plus direct ORC dependencies, and approved a first-class core `Action` model rather
 than collapsing actions into `Skill`. The interrupted implementation has now been
 regenerated and verified. Do not restart the design audit or mark the two-ruleset
-prerequisite complete; resume with the second conversion/source decision.
+prerequisite complete. John directed that the active pass remain PF2e-only: finish
+the PF2e source-field-to-core-member mapping before inspecting, mapping,
+or implementing MM3e.
 
-Current uncommitted implementation:
+Committed implementation in `1cfe9a9`:
 
 - New core `CatalogMetadata`, `GameLicenseNotice`, and `GameDiagnostic` types retain
   typed element provenance, structured distribution notices, and explicit
@@ -173,15 +175,50 @@ Final verified checkpoint:
   wrapper `Shield Block` aliases to the actual Feat Skill instead of creating a
   second Skill. The local converter test now asserts Champion receives that actual
   Skill ID and that the final Game has no ERROR diagnostics.
-- The generated Game reports ten warnings: the duplicate `Shield Block`, the seven
-  omitted Heritages, the provisional level-one scope, and unsupported Foundry rule
-  elements. It reports no ERROR diagnostics. `git diff --check` passes.
+- The generated Game reports eleven warnings: the duplicate `Shield Block`, the seven
+  omitted Heritages, the provisional level-one scope, unsupported Foundry rule
+  elements, and unsupported Attribute Generation. It reports no ERROR diagnostics.
+  `git diff --check` passes.
 
-Resume with the still-unchecked Pre-A2 prerequisite: confirm the second ruleset
-source with John, implement and verify that conversion, and leave the prerequisite
-unchecked until John explicitly confirms both conversions are finished. Then start
-A2.1, select the third demonstration Game, build the support matrix, and choose the
-first complete delivery boundary.
+Resume with the still-unchecked Pre-A2 prerequisite by producing the complete PF2e
+source-field-to-core-member crosswalk. Classify each relevant field as mapped,
+core-refactor-required, explicitly unsupported, or intentionally omitted, including
+relationship resolution and diagnostics. Do not inspect, map, or implement MM3e in
+this pass. Work in the current shared Builder order, one Character element at a
+time. Advance without a separate manual acceptance gate when mapped fields,
+relationships, and operations resolve through core `Game` and `GMRCharacter`
+ownership and focused verification passes. Dice Options may be filled manually
+later. PF2e needs no Attribute category; the existing six core Attributes are
+sufficient, with transient short-slug aliases still required for later references.
+Keep boosts, flaws, and key-ability decisions with their owning later elements and
+generation contracts. After completing the PF2e mapping, return separately to the second
+conversion. Leave the prerequisite unchecked until John explicitly confirms both
+conversions are finished; then start A2.1, select the third demonstration Game,
+build the support matrix, and choose the first complete delivery boundary.
+
+The first detailed increment, Attribute Categories and Attributes, is now mapped in
+`PF2eCharGenMapping.md`. The converter retains the six existing core Attribute
+definitions and now adds transient `str`/`dex`/`con`/`int`/`wis`/`cha` aliases to
+their fresh core IDs. Missing alias targets emit `ATTRIBUTE_ALIAS_TARGET_MISSING`
+as an ERROR. No scores, boosts, flaws, key-ability decisions, modifier calculation,
+or generation sequencing were pulled forward. Focused core/converter tests pass
+40 tests total, including the new alias assertions and a full source conversion
+with zero ERROR diagnostics. John removed the per-element manual acceptance gate;
+advance to Attribute Generation, the next shared Builder element. Full `mvn test` and
+`mvn package` also pass all 133 tests and rebuild `target/gmrules-app.jar`.
+
+Attribute Generation is now completely crosswalked in `PF2eCharGenMapping.md`.
+The converter preserves canonical Strength-through-Charisma order, clears the
+inherited default dice type, stores an explicit empty generation-option list, and
+emits `UNSUPPORTED_ATTRIBUTE_GENERATION`. It does not expose boost arrays or encode
+them as point buy. The crosswalk records all 31 Ancestry shapes, 232 Background
+shapes, 28 Class key-ability shapes including Psychic's feature-owned exception,
+and every current Builder generation field. The required future boundary remains a
+system-agnostic typed decision/contribution session with provenance, dependency,
+retraction, persistence, and authoritative final state; no PF2e-named core API was
+added. Focused tests, full `mvn test`, and full `mvn package` pass all 133 tests,
+including generation capability/order persistence. Resume the one-element mapping
+pass at Hit Points.
 
 The entire local `games/` tree is ignored and must never be added to Git. It contains
 conversion inputs and reference checkouts that may mix redistributable and licensed

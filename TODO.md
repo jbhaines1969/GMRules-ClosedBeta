@@ -101,8 +101,25 @@ is verified.
   The first PF2e batch is implemented and verified as an explicitly provisional,
   level-one ORC-only catalog with resolved core object relationships and typed
   unsupported-capability diagnostics. It is not complete legal Character Generation.
-  The second ruleset conversion remains pending; LoreKit's MM3e/OGL pack is still
-  the candidate until John confirms the source and both conversions are finished.
+  The active pass is PF2e-only: complete its source-field-to-core-member
+  mapping before inspecting, mapping, or implementing MM3e. The second conversion
+  remains pending and this prerequisite remains unchecked until John explicitly
+  confirms both conversions are finished.
+  Process one Character/Builder element at a time in the current shared Builder
+  order. Dice Options may be filled manually later. PF2e uses no Attribute category;
+  the six existing core Attributes are sufficient, with transient source-slug aliases
+  still needed for later boost/flaw/key-ability reference resolution. Next map the
+  Attribute definitions without pulling generation or Race/Class mechanics forward.
+  The Attribute crosswalk is now recorded in `PF2eCharGenMapping.md`; the converter
+  creates the same six definitions and adds transient `str`/`dex`/`con`/`int`/`wis`/
+  `cha` aliases with an explicit missing-target ERROR diagnostic. Focused conversion
+  tests pass. No separate manual acceptance is required when fields, relationships,
+  and operations resolve through core `Game`/`GMRCharacter` ownership and focused
+  verification passes. Attribute Generation is now fully crosswalked: the generated
+  Game preserves canonical ability order, advertises no false dice/array/point-buy
+  option, and emits `UNSUPPORTED_ATTRIBUTE_GENERATION`. PF2e's element-owned boost
+  data is classified as input to a future system-agnostic decision/contribution
+  contract rather than encoded as generic point buy. Next map Hit Points.
 - [ ] A2.1 Select the demonstration Games.
 - [ ] A2.2 Build the support matrix.
 - [ ] A2.3 Choose the first complete Game.

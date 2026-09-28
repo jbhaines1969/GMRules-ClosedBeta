@@ -623,14 +623,31 @@ Phase A step 1 is complete in `CharGenAudit.md`. Resume at the single Pre-A2 dat
 prerequisite in `TODO.md`: finish both JSON-to-`.gmrf` conversions and obtain
 John's explicit confirmation before marking that prerequisite complete. The first
 PF2e level-one provisional catalog batch is implemented and verified; the second
-ruleset conversion remains unresolved. Then continue with Phase A step 2 to select
+ruleset conversion remains unresolved. Complete the PF2e source-field to
+core-member mapping before inspecting, mapping, or implementing MM3e so the two
+schemas do not shape one another prematurely. Then continue with Phase A step 2 to select
 the three Games, build the support matrix, and choose the first delivery boundary.
+Perform the PF2e mapping pass one Character/Builder element at a time in the current
+shared Builder stage order. Advance without a separate manual acceptance gate when
+the element's fields, relationships, and operations resolve through `Game` and
+`GMRCharacter` as core-owned objects and focused verification passes;
+do not use later-element mechanics to expand an earlier element's ownership. Dice
+Options need no source-completeness gate because John can fill the simple die-size
+list later. Attribute Categories and Attributes are the first detailed mapping:
+PF2e needs no Attribute category, and the existing core `Attribute` model is
+sufficient for the six abilities. Add transient `str`/`dex`/`con`/`int`/`wis`/`cha`
+source aliases to their core IDs; map boosts, flaws, and key-ability decisions only
+when their owning Race, Background, Class, and generation contracts are addressed.
+Attribute Generation is now crosswalked without adding PF2e concepts to core. The
+provisional Game preserves canonical Attribute order but explicitly advertises no
+generation option until the system-agnostic session/contribution contract exists.
+Resume the mapping pass at Hit Points.
 Execute one numbered substep per implementation prompt unless a prompt explicitly
 groups them. Each prompt identifies inputs, scope, acceptance evidence,
 compatibility obligations, and unresolved decisions. These packages do not
 authorize inventing unspecified game rules.
 
-Update the plan and handoff after accepted increments. Keep verification
+Update the plan and handoff after completed increments. Keep verification
 proportional to changes and follow repository test and server-cleanup rules.
 Core-only phases need no verification server. Contract examples/tests must be
 usable without reading the web Character Generator implementation.

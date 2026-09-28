@@ -101,7 +101,30 @@ marked `OGL`. Missing, blank, or unrecognized license values must fail closed wi
 diagnostics rather than being inferred from a neighboring record, pack, or source.
 Use the Foundry data to resolve the incomplete LoreKit class-choice catalogs, but
 preserve only permitted object data in conversion outputs and manifests. LoreKit's
-materially different MM3e/OGL pack remains the likely second ruleset pending confirmation.
+materially different MM3e/OGL pack remains a possible second ruleset, but John
+explicitly deferred all MM3e inspection, mapping, and implementation until the PF2e
+field/member mapping is complete. Keep the active conversion pass
+PF2e-only so the two schemas do not cross-contaminate the core design process.
+John also set the PF2e mapping method: follow the current shared Builder order, one
+Character element at a time. Advance without separate manual approval when its
+fields, relationships, and operations resolve through core `Game`/`GMRCharacter`
+ownership and focused verification passes. Dice Options
+are a simple manual-fill list and are not a source-completeness blocker. PF2e's six
+abilities require no Attribute category and fit the existing core `Attribute` model.
+The converter uses transient aliases from `str`, `dex`, `con`, `int`, `wis`, and
+`cha` to the new core Attribute IDs. Ancestry/background boosts and flaws plus
+class key-ability choices remain with their owning later elements and generation
+contracts rather than becoming fields on `Attribute`.
+The first detailed mapping increment is now implemented in `PF2eCharGenMapping.md`.
+The six aliases exist only in the converter's transient source-to-core join map;
+missing targets produce `ATTRIBUTE_ALIAS_TARGET_MISSING` ERROR diagnostics. The
+Attribute definition, relationship, omission, and deferred-mechanics classifications
+are complete. Attribute Generation is also fully crosswalked. The converter now
+persists canonical ability order, stores an explicit empty generation-option list,
+clears the inherited default dice type, and emits `UNSUPPORTED_ATTRIBUTE_GENERATION`.
+PF2e Ancestry, Background, Class, and feature choices remain converter inputs to a
+future system-agnostic decision/contribution contract; no PF2e stage vocabulary was
+added to core. Hit Points is the next Builder mapping space.
 `FoundryCharGenFolderPlan.md` records the initial ORC-only source scope. Required
 definition packs are ancestries, ancestry features, heritages, backgrounds,
 classes, class features, feats, equipment, spells, deities, familiar abilities,

@@ -30,6 +30,7 @@ GMRules-ClosedBeta/
 |-- FoundryCharGenFolderPlan.md
 |-- JSON_to_gmrf_OpenQuestions.md
 |-- OpenQuestions.md
+|-- PF2eCharGenMapping.md
 |-- PROJECT_NOTES.md
 |-- PRODUCT_DESIGN_CONTEXT.md
 |-- PROJECT_STRUCTURE.md
@@ -171,6 +172,7 @@ AGENTS.md           # Operating instructions for future agents.
 AGENT_HANDOFF.md    # Current handoff snapshot for recovery/continuation.
 CharGenAudit.md     # Durable Phase A inventory and audit evidence for the core-owned Character Generation migration.
 CharGenPlan.md      # Prompt-sized core-first plan for a fully contract-driven Character Generation boundary.
+PF2eCharGenMapping.md # Incremental PF2e source-field-to-core-member Character Generation crosswalk.
 JSON_to_gmrf_OpenQuestions.md # Questions to resolve before planning core refactors and JSON-to-.gmrf translation rules.
 OpenQuestions.md    # Nonbinding design questions and unsettled options under active consideration.
 PROJECT_STRUCTURE.md

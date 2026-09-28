@@ -45,6 +45,14 @@ import java.util.stream.Stream;
 
 /** Translates the explicit ORC subset of Foundry PF2e into a provisional level-one Game. */
 public final class FoundryPf2eLevelOneConverter {
+    private static final List<Map.Entry<String, String>> ATTRIBUTE_SOURCE_NAMES = List.of(
+        Map.entry("str", "Strength"),
+        Map.entry("dex", "Dexterity"),
+        Map.entry("con", "Constitution"),
+        Map.entry("int", "Intelligence"),
+        Map.entry("wis", "Wisdom"),
+        Map.entry("cha", "Charisma")
+    );
     private static final Set<String> DEFINITION_PACKS = Set.of(
         "actions", "ancestries", "ancestry-features", "backgrounds", "classes", "class-features", "deities",
         "equipment", "familiar-abilities", "feats", "heritages", "spells"
@@ -79,7 +87,7 @@ public final class FoundryPf2eLevelOneConverter {
         ArrayList<GameDiagnostic> diagnostics = new ArrayList<>();
         LinkedHashMap<String, Integer> counts = new LinkedHashMap<>();
         HashMap<String, String> sourceToCoreId = new HashMap<>();
-        registerFoundation(game, sourceToCoreId, counts);
+        registerFoundation(game, sourceToCoreId, counts, diagnostics);
 
         ArrayList<SourceRecord> ordered = new ArrayList<>();
         for (String key : selected) ordered.add(records.get(key));
@@ -101,6 +109,10 @@ public final class FoundryPf2eLevelOneConverter {
         diagnostics.add(new GameDiagnostic(
             "UNSUPPORTED_FOUNDRY_RULES", GameDiagnostic.Severity.WARNING,
             "Foundry rule elements are recorded by type for diagnostics but are not executed or exposed as a consumer rules language."
+        ));
+        diagnostics.add(new GameDiagnostic(
+            "UNSUPPORTED_ATTRIBUTE_GENERATION", GameDiagnostic.Severity.WARNING,
+            "PF2e staged Attribute choices and contributions require the future core generation-session contract; this provisional Game does not advertise dice, array, or point-buy generation."
         ));
         game.setCatalogDiagnostics(diagnostics);
         return new FoundryConversionReport(game, counts, excludedOgl, excludedUnknown);
@@ -177,6 +189,8 @@ public final class FoundryPf2eLevelOneConverter {
         game.setSystemName("races", "Ancestries");
         game.setSystemName("heritages", "Heritages");
         game.setSystemName("characterClasses", "Classes");
+        game.getAttributeGenerationMethod().setGenerationType("");
+        game.setAttributeGenerationOptions(List.of());
         GameLicenseNotice notice = new GameLicenseNotice();
         notice.setLicenseName("Open RPG Creative License (ORC)");
         notice.setNotice("This Game contains rules material selected only from source records explicitly marked ORC. The ORC License is available at www.azoralaw.com/orclicense. All warranties are disclaimed as set forth therein.");
@@ -188,10 +202,20 @@ public final class FoundryPf2eLevelOneConverter {
         return game;
     }
 
-    private void registerFoundation(Game game, Map<String, String> ids, Map<String, Integer> counts) {
-        for (String name : List.of("Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma")) {
+    private void registerFoundation(Game game, Map<String, String> ids, Map<String, Integer> counts, List<GameDiagnostic> diagnostics) {
+        ArrayList<String> attributeOrder = new ArrayList<>();
+        for (Map.Entry<String, String> attributeSourceName : ATTRIBUTE_SOURCE_NAMES) {
+            String name = attributeSourceName.getValue();
             Attribute attribute = new Attribute(name);
-            register(game, ElementRegistryKey.ATTRIBUTES, attribute, "attribute:" + slug(name), ids, counts, new ArrayList<>());
+            register(game, ElementRegistryKey.ATTRIBUTES, attribute, "attribute:" + slug(name), ids, counts, diagnostics);
+            String coreId = ids.get("attribute:" + slug(name));
+            if (coreId != null && !coreId.isBlank()) {
+                attributeOrder.add(coreId);
+            }
+        }
+        addAttributeSourceAliases(ids, diagnostics);
+        if (attributeOrder.size() == ATTRIBUTE_SOURCE_NAMES.size()) {
+            game.setAttributeAssignmentOrder(attributeOrder);
         }
         SkillCategories categories = game.getRegistry(RegistryKey.SKILL_CATEGORIES);
         for (String category : List.of("Skill", "Feat", "Class Feature", "Ancestry Feature", "Familiar Ability")) {
@@ -203,6 +227,25 @@ public final class FoundryPf2eLevelOneConverter {
             skill.setType("Skill");
             register(game, ElementRegistryKey.SKILLS, skill, "skill:" + slug(name), ids, counts, new ArrayList<>());
         }
+    }
+
+    static void addAttributeSourceAliases(Map<String, String> ids, List<GameDiagnostic> diagnostics) {
+        ATTRIBUTE_SOURCE_NAMES.forEach(attributeSourceName -> {
+            String sourceSlug = attributeSourceName.getKey();
+            String name = attributeSourceName.getValue();
+            String coreId = ids.get("attribute:" + slug(name));
+            if (coreId == null || coreId.isBlank()) {
+                diagnostics.add(new GameDiagnostic(
+                    "ATTRIBUTE_ALIAS_TARGET_MISSING",
+                    GameDiagnostic.Severity.ERROR,
+                    "The PF2e ability abbreviation could not be linked to its core Attribute definition.",
+                    "attributes",
+                    sourceSlug
+                ));
+                return;
+            }
+            ids.put("attribute:" + sourceSlug, coreId);
+        });
     }
 
     private void importRecord(Game game, SourceRecord record, Map<String, String> ids, Map<String, Integer> counts, List<GameDiagnostic> diagnostics) {

@@ -150,6 +150,17 @@ This preserves the mechanic without inventing options or preventing the current 
 
 The LoreKit repository contains enough MM3e/d20 Hero material to serve as the second JSON-to-`.gmrf` conversion source if John confirms that this is the intended second ruleset. Its point-budget, ranked-purchase, power pipeline, alternate-effect, resistance, and degree-resolution structures are materially different from PF2e and are useful evidence for keeping core contracts system-independent.
 
+John deferred this opportunity for the current pass. Complete the PF2e
+source-field-to-core-member mapping before any MM3e inspection, mapping, or
+implementation. Do not use MM3e structures as design input while closing PF2e gaps.
+
+The PF2e mapping pass follows the current shared Builder order one Character element
+at a time. Dice Options are not blocked on source completeness. PF2e uses no Attribute
+category; its six abilities fit the existing core `Attribute` definitions. The
+converter needs transient short-slug aliases for relationship resolution, while
+boosts, flaws, and class key-ability choices remain owned by later element/session
+contracts.
+
 ## PF2ools Repository Audit — 2026-09-07
 
 ### Repository Scope
